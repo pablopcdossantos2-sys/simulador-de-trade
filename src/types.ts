@@ -67,7 +67,6 @@ export interface Position {
   openedCandleIndex: number;
   openedReplaySequence?: number;
   requestedEntry: number;
-  requestedEntry: number;
   entry: number;
   stopLoss: number;
   target: number;
@@ -85,6 +84,7 @@ export interface Trade {
   asset: Asset;
   side: Side;
   signalId: string;
+  requestedEntry: number;
   entry: number;
   stopLoss: number;
   target: number;
