@@ -8,6 +8,7 @@ import {
   loadSessionTrades,
   loadTrainingEvents,
   loadTrainingSessions,
+  saveTrade,
 } from "../services/persistence";
 import type {
   Trade,
@@ -43,6 +44,8 @@ export function SessionHistoryPanel({ refreshKey }: Props) {
   const [trades, setTrades] = useState<Trade[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [noteDrafts, setNoteDrafts] = useState<Record<string, string>>({});
+  const [noteFeedback, setNoteFeedback] = useState<Record<string, string>>({});
 
   useEffect(() => {
     let active = true;
@@ -85,6 +88,11 @@ export function SessionHistoryPanel({ refreshKey }: Props) {
         if (!active) return;
         setEvents(nextEvents);
         setTrades(nextTrades);
+        setNoteDrafts(
+          Object.fromEntries(
+            nextTrades.map((trade) => [trade.id, trade.postTradeNote ?? ""]),
+          ),
+        );
       })
       .catch((reason) => {
         if (!active) return;
@@ -107,6 +115,30 @@ export function SessionHistoryPanel({ refreshKey }: Props) {
     [selected, events, trades],
   );
   const byHour = useMemo(() => performanceByHour(trades), [trades]);
+
+  async function saveNote(trade: Trade) {
+    const note = noteDrafts[trade.id] ?? "";
+    const updated = { ...trade, postTradeNote: note };
+
+    try {
+      await saveTrade(updated);
+      setTrades((current) =>
+        current.map((item) => (item.id === trade.id ? updated : item)),
+      );
+      setNoteFeedback((current) => ({
+        ...current,
+        [trade.id]: "Nota salva.",
+      }));
+    } catch (reason) {
+      setNoteFeedback((current) => ({
+        ...current,
+        [trade.id]:
+          reason instanceof Error
+            ? reason.message
+            : "Não foi possível salvar a nota.",
+      }));
+    }
+  }
 
   const disciplineEvents = events.filter(
     (event) => classifyTrainingEvent(event) === "DISCIPLINE",
@@ -332,6 +364,60 @@ export function SessionHistoryPanel({ refreshKey }: Props) {
                       </div>
                     )}
                   </article>
+                </div>
+
+                <div className="post-trade-notes">
+                  <div className="training-timeline-heading">
+                    <strong>Notas pós-trade</strong>
+                    <span>{trades.length} operação{trades.length === 1 ? "" : "ões"}</span>
+                  </div>
+
+                  {trades.length === 0 ? (
+                    <p className="empty-state">
+                      Nenhum trade encerrado nesta sessão.
+                    </p>
+                  ) : (
+                    trades.map((trade, index) => (
+                      <article key={trade.id} className="post-trade-note">
+                        <div className="post-trade-note-head">
+                          <div>
+                            <span>Trade {index + 1}</span>
+                            <strong>
+                              {trade.side === "BUY" ? "Compra" : "Venda"} ·{" "}
+                              {formatPoints(trade.resultPoints)}
+                            </strong>
+                          </div>
+                          <small>
+                            {trade.contracts} contrato
+                            {trade.contracts === 1 ? "" : "s"} · líquido R 
+                            {trade.netResultBRL.toFixed(2)}
+                          </small>
+                        </div>
+
+                        <textarea
+                          value={noteDrafts[trade.id] ?? ""}
+                          onChange={(event) =>
+                            setNoteDrafts((current) => ({
+                              ...current,
+                              [trade.id]: event.target.value,
+                            }))
+                          }
+                          placeholder="O que você fez bem? O que poderia melhorar? Houve hesitação, antecipação ou quebra de processo?"
+                          rows={4}
+                        />
+
+                        <div className="post-trade-note-actions">
+                          <button
+                            type="button"
+                            onClick={() => void saveNote(trade)}
+                          >
+                            Salvar nota
+                          </button>
+                          <span>{noteFeedback[trade.id] ?? ""}</span>
+                        </div>
+                      </article>
+                    ))
+                  )}
                 </div>
 
                 <div className="error-separation">
