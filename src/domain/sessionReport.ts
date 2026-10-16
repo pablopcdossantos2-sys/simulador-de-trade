@@ -63,6 +63,14 @@ export function calculateSessionPerformance(
     (sum, trade) => sum + trade.grossResultBRL,
     0,
   );
+  const operationalCostsBRL = scopedTrades.reduce(
+    (sum, trade) => sum + trade.operationalCostsBRL,
+    0,
+  );
+  const netResultBRL = scopedTrades.reduce(
+    (sum, trade) => sum + trade.netResultBRL,
+    0,
+  );
   const summary = summarizeTraining(session, scopedEvents);
   const technicalIssues = scopedEvents.filter(
     (event) => event.type === "TECHNICAL_ISSUE",
@@ -142,6 +150,8 @@ export function calculateSessionPerformance(
     expectancyR,
     maxDrawdownPoints,
     grossResultBRL,
+    operationalCostsBRL,
+    netResultBRL,
     blockedAttempts: summary.blockedAttempts,
     technicalIssues,
     ignoredSignals: summary.ignoredSignals,
