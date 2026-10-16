@@ -33,8 +33,9 @@ export function useReplayPlayer(onTrade: (trade: ReplayTrade) => void) {
   async function loadReplay(
     expectedStart?: string,
     expectedEnd?: string,
+    sourcePathOverride?: string,
   ): Promise<ReplaySessionInfo | null> {
-    const normalized = path.trim().replace(/^"(.*)"$/, "$1");
+    const normalized = (sourcePathOverride ?? path).trim().replace(/^"(.*)"$/, "$1");
     if (!normalized) {
       setError("Informe o caminho de um arquivo .replay.csv.");
       return null;
