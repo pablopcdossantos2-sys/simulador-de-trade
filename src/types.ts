@@ -54,6 +54,11 @@ export interface OcoOrder {
   target: number;
 }
 
+export interface ExecutionSettings {
+  costPerContractRoundTripBRL: number;
+  slippageTicksPerSide: number;
+}
+
 export interface Position {
   id: string;
   asset: Asset;
@@ -61,10 +66,14 @@ export interface Position {
   signalId: string;
   openedCandleIndex: number;
   openedReplaySequence?: number;
+  requestedEntry: number;
+  requestedEntry: number;
   entry: number;
   stopLoss: number;
   target: number;
   contracts: number;
+  slippageTicksPerSide: number;
+  costPerContractRoundTripBRL: number;
   openedAt: string;
   status: "OPEN";
 }
@@ -80,6 +89,8 @@ export interface Trade {
   stopLoss: number;
   target: number;
   contracts: number;
+  slippageTicksPerSide: number;
+  costPerContractRoundTripBRL: number;
   openedAt: string;
   status: "CLOSED";
   exitPrice: number;
@@ -87,6 +98,8 @@ export interface Trade {
   closedAt: string;
   resultPoints: number;
   grossResultBRL: number;
+  operationalCostsBRL: number;
+  netResultBRL: number;
 }
 
 export interface TradeIntent {
@@ -94,6 +107,7 @@ export interface TradeIntent {
   side: Side;
   entry: number;
   contracts: number;
+  execution: ExecutionSettings;
   candleIndex: number;
   replaySequence?: number;
   oco: OcoOrder;
@@ -175,6 +189,8 @@ export interface SessionPerformance {
   expectancyR: number;
   maxDrawdownPoints: number;
   grossResultBRL: number;
+  operationalCostsBRL: number;
+  netResultBRL: number;
   blockedAttempts: number;
   technicalIssues: number;
   ignoredSignals: number;
