@@ -127,7 +127,7 @@ export function SimulationPlanner({ onPlanChange }: Props) {
                 Colete {result.plan.fullSessionsNeeded === 1 ? "o pregão" : "os pregões"}{" "}
                 {result.plan.fullSessionPreviousDates.map(brDate).join(", ")} entre 09:00 e{" "}
                 {result.plan.fullSessionEnd}. Isso fornece aproximadamente{" "}
-                {result.plan.fullSessionBars * result.plan.fullSessionsNeeded} candles M2 para aquecimento.
+                {result.plan.fullSessionBars} candles M2 para aquecimento.
               </p>
             </article>
 
