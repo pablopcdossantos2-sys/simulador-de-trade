@@ -181,3 +181,17 @@ export async function loadAllTrainingEvents(): Promise<TrainingEvent[]> {
   const events = raw ? (JSON.parse(raw) as TrainingEvent[]) : [];
   return events.sort((a, b) => a.timestamp.localeCompare(b.timestamp));
 }
+
+
+export async function loadAllTrades(): Promise<Trade[]> {
+  if (isTauriRuntime()) {
+    const trades = await invoke<Trade[]>("list_all_trades");
+    return trades.map(normalizeTrade);
+  }
+
+  const raw = localStorage.getItem(STORAGE_KEY);
+  const trades = raw ? (JSON.parse(raw) as Trade[]) : [];
+  return trades
+    .map(normalizeTrade)
+    .sort((a, b) => a.closedAt.localeCompare(b.closedAt));
+}
