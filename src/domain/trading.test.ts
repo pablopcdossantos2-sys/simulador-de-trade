@@ -26,7 +26,7 @@ const baseIntent: TradeIntent = {
   execution: {
     costPerContractRoundTripBRL: 1,
     slippageTicksPerSide: 0,
-    intrabarPolicy: "STOP_FIRST",
+    intrabarPolicy: "STOP_FIRST" as const,
   },
   candleIndex: 10,
   oco: { stopLoss: 129900, target: 130150 },
@@ -114,7 +114,7 @@ describe("regras de entrada", () => {
         execution: {
           costPerContractRoundTripBRL: 1,
           slippageTicksPerSide: 1,
-          intrabarPolicy: "STOP_FIRST",
+          intrabarPolicy: "STOP_FIRST" as const,
         },
       },
       new Date("2026-01-01T09:30:00Z"),
@@ -155,7 +155,7 @@ describe("resolução OCO", () => {
     contracts: 2,
     slippageTicksPerSide: 0,
     costPerContractRoundTripBRL: 1,
-    intrabarPolicy: "STOP_FIRST",
+    intrabarPolicy: "STOP_FIRST" as const,
     entryContext: null,
     openedAt: "2026-01-01T12:00:00.000Z",
     status: "OPEN" as const,
@@ -244,7 +244,7 @@ describe("resolução OCO negócio a negócio", () => {
     contracts: 2,
     slippageTicksPerSide: 0,
     costPerContractRoundTripBRL: 1,
-    intrabarPolicy: "STOP_FIRST",
+    intrabarPolicy: "STOP_FIRST" as const,
     entryContext: null,
     openedAt: "2026-01-01T09:30:00.000-03:00",
     status: "OPEN" as const,
@@ -315,7 +315,7 @@ describe("regras e execução SELL", () => {
     execution: {
       costPerContractRoundTripBRL: 1,
       slippageTicksPerSide: 1,
-      intrabarPolicy: "STOP_FIRST",
+      intrabarPolicy: "STOP_FIRST" as const,
     },
     candleIndex: 20,
     oco: {
