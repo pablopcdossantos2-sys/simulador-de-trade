@@ -1,7 +1,13 @@
+use chrono::{DateTime, NaiveDate, NaiveDateTime, NaiveTime};
+use encoding_rs::WINDOWS_1252;
 use rusqlite::{params, Connection};
 use serde::{Deserialize, Serialize};
+use serde_json::json;
+use std::fs::{self, File};
+use std::io::{BufRead, BufReader, BufWriter, Write};
+use std::path::{Path, PathBuf};
 use std::sync::Mutex;
-use tauri::Manager;
+use tauri::{Emitter, Manager};
 
 struct DbState(Mutex<Connection>);
 
@@ -21,6 +27,47 @@ struct TradeRecord {
     exit_reason: String,
     closed_at: String,
     result_points: f64,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct ProfitPreparationProgress {
+    percent: f64,
+    bytes_processed: u64,
+    bytes_total: u64,
+    source_rows: u64,
+    kept_rows: u64,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct ProfitPreparationResult {
+    source_path: String,
+    output_path: String,
+    metadata_path: String,
+    symbol: String,
+    source_order: String,
+    source_rows: u64,
+    kept_rows: u64,
+    discarded_rows: u64,
+    source_bytes: u64,
+    output_bytes: u64,
+    reduction_pct: f64,
+    first_timestamp: Option<String>,
+    last_timestamp: Option<String>,
+    session_start: String,
+    session_end: String,
+}
+
+#[derive(Debug, Clone)]
+struct ProfitLayout {
+    has_header: bool,
+    symbol_idx: Option<usize>,
+    date_idx: Option<usize>,
+    time_idx: Option<usize>,
+    timestamp_idx: Option<usize>,
+    price_idx: usize,
+    quantity_idx: usize,
 }
 
 fn initialize_database(connection: &Connection) -> rusqlite::Result<()> {
@@ -139,6 +186,568 @@ fn list_trades(state: tauri::State<'_, DbState>) -> Result<Vec<TradeRecord>, Str
         .map_err(|error| error.to_string())
 }
 
+fn decode_line(bytes: &[u8]) -> String {
+    let trimmed = bytes
+        .strip_suffix(b"\n")
+        .unwrap_or(bytes)
+        .strip_suffix(b"\r")
+        .unwrap_or(bytes);
+
+    if let Ok(text) = std::str::from_utf8(trimmed) {
+        return text.trim_start_matches('\u{feff}').to_string();
+    }
+
+    let (decoded, _, _) = WINDOWS_1252.decode(trimmed);
+    decoded.trim_start_matches('\u{feff}').to_string()
+}
+
+fn count_unquoted(line: &str, delimiter: char) -> usize {
+    let mut quoted = false;
+    let mut count = 0;
+    let mut chars = line.chars().peekable();
+
+    while let Some(ch) = chars.next() {
+        if ch == '"' {
+            if quoted && chars.peek() == Some(&'"') {
+                chars.next();
+            } else {
+                quoted = !quoted;
+            }
+        } else if ch == delimiter && !quoted {
+            count += 1;
+        }
+    }
+
+    count
+}
+
+fn detect_delimiter(line: &str) -> char {
+    [',', ';', '\t']
+        .into_iter()
+        .max_by_key(|delimiter| count_unquoted(line, *delimiter))
+        .unwrap_or(',')
+}
+
+fn parse_delimited_line(line: &str, delimiter: char) -> Vec<String> {
+    let mut fields = Vec::new();
+    let mut current = String::new();
+    let mut quoted = false;
+    let mut chars = line.chars().peekable();
+
+    while let Some(ch) = chars.next() {
+        if ch == '"' {
+            if quoted && chars.peek() == Some(&'"') {
+                current.push('"');
+                chars.next();
+            } else {
+                quoted = !quoted;
+            }
+        } else if ch == delimiter && !quoted {
+            fields.push(current.trim().to_string());
+            current.clear();
+        } else {
+            current.push(ch);
+        }
+    }
+
+    fields.push(current.trim().to_string());
+    fields
+}
+
+fn normalize_header(value: &str) -> String {
+    value
+        .trim()
+        .to_lowercase()
+        .replace(['á', 'à', 'ã', 'â'], "a")
+        .replace(['é', 'ê'], "e")
+        .replace('í', "i")
+        .replace(['ó', 'ô', 'õ'], "o")
+        .replace('ú', "u")
+        .replace('ç', "c")
+        .replace(['º', '°'], "o")
+        .replace('_', " ")
+}
+
+fn find_alias(fields: &[String], aliases: &[&str]) -> Option<usize> {
+    let normalized_aliases: Vec<String> = aliases.iter().map(|value| normalize_header(value)).collect();
+    fields.iter().position(|field| {
+        let normalized = normalize_header(field);
+        normalized_aliases.iter().any(|alias| alias == &normalized)
+    })
+}
+
+fn detect_layout(fields: &[String]) -> Result<ProfitLayout, String> {
+    let price_idx = find_alias(fields, &["preco", "preço", "price", "valor", "preco negocio"]);
+    let quantity_idx = find_alias(fields, &["quantidade", "qtd", "quantity", "qty"]);
+    let date_idx = find_alias(fields, &["data", "date"]);
+    let time_idx = find_alias(fields, &["hora", "tempo", "time", "horario", "horário"]);
+    let timestamp_idx = find_alias(fields, &["timestamp", "data hora", "datahora", "datetime"]);
+
+    if let (Some(price_idx), Some(quantity_idx)) = (price_idx, quantity_idx) {
+        if timestamp_idx.is_some() || (date_idx.is_some() && time_idx.is_some()) {
+            return Ok(ProfitLayout {
+                has_header: true,
+                symbol_idx: find_alias(fields, &["ativo", "ticker", "symbol", "contrato"]),
+                date_idx,
+                time_idx,
+                timestamp_idx,
+                price_idx,
+                quantity_idx,
+            });
+        }
+    }
+
+    match fields.len() {
+        8 => Ok(ProfitLayout {
+            has_header: false,
+            symbol_idx: Some(0),
+            date_idx: Some(1),
+            time_idx: Some(2),
+            timestamp_idx: None,
+            price_idx: 4,
+            quantity_idx: 5,
+        }),
+        9 => Ok(ProfitLayout {
+            has_header: false,
+            symbol_idx: Some(0),
+            date_idx: Some(1),
+            time_idx: Some(2),
+            timestamp_idx: None,
+            price_idx: 5,
+            quantity_idx: 6,
+        }),
+        _ => Err(format!(
+            "Layout do Profit não reconhecido. A primeira linha possui {} colunas; são aceitos layouts com cabeçalho ou os layouts conhecidos de 8/9 colunas.",
+            fields.len()
+        )),
+    }
+}
+
+fn value_at<'a>(fields: &'a [String], idx: Option<usize>) -> &'a str {
+    idx.and_then(|index| fields.get(index))
+        .map(String::as_str)
+        .unwrap_or("")
+        .trim()
+}
+
+fn parse_date(raw: &str) -> Result<NaiveDate, String> {
+    for format in ["%d/%m/%Y", "%d/%m/%y", "%Y-%m-%d"] {
+        if let Ok(value) = NaiveDate::parse_from_str(raw.trim(), format) {
+            return Ok(value);
+        }
+    }
+    Err(format!("Data não reconhecida: {raw}"))
+}
+
+fn parse_time(raw: &str) -> Result<NaiveTime, String> {
+    for format in ["%H:%M:%S%.f", "%H:%M:%S", "%H:%M"] {
+        if let Ok(value) = NaiveTime::parse_from_str(raw.trim(), format) {
+            return Ok(value);
+        }
+    }
+    Err(format!("Hora não reconhecida: {raw}"))
+}
+
+fn parse_combined_timestamp(raw: &str) -> Result<NaiveDateTime, String> {
+    let text = raw.trim();
+
+    if let Ok(value) = DateTime::parse_from_rfc3339(text) {
+        return Ok(value.naive_local());
+    }
+
+    for format in [
+        "%d/%m/%Y %H:%M:%S%.f",
+        "%d/%m/%Y %H:%M:%S",
+        "%d/%m/%y %H:%M:%S%.f",
+        "%d/%m/%y %H:%M:%S",
+        "%Y-%m-%d %H:%M:%S%.f",
+        "%Y-%m-%d %H:%M:%S",
+        "%Y-%m-%dT%H:%M:%S%.f",
+        "%Y-%m-%dT%H:%M:%S",
+    ] {
+        if let Ok(value) = NaiveDateTime::parse_from_str(text, format) {
+            return Ok(value);
+        }
+    }
+
+    Err(format!("Timestamp não reconhecido: {raw}"))
+}
+
+fn row_timestamp(fields: &[String], layout: &ProfitLayout) -> Result<NaiveDateTime, String> {
+    if let Some(timestamp_idx) = layout.timestamp_idx {
+        return parse_combined_timestamp(
+            fields
+                .get(timestamp_idx)
+                .map(String::as_str)
+                .unwrap_or_default(),
+        );
+    }
+
+    let date = parse_date(value_at(fields, layout.date_idx))?;
+    let time = parse_time(value_at(fields, layout.time_idx))?;
+    Ok(NaiveDateTime::new(date, time))
+}
+
+fn is_grouped_thousands(text: &str) -> bool {
+    let parts: Vec<&str> = text.split('.').collect();
+    parts.len() > 1
+        && !parts[0].is_empty()
+        && parts[0].len() <= 3
+        && parts.iter().skip(1).all(|part| part.len() == 3 && part.chars().all(|ch| ch.is_ascii_digit()))
+}
+
+fn normalize_profit_number(raw: &str) -> Result<String, String> {
+    let mut text = raw.trim().replace(' ', "");
+    if text.is_empty() {
+        return Err("Número vazio".to_string());
+    }
+
+    if text.contains(',') && text.contains('.') {
+        if text.rfind(',') > text.rfind('.') {
+            text = text.replace('.', "").replace(',', ".");
+        } else {
+            text = text.replace(',', "");
+        }
+    } else if text.contains(',') {
+        text = text.replace('.', "").replace(',', ".");
+    } else if text.contains('.') && is_grouped_thousands(&text) {
+        text = text.replace('.', "");
+    }
+
+    text.parse::<f64>()
+        .map_err(|_| format!("Número inválido: {raw}"))?;
+
+    Ok(text)
+}
+
+fn in_training_window(time: NaiveTime) -> bool {
+    let start = NaiveTime::from_hms_opt(9, 0, 0).expect("valid start");
+    let end = NaiveTime::from_hms_opt(12, 0, 0).expect("valid end");
+    time >= start && time < end
+}
+
+fn csv_escape(value: &str) -> String {
+    if value.contains([',', '"', '\n', '\r']) {
+        format!("\"{}\"", value.replace('"', "\"\""))
+    } else {
+        value.to_string()
+    }
+}
+
+fn derived_paths(source: &Path) -> Result<(PathBuf, PathBuf), String> {
+    let parent = source
+        .parent()
+        .ok_or_else(|| "Não foi possível identificar a pasta do arquivo.".to_string())?;
+    let stem = source
+        .file_stem()
+        .and_then(|value| value.to_str())
+        .ok_or_else(|| "Nome de arquivo inválido.".to_string())?;
+
+    Ok((
+        parent.join(format!("{stem}_0900-1200.replay.csv")),
+        parent.join(format!("{stem}_0900-1200.replay.meta.json")),
+    ))
+}
+
+fn emit_progress(
+    app: &tauri::AppHandle,
+    bytes_processed: u64,
+    bytes_total: u64,
+    source_rows: u64,
+    kept_rows: u64,
+) {
+    let percent = if bytes_total == 0 {
+        100.0
+    } else {
+        (bytes_processed as f64 / bytes_total as f64 * 100.0).min(100.0)
+    };
+
+    let _ = app.emit(
+        "profit-preparation-progress",
+        ProfitPreparationProgress {
+            percent,
+            bytes_processed,
+            bytes_total,
+            source_rows,
+            kept_rows,
+        },
+    );
+}
+
+fn process_profit_replay_file(
+    app: &tauri::AppHandle,
+    source_path: &str,
+) -> Result<ProfitPreparationResult, String> {
+    let source = PathBuf::from(source_path.trim().trim_matches('"'));
+    if !source.exists() || !source.is_file() {
+        return Err("Arquivo do Profit não encontrado.".to_string());
+    }
+    if source.extension().and_then(|value| value.to_str()).map(|value| value.to_lowercase())
+        != Some("csv".to_string())
+    {
+        return Err("O arquivo bruto do Profit precisa possuir extensão .csv.".to_string());
+    }
+
+    let source_bytes = fs::metadata(&source)
+        .map_err(|error| error.to_string())?
+        .len();
+    let (output_path, metadata_path) = derived_paths(&source)?;
+
+    let input = File::open(&source).map_err(|error| error.to_string())?;
+    let mut reader = BufReader::with_capacity(8 * 1024 * 1024, input);
+    let output = File::create(&output_path).map_err(|error| error.to_string())?;
+    let mut writer = BufWriter::with_capacity(4 * 1024 * 1024, output);
+
+    writer
+        .write_all(b"symbol,timestamp,source_row,price,quantity\n")
+        .map_err(|error| error.to_string())?;
+
+    let mut layout: Option<ProfitLayout> = None;
+    let mut delimiter = ',';
+    let mut physical_line = 0_u64;
+    let mut source_rows = 0_u64;
+    let mut kept_rows = 0_u64;
+    let mut bytes_processed = 0_u64;
+    let mut last_emitted_bytes = 0_u64;
+    let mut symbol = String::new();
+
+    let mut previous_ts: Option<NaiveDateTime> = None;
+    let mut ascending_steps = 0_u64;
+    let mut descending_steps = 0_u64;
+    let mut first_kept: Option<NaiveDateTime> = None;
+    let mut last_kept: Option<NaiveDateTime> = None;
+
+    loop {
+        let mut raw = Vec::new();
+        let read = reader.read_until(b'\n', &mut raw).map_err(|error| error.to_string())?;
+        if read == 0 {
+            break;
+        }
+
+        physical_line += 1;
+        bytes_processed += read as u64;
+        let line = decode_line(&raw);
+        if line.trim().is_empty() {
+            continue;
+        }
+
+        if layout.is_none() {
+            delimiter = detect_delimiter(&line);
+            let first_fields = parse_delimited_line(&line, delimiter);
+            let detected = detect_layout(&first_fields)?;
+            let header = detected.has_header;
+            layout = Some(detected);
+            if header {
+                continue;
+            }
+        }
+
+        let current_layout = layout.as_ref().expect("layout initialized");
+        let fields = parse_delimited_line(&line, delimiter);
+
+        let required_max = [
+            current_layout.symbol_idx,
+            current_layout.date_idx,
+            current_layout.time_idx,
+            current_layout.timestamp_idx,
+            Some(current_layout.price_idx),
+            Some(current_layout.quantity_idx),
+        ]
+        .into_iter()
+        .flatten()
+        .max()
+        .unwrap_or(0);
+
+        if fields.len() <= required_max {
+            return Err(format!(
+                "Linha {physical_line}: quantidade de colunas menor que a esperada para o layout detectado."
+            ));
+        }
+
+        source_rows += 1;
+        let timestamp = row_timestamp(&fields, current_layout)
+            .map_err(|error| format!("Linha {physical_line}: {error}"))?;
+
+        if let Some(previous) = previous_ts {
+            if timestamp > previous {
+                ascending_steps += 1;
+            } else if timestamp < previous {
+                descending_steps += 1;
+            }
+        }
+        previous_ts = Some(timestamp);
+
+        let row_symbol = value_at(&fields, current_layout.symbol_idx).to_uppercase();
+        if symbol.is_empty() && !row_symbol.is_empty() {
+            symbol = row_symbol.clone();
+        } else if !row_symbol.is_empty() && !symbol.is_empty() && row_symbol != symbol {
+            return Err(format!(
+                "Linha {physical_line}: o arquivo contém mais de um ativo ({symbol} e {row_symbol})."
+            ));
+        }
+
+        if in_training_window(timestamp.time()) {
+            let price = normalize_profit_number(&fields[current_layout.price_idx])
+                .map_err(|error| format!("Linha {physical_line}: preço {error}"))?;
+            let quantity = normalize_profit_number(&fields[current_layout.quantity_idx])
+                .map_err(|error| format!("Linha {physical_line}: quantidade {error}"))?;
+            let canonical_timestamp = timestamp.format("%Y-%m-%dT%H:%M:%S%.f").to_string();
+
+            let output_line = format!(
+                "{},{},{},{},{}\n",
+                csv_escape(&row_symbol),
+                canonical_timestamp,
+                physical_line,
+                price,
+                quantity
+            );
+            writer
+                .write_all(output_line.as_bytes())
+                .map_err(|error| error.to_string())?;
+            kept_rows += 1;
+
+            first_kept = Some(match first_kept {
+                Some(current) => current.min(timestamp),
+                None => timestamp,
+            });
+            last_kept = Some(match last_kept {
+                Some(current) => current.max(timestamp),
+                None => timestamp,
+            });
+        }
+
+        if bytes_processed.saturating_sub(last_emitted_bytes) >= 8 * 1024 * 1024 {
+            emit_progress(app, bytes_processed, source_bytes, source_rows, kept_rows);
+            last_emitted_bytes = bytes_processed;
+        }
+    }
+
+    writer.flush().map_err(|error| error.to_string())?;
+    drop(writer);
+
+    if source_rows == 0 {
+        let _ = fs::remove_file(&output_path);
+        return Err("Nenhum negócio foi encontrado no arquivo.".to_string());
+    }
+
+    if kept_rows == 0 {
+        let _ = fs::remove_file(&output_path);
+        return Err(
+            "Nenhum negócio entre 09:00 e 12:00 foi encontrado no arquivo informado.".to_string(),
+        );
+    }
+
+    let source_order = if ascending_steps > 0 && descending_steps == 0 {
+        "ASCENDING"
+    } else if descending_steps > 0 && ascending_steps == 0 {
+        "DESCENDING"
+    } else {
+        "UNKNOWN"
+    }
+    .to_string();
+
+    let output_bytes = fs::metadata(&output_path)
+        .map_err(|error| error.to_string())?
+        .len();
+    let reduction_pct = if source_bytes == 0 {
+        0.0
+    } else {
+        ((1.0 - output_bytes as f64 / source_bytes as f64) * 100.0).max(0.0)
+    };
+
+    let result = ProfitPreparationResult {
+        source_path: source.to_string_lossy().to_string(),
+        output_path: output_path.to_string_lossy().to_string(),
+        metadata_path: metadata_path.to_string_lossy().to_string(),
+        symbol,
+        source_order,
+        source_rows,
+        kept_rows,
+        discarded_rows: source_rows.saturating_sub(kept_rows),
+        source_bytes,
+        output_bytes,
+        reduction_pct,
+        first_timestamp: first_kept.map(|value| value.format("%Y-%m-%dT%H:%M:%S%.f").to_string()),
+        last_timestamp: last_kept.map(|value| value.format("%Y-%m-%dT%H:%M:%S%.f").to_string()),
+        session_start: "09:00:00".to_string(),
+        session_end: "12:00:00".to_string(),
+    };
+
+    let metadata = json!({
+        "schemaVersion": 1,
+        "purpose": "Simulador de Trade — replay WINFUT/WDOFUT",
+        "timezone": "America/Sao_Paulo",
+        "window": {
+            "startInclusive": "09:00:00",
+            "endExclusive": "12:00:00"
+        },
+        "fields": ["symbol", "timestamp", "source_row", "price", "quantity"],
+        "sourceOrder": result.source_order,
+        "note": "source_row preserva a posição física do negócio no CSV original. Em fontes DESCENDING, o motor de replay deve inverter a ordem relativa quando necessário.",
+        "summary": &result
+    });
+
+    fs::write(
+        &metadata_path,
+        serde_json::to_string_pretty(&metadata).map_err(|error| error.to_string())?,
+    )
+    .map_err(|error| error.to_string())?;
+
+    emit_progress(app, source_bytes, source_bytes, source_rows, kept_rows);
+    Ok(result)
+}
+
+#[tauri::command]
+async fn prepare_profit_replay_file(
+    app: tauri::AppHandle,
+    source_path: String,
+) -> Result<ProfitPreparationResult, String> {
+    tauri::async_runtime::spawn_blocking(move || process_profit_replay_file(&app, &source_path))
+        .await
+        .map_err(|error| error.to_string())?
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn training_window_is_0900_inclusive_to_1200_exclusive() {
+        assert!(in_training_window(NaiveTime::from_hms_opt(9, 0, 0).unwrap()));
+        assert!(in_training_window(NaiveTime::from_hms_opt(11, 59, 59).unwrap()));
+        assert!(!in_training_window(NaiveTime::from_hms_opt(8, 59, 59).unwrap()));
+        assert!(!in_training_window(NaiveTime::from_hms_opt(12, 0, 0).unwrap()));
+    }
+
+    #[test]
+    fn profit_number_normalization_handles_brazilian_prices() {
+        assert_eq!(normalize_profit_number("205.935").unwrap(), "205935");
+        assert_eq!(normalize_profit_number("5.321,5").unwrap(), "5321.5");
+        assert_eq!(normalize_profit_number("5321.5").unwrap(), "5321.5");
+    }
+
+    #[test]
+    fn detects_known_headerless_layouts() {
+        let eight = vec!["x".to_string(); 8];
+        let nine = vec!["x".to_string(); 9];
+
+        let a = detect_layout(&eight).unwrap();
+        let b = detect_layout(&nine).unwrap();
+
+        assert_eq!(a.price_idx, 4);
+        assert_eq!(a.quantity_idx, 5);
+        assert_eq!(b.price_idx, 5);
+        assert_eq!(b.quantity_idx, 6);
+    }
+
+    #[test]
+    fn csv_parser_keeps_quoted_delimiters() {
+        let fields = parse_delimited_line(r#"WINV26;07/10/26;"09:00:00";"5.321,5";10"#, ';');
+        assert_eq!(fields.len(), 5);
+        assert_eq!(fields[3], "5.321,5");
+    }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -156,7 +765,11 @@ pub fn run() {
 
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![save_trade, list_trades])
+        .invoke_handler(tauri::generate_handler![
+            save_trade,
+            list_trades,
+            prepare_profit_replay_file
+        ])
         .run(tauri::generate_context!())
         .expect("error while running Simulador de Trade");
 }
