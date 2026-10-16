@@ -11,6 +11,8 @@ interface Props {
 
 export function DataPreparationPanel({ onPrepared }: Props) {
   const [sourcePath, setSourcePath] = useState("");
+  const [sessionStart, setSessionStart] = useState("09:00");
+  const [sessionEnd, setSessionEnd] = useState("12:00");
   const [status, setStatus] = useState("idle");
   const [message, setMessage] = useState(
     "O arquivo bruto permanece intacto. O sistema gera uma cópia reduzida para replay.",
@@ -36,11 +38,16 @@ export function DataPreparationPanel({ onPrepared }: Props) {
       keptRows: 0,
     });
     setMessage(
-      "Tratando o arquivo e preservando somente os negócios entre 09:00 e 12:00...",
+      `Tratando o arquivo e preservando somente os negócios entre ${sessionStart} e ${sessionEnd}...`,
     );
 
     try {
-      const next = await prepareProfitReplayFile(path, setProgress);
+      const next = await prepareProfitReplayFile(
+        path,
+        sessionStart,
+        sessionEnd,
+        setProgress,
+      );
       setResult(next);
       onPrepared?.(next);
       setProgress((current) =>
@@ -63,7 +70,7 @@ export function DataPreparationPanel({ onPrepared }: Props) {
           <p className="eyebrow">Dados históricos · Profit Ultra</p>
           <h2>Preparar arquivo para replay</h2>
         </div>
-        <span className="session-window">09:00 → 12:00</span>
+        <span className="session-window">{sessionStart} → {sessionEnd}</span>
       </div>
 
       <p className="data-description">
@@ -71,6 +78,27 @@ export function DataPreparationPanel({ onPrepared }: Props) {
         fora da janela de treino. Permanecem apenas os dados necessários para
         reconstruir o preço, o volume e a sequência do mercado.
       </p>
+
+      <div className="data-window-grid">
+        <label>
+          Início do período a tratar
+          <input
+            type="time"
+            value={sessionStart}
+            onChange={(event) => setSessionStart(event.target.value)}
+            disabled={status === "working"}
+          />
+        </label>
+        <label>
+          Final do período a tratar
+          <input
+            type="time"
+            value={sessionEnd}
+            onChange={(event) => setSessionEnd(event.target.value)}
+            disabled={status === "working"}
+          />
+        </label>
+      </div>
 
       <div className="data-form">
         <label>
@@ -135,8 +163,10 @@ export function DataPreparationPanel({ onPrepared }: Props) {
       )}
 
       <p className="data-footnote">
-        Intervalo adotado: 09:00:00 inclusivo até 12:00:00 exclusivo. Isso
-        permite formar candles M2 completos até o candle 11:58–12:00.
+        O horário inicial é inclusivo e o horário final é exclusivo. Use nesta
+        etapa exatamente a faixa de dados que você pretende preservar; o
+        planejador da simulação também indicará os dados extras necessários
+        para aquecer o indicador.
       </p>
     </section>
   );
