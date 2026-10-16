@@ -19,6 +19,7 @@ Também são armazenados:
 - preço corrente;
 - zona do indicador;
 - sinal autorizador;
+- versão do algoritmo do indicador;
 - sinais visíveis no recorte;
 - MMP/WMA 20;
 - VWAP;
@@ -57,6 +58,16 @@ A migração é retrocompatível:
 - trades antigos: `entryContext = null`.
 
 Trades antigos continuam visíveis normalmente e apenas informam que o contexto gráfico não estava disponível.
+
+## Versionamento do indicador
+
+A implementação inicial do indicador é identificada como:
+
+~~~text
+multi-medias-nuvem-v1.0.0
+~~~
+
+Essa versão é gravada nos novos snapshots. Se a lógica do indicador mudar no futuro, a nova implementação deverá receber outra versão em vez de reinterpretar silenciosamente os snapshots históricos.
 
 ## Limite atual
 
