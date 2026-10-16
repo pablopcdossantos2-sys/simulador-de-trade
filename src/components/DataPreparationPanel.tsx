@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   prepareProfitReplayFile,
   type ProfitPreparationProgress,
@@ -7,9 +7,15 @@ import {
 
 interface Props {
   onPrepared?: (result: ProfitPreparationResult) => void;
+  plannedStart?: string;
+  plannedEnd?: string;
 }
 
-export function DataPreparationPanel({ onPrepared }: Props) {
+export function DataPreparationPanel({
+  onPrepared,
+  plannedStart,
+  plannedEnd,
+}: Props) {
   const [sourcePath, setSourcePath] = useState("");
   const [sessionStart, setSessionStart] = useState("09:00");
   const [sessionEnd, setSessionEnd] = useState("12:00");
@@ -19,6 +25,11 @@ export function DataPreparationPanel({ onPrepared }: Props) {
   );
   const [progress, setProgress] = useState<ProfitPreparationProgress | null>(null);
   const [result, setResult] = useState<ProfitPreparationResult | null>(null);
+
+  useEffect(() => {
+    if (plannedStart) setSessionStart(plannedStart);
+    if (plannedEnd) setSessionEnd(plannedEnd);
+  }, [plannedStart, plannedEnd]);
 
   async function prepare() {
     const path = sourcePath.trim().replace(/^"(.*)"$/, "$1");
