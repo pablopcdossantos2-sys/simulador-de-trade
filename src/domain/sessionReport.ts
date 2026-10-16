@@ -26,6 +26,42 @@ export function classifyTrainingEvent(
   }
 }
 
+
+
+export interface BlockedAttemptReason {
+  reason: string;
+  count: number;
+  buyAttempts: number;
+  sellAttempts: number;
+}
+
+export function blockedAttemptBreakdown(
+  events: TrainingEvent[],
+): BlockedAttemptReason[] {
+  const grouped = new Map<string, BlockedAttemptReason>();
+
+  for (const event of events) {
+    if (event.type !== "BLOCKED_ATTEMPT") continue;
+
+    const reason = event.reason?.trim() || "Regra não identificada";
+    const current = grouped.get(reason) ?? {
+      reason,
+      count: 0,
+      buyAttempts: 0,
+      sellAttempts: 0,
+    };
+
+    current.count += 1;
+    if (event.side === "BUY") current.buyAttempts += 1;
+    if (event.side === "SELL") current.sellAttempts += 1;
+    grouped.set(reason, current);
+  }
+
+  return Array.from(grouped.values()).sort(
+    (a, b) => b.count - a.count || a.reason.localeCompare(b.reason),
+  );
+}
+
 function safeAverage(values: number[]): number {
   if (!values.length) return 0;
   return values.reduce((sum, value) => sum + value, 0) / values.length;
