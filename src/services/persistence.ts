@@ -53,6 +53,10 @@ function normalizeTrade(raw: Trade): Trade {
       : gross - operationalCostsBRL,
     postTradeNote:
       typeof raw.postTradeNote === "string" ? raw.postTradeNote : "",
+    entryContext:
+      raw.entryContext && typeof raw.entryContext === "object"
+        ? raw.entryContext
+        : null,
   };
 }
 
