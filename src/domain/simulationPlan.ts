@@ -2,6 +2,7 @@ import type { Asset } from "../types";
 import { DEFAULT_MULTI_MEDIAS_CONFIG } from "../services/indicator";
 
 export const DEFAULT_TIMEFRAME_MINUTES = 2;
+export const SUPPORTED_TIMEFRAMES_MINUTES = [2, 5] as const;
 export const STANDARD_WARMUP_MULTIPLIER = 5;
 export const STRICT_WARMUP_MULTIPLIER = 10;
 
@@ -180,6 +181,16 @@ function winExpiryWarning(dateValue: string, asset: Asset): string | null {
 export function calculateSimulationPlan(
   input: SimulationPlanInput,
 ): SimulationPlan {
+  if (
+    !SUPPORTED_TIMEFRAMES_MINUTES.includes(
+      input.timeframeMinutes as (typeof SUPPORTED_TIMEFRAMES_MINUTES)[number],
+    )
+  ) {
+    throw new Error(
+      "Timeframe não suportado. Selecione M2 ou M5.",
+    );
+  }
+
   if (!isB3TradingDate2026(input.date)) {
     throw new Error(
       "A data selecionada não corresponde a um pregão normal da B3 no calendário 2026 incorporado.",
