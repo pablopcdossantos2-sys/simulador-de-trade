@@ -32,6 +32,7 @@ struct TradeRecord {
     exit_reason: String,
     closed_at: String,
     result_points: f64,
+    #[serde(rename = "grossResultBRL")]
     gross_result_brl: f64,
 }
 
