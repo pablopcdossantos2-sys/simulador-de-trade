@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { IndicatorSignal, TradeIntent } from "../types";
 import {
   TradingRuleError,
+  openPosition,
   resolveOco,
   resolveOcoTrade,
   validateTradeIntent,
@@ -22,6 +23,10 @@ const baseIntent: TradeIntent = {
   side: "BUY",
   entry: 130000,
   contracts: 2,
+  execution: {
+    costPerContractRoundTripBRL: 1,
+    slippageTicksPerSide: 0,
+  },
   candleIndex: 10,
   oco: { stopLoss: 129900, target: 130150 },
   signal: buySignal,
@@ -65,8 +70,52 @@ describe("regras de entrada", () => {
     ).toThrow(/quantidade de contratos/i);
   });
 
+  it("bloqueia slippage fracionário", () => {
+    expect(() =>
+      validateTradeIntent({
+        ...baseIntent,
+        execution: {
+          ...baseIntent.execution,
+          slippageTicksPerSide: 0.5,
+        },
+      }),
+    ).toThrow(/slippage/i);
+  });
+
   it("aceita compra com sinal e OCO válidos", () => {
     expect(() => validateTradeIntent(baseIntent)).not.toThrow();
+  });
+
+  it("aplica slippage adverso na entrada e saída", () => {
+    const position = openPosition(
+      {
+        ...baseIntent,
+        contracts: 1,
+        execution: {
+          costPerContractRoundTripBRL: 1,
+          slippageTicksPerSide: 1,
+        },
+      },
+      new Date("2026-01-01T09:30:00Z"),
+    );
+
+    expect(position.requestedEntry).toBe(130000);
+    expect(position.entry).toBe(130005);
+
+    const closed = resolveOcoTrade(position, {
+      asset: "WINFUT",
+      timestamp: "2026-01-01T09:31:00Z",
+      sourceRow: 1,
+      sequence: 1,
+      price: 130150,
+      quantity: 1,
+    });
+
+    expect(closed?.exitPrice).toBe(130145);
+    expect(closed?.resultPoints).toBe(140);
+    expect(closed?.grossResultBRL).toBe(28);
+    expect(closed?.operationalCostsBRL).toBe(1);
+    expect(closed?.netResultBRL).toBe(27);
   });
 });
 
@@ -77,10 +126,13 @@ describe("resolução OCO", () => {
     side: "BUY" as const,
     signalId: "signal-1",
     openedCandleIndex: 10,
+    requestedEntry: 130000,
     entry: 130000,
     stopLoss: 129900,
     target: 130150,
     contracts: 2,
+    slippageTicksPerSide: 0,
+    costPerContractRoundTripBRL: 1,
     openedAt: "2026-01-01T12:00:00.000Z",
     status: "OPEN" as const,
   };
@@ -114,6 +166,8 @@ describe("resolução OCO", () => {
     expect(trade?.resultPoints).toBe(150);
     expect(trade?.contracts).toBe(2);
     expect(trade?.grossResultBRL).toBe(60);
+    expect(trade?.operationalCostsBRL).toBe(2);
+    expect(trade?.netResultBRL).toBe(58);
   });
 
   it("usa hipótese conservadora quando stop e alvo são tocados", () => {
@@ -141,10 +195,13 @@ describe("resolução OCO negócio a negócio", () => {
     signalId: "signal-1",
     openedCandleIndex: 10,
     openedReplaySequence: 100,
+    requestedEntry: 130000,
     entry: 130000,
     stopLoss: 129900,
     target: 130150,
     contracts: 2,
+    slippageTicksPerSide: 0,
+    costPerContractRoundTripBRL: 1,
     openedAt: "2026-01-01T09:30:00.000-03:00",
     status: "OPEN" as const,
   };
@@ -176,6 +233,7 @@ describe("resolução OCO negócio a negócio", () => {
     expect(result?.exitPrice).toBe(130150);
     expect(result?.resultPoints).toBe(150);
     expect(result?.grossResultBRL).toBe(60);
+    expect(result?.netResultBRL).toBe(58);
   });
 
   it("encerra no stop sem depender do OHLC do candle", () => {
