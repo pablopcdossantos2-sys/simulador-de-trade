@@ -207,6 +207,7 @@ export function openPosition(intent: TradeIntent, now = new Date()): Position {
     slippageTicksPerSide: intent.execution.slippageTicksPerSide,
     costPerContractRoundTripBRL:
       intent.execution.costPerContractRoundTripBRL,
+    entryContext: intent.entryContext ?? null,
     openedAt: now.toISOString(),
     status: "OPEN",
   };
@@ -259,6 +260,7 @@ function closePosition(
     operationalCostsBRL,
     netResultBRL: gross - operationalCostsBRL,
     postTradeNote: "",
+    entryContext: position.entryContext,
   };
 }
 
