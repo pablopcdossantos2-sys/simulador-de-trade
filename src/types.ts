@@ -118,6 +118,7 @@ export interface TradeIntent {
 
 
 export type TrainingSessionStatus = "ACTIVE" | "ENDED";
+export type TrainingMode = "FREE" | "EXAM";
 
 export type TrainingEventType =
   | "SESSION_STARTED"
@@ -136,6 +137,7 @@ export interface TrainingSession {
   endTime: string;
   timeframeMinutes: number;
   warmupBars: number;
+  mode: TrainingMode;
   startedAt: string;
   endedAt: string | null;
   status: TrainingSessionStatus;
