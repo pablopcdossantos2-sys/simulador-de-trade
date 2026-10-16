@@ -14,6 +14,7 @@ export interface StudentProgressPoint {
   trades: number;
   winRatePct: number;
   adherencePct: number;
+  signalAdherencePct: number;
   totalR: number;
   netResultBRL: number;
   blockedAttempts: number;
@@ -26,6 +27,7 @@ export interface StudentProgressSummary {
   totalR: number;
   netResultBRL: number;
   averageAdherencePct: number;
+  averageSignalAdherencePct: number;
   averageWinRatePct: number;
   blockedAttempts: number;
   technicalIssues: number;
@@ -56,6 +58,7 @@ export function buildStudentProgress(
         trades: performance.totalTrades,
         winRatePct: performance.winRatePct,
         adherencePct: performance.executionAdherencePct,
+        signalAdherencePct: performance.signalAdherencePct,
         totalR: performance.totalR,
         netResultBRL: performance.netResultBRL,
         blockedAttempts: performance.blockedAttempts,
@@ -82,6 +85,9 @@ export function summarizeStudentProgress(
     ),
     averageAdherencePct: average(
       points.map((point) => point.adherencePct),
+    ),
+    averageSignalAdherencePct: average(
+      points.map((point) => point.signalAdherencePct),
     ),
     averageWinRatePct: average(
       points.map((point) => point.winRatePct),
