@@ -2750,3 +2750,154 @@ td {
     grid-template-columns: 1fr;
   }
 }
+
+
+/* Evolução histórica do trader */
+.student-progress {
+  margin-top: 16px;
+  padding: 20px;
+}
+
+.student-progress-kpis {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(100px, 1fr));
+  gap: 9px;
+  margin-top: 14px;
+}
+
+.student-progress-kpis > div {
+  display: grid;
+  gap: 3px;
+  padding: 10px 11px;
+  border: 1px solid #263b54;
+  border-radius: 10px;
+  background: #0d1b2b;
+}
+
+.student-progress-kpis span {
+  color: #718aa2;
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.student-progress-kpis strong {
+  color: #d6e6f4;
+}
+
+.student-progress-charts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.student-progress-charts article {
+  min-width: 0;
+  padding: 13px;
+  border: 1px solid #263b54;
+  border-radius: 11px;
+  background: #0c1928;
+}
+
+.student-progress-chart {
+  display: block;
+  width: 100%;
+  height: auto;
+  margin-top: 8px;
+}
+
+.progress-axis {
+  stroke: #2c425b;
+  stroke-width: 1;
+}
+
+.progress-line {
+  fill: none;
+  stroke: #7fb9e6;
+  stroke-width: 3;
+  vector-effect: non-scaling-stroke;
+}
+
+.progress-dot {
+  fill: #dcecff;
+  stroke: #3b6f9c;
+  stroke-width: 2;
+  vector-effect: non-scaling-stroke;
+}
+
+.student-progress-table-wrap {
+  margin-top: 14px;
+  overflow-x: auto;
+}
+
+.student-progress-table-wrap table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.student-progress-table-wrap th,
+.student-progress-table-wrap td {
+  padding: 9px 10px;
+  border-bottom: 1px solid #21344a;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.student-progress-table-wrap th {
+  color: #7890a7;
+  font-size: 0.7rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.student-progress-table-wrap td {
+  color: #cbdbe8;
+}
+
+:root[data-theme="light"] .student-progress-kpis > div,
+:root[data-theme="light"] .student-progress-charts article {
+  border-color: #cbd9e5;
+  background: #f5f8fb;
+}
+
+:root[data-theme="light"] .student-progress-kpis span,
+:root[data-theme="light"] .student-progress-table-wrap th {
+  color: #687f94;
+}
+
+:root[data-theme="light"] .student-progress-kpis strong,
+:root[data-theme="light"] .student-progress-table-wrap td {
+  color: #2d465d;
+}
+
+:root[data-theme="light"] .progress-axis {
+  stroke: #c7d6e1;
+}
+
+:root[data-theme="light"] .student-progress-table-wrap th,
+:root[data-theme="light"] .student-progress-table-wrap td {
+  border-bottom-color: #dce6ed;
+}
+
+@media (max-width: 1100px) {
+  .student-progress-kpis {
+    grid-template-columns: repeat(3, minmax(110px, 1fr));
+  }
+}
+
+@media (max-width: 760px) {
+  .student-progress-charts {
+    grid-template-columns: 1fr;
+  }
+
+  .student-progress-kpis {
+    grid-template-columns: repeat(2, minmax(110px, 1fr));
+  }
+}
+
+@media (max-width: 520px) {
+  .student-progress-kpis {
+    grid-template-columns: 1fr;
+  }
+}
