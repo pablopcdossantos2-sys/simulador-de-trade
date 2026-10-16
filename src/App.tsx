@@ -66,6 +66,7 @@ import type {
   Side,
   Trade,
   TrainingEvent,
+  TrainingMode,
   TrainingSession,
 } from "./types";
 import type { SimulationPlan } from "./domain/simulationPlan";
@@ -112,6 +113,7 @@ export default function App() {
   const [trainingSession, setTrainingSession] =
     useState<TrainingSession | null>(null);
   const [trainingEvents, setTrainingEvents] = useState<TrainingEvent[]>([]);
+  const [trainingMode, setTrainingMode] = useState<TrainingMode>("FREE");
   const [sessionHistoryRefreshKey, setSessionHistoryRefreshKey] = useState(0);
   const activeSignalRef = useRef<{ id: string; side: Side } | null>(null);
   const usedSignalIdsRef = useRef<Set<string>>(new Set());
@@ -151,6 +153,9 @@ export default function App() {
   const lastCandle = visibleCandles[visibleCandles.length - 1];
   const lastPrice = lastCandle?.close ?? 0;
   const trainingActive = trainingSession?.status === "ACTIVE";
+  const examActive = Boolean(
+    trainingActive && trainingSession?.mode === "EXAM",
+  );
   const trainingSummary = useMemo(
     () =>
       trainingSession
@@ -218,9 +223,11 @@ export default function App() {
       ...current.filter((trade) => trade.id !== closed.id),
     ]);
     setFeedback(
-      closed.exitReason === "TARGET"
-        ? `Alvo atingido. ${money.format(closed.resultPoints)} pts · líquido R$ ${money.format(closed.netResultBRL)}.`
-        : `Stop atingido. ${money.format(closed.resultPoints)} pts · líquido R$ ${money.format(closed.netResultBRL)}.`,
+      examActive
+        ? "Operação encerrada. O resultado será revelado ao final da prova."
+        : closed.exitReason === "TARGET"
+          ? `Alvo atingido. ${money.format(closed.resultPoints)} pts · líquido R$ ${money.format(closed.netResultBRL)}.`
+          : `Stop atingido. ${money.format(closed.resultPoints)} pts · líquido R$ ${money.format(closed.netResultBRL)}.`,
     );
     void saveTrade(closed).catch((error) => {
       const reason =
@@ -457,6 +464,7 @@ export default function App() {
       endTime: simulationPlan.targetEndTime,
       timeframeMinutes,
       warmupBars: simulationPlan.warmupBars,
+      mode: trainingMode,
     });
     const startedEvent = createTrainingEvent({
       sessionId: session.id,
@@ -649,6 +657,17 @@ export default function App() {
   const sellAllowed =
     tradingEnabled && !position && signalAllows(signal, asset, "SELL");
 
+  const historyTradesForDisplay = examActive
+    ? trades.filter(
+        (trade) =>
+          !trainingEvents.some(
+            (event) =>
+              event.sessionId === trainingSession?.id &&
+              event.tradeId === trade.id,
+          ),
+      )
+    : trades;
+
   return (
     <main className="app-shell">
       <header className="topbar">
@@ -720,6 +739,7 @@ export default function App() {
           setWarmupCandles([]);
           setTrainingSession(null);
           setTrainingEvents([]);
+          setTrainingMode("FREE");
           activeSignalRef.current = null;
           usedSignalIdsRef.current = new Set();
           setFeedback(
@@ -751,6 +771,8 @@ export default function App() {
         session={trainingSession}
         summary={trainingSummary}
         events={trainingEvents}
+        mode={trainingMode}
+        onModeChange={setTrainingMode}
         canStart={
           Boolean(simulationPlan) &&
           planIsReady(catalogMatches) &&
@@ -945,12 +967,16 @@ export default function App() {
             <p className="eyebrow">Persistência local</p>
             <h2>Últimas operações</h2>
           </div>
-          <span className="history-count">{trades.length} registradas</span>
+          <span className="history-count">
+            {historyTradesForDisplay.length} visíveis
+          </span>
         </div>
 
-        {trades.length === 0 ? (
+        {historyTradesForDisplay.length === 0 ? (
           <p className="empty-state">
-            As operações encerradas aparecerão aqui.
+            {examActive
+              ? "As operações da prova atual permanecem ocultas até o encerramento."
+              : "As operações encerradas aparecerão aqui."}
           </p>
         ) : (
           <div className="table-wrap">
