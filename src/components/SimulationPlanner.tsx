@@ -147,6 +147,12 @@ export function SimulationPlanner({ onPlanChange }: Props) {
             com todo o histórico disponível no TradingView.
           </p>
 
+          {result.plan.contractWarning && (
+            <p className="planner-warning planner-warning-critical">
+              {result.plan.contractWarning}
+            </p>
+          )}
+
           <button type="button" className="planner-apply" onClick={applyPlan}>
             Usar estes horários no tratamento
           </button>
