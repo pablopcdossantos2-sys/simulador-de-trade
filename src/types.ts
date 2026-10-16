@@ -1,6 +1,8 @@
 export type Asset = "WINFUT" | "WDOFUT";
 export type Side = "BUY" | "SELL";
 export type SignalSide = Side | "NONE";
+export type IndicatorZone = "GREEN" | "RED" | "NONE";
+export type VwapAnchor = "Session" | "Week" | "Month" | "Year";
 
 export interface Candle {
   index: number;
@@ -20,6 +22,22 @@ export interface IndicatorSignal {
   timestamp: string;
   price: number;
   label: "Compra" | "Venda";
+}
+
+export interface IndicatorPoint {
+  candleIndex: number;
+  wma20: number | null;
+  vwap: number | null;
+  ema8: number;
+  ema52: number;
+  zone: IndicatorZone;
+}
+
+export interface IndicatorEvaluation {
+  authorization: IndicatorSignal | null;
+  signals: IndicatorSignal[];
+  series: IndicatorPoint[];
+  zone: IndicatorZone;
 }
 
 export interface OcoOrder {
