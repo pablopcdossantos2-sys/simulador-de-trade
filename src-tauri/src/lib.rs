@@ -1175,9 +1175,9 @@ fn import_backup(
                     cost_per_contract_round_trip_brl, opened_at, status, exit_price,
                     exit_reason, closed_at, result_points, gross_result_brl,
                     operational_costs_brl, net_result_brl, post_trade_note,
-                    entry_context_json
+                    entry_context_json, intrabar_policy
                 )
-                VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22)
+                VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23)
                 ON CONFLICT(id) DO UPDATE SET
                     asset = excluded.asset,
                     side = excluded.side,
@@ -1199,7 +1199,8 @@ fn import_backup(
                     operational_costs_brl = excluded.operational_costs_brl,
                     net_result_brl = excluded.net_result_brl,
                     post_trade_note = excluded.post_trade_note,
-                    entry_context_json = excluded.entry_context_json
+                    entry_context_json = excluded.entry_context_json,
+                    intrabar_policy = excluded.intrabar_policy
                 "#,
                 params![
                     trade.id,
@@ -1224,6 +1225,7 @@ fn import_backup(
                     trade.net_result_brl,
                     trade.post_trade_note,
                     entry_context_json,
+                    trade.intrabar_policy,
                 ],
             )
             .map_err(|error| error.to_string())?;
@@ -1279,6 +1281,7 @@ fn import_backup(
             params![
                 bundle.execution_settings.cost_per_contract_round_trip_brl,
                 bundle.execution_settings.slippage_ticks_per_side,
+                bundle.execution_settings.intrabar_policy,
             ],
         )
         .map_err(|error| error.to_string())?;
@@ -2005,6 +2008,7 @@ mod tests {
             execution_settings: ExecutionSettingsRecord {
                 cost_per_contract_round_trip_brl: 0.0,
                 slippage_ticks_per_side: 0,
+                intrabar_policy: "STOP_FIRST".to_string(),
             },
         };
 
@@ -2179,9 +2183,9 @@ mod tests {
 
         initialize_database(&connection).unwrap();
 
-        let (contracts, requested, gross, net, note, context): (i64, f64, f64, f64, String, Option<String>) = connection
+        let (contracts, requested, gross, net, note, context, policy): (i64, f64, f64, f64, String, Option<String>, String) = connection
             .query_row(
-                "SELECT contracts, requested_entry, gross_result_brl, net_result_brl, post_trade_note, entry_context_json FROM trades WHERE id = 'legacy-1'",
+                "SELECT contracts, requested_entry, gross_result_brl, net_result_brl, post_trade_note, entry_context_json, intrabar_policy FROM trades WHERE id = 'legacy-1'",
                 [],
                 |row| Ok((
                     row.get(0)?,
@@ -2190,6 +2194,7 @@ mod tests {
                     row.get(3)?,
                     row.get(4)?,
                     row.get(5)?,
+                    row.get(6)?,
                 )),
             )
             .unwrap();
@@ -2200,6 +2205,7 @@ mod tests {
         assert!((net - 30.0).abs() < 1e-9);
         assert_eq!(note, "");
         assert!(context.is_none());
+        assert_eq!(policy, "STOP_FIRST");
     }
 
     #[test]
