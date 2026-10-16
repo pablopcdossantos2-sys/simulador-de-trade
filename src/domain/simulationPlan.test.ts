@@ -35,6 +35,20 @@ describe("planejamento de simulação", () => {
     ]);
     expect(plan.fullSessionsNeeded).toBe(1);
     expect(plan.fullSessionPreviousDates).toEqual(["2026-10-13"]);
+    expect(plan.dataRequirements).toEqual([
+      {
+        role: "WARMUP",
+        date: "2026-10-13",
+        startTime: "09:00",
+        endTime: "18:00",
+      },
+      {
+        role: "TARGET",
+        date: "2026-10-14",
+        startTime: "09:00",
+        endTime: "12:00",
+      },
+    ]);
     expect(plan.contractWarning).toMatch(/vencimento mensal do WIN/i);
   });
 
