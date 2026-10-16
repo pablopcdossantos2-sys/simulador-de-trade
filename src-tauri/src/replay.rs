@@ -199,13 +199,50 @@ fn open_session(path: &Path) -> Result<(ReplaySession, ReplaySessionInfo), Strin
     ))
 }
 
+fn normalize_hhmm(value: &str) -> Option<String> {
+    let trimmed = value.trim();
+    if trimmed.len() < 5 {
+        return None;
+    }
+    Some(trimmed[0..5].to_string())
+}
+
 #[tauri::command]
 pub fn open_replay_file(
     state: tauri::State<'_, ReplayState>,
     source_path: String,
+    expected_start: Option<String>,
+    expected_end: Option<String>,
 ) -> Result<ReplaySessionInfo, String> {
     let path = PathBuf::from(source_path.trim().trim_matches('"'));
     let (session, info) = open_session(&path)?;
+
+    if let (Some(expected_start), Some(expected_end)) = (expected_start, expected_end) {
+        let actual_start = info
+            .session_start
+            .as_deref()
+            .and_then(normalize_hhmm)
+            .ok_or_else(|| {
+                "O arquivo de replay não possui metadados suficientes para validar a janela da simulação."
+                    .to_string()
+            })?;
+        let actual_end = info
+            .session_end
+            .as_deref()
+            .and_then(normalize_hhmm)
+            .ok_or_else(|| {
+                "O arquivo de replay não possui metadados suficientes para validar a janela da simulação."
+                    .to_string()
+            })?;
+
+        if actual_start != expected_start || actual_end != expected_end {
+            return Err(format!(
+                "Janela incompatível: o plano exige {}–{}, mas o arquivo foi tratado para {}–{}.",
+                expected_start, expected_end, actual_start, actual_end
+            ));
+        }
+    }
+
     let mut guard = state.0.lock().map_err(|error| error.to_string())?;
     *guard = Some(session);
     Ok(info)
