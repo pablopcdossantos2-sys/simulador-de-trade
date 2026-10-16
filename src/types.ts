@@ -58,6 +58,7 @@ export interface TradeEntryContext {
   currentPrice: number;
   zone: IndicatorZone;
   signal: IndicatorSignal;
+  indicatorVersion?: string;
   candles: Candle[];
   indicatorSeries: IndicatorPoint[];
   signals: IndicatorSignal[];
