@@ -44,21 +44,35 @@ No segundo caso, a simulação não é considerada pronta.
 
 ## Cobertura de horário
 
-Um arquivo pode atender a uma janela menor quando cobre todo o requisito.
+As regras são diferentes conforme o papel do arquivo.
 
-Exemplo:
+### Pregão-alvo
+
+A janela precisa ser **exatamente igual** ao plano.
 
 ~~~text
-Requisito: 09:00–12:00
-Arquivo:   09:00–18:00
+Plano-alvo: 09:00–12:00
+Arquivo:    09:00–18:00
+Resultado:  incompatível como alvo
+~~~
+
+Isso garante que o replay termine exatamente no horário configurado.
+
+### Aquecimento
+
+Um arquivo mais amplo pode atender a um requisito menor, desde que cubra integralmente a janela exigida.
+
+~~~text
+Aquecimento exigido: 09:00–12:00
+Arquivo disponível:  09:00–18:00
 Resultado: compatível
 ~~~
 
-Mas:
+Mas um arquivo curto não pode atender um requisito maior:
 
 ~~~text
-Requisito: 09:00–18:00
-Arquivo:   09:00–12:00
+Aquecimento exigido: 09:00–18:00
+Arquivo disponível:  09:00–12:00
 Resultado: insuficiente
 ~~~
 
