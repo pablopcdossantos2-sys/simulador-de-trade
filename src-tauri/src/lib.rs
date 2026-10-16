@@ -684,7 +684,7 @@ fn process_profit_replay_file(
             "endExclusive": "12:00:00"
         },
         "fields": ["symbol", "timestamp", "source_row", "price", "quantity"],
-        "sourceOrder": result.source_order,
+        "sourceOrder": &result.source_order,
         "note": "source_row preserva a posição física do negócio no CSV original. Em fontes DESCENDING, o motor de replay deve inverter a ordem relativa quando necessário.",
         "summary": &result
     });
