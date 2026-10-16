@@ -103,7 +103,7 @@ Arquitetura definida a partir dos componentes validados no Candle Lab. Ver [Reap
 - [x] Registrar tentativas bloqueadas.
 - [x] Distinguir problema técnico de erro disciplinar/execução.
 - [x] Notas pós-trade persistidas por operação.
-- [ ] Captura do contexto do gráfico no momento da entrada.
+- [x] Captura estruturada e reconstruível do contexto gráfico no momento da entrada, sem candles futuros.
 
 ## Fase 5 — Métricas
 
@@ -116,13 +116,13 @@ Arquitetura definida a partir dos componentes validados no Candle Lab. Ver [Reap
 - [x] Resultado por horário de entrada.
 - [x] Resultado por direção (Compra/Venda).
 - [ ] Resultado por tipo de sinal/setup.
-- [ ] Aderência ao sinal.
+- [x] Aderência aos sinais utilizados versus ignorados.
 - [ ] Aderência ao stop.
 - [ ] Aderência ao alvo.
 - [ ] Relatório completo por sessão.
 - [x] Relatório pós-sessão inicial navegável.
 - [x] Resumo disciplinar da sessão atual.
-- [ ] Evolução do aluno ao longo do tempo.
+- [x] Evolução do aluno ao longo do tempo com série por sessão encerrada.
 
 ## Fase 6 — Experiência desktop
 
