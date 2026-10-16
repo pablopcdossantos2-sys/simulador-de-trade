@@ -1,6 +1,7 @@
 import { useState } from "react";
 import {
   prepareProfitReplayFile,
+  type ProfitPreparationProgress,
   type ProfitPreparationResult,
 } from "../services/profitData";
 
@@ -10,6 +11,7 @@ export function DataPreparationPanel() {
   const [message, setMessage] = useState(
     "O arquivo bruto permanece intacto. O sistema gera uma cópia reduzida para replay.",
   );
+  const [progress, setProgress] = useState<ProfitPreparationProgress | null>(null);
   const [result, setResult] = useState<ProfitPreparationResult | null>(null);
 
   async function prepare() {
@@ -22,16 +24,30 @@ export function DataPreparationPanel() {
 
     setStatus("working");
     setResult(null);
-    setMessage("Tratando o arquivo e preservando somente os negócios entre 09:00 e 12:00...");
+    setProgress({
+      percent: 0,
+      bytesProcessed: 0,
+      bytesTotal: 0,
+      sourceRows: 0,
+      keptRows: 0,
+    });
+    setMessage(
+      "Tratando o arquivo e preservando somente os negócios entre 09:00 e 12:00...",
+    );
 
     try {
-      const next = await prepareProfitReplayFile(path);
+      const next = await prepareProfitReplayFile(path, setProgress);
       setResult(next);
+      setProgress((current) =>
+        current ? { ...current, percent: 100 } : current,
+      );
       setStatus("success");
       setMessage("Tratamento concluído. O arquivo bruto não foi modificado.");
     } catch (error) {
       setStatus("error");
-      setMessage(error instanceof Error ? error.message : "Falha ao tratar o arquivo.");
+      setMessage(
+        error instanceof Error ? error.message : "Falha ao tratar o arquivo.",
+      );
     }
   }
 
@@ -46,9 +62,9 @@ export function DataPreparationPanel() {
       </div>
 
       <p className="data-description">
-        O tratamento descarta as colunas de instituições/agressão e os negócios fora
-        da janela de treino. Permanecem apenas os dados necessários para reconstruir
-        o preço, o volume e a sequência do mercado.
+        O tratamento descarta as colunas de instituições/agressão e os negócios
+        fora da janela de treino. Permanecem apenas os dados necessários para
+        reconstruir o preço, o volume e a sequência do mercado.
       </p>
 
       <div className="data-form">
@@ -65,6 +81,21 @@ export function DataPreparationPanel() {
         </button>
       </div>
 
+      {progress && status === "working" && (
+        <div className="preparation-progress" aria-label="Progresso do tratamento">
+          <div className="progress-heading">
+            <span>
+              {progress.sourceRows.toLocaleString("pt-BR")} linhas lidas ·{" "}
+              {progress.keptRows.toLocaleString("pt-BR")} preservadas
+            </span>
+            <strong>{progress.percent.toFixed(1)}%</strong>
+          </div>
+          <div className="progress-track">
+            <span style={{ width: `${Math.min(100, progress.percent)}%` }} />
+          </div>
+        </div>
+      )}
+
       <div className={`data-status ${status}`} aria-live="polite">
         {message}
       </div>
@@ -80,7 +111,11 @@ export function DataPreparationPanel() {
             <strong>{result.keptRows.toLocaleString("pt-BR")}</strong>
           </div>
           <div>
-            <span>Redução</span>
+            <span>Negócios descartados</span>
+            <strong>{result.discardedRows.toLocaleString("pt-BR")}</strong>
+          </div>
+          <div>
+            <span>Redução do arquivo</span>
             <strong>{result.reductionPct.toFixed(1)}%</strong>
           </div>
           <div>
@@ -95,8 +130,8 @@ export function DataPreparationPanel() {
       )}
 
       <p className="data-footnote">
-        Intervalo adotado: 09:00:00 inclusivo até 12:00:00 exclusivo. Isso permite
-        formar candles M2 completos até o candle 11:58–12:00.
+        Intervalo adotado: 09:00:00 inclusivo até 12:00:00 exclusivo. Isso
+        permite formar candles M2 completos até o candle 11:58–12:00.
       </p>
     </section>
   );
