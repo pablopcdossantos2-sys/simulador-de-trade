@@ -114,6 +114,7 @@ const trades: Trade[] = [
     grossResultBRL: 30,
     operationalCostsBRL: 1,
     netResultBRL: 29,
+    postTradeNote: "",
   },
   {
     id: "t2",
@@ -136,6 +137,7 @@ const trades: Trade[] = [
     grossResultBRL: -20,
     operationalCostsBRL: 1,
     netResultBRL: -21,
+    postTradeNote: "",
   },
 ];
 
