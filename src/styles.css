@@ -2518,3 +2518,147 @@ td {
     flex-direction: column;
   }
 }
+
+
+/* Modo prova e cronômetro */
+.training-mode-selector {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.training-mode-selector button {
+  display: grid;
+  gap: 4px;
+  min-height: 72px;
+  padding: 12px 14px;
+  border: 1px solid #2a4059;
+  border-radius: 11px;
+  background: #0c1928;
+  color: #b8cce0;
+  text-align: left;
+  cursor: pointer;
+  font-weight: 800;
+}
+
+.training-mode-selector button small {
+  color: #7f95aa;
+  font-weight: 500;
+  line-height: 1.35;
+}
+
+.training-mode-selector button.active {
+  border-color: #68aee8;
+  background: #11263b;
+  box-shadow: inset 0 0 0 1px rgba(104, 174, 232, 0.2);
+}
+
+.training-timer-toggle {
+  background: #1b3048;
+  color: #cfe0ef;
+}
+
+.training-timer {
+  display: inline-grid;
+  gap: 2px;
+  margin-top: 12px;
+  padding: 9px 13px;
+  border: 1px solid #2b425c;
+  border-radius: 10px;
+  background: #091522;
+}
+
+.training-timer span {
+  color: #7890aa;
+  font-size: 0.68rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.training-timer strong {
+  color: #e1edf7;
+  font-variant-numeric: tabular-nums;
+  font-size: 1.1rem;
+}
+
+.exam-lock,
+.exam-history-lock {
+  margin-top: 14px;
+  padding: 13px 14px;
+  border: 1px solid #715b33;
+  border-radius: 11px;
+  background: #2a2111;
+  color: #e3c688;
+}
+
+.exam-lock {
+  display: grid;
+  gap: 4px;
+}
+
+.exam-lock span,
+.exam-history-lock p {
+  margin: 0;
+  color: #cbb482;
+  line-height: 1.45;
+}
+
+.exam-history-lock {
+  display: grid;
+  gap: 6px;
+  min-height: 160px;
+  align-content: center;
+  text-align: center;
+}
+
+:root[data-theme="light"] .training-mode-selector button {
+  border-color: #c8d7e4;
+  background: #f6f9fc;
+  color: #3d5870;
+}
+
+:root[data-theme="light"] .training-mode-selector button small {
+  color: #687f94;
+}
+
+:root[data-theme="light"] .training-mode-selector button.active {
+  border-color: #73a8d1;
+  background: #eaf3fa;
+}
+
+:root[data-theme="light"] .training-timer-toggle {
+  background: #e5eef6;
+  color: #334f69;
+}
+
+:root[data-theme="light"] .training-timer {
+  border-color: #cbd9e5;
+  background: #f5f8fb;
+}
+
+:root[data-theme="light"] .training-timer span {
+  color: #657d93;
+}
+
+:root[data-theme="light"] .training-timer strong {
+  color: #2d465d;
+}
+
+:root[data-theme="light"] .exam-lock,
+:root[data-theme="light"] .exam-history-lock {
+  border-color: #ddc58e;
+  background: #fff7e7;
+  color: #755c26;
+}
+
+:root[data-theme="light"] .exam-lock span,
+:root[data-theme="light"] .exam-history-lock p {
+  color: #846d3a;
+}
+
+@media (max-width: 620px) {
+  .training-mode-selector {
+    grid-template-columns: 1fr;
+  }
+}
