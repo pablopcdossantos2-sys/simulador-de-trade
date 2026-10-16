@@ -409,6 +409,7 @@ export default function App() {
     setPosition(null);
     setStopLoss("");
     setTarget("");
+    setContracts("1");
     setFeedback("Replay reiniciado no começo da sessão.");
   }
 
