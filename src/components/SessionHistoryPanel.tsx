@@ -178,7 +178,8 @@ export function SessionHistoryPanel({ refreshKey }: Props) {
                 </strong>
                 <span>
                   {session.startTime}–{session.endTime} · M
-                  {session.timeframeMinutes}
+                  {session.timeframeMinutes} ·{" "}
+                  {session.mode === "EXAM" ? "Prova" : "Treino"}
                 </span>
                 <small>
                   {session.status === "ENDED" ? "Concluída" : "Sessão ainda ativa"}
@@ -190,6 +191,14 @@ export function SessionHistoryPanel({ refreshKey }: Props) {
           <div className="session-report">
             {loading || !selected || !performance ? (
               <p className="empty-state">Carregando relatório da sessão...</p>
+            ) : selected.mode === "EXAM" && selected.status === "ACTIVE" ? (
+              <div className="exam-history-lock">
+                <strong>Relatório bloqueado durante a prova</strong>
+                <p>
+                  Esta sessão ainda está ativa. Resultado, métricas e notas serão
+                  liberados somente quando a prova for encerrada.
+                </p>
+              </div>
             ) : (
               <>
                 <div className="report-title">
