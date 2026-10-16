@@ -87,6 +87,7 @@ export function openPosition(intent: TradeIntent, now = new Date()): Position {
     asset: intent.asset,
     side: intent.side,
     signalId: intent.signal!.id,
+    openedCandleIndex: intent.candleIndex,
     entry: intent.entry,
     stopLoss: intent.oco.stopLoss,
     target: intent.oco.target,
@@ -104,6 +105,12 @@ export function resolveOco(
   candle: Candle,
   now = new Date(candle.timestamp),
 ): Trade | null {
+  // Não usamos a máxima/mínima do próprio candle de entrada para resolver a OCO,
+  // pois parte desse range pode ter ocorrido antes da ordem ser aberta.
+  if (candle.index <= position.openedCandleIndex) {
+    return null;
+  }
+
   const stopTouched =
     position.side === "BUY"
       ? candle.low <= position.stopLoss
