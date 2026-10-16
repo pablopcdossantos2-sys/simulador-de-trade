@@ -4,7 +4,7 @@ use rusqlite::{params, Connection};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use std::fs::{self, File};
-use std::io::{BufRead, BufReader, BufWriter, Write};
+use std::io::{BufRead, BufReader, BufWriter, Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 use tauri::{Emitter, Manager};
@@ -436,6 +436,8 @@ fn csv_escape(value: &str) -> String {
     }
 }
 
+const REPLAY_HEADER: &[u8] = b"symbol,timestamp,source_row,price,quantity\n";
+
 fn derived_paths(source: &Path) -> Result<(PathBuf, PathBuf), String> {
     let parent = source
         .parent()
@@ -449,6 +451,57 @@ fn derived_paths(source: &Path) -> Result<(PathBuf, PathBuf), String> {
         parent.join(format!("{stem}_0900-1200.replay.csv")),
         parent.join(format!("{stem}_0900-1200.replay.meta.json")),
     ))
+}
+
+fn canonicalize_replay_file(
+    temp_path: &Path,
+    output_path: &Path,
+    record_offsets: &[u64],
+    source_order: &str,
+) -> Result<(), String> {
+    if output_path.exists() {
+        fs::remove_file(output_path).map_err(|error| error.to_string())?;
+    }
+
+    match source_order {
+        "ASCENDING" => {
+            fs::rename(temp_path, output_path).map_err(|error| error.to_string())?;
+        }
+        "DESCENDING" => {
+            let input = File::open(temp_path).map_err(|error| error.to_string())?;
+            let mut reader = BufReader::with_capacity(4 * 1024 * 1024, input);
+            let output = File::create(output_path).map_err(|error| error.to_string())?;
+            let mut writer = BufWriter::with_capacity(4 * 1024 * 1024, output);
+            writer
+                .write_all(REPLAY_HEADER)
+                .map_err(|error| error.to_string())?;
+
+            for offset in record_offsets.iter().rev() {
+                reader
+                    .seek(SeekFrom::Start(*offset))
+                    .map_err(|error| error.to_string())?;
+                let mut line = String::new();
+                reader
+                    .read_line(&mut line)
+                    .map_err(|error| error.to_string())?;
+                writer
+                    .write_all(line.as_bytes())
+                    .map_err(|error| error.to_string())?;
+            }
+
+            writer.flush().map_err(|error| error.to_string())?;
+            fs::remove_file(temp_path).map_err(|error| error.to_string())?;
+        }
+        _ => {
+            let _ = fs::remove_file(temp_path);
+            return Err(
+                "A ordem temporal do arquivo do Profit é mista. O replay exige uma fonte cronologicamente ascendente ou descendente."
+                    .to_string(),
+            );
+        }
+    }
+
+    Ok(())
 }
 
 fn emit_progress(
@@ -494,15 +547,18 @@ fn process_profit_replay_file(
         .map_err(|error| error.to_string())?
         .len();
     let (output_path, metadata_path) = derived_paths(&source)?;
+    let temp_path = output_path.with_extension("replay.tmp");
 
     let input = File::open(&source).map_err(|error| error.to_string())?;
     let mut reader = BufReader::with_capacity(8 * 1024 * 1024, input);
-    let output = File::create(&output_path).map_err(|error| error.to_string())?;
+    let output = File::create(&temp_path).map_err(|error| error.to_string())?;
     let mut writer = BufWriter::with_capacity(4 * 1024 * 1024, output);
 
     writer
-        .write_all(b"symbol,timestamp,source_row,price,quantity\n")
+        .write_all(REPLAY_HEADER)
         .map_err(|error| error.to_string())?;
+    let mut logical_output_bytes = REPLAY_HEADER.len() as u64;
+    let mut record_offsets: Vec<u64> = Vec::new();
 
     let mut layout: Option<ProfitLayout> = None;
     let mut delimiter = ',';
@@ -603,9 +659,11 @@ fn process_profit_replay_file(
                 price,
                 quantity
             );
+            record_offsets.push(logical_output_bytes);
             writer
                 .write_all(output_line.as_bytes())
                 .map_err(|error| error.to_string())?;
+            logical_output_bytes += output_line.len() as u64;
             kept_rows += 1;
 
             first_kept = Some(match first_kept {
@@ -628,12 +686,12 @@ fn process_profit_replay_file(
     drop(writer);
 
     if source_rows == 0 {
-        let _ = fs::remove_file(&output_path);
+        let _ = fs::remove_file(&temp_path);
         return Err("Nenhum negócio foi encontrado no arquivo.".to_string());
     }
 
     if kept_rows == 0 {
-        let _ = fs::remove_file(&output_path);
+        let _ = fs::remove_file(&temp_path);
         return Err(
             "Nenhum negócio entre 09:00 e 12:00 foi encontrado no arquivo informado.".to_string(),
         );
@@ -643,10 +701,14 @@ fn process_profit_replay_file(
         "ASCENDING"
     } else if descending_steps > 0 && ascending_steps == 0 {
         "DESCENDING"
+    } else if ascending_steps == 0 && descending_steps == 0 {
+        "ASCENDING"
     } else {
         "UNKNOWN"
     }
     .to_string();
+
+    canonicalize_replay_file(&temp_path, &output_path, &record_offsets, &source_order)?;
 
     let output_bytes = fs::metadata(&output_path)
         .map_err(|error| error.to_string())?
@@ -685,7 +747,8 @@ fn process_profit_replay_file(
         },
         "fields": ["symbol", "timestamp", "source_row", "price", "quantity"],
         "sourceOrder": &result.source_order,
-        "note": "source_row preserva a posição física do negócio no CSV original. Em fontes DESCENDING, o motor de replay deve inverter a ordem relativa quando necessário.",
+        "canonicalOrder": "ASCENDING",
+        "note": "source_row preserva a posição física no CSV bruto; o .replay.csv é sempre gravado em ordem cronológica ascendente.",
         "summary": &result
     });
 
