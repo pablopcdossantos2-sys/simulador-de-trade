@@ -97,6 +97,39 @@ As configurações são copiadas para a operação no momento da entrada.
 
 Isso significa que alterar os custos ou o slippage depois de abrir uma posição não modifica aquela operação nem trades históricos.
 
+## Política intrabar para candles agregados
+
+Quando o simulador possui dados negócio a negócio, Stop e Alvo são avaliados na sequência real dos negócios e não existe ambiguidade sobre qual nível foi atingido primeiro.
+
+Em modos baseados apenas em OHLC, porém, um único candle pode apresentar:
+
+~~~text
+mínima <= Stop
+máxima >= Alvo
+~~~
+
+sem revelar qual evento aconteceu primeiro.
+
+A configuração **Ambiguidade intrabar (OHLC)** oferece duas políticas:
+
+### STOP_FIRST
+
+~~~text
+Stop primeiro
+~~~
+
+É a opção padrão e conservadora, além de preservar o comportamento das versões anteriores.
+
+### TARGET_FIRST
+
+~~~text
+Alvo primeiro
+~~~
+
+É uma hipótese otimista, útil para estudos comparativos.
+
+A política é capturada no momento da entrada e preservada no trade. Ela não interfere no replay real negócio a negócio.
+
 ## Persistência
 
 No aplicativo Tauri, as configurações ficam no SQLite.
