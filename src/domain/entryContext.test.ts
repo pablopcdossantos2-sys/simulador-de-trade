@@ -55,6 +55,7 @@ describe("snapshot do contexto da entrada", () => {
       evaluation,
       signal,
       marketTimestamp: "2026-10-14T10:59:00-03:00",
+      indicatorVersion: "multi-medias-nuvem-v1.0.0",
       capturedAt: "2026-10-16T18:00:00Z",
     });
 
@@ -63,6 +64,7 @@ describe("snapshot do contexto da entrada", () => {
     expect(context?.candles[0].index).toBe(12);
     expect(context?.candles.at(-1)?.index).toBe(59);
     expect(context?.indicatorSeries).toHaveLength(48);
+    expect(context?.indicatorVersion).toBe("multi-medias-nuvem-v1.0.0");
     expect(context?.signals.map((item) => item.id)).toEqual([
       "WINFUT-BUY-59",
     ]);
@@ -76,6 +78,7 @@ describe("snapshot do contexto da entrada", () => {
         evaluation,
         signal: null,
         marketTimestamp: "2026-10-14T10:59:00-03:00",
+      indicatorVersion: "multi-medias-nuvem-v1.0.0",
       }),
     ).toBeNull();
   });
