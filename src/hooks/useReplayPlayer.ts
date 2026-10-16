@@ -30,7 +30,10 @@ export function useReplayPlayer(onTrade: (trade: ReplayTrade) => void) {
     onTradeRef.current = onTrade;
   }, [onTrade]);
 
-  async function loadReplay(): Promise<ReplaySessionInfo | null> {
+  async function loadReplay(
+    expectedStart?: string,
+    expectedEnd?: string,
+  ): Promise<ReplaySessionInfo | null> {
     const normalized = path.trim().replace(/^"(.*)"$/, "$1");
     if (!normalized) {
       setError("Informe o caminho de um arquivo .replay.csv.");
@@ -42,7 +45,11 @@ export function useReplayPlayer(onTrade: (trade: ReplayTrade) => void) {
     setError(null);
 
     try {
-      const info = await openReplayFile(normalized);
+      const info = await openReplayFile(
+        normalized,
+        expectedStart,
+        expectedEnd,
+      );
       queueRef.current = [];
       setSession(info);
       setProcessed(0);
