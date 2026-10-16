@@ -50,6 +50,7 @@ export interface SimulationDataRequirement {
 }
 
 export interface SimulationPlan {
+  asset: Asset;
   visibleMinutes: number;
   visibleBars: number;
   warmupBars: number;
@@ -239,6 +240,7 @@ export function calculateSimulationPlan(
   ];
 
   return {
+    asset: input.asset,
     visibleMinutes: visible.minutes,
     visibleBars: visible.bars,
     warmupBars,
