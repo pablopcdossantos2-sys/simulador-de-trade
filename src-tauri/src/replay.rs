@@ -50,7 +50,7 @@ fn parse_asset(symbol: &str) -> Result<&'static str, String> {
 }
 
 fn parse_replay_line(line: &str, asset: &str, sequence: u64) -> Result<ReplayTradeRecord, String> {
-    let fields: Vec<&str> = line.trim_end_matches(['\r', '\n']).split(',').collect();
+    let fields: Vec<&str> = line.trim_end_matches(|ch| ch == '\r' || ch == '\n').split(',').collect();
     if fields.len() != 5 {
         return Err(format!(
             "Linha tratada inválida: eram esperadas 5 colunas e foram encontradas {}.",
@@ -97,7 +97,7 @@ fn parse_replay_line(line: &str, asset: &str, sequence: u64) -> Result<ReplayTra
 }
 
 fn validate_header(header: &str) -> Result<(), String> {
-    if header.trim_end_matches(['\r', '\n'])
+    if header.trim_end_matches(|ch| ch == '\r' || ch == '\n')
         != "symbol,timestamp,source_row,price,quantity"
     {
         return Err(
@@ -131,7 +131,7 @@ fn open_session(path: &Path) -> Result<(ReplaySession, ReplaySessionInfo), Strin
         return Err("O arquivo de replay não possui negócios.".to_string());
     }
 
-    let first_fields: Vec<&str> = first_line.trim_end_matches(['\r', '\n']).split(',').collect();
+    let first_fields: Vec<&str> = first_line.trim_end_matches(|ch| ch == '\r' || ch == '\n').split(',').collect();
     if first_fields.len() != 5 {
         return Err("Primeira linha de replay inválida.".to_string());
     }
