@@ -661,6 +661,44 @@ fn list_training_events(
 }
 
 #[tauri::command]
+fn list_all_training_events(
+    state: tauri::State<'_, DbState>,
+) -> Result<Vec<TrainingEventRecord>, String> {
+    let connection = state.0.lock().map_err(|error| error.to_string())?;
+    let mut statement = connection
+        .prepare(
+            r#"
+            SELECT
+                id, session_id, type, timestamp, market_timestamp,
+                signal_id, side, reason, trade_id
+            FROM training_events
+            ORDER BY timestamp ASC
+            LIMIT 50000
+            "#,
+        )
+        .map_err(|error| error.to_string())?;
+
+    let rows = statement
+        .query_map([], |row| {
+            Ok(TrainingEventRecord {
+                id: row.get(0)?,
+                session_id: row.get(1)?,
+                r#type: row.get(2)?,
+                timestamp: row.get(3)?,
+                market_timestamp: row.get(4)?,
+                signal_id: row.get(5)?,
+                side: row.get(6)?,
+                reason: row.get(7)?,
+                trade_id: row.get(8)?,
+            })
+        })
+        .map_err(|error| error.to_string())?;
+
+    rows.collect::<Result<Vec<_>, _>>()
+        .map_err(|error| error.to_string())
+}
+
+#[tauri::command]
 fn list_trades(state: tauri::State<'_, DbState>) -> Result<Vec<TradeRecord>, String> {
     let connection = state.0.lock().map_err(|error| error.to_string())?;
     let mut statement = connection
@@ -1653,6 +1691,7 @@ pub fn run() {
             save_training_event,
             list_training_sessions,
             list_training_events,
+            list_all_training_events,
             list_session_trades,
             prepare_profit_replay_file,
             replay::open_replay_file,
