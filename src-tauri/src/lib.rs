@@ -31,6 +31,7 @@ struct TradeRecord {
     exit_reason: String,
     closed_at: String,
     result_points: f64,
+    gross_result_brl: f64,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -103,9 +104,26 @@ struct ProfitLayout {
     quantity_idx: usize,
 }
 
+fn column_exists(
+    connection: &Connection,
+    table: &str,
+    column: &str,
+) -> rusqlite::Result<bool> {
+    let mut statement =
+        connection.prepare(&format!("PRAGMA table_info({table})"))?;
+    let rows = statement.query_map([], |row| row.get::<_, String>(1))?;
+
+    for row in rows {
+        if row? == column {
+            return Ok(true);
+        }
+    }
+
+    Ok(false)
+}
+
 fn initialize_database(connection: &Connection) -> rusqlite::Result<()> {
-    connection
-        .execute_batch(
+    connection.execute_batch(
             r#"
             PRAGMA journal_mode = WAL;
 
@@ -117,12 +135,14 @@ fn initialize_database(connection: &Connection) -> rusqlite::Result<()> {
                 entry REAL NOT NULL,
                 stop_loss REAL NOT NULL,
                 target REAL NOT NULL,
+                contracts INTEGER NOT NULL DEFAULT 1,
                 opened_at TEXT NOT NULL,
                 status TEXT NOT NULL,
                 exit_price REAL NOT NULL,
                 exit_reason TEXT NOT NULL,
                 closed_at TEXT NOT NULL,
-                result_points REAL NOT NULL
+                result_points REAL NOT NULL,
+                gross_result_brl REAL NOT NULL DEFAULT 0
             );
 
             CREATE INDEX IF NOT EXISTS idx_trades_closed_at
@@ -160,8 +180,38 @@ fn initialize_database(connection: &Connection) -> rusqlite::Result<()> {
             CREATE INDEX IF NOT EXISTS idx_training_events_session
             ON training_events(session_id, timestamp ASC);
             "#,
-        )
-        .map(|_| ())
+        )?;
+
+    if !column_exists(connection, "trades", "contracts")? {
+        connection.execute(
+            "ALTER TABLE trades ADD COLUMN contracts INTEGER NOT NULL DEFAULT 1",
+            [],
+        )?;
+    }
+
+    if !column_exists(connection, "trades", "gross_result_brl")? {
+        connection.execute(
+            "ALTER TABLE trades ADD COLUMN gross_result_brl REAL NOT NULL DEFAULT 0",
+            [],
+        )?;
+
+        connection.execute(
+            r#"
+            UPDATE trades
+            SET gross_result_brl =
+                result_points *
+                CASE
+                    WHEN asset = 'WINFUT' THEN 0.2
+                    WHEN asset = 'WDOFUT' THEN 10.0
+                    ELSE 0.0
+                END *
+                contracts
+            "#,
+            [],
+        )?;
+    }
+
+    Ok(())
 }
 
 #[tauri::command]
@@ -172,10 +222,11 @@ fn save_trade(state: tauri::State<'_, DbState>, trade: TradeRecord) -> Result<()
         .execute(
             r#"
             INSERT INTO trades (
-                id, asset, side, signal_id, entry, stop_loss, target,
-                opened_at, status, exit_price, exit_reason, closed_at, result_points
+                id, asset, side, signal_id, entry, stop_loss, target, contracts,
+                opened_at, status, exit_price, exit_reason, closed_at, result_points,
+                gross_result_brl
             )
-            VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)
+            VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15)
             ON CONFLICT(id) DO UPDATE SET
                 asset = excluded.asset,
                 side = excluded.side,
@@ -183,12 +234,14 @@ fn save_trade(state: tauri::State<'_, DbState>, trade: TradeRecord) -> Result<()
                 entry = excluded.entry,
                 stop_loss = excluded.stop_loss,
                 target = excluded.target,
+                contracts = excluded.contracts,
                 opened_at = excluded.opened_at,
                 status = excluded.status,
                 exit_price = excluded.exit_price,
                 exit_reason = excluded.exit_reason,
                 closed_at = excluded.closed_at,
-                result_points = excluded.result_points
+                result_points = excluded.result_points,
+                gross_result_brl = excluded.gross_result_brl
             "#,
             params![
                 trade.id,
@@ -198,12 +251,14 @@ fn save_trade(state: tauri::State<'_, DbState>, trade: TradeRecord) -> Result<()
                 trade.entry,
                 trade.stop_loss,
                 trade.target,
+                trade.contracts,
                 trade.opened_at,
                 trade.status,
                 trade.exit_price,
                 trade.exit_reason,
                 trade.closed_at,
                 trade.result_points,
+                trade.gross_result_brl,
             ],
         )
         .map_err(|error| error.to_string())?;
