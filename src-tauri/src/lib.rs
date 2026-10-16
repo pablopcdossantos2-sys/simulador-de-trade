@@ -550,9 +550,11 @@ fn list_session_trades(
         .prepare(
             r#"
             SELECT DISTINCT
-                t.id, t.asset, t.side, t.signal_id, t.entry, t.stop_loss, t.target,
-                t.contracts, t.opened_at, t.status, t.exit_price, t.exit_reason,
-                t.closed_at, t.result_points, t.gross_result_brl
+                t.id, t.asset, t.side, t.signal_id, t.requested_entry, t.entry,
+                t.stop_loss, t.target, t.contracts, t.slippage_ticks_per_side,
+                t.cost_per_contract_round_trip_brl, t.opened_at, t.status,
+                t.exit_price, t.exit_reason, t.closed_at, t.result_points,
+                t.gross_result_brl, t.operational_costs_brl, t.net_result_brl
             FROM trades t
             INNER JOIN training_events e
                 ON e.trade_id = t.id
@@ -570,17 +572,22 @@ fn list_session_trades(
                 asset: row.get(1)?,
                 side: row.get(2)?,
                 signal_id: row.get(3)?,
-                entry: row.get(4)?,
-                stop_loss: row.get(5)?,
-                target: row.get(6)?,
-                contracts: row.get(7)?,
-                opened_at: row.get(8)?,
-                status: row.get(9)?,
-                exit_price: row.get(10)?,
-                exit_reason: row.get(11)?,
-                closed_at: row.get(12)?,
-                result_points: row.get(13)?,
-                gross_result_brl: row.get(14)?,
+                requested_entry: row.get(4)?,
+                entry: row.get(5)?,
+                stop_loss: row.get(6)?,
+                target: row.get(7)?,
+                contracts: row.get(8)?,
+                slippage_ticks_per_side: row.get(9)?,
+                cost_per_contract_round_trip_brl: row.get(10)?,
+                opened_at: row.get(11)?,
+                status: row.get(12)?,
+                exit_price: row.get(13)?,
+                exit_reason: row.get(14)?,
+                closed_at: row.get(15)?,
+                result_points: row.get(16)?,
+                gross_result_brl: row.get(17)?,
+                operational_costs_brl: row.get(18)?,
+                net_result_brl: row.get(19)?,
             })
         })
         .map_err(|error| error.to_string())?;
@@ -635,9 +642,11 @@ fn list_trades(state: tauri::State<'_, DbState>) -> Result<Vec<TradeRecord>, Str
         .prepare(
             r#"
             SELECT
-                id, asset, side, signal_id, entry, stop_loss, target,
-                contracts, opened_at, status, exit_price, exit_reason, closed_at,
-                result_points, gross_result_brl
+                id, asset, side, signal_id, requested_entry, entry, stop_loss,
+                target, contracts, slippage_ticks_per_side,
+                cost_per_contract_round_trip_brl, opened_at, status, exit_price,
+                exit_reason, closed_at, result_points, gross_result_brl,
+                operational_costs_brl, net_result_brl
             FROM trades
             ORDER BY closed_at DESC
             LIMIT 500
@@ -652,17 +661,22 @@ fn list_trades(state: tauri::State<'_, DbState>) -> Result<Vec<TradeRecord>, Str
                 asset: row.get(1)?,
                 side: row.get(2)?,
                 signal_id: row.get(3)?,
-                entry: row.get(4)?,
-                stop_loss: row.get(5)?,
-                target: row.get(6)?,
-                contracts: row.get(7)?,
-                opened_at: row.get(8)?,
-                status: row.get(9)?,
-                exit_price: row.get(10)?,
-                exit_reason: row.get(11)?,
-                closed_at: row.get(12)?,
-                result_points: row.get(13)?,
-                gross_result_brl: row.get(14)?,
+                requested_entry: row.get(4)?,
+                entry: row.get(5)?,
+                stop_loss: row.get(6)?,
+                target: row.get(7)?,
+                contracts: row.get(8)?,
+                slippage_ticks_per_side: row.get(9)?,
+                cost_per_contract_round_trip_brl: row.get(10)?,
+                opened_at: row.get(11)?,
+                status: row.get(12)?,
+                exit_price: row.get(13)?,
+                exit_reason: row.get(14)?,
+                closed_at: row.get(15)?,
+                result_points: row.get(16)?,
+                gross_result_brl: row.get(17)?,
+                operational_costs_brl: row.get(18)?,
+                net_result_brl: row.get(19)?,
             })
         })
         .map_err(|error| error.to_string())?;
@@ -1379,10 +1393,13 @@ mod tests {
             asset: "WINFUT".to_string(),
             side: "BUY".to_string(),
             signal_id: "s1".to_string(),
+            requested_entry: 130000.0,
             entry: 130000.0,
             stop_loss: 129900.0,
             target: 130150.0,
             contracts: 2,
+            slippage_ticks_per_side: 0,
+            cost_per_contract_round_trip_brl: 0.0,
             opened_at: "2026-10-14T09:00:00".to_string(),
             status: "CLOSED".to_string(),
             exit_price: 130150.0,
@@ -1390,11 +1407,15 @@ mod tests {
             closed_at: "2026-10-14T09:10:00".to_string(),
             result_points: 150.0,
             gross_result_brl: 60.0,
+            operational_costs_brl: 0.0,
+            net_result_brl: 60.0,
         };
 
         let value = serde_json::to_value(record).unwrap();
         assert_eq!(value["contracts"], 2);
         assert_eq!(value["grossResultBRL"], 60.0);
+        assert_eq!(value["netResultBRL"], 60.0);
+        assert_eq!(value["costPerContractRoundTripBRL"], 0.0);
         assert!(value.get("grossResultBrl").is_none());
     }
 
@@ -1436,16 +1457,35 @@ mod tests {
 
         initialize_database(&connection).unwrap();
 
-        let (contracts, gross): (i64, f64) = connection
+        let (contracts, requested, gross, net): (i64, f64, f64, f64) = connection
             .query_row(
-                "SELECT contracts, gross_result_brl FROM trades WHERE id = 'legacy-1'",
+                "SELECT contracts, requested_entry, gross_result_brl, net_result_brl FROM trades WHERE id = 'legacy-1'",
+                [],
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
+            )
+            .unwrap();
+
+        assert_eq!(contracts, 1);
+        assert!((requested - 130000.0).abs() < 1e-9);
+        assert!((gross - 30.0).abs() < 1e-9);
+        assert!((net - 30.0).abs() < 1e-9);
+    }
+
+    #[test]
+    fn execution_settings_default_to_zero() {
+        let connection = Connection::open_in_memory().unwrap();
+        initialize_database(&connection).unwrap();
+
+        let (cost, slippage): (f64, i64) = connection
+            .query_row(
+                "SELECT cost_per_contract_round_trip_brl, slippage_ticks_per_side FROM execution_settings WHERE id = 1",
                 [],
                 |row| Ok((row.get(0)?, row.get(1)?)),
             )
             .unwrap();
 
-        assert_eq!(contracts, 1);
-        assert!((gross - 30.0).abs() < 1e-9);
+        assert_eq!(cost, 0.0);
+        assert_eq!(slippage, 0);
     }
 
     #[test]
@@ -1453,7 +1493,12 @@ mod tests {
         let connection = Connection::open_in_memory().unwrap();
         initialize_database(&connection).unwrap();
 
-        for table in ["trades", "training_sessions", "training_events"] {
+        for table in [
+            "trades",
+            "training_sessions",
+            "training_events",
+            "execution_settings",
+        ] {
             let count: i64 = connection
                 .query_row(
                     "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = ?1",
