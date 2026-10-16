@@ -2338,7 +2338,8 @@ td {
   font-weight: 700;
 }
 
-.execution-settings-grid input {
+.execution-settings-grid input,
+.execution-settings-grid select {
   min-height: 42px;
   border: 1px solid #2b4059;
   border-radius: 10px;
@@ -2385,7 +2386,8 @@ td {
   color: #405a72;
 }
 
-:root[data-theme="light"] .execution-settings-grid input {
+:root[data-theme="light"] .execution-settings-grid input,
+:root[data-theme="light"] .execution-settings-grid select {
   border-color: #bfd0df;
   background: #fff;
   color: #20364a;
