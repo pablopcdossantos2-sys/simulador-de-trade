@@ -12,6 +12,7 @@ interface CaptureEntryContextInput {
   evaluation: IndicatorEvaluation;
   signal: IndicatorSignal | null;
   marketTimestamp: string;
+  indicatorVersion: string;
   capturedAt?: string;
   maxCandles?: number;
 }
@@ -22,6 +23,7 @@ export function captureEntryContext({
   evaluation,
   signal,
   marketTimestamp,
+  indicatorVersion,
   capturedAt = new Date().toISOString(),
   maxCandles = 48,
 }: CaptureEntryContextInput): TradeEntryContext | null {
@@ -39,6 +41,7 @@ export function captureEntryContext({
     currentPrice: visible[visible.length - 1].close,
     zone: evaluation.zone,
     signal: { ...signal },
+    indicatorVersion,
     candles: visible.map((candle) => ({ ...candle })),
     indicatorSeries: evaluation.series
       .filter(
