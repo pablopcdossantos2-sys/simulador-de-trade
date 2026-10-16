@@ -78,11 +78,11 @@ A Fase 1 cria a fundação funcional do simulador:
 - fallback para `localStorage` durante desenvolvimento no navegador;
 - testes unitários das regras críticas;
 - ferramenta desktop para reduzir CSVs brutos do Profit à faixa horária escolhida e aos campos necessários ao replay;
-- planejador prévio de simulação com data, ativo, M2, horário e cálculo de aquecimento;
+- planejador prévio de simulação com data, ativo, M2/M5, horário e cálculo de aquecimento;
 - aviso dos pregões anteriores necessários antes da coleta dos dados;
 - validação para impedir carregar um replay tratado em horário diferente do plano;
 - sessão formal de treinamento com início/fim e persistência local;
-- avanço por negócio e por candle M2;
+- avanço por negócio e por candle no timeframe escolhido;
 - registro de tentativas bloqueadas e sinais ignorados;
 - resumo de aderência e linha do tempo disciplinar;
 - histórico navegável de sessões persistidas;
@@ -107,7 +107,7 @@ A Fase 1 cria a fundação funcional do simulador:
 - tratamento em lote orientado pelos requisitos do plano;
 - aquecimento histórico invisível antes do replay visível.
 
-> **Importante:** o modo demonstrativo com candles sintéticos continua disponível, mas o aplicativo desktop já possui um player de `.replay.csv` tratado do Profit. Nesse modo, os candles M2 são construídos negócio a negócio e nenhum candle futuro é revelado.
+> **Importante:** o modo demonstrativo com candles sintéticos continua disponível, mas o aplicativo desktop já possui um player de `.replay.csv` tratado do Profit. Nesse modo, candles M2 ou M5 são construídos negócio a negócio e nenhum candle futuro é revelado.
 
 ### Regra de autorização do simulador
 
@@ -153,7 +153,7 @@ npm test
 ### Fase 2 — Replay histórico
 - [x] Tratamento do CSV bruto do Profit para a faixa horária definida no plano.
 - [x] Arquivo de replay canônico em ordem cronológica.
-- [x] Formação M2 negócio a negócio.
+- [x] Formação M2/M5 negócio a negócio.
 - [x] Reprodução, pausa, +1 negócio, reinício e velocidade visual.
 - [x] Ocultação dos candles futuros.
 - [x] Indicador recalculado durante o candle M2 aberto.
