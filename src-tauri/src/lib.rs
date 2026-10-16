@@ -1227,6 +1227,32 @@ mod tests {
 
     #[test]
     #[test]
+    fn trade_record_uses_expected_tauri_financial_field_name() {
+        let record = TradeRecord {
+            id: "t1".to_string(),
+            asset: "WINFUT".to_string(),
+            side: "BUY".to_string(),
+            signal_id: "s1".to_string(),
+            entry: 130000.0,
+            stop_loss: 129900.0,
+            target: 130150.0,
+            contracts: 2,
+            opened_at: "2026-10-14T09:00:00".to_string(),
+            status: "CLOSED".to_string(),
+            exit_price: 130150.0,
+            exit_reason: "TARGET".to_string(),
+            closed_at: "2026-10-14T09:10:00".to_string(),
+            result_points: 150.0,
+            gross_result_brl: 60.0,
+        };
+
+        let value = serde_json::to_value(record).unwrap();
+        assert_eq!(value["contracts"], 2);
+        assert_eq!(value["grossResultBRL"], 60.0);
+        assert!(value.get("grossResultBrl").is_none());
+    }
+
+    #[test]
     fn migrates_legacy_trade_table_without_losing_history() {
         let connection = Connection::open_in_memory().unwrap();
         connection
