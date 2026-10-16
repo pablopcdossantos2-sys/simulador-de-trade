@@ -17,6 +17,7 @@ export interface MultiMediasConfig {
 
 export interface IndicatorAdapter {
   readonly name: string;
+  readonly version: string;
   readonly config: MultiMediasConfig;
   calculate(asset: Asset, candles: Candle[]): IndicatorEvaluation;
   evaluate(asset: Asset, candles: Candle[]): IndicatorSignal | null;
@@ -99,6 +100,7 @@ function zoneAuthorization(
  */
 export class MultiMediasNuvemAdapter implements IndicatorAdapter {
   readonly name = "Multi Médias - Nuvem e Sinais";
+  readonly version = "multi-medias-nuvem-v1.0.0";
   readonly config: MultiMediasConfig;
 
   constructor(config: MultiMediasConfig = DEFAULT_MULTI_MEDIAS_CONFIG) {
