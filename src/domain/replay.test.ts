@@ -16,6 +16,7 @@ function trade(
     asset: "WINFUT",
     timestamp,
     sourceRow,
+    sequence: sourceRow,
     price,
     quantity,
   };
