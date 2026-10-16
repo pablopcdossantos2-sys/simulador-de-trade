@@ -14,6 +14,19 @@ describe("planejamento de simulação", () => {
     ]);
   });
 
+  it("rejeita timeframe fora de M2/M5", () => {
+    expect(() =>
+      calculateSimulationPlan({
+        asset: "WINFUT",
+        date: "2026-10-14",
+        timeframeMinutes: 3,
+        startTime: "09:00",
+        endTime: "12:00",
+        warmupPolicy: "STANDARD",
+      }),
+    ).toThrow(/M2 ou M5/i);
+  });
+
   it("exige 260 candles de aquecimento no modo padrão", () => {
     const plan = calculateSimulationPlan({
       asset: "WINFUT",
