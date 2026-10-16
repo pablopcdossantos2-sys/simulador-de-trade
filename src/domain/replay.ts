@@ -17,7 +17,7 @@ function sameBucket(candle: Candle, bucketMs: number): boolean {
 }
 
 /**
- * Atualiza a série M2 negócio a negócio.
+ * Atualiza a série de candles negócio a negócio no intervalo selecionado.
  *
  * Pré-condição: os ReplayTrade precisam chegar em ordem cronológica.
  * Arquivos DESCENDING serão reordenados pelo leitor antes de alcançar este motor.
@@ -57,7 +57,7 @@ export function applyReplayTrade(
   const lastBucketMs = Date.parse(last.timestamp);
   if (bucketMs < lastBucketMs) {
     throw new Error(
-      "ReplayTrade fora de ordem cronológica. O leitor precisa normalizar a sequência antes da formação M2.",
+      "ReplayTrade fora de ordem cronológica. O leitor precisa normalizar a sequência antes da formação dos candles.",
     );
   }
 
