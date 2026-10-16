@@ -814,6 +814,49 @@ mod tests {
         assert_eq!(fields.len(), 5);
         assert_eq!(fields[3], "5.321,5");
     }
+
+    #[test]
+    fn canonicalizes_descending_replay_without_loading_rows_into_memory() {
+        use std::time::{SystemTime, UNIX_EPOCH};
+
+        let unique = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let root = std::env::temp_dir().join(format!("simulador-trade-{unique}"));
+        fs::create_dir_all(&root).unwrap();
+
+        let temp = root.join("source.replay.tmp");
+        let output = root.join("source.replay.csv");
+        let first = b"WINV26,2026-10-07T09:00:02,20,130010,1\n";
+        let second = b"WINV26,2026-10-07T09:00:01,21,130005,2\n";
+
+        let mut bytes = Vec::new();
+        bytes.extend_from_slice(REPLAY_HEADER);
+        let first_offset = bytes.len() as u64;
+        bytes.extend_from_slice(first);
+        let second_offset = bytes.len() as u64;
+        bytes.extend_from_slice(second);
+        fs::write(&temp, bytes).unwrap();
+
+        canonicalize_replay_file(
+            &temp,
+            &output,
+            &[first_offset, second_offset],
+            "DESCENDING",
+        )
+        .unwrap();
+
+        let final_text = fs::read_to_string(&output).unwrap();
+        let lines: Vec<&str> = final_text.lines().collect();
+
+        assert_eq!(lines[0], "symbol,timestamp,source_row,price,quantity");
+        assert!(lines[1].contains("09:00:01"));
+        assert!(lines[2].contains("09:00:02"));
+        assert!(!temp.exists());
+
+        let _ = fs::remove_dir_all(root);
+    }
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
