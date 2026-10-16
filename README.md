@@ -39,6 +39,11 @@ Tauri / Rust
 SQLite local
 ```
 
+## Documentação do projeto
+
+- [Arquitetura](docs/ARQUITETURA.md)
+- [ROADMAP detalhado](ROADMAP.md)
+
 ## Estado atual
 
 A Fase 1 cria a fundação funcional do simulador:
@@ -49,6 +54,7 @@ A Fase 1 cria a fundação funcional do simulador:
 - compra/venda desbloqueadas exclusivamente pelo sinal ativo;
 - formulário OCO obrigatório;
 - validação de stop e alvo;
+- validação do incremento mínimo de preço de WIN/WDO;
 - posição única;
 - encerramento automático quando stop ou alvo é atingido;
 - histórico de operações;
@@ -106,7 +112,7 @@ npm test
 - [ ] Quantidade de contratos.
 - [ ] Slippage configurável.
 - [ ] Custos operacionais configuráveis.
-- [ ] Regras de tick específicas de WIN/WDO.
+- [x] Regras de tick específicas de WIN/WDO.
 - [ ] Saída OCO intrabar com política explícita para candles que tocam stop e alvo.
 
 ### Fase 4 — Treino e avaliação
