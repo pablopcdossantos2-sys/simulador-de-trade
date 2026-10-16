@@ -120,7 +120,7 @@ export function SessionHistoryPanel({ refreshKey }: Props) {
       <div className="section-heading">
         <div>
           <p className="eyebrow">Histórico persistente</p>
-          <h2>Sessões concluídas</h2>
+          <h2>Sessões registradas</h2>
         </div>
         <span className="history-count">{sessions.length} sessões</span>
       </div>
@@ -149,7 +149,7 @@ export function SessionHistoryPanel({ refreshKey }: Props) {
                   {session.timeframeMinutes}
                 </span>
                 <small>
-                  {session.status === "ENDED" ? "Concluída" : "Interrompida/ativa"}
+                  {session.status === "ENDED" ? "Concluída" : "Sessão ainda ativa"}
                 </small>
               </button>
             ))}
