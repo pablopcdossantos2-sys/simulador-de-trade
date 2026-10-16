@@ -56,6 +56,7 @@ export interface SimulationPlan {
   targetDate: string;
   targetStartTime: string;
   targetEndTime: string;
+  contractWarning: string | null;
 }
 
 function timeToMinutes(value: string): number {
@@ -128,6 +129,44 @@ function barsForWindow(
   };
 }
 
+
+function nearestWednesdayTo15th(year: number, monthIndex: number): Date {
+  const fifteenth = new Date(Date.UTC(year, monthIndex, 15));
+  let best = fifteenth;
+  let bestDistance = Number.POSITIVE_INFINITY;
+
+  for (let offset = -3; offset <= 3; offset += 1) {
+    const candidate = new Date(Date.UTC(year, monthIndex, 15 + offset));
+    if (candidate.getUTCDay() !== 3) continue;
+    const distance = Math.abs(offset);
+    if (distance < bestDistance) {
+      best = candidate;
+      bestDistance = distance;
+    }
+  }
+
+  return best;
+}
+
+function winExpiryWarning(dateValue: string, asset: Asset): string | null {
+  if (asset !== "WINFUT") return null;
+
+  const date = new Date(`${dateValue}T12:00:00Z`);
+  if (Number.isNaN(date.getTime())) return null;
+
+  const monthIndex = date.getUTCMonth();
+  const monthNumber = monthIndex + 1;
+  if (monthNumber % 2 !== 0) return null;
+
+  const expiry = nearestWednesdayTo15th(date.getUTCFullYear(), monthIndex);
+  if (dateKey(expiry) !== dateValue) return null;
+
+  return (
+    "A data selecionada coincide com o vencimento mensal do WIN. " +
+    "Use o mesmo contrato no aquecimento e no pregão-alvo, ou defina explicitamente uma política de série contínua/rolagem."
+  );
+}
+
 export function calculateSimulationPlan(
   input: SimulationPlanInput,
 ): SimulationPlan {
@@ -191,5 +230,6 @@ export function calculateSimulationPlan(
     targetDate: input.date,
     targetStartTime: input.startTime,
     targetEndTime: input.endTime,
+    contractWarning: winExpiryWarning(input.date, input.asset),
   };
 }
