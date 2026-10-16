@@ -1,0 +1,114 @@
+// This Pine Script® code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © pablocsantos
+//@version=5
+
+indicator("Multi Médias - Nuvem e Sinais", shorttitle="Multi Médias - Sinais", overlay=true)
+
+// --- GRUPO: Média Móvel Ponderada (WMA) de 20 Períodos ---
+group_wma20 = "1. MMP 20"
+show_wma20 = input.bool(true, "Exibir", group = group_wma20, inline = "wma20")
+len_wma20 = input.int(20, "Períodos", minval=1, group = group_wma20, inline = "wma20")
+color_wma20 = input.color(color.blue, "Cor", group = group_wma20, inline = "wma20") // OPACO
+
+// --- GRUPO: VWAP (Volume Weighted Average Price) ---
+group_vwap = "2. VWAP"
+show_vwap = input.bool(true, "Exibir", group = group_vwap, inline = "vwap")
+anchor_vwap = input.string("Session", "Ancoragem", options=["Session", "Week", "Month", "Year"], group = group_vwap, inline = "vwap")
+color_vwap = input.color(color.orange, "Cor", group = group_vwap, inline = "vwap") // OPACO
+
+// --- GRUPO: Média Móvel Exponencial (EMA) de 8 Períodos ---
+group_ema8 = "3. MME 8"
+show_ema8 = input.bool(true, "Exibir", group = group_ema8, inline = "ema8")
+len_ema8 = input.int(8, "Períodos", minval=1, group = group_ema8, inline = "ema8")
+color_ema8 = input.color(color.green, "Cor", group = group_ema8, inline = "ema8") // OPACO
+
+// --- GRUPO: Média Móvel Exponencial (EMA) de 52 Períodos ---
+group_ema52 = "4. MME 52"
+show_ema52 = input.bool(true, "Exibir", group = group_ema52, inline = "ema52")
+len_ema52 = input.int(52, "Períodos", minval=1, group = group_ema52, inline = "ema52")
+color_ema52 = input.color(color.red, "Cor", group = group_ema52, inline = "ema52") // OPACO
+
+// --- GRUPO: Preenchimento entre Médias (Nuvem) ---
+group_fill = "5. Preenchimento"
+show_fill = input.bool(true, "Exibir Preenchimento", group = group_fill)
+fill_transparency = input.int(80, "Transparência do Preenchimento", minval=0, maxval=100, group = group_fill)
+
+// --- CÁLCULOS ---
+
+// Cálculo das WMAs e EMAs
+wma20 = ta.wma(close, len_wma20)
+ema8 = ta.ema(close, len_ema8)
+ema52 = ta.ema(close, len_ema52)
+
+// Lógica para resetar a VWAP baseada na seleção do usuário
+isNewPeriod = anchor_vwap == "Session" ? timeframe.change("D") : anchor_vwap == "Week" ? timeframe.change("W") : anchor_vwap == "Month" ? timeframe.change("M") : anchor_vwap == "Year" ? timeframe.change("12M") : false
+
+var float source_vol = na
+var float cum_vol = na
+
+source_vol := isNewPeriod ? hlc3 * volume : source_vol + hlc3 * volume
+cum_vol := isNewPeriod ? volume : cum_vol + volume
+vwap_val = source_vol / cum_vol
+
+// --- PLOTAGEM NO GRÁFICO ---
+
+plot_wma20 = plot(show_wma20 ? wma20 : na, "MMP 20", color=color_wma20, linewidth=1)
+plot_vwap = plot(show_vwap ? vwap_val : na, "VWAP", color=color_vwap, linewidth=2)
+plot_ema8 = plot(show_ema8 ? ema8 : na, "MME 8", color=color_ema8, linewidth=1)
+plot_ema52 = plot(show_ema52 ? ema52 : na, "MME 52", color=color_ema52, linewidth=1)
+
+// --- LÓGICA DE CONDICIONAMENTO DA NUVEM E SINAIS ---
+
+// Condições puras de alinhamento das médias
+ma_aligned_bull = ema8 > wma20 and wma20 > ema52
+ma_aligned_bear = ema52 > wma20 and wma20 > ema8
+
+// Direção do Candle Atual
+is_bull_candle = close > open
+is_bear_candle = close < open
+
+// Variáveis de estado para manter a nuvem ativa após o gatilho correto
+var bool in_green_zone = false
+var bool in_red_zone = false
+
+// Variáveis para registrar o momento exato do gatilho (sinal)
+bool buy_signal = false
+bool sell_signal = false
+
+// Lógica de Compra (Verde)
+if ma_aligned_bull
+    // Se não estávamos na nuvem verde, procuramos o gatilho (candle de alta)
+    if not in_green_zone
+        if is_bull_candle
+            in_green_zone := true
+            buy_signal := true // Sinal disparado apenas no candle que inicia a nuvem
+            in_red_zone := false // Cancela zona vermelha, se existisse
+else
+    // Se as médias perderem o alinhamento de alta, encerra a nuvem verde
+    in_green_zone := false
+
+// Lógica de Venda (Vermelha)
+if ma_aligned_bear
+    // Se não estávamos na nuvem vermelha, procuramos o gatilho (candle de baixa)
+    if not in_red_zone
+        if is_bear_candle
+            in_red_zone := true
+            sell_signal := true // Sinal disparado apenas no candle que inicia a nuvem
+            in_green_zone := false // Cancela zona verde, se existisse
+else
+    // Se as médias perderem o alinhamento de baixa, encerra a nuvem vermelha
+    in_red_zone := false
+
+// --- APLICAÇÃO DE CORES DA NUVEM ---
+
+// Determina a cor do preenchimento com base nas variáveis de estado persistentes
+fill_color = show_fill ? (in_green_zone ? color.new(color.lime, fill_transparency) : in_red_zone ? color.new(color.red, fill_transparency) : na) : na
+
+// Preenche o espaço entre a MME 8 e a MME 52
+fill(plot_ema8, plot_ema52, color=fill_color, title = "Zona de Tendência")
+
+// --- PLOTAGEM DOS SINAIS DE COMPRA E VENDA ---
+
+// Plota os labels visuais no gráfico
+plotshape(buy_signal ? true : na, title="Sinal de Compra", text="COMPRA", style=shape.labelup, location=location.belowbar, color=color.green, textcolor=color.white, size=size.small)
+plotshape(sell_signal ? true : na, title="Sinal de Venda", text="VENDA", style=shape.labeldown, location=location.abovebar, color=color.red, textcolor=color.white, size=size.small)
