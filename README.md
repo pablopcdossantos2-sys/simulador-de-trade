@@ -49,7 +49,8 @@ SQLite local
 - [Relatório pós-sessão e métricas](docs/RELATORIO-SESSAO.md)
 - [Quantidade de contratos e resultado financeiro](docs/RESULTADO-FINANCEIRO.md)
 - [Custos, slippage e resultado líquido](docs/CUSTOS-SLIPPAGE.md)
-- [Notas pós-trade](docs/NOTAS-POS-TRADE.md)\n- [Reaproveitamento do Candle Lab](docs/REAPROVEITAMENTO-CANDLE-LAB.md)
+- [Notas pós-trade](docs/NOTAS-POS-TRADE.md)
+- [Modo Prova](docs/MODO-PROVA.md)\n- [Reaproveitamento do Candle Lab](docs/REAPROVEITAMENTO-CANDLE-LAB.md)
 
 ## Estado atual
 
@@ -86,6 +87,10 @@ A Fase 1 cria a fundação funcional do simulador:
 - resultado líquido por trade e por sessão;
 - arredondamento automático de Stop/Alvo ao tick válido;
 - notas pós-trade editáveis no histórico da sessão;
+- Modo Prova com ocultação dos resultados até o encerramento;
+- cronômetro opcional da sessão;
+- política de uma única entrada por sinal;
+- painel agregado de resultados por WINFUT/WDOFUT;
 - catálogo local que informa automaticamente datas disponíveis, faltantes e contratos incompatíveis;
 - tratamento em lote orientado pelos requisitos do plano;
 - aquecimento histórico invisível antes do replay visível.
@@ -169,7 +174,9 @@ npm test
 - [x] R-múltiplos.
 - [x] Relatório pós-sessão inicial.
 - [x] Notas pós-trade.
-- [ ] Modo prova sem revelar candles futuros.
+- [x] Modo prova com resultados ocultos até o encerramento.
+- [x] Cronômetro opcional.
+- [x] Uma entrada por sinal do indicador.
 
 ### Fase 5 — Distribuição desktop
 - [ ] Instalador Windows.
