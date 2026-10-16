@@ -141,6 +141,11 @@ describe("relatório por sessão", () => {
     expect(result.netPoints).toBe(50);
     expect(result.payoff).toBe(1.5);
     expect(result.profitFactor).toBe(1.5);
+    expect(result.buyNetPoints).toBe(150);
+    expect(result.sellNetPoints).toBe(-100);
+    expect(result.totalR).toBeCloseTo(0.5, 6);
+    expect(result.expectancyR).toBeCloseTo(0.25, 6);
+    expect(result.maxDrawdownPoints).toBe(100);
     expect(result.blockedAttempts).toBe(1);
     expect(result.technicalIssues).toBe(1);
     expect(result.executionAdherencePct).toBeCloseTo(66.666, 2);
