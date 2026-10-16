@@ -16,6 +16,7 @@ describe("sessão formal de treino", () => {
       endTime: "12:00",
       timeframeMinutes: 2,
       warmupBars: 260,
+      mode: "FREE" as const,
       startedAt: "2026-10-16T10:00:00Z",
       endedAt: null,
       status: "ACTIVE" as const,
@@ -73,6 +74,7 @@ describe("sessão formal de treino", () => {
       endTime: "12:00",
       timeframeMinutes: 2,
       warmupBars: 260,
+      mode: "EXAM",
       now: new Date("2026-10-16T10:00:00Z"),
     });
 
@@ -83,6 +85,7 @@ describe("sessão formal de treino", () => {
 
     expect(ended.id).toBe("session-1");
     expect(ended.status).toBe("ENDED");
+    expect(ended.mode).toBe("EXAM");
     expect(ended.endedAt).toBe("2026-10-16T11:00:00.000Z");
   });
 
