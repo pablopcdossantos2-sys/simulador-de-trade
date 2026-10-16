@@ -425,9 +425,31 @@ fn normalize_profit_number(raw: &str) -> Result<String, String> {
     Ok(text)
 }
 
-fn in_training_window(time: NaiveTime) -> bool {
-    let start = NaiveTime::from_hms_opt(9, 0, 0).expect("valid start");
-    let end = NaiveTime::from_hms_opt(12, 0, 0).expect("valid end");
+fn parse_window_time(raw: &str, label: &str) -> Result<NaiveTime, String> {
+    for format in ["%H:%M:%S", "%H:%M"] {
+        if let Ok(value) = NaiveTime::parse_from_str(raw.trim(), format) {
+            return Ok(value);
+        }
+    }
+
+    Err(format!("{label} inválido. Use HH:MM, por exemplo 09:00."))
+}
+
+fn validate_training_window(
+    session_start: &str,
+    session_end: &str,
+) -> Result<(NaiveTime, NaiveTime), String> {
+    let start = parse_window_time(session_start, "Horário inicial")?;
+    let end = parse_window_time(session_end, "Horário final")?;
+
+    if end <= start {
+        return Err("O horário final precisa ser posterior ao horário inicial.".to_string());
+    }
+
+    Ok((start, end))
+}
+
+fn in_training_window(time: NaiveTime, start: NaiveTime, end: NaiveTime) -> bool {
     time >= start && time < end
 }
 
@@ -441,7 +463,15 @@ fn csv_escape(value: &str) -> String {
 
 const REPLAY_HEADER: &[u8] = b"symbol,timestamp,source_row,price,quantity\n";
 
-fn derived_paths(source: &Path) -> Result<(PathBuf, PathBuf), String> {
+fn compact_time_label(time: NaiveTime) -> String {
+    time.format("%H%M").to_string()
+}
+
+fn derived_paths(
+    source: &Path,
+    session_start: NaiveTime,
+    session_end: NaiveTime,
+) -> Result<(PathBuf, PathBuf), String> {
     let parent = source
         .parent()
         .ok_or_else(|| "Não foi possível identificar a pasta do arquivo.".to_string())?;
@@ -450,9 +480,15 @@ fn derived_paths(source: &Path) -> Result<(PathBuf, PathBuf), String> {
         .and_then(|value| value.to_str())
         .ok_or_else(|| "Nome de arquivo inválido.".to_string())?;
 
+    let range = format!(
+        "{}-{}",
+        compact_time_label(session_start),
+        compact_time_label(session_end)
+    );
+
     Ok((
-        parent.join(format!("{stem}_0900-1200.replay.csv")),
-        parent.join(format!("{stem}_0900-1200.replay.meta.json")),
+        parent.join(format!("{stem}_{range}.replay.csv")),
+        parent.join(format!("{stem}_{range}.replay.meta.json")),
     ))
 }
 
@@ -535,6 +571,8 @@ fn emit_progress(
 fn process_profit_replay_file(
     app: &tauri::AppHandle,
     source_path: &str,
+    session_start: &str,
+    session_end: &str,
 ) -> Result<ProfitPreparationResult, String> {
     let source = PathBuf::from(source_path.trim().trim_matches('"'));
     if !source.exists() || !source.is_file() {
@@ -546,10 +584,14 @@ fn process_profit_replay_file(
         return Err("O arquivo bruto do Profit precisa possuir extensão .csv.".to_string());
     }
 
+    let (window_start, window_end) =
+        validate_training_window(session_start, session_end)?;
+
     let source_bytes = fs::metadata(&source)
         .map_err(|error| error.to_string())?
         .len();
-    let (output_path, metadata_path) = derived_paths(&source)?;
+    let (output_path, metadata_path) =
+        derived_paths(&source, window_start, window_end)?;
     let temp_path = output_path.with_extension("replay.tmp");
 
     let input = File::open(&source).map_err(|error| error.to_string())?;
@@ -647,7 +689,7 @@ fn process_profit_replay_file(
             ));
         }
 
-        if in_training_window(timestamp.time()) {
+        if in_training_window(timestamp.time(), window_start, window_end) {
             let price = normalize_profit_number(&fields[current_layout.price_idx])
                 .map_err(|error| format!("Linha {physical_line}: preço {error}"))?;
             let quantity = normalize_profit_number(&fields[current_layout.quantity_idx])
@@ -696,7 +738,11 @@ fn process_profit_replay_file(
     if kept_rows == 0 {
         let _ = fs::remove_file(&temp_path);
         return Err(
-            "Nenhum negócio entre 09:00 e 12:00 foi encontrado no arquivo informado.".to_string(),
+            format!(
+                "Nenhum negócio entre {} e {} foi encontrado no arquivo informado.",
+                window_start.format("%H:%M"),
+                window_end.format("%H:%M")
+            ),
         );
     }
 
@@ -736,8 +782,8 @@ fn process_profit_replay_file(
         reduction_pct,
         first_timestamp: first_kept.map(|value| value.format("%Y-%m-%dT%H:%M:%S%.f").to_string()),
         last_timestamp: last_kept.map(|value| value.format("%Y-%m-%dT%H:%M:%S%.f").to_string()),
-        session_start: "09:00:00".to_string(),
-        session_end: "12:00:00".to_string(),
+        session_start: window_start.format("%H:%M:%S").to_string(),
+        session_end: window_end.format("%H:%M:%S").to_string(),
     };
 
     let metadata = json!({
@@ -745,8 +791,8 @@ fn process_profit_replay_file(
         "purpose": "Simulador de Trade — replay WINFUT/WDOFUT",
         "timezone": "America/Sao_Paulo",
         "window": {
-            "startInclusive": "09:00:00",
-            "endExclusive": "12:00:00"
+            "startInclusive": result.session_start.clone(),
+            "endExclusive": result.session_end.clone()
         },
         "fields": ["symbol", "timestamp", "source_row", "price", "quantity"],
         "sourceOrder": &result.source_order,
@@ -769,10 +815,14 @@ fn process_profit_replay_file(
 async fn prepare_profit_replay_file(
     app: tauri::AppHandle,
     source_path: String,
+    session_start: String,
+    session_end: String,
 ) -> Result<ProfitPreparationResult, String> {
-    tauri::async_runtime::spawn_blocking(move || process_profit_replay_file(&app, &source_path))
-        .await
-        .map_err(|error| error.to_string())?
+    tauri::async_runtime::spawn_blocking(move || {
+        process_profit_replay_file(&app, &source_path, &session_start, &session_end)
+    })
+    .await
+    .map_err(|error| error.to_string())?
 }
 
 #[cfg(test)]
@@ -780,11 +830,36 @@ mod tests {
     use super::*;
 
     #[test]
-    fn training_window_is_0900_inclusive_to_1200_exclusive() {
-        assert!(in_training_window(NaiveTime::from_hms_opt(9, 0, 0).unwrap()));
-        assert!(in_training_window(NaiveTime::from_hms_opt(11, 59, 59).unwrap()));
-        assert!(!in_training_window(NaiveTime::from_hms_opt(8, 59, 59).unwrap()));
-        assert!(!in_training_window(NaiveTime::from_hms_opt(12, 0, 0).unwrap()));
+    fn configurable_training_window_is_start_inclusive_end_exclusive() {
+        let (start, end) = validate_training_window("09:00", "12:00").unwrap();
+
+        assert!(in_training_window(
+            NaiveTime::from_hms_opt(9, 0, 0).unwrap(),
+            start,
+            end
+        ));
+        assert!(in_training_window(
+            NaiveTime::from_hms_opt(11, 59, 59).unwrap(),
+            start,
+            end
+        ));
+        assert!(!in_training_window(
+            NaiveTime::from_hms_opt(8, 59, 59).unwrap(),
+            start,
+            end
+        ));
+        assert!(!in_training_window(
+            NaiveTime::from_hms_opt(12, 0, 0).unwrap(),
+            start,
+            end
+        ));
+    }
+
+    #[test]
+    fn rejects_invalid_training_windows() {
+        assert!(validate_training_window("12:00", "09:00").is_err());
+        assert!(validate_training_window("09:00", "09:00").is_err());
+        assert!(validate_training_window("abc", "12:00").is_err());
     }
 
     #[test]
