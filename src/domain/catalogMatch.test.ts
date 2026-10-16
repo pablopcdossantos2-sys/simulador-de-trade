@@ -91,3 +91,22 @@ describe("catálogo de dados do plano", () => {
     expect(planIsReady(matches)).toBe(false);
   });
 });
+
+
+it("exige janela exata para o pregão-alvo, mesmo que um arquivo maior exista", () => {
+  const matches = matchSimulationPlan(plan, "WINFUT", [
+    entry({
+      outputPath: "C:\\data\\warmup.replay.csv",
+    }),
+    entry({
+      outputPath: "C:\\data\\target-too-wide.replay.csv",
+      tradeDate: "2026-10-14",
+      sessionStart: "09:00",
+      sessionEnd: "18:00",
+    }),
+  ]);
+
+  const target = matches.find((match) => match.requirement.role === "TARGET");
+  expect(target?.status).toBe("MISSING");
+  expect(planIsReady(matches)).toBe(false);
+});
