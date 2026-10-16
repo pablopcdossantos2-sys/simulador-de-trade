@@ -96,3 +96,47 @@ export interface TradeIntent {
   signal: IndicatorSignal | null;
   hasOpenPosition: boolean;
 }
+
+
+export type TrainingSessionStatus = "ACTIVE" | "ENDED";
+
+export type TrainingEventType =
+  | "SESSION_STARTED"
+  | "SESSION_ENDED"
+  | "BLOCKED_ATTEMPT"
+  | "SIGNAL_IGNORED"
+  | "TRADE_OPENED"
+  | "TRADE_CLOSED";
+
+export interface TrainingSession {
+  id: string;
+  asset: Asset;
+  tradeDate: string;
+  startTime: string;
+  endTime: string;
+  timeframeMinutes: number;
+  warmupBars: number;
+  startedAt: string;
+  endedAt: string | null;
+  status: TrainingSessionStatus;
+}
+
+export interface TrainingEvent {
+  id: string;
+  sessionId: string;
+  type: TrainingEventType;
+  timestamp: string;
+  marketTimestamp: string | null;
+  signalId: string | null;
+  side: Side | null;
+  reason: string | null;
+  tradeId: string | null;
+}
+
+export interface TrainingSummary {
+  tradesExecuted: number;
+  blockedAttempts: number;
+  ignoredSignals: number;
+  closedTrades: number;
+  executionAdherencePct: number;
+}
