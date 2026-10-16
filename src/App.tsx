@@ -8,6 +8,7 @@ import { RuleViolationModal } from "./components/RuleViolationModal";
 import { SimulationPlanner } from "./components/SimulationPlanner";
 import { TrainingSessionPanel } from "./components/TrainingSessionPanel";
 import { SessionHistoryPanel } from "./components/SessionHistoryPanel";
+import { ProgressOverviewPanel } from "./components/ProgressOverviewPanel";
 import { ExecutionSettingsPanel } from "./components/ExecutionSettingsPanel";
 import {
   ThemeToggle,
@@ -959,6 +960,8 @@ export default function App() {
           )}
         </aside>
       </section>
+
+      <ProgressOverviewPanel trades={trades} hidden={examActive} />
 
       <SessionHistoryPanel refreshKey={sessionHistoryRefreshKey} />
 
