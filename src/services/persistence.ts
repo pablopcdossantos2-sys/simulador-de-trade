@@ -170,3 +170,14 @@ export async function loadSessionTrades(
     .filter((trade) => tradeIds.has(trade.id))
     .sort((a, b) => a.closedAt.localeCompare(b.closedAt));
 }
+
+
+export async function loadAllTrainingEvents(): Promise<TrainingEvent[]> {
+  if (isTauriRuntime()) {
+    return invoke<TrainingEvent[]>("list_all_training_events");
+  }
+
+  const raw = localStorage.getItem(EVENT_STORAGE_KEY);
+  const events = raw ? (JSON.parse(raw) as TrainingEvent[]) : [];
+  return events.sort((a, b) => a.timestamp.localeCompare(b.timestamp));
+}
