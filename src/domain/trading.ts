@@ -251,6 +251,7 @@ function closePosition(
     grossResultBRL: gross,
     operationalCostsBRL,
     netResultBRL: gross - operationalCostsBRL,
+    postTradeNote: "",
   };
 }
 
