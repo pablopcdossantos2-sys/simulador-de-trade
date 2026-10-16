@@ -961,6 +961,7 @@ pub fn run() {
             replay::next_replay_trades,
             replay::reset_replay_session,
             replay::close_replay_session,
+            replay::load_warmup_candles,
             catalog::register_replay_file,
             catalog::list_replay_catalog,
             catalog::prune_missing_replay_catalog
