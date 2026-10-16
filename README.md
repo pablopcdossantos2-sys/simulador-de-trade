@@ -42,7 +42,8 @@ SQLite local
 ## Documentação do projeto
 
 - [Arquitetura](docs/ARQUITETURA.md)
-- [ROADMAP detalhado](ROADMAP.md)\n- [Tratamento dos dados do Profit Ultra](docs/TRATAMENTO-DADOS-PROFIT.md)
+- [ROADMAP detalhado](ROADMAP.md)
+- [Tratamento dos dados do Profit Ultra](docs/TRATAMENTO-DADOS-PROFIT.md)
 - [Planejamento da simulação e aquecimento](docs/PLANEJAMENTO-SIMULACAO.md)
 - [Catálogo local de dados preparados](docs/CATALOGO-DADOS.md)
 - [Sessão formal de treinamento](docs/SESSAO-TREINO.md)
@@ -50,7 +51,8 @@ SQLite local
 - [Quantidade de contratos e resultado financeiro](docs/RESULTADO-FINANCEIRO.md)
 - [Custos, slippage e resultado líquido](docs/CUSTOS-SLIPPAGE.md)
 - [Notas pós-trade](docs/NOTAS-POS-TRADE.md)
-- [Modo Prova](docs/MODO-PROVA.md)\n- [Reaproveitamento do Candle Lab](docs/REAPROVEITAMENTO-CANDLE-LAB.md)
+- [Modo Prova](docs/MODO-PROVA.md)
+- [Reaproveitamento do Candle Lab](docs/REAPROVEITAMENTO-CANDLE-LAB.md)
 
 ## Estado atual
 
@@ -61,7 +63,9 @@ A Fase 1 cria a fundação funcional do simulador:
 - port do Pine Script para TypeScript por meio do `IndicatorAdapter`;
 - MMP/WMA 20, VWAP, MME/EMA 8 e MME/EMA 52 plotadas no gráfico;
 - nuvens verde/vermelha e labels COMPRA/VENDA;
-- compra/venda condicionadas exclusivamente pelo sinal ativo;\n- tentativa fora das regras bloqueada com pop-up de **Fora do operacional**;\n- modo claro e modo escuro com preferência persistente;
+- compra/venda condicionadas exclusivamente pelo sinal ativo;
+- tentativa fora das regras bloqueada com pop-up de **Fora do operacional**;
+- modo claro e modo escuro com preferência persistente;
 - formulário OCO obrigatório;
 - validação de stop e alvo;
 - validação do incremento mínimo de preço de WIN/WDO;
@@ -70,7 +74,8 @@ A Fase 1 cria a fundação funcional do simulador:
 - histórico de operações;
 - persistência em SQLite quando executado pelo Tauri;
 - fallback para `localStorage` durante desenvolvimento no navegador;
-- testes unitários das regras críticas;\n- ferramenta desktop para reduzir CSVs brutos do Profit à faixa horária escolhida e aos campos necessários ao replay;
+- testes unitários das regras críticas;
+- ferramenta desktop para reduzir CSVs brutos do Profit à faixa horária escolhida e aos campos necessários ao replay;
 - planejador prévio de simulação com data, ativo, M2, horário e cálculo de aquecimento;
 - aviso dos pregões anteriores necessários antes da coleta dos dados;
 - validação para impedir carregar um replay tratado em horário diferente do plano;
