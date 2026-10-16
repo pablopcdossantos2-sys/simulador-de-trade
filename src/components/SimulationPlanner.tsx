@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import {
   calculateSimulationPlan,
   DEFAULT_TIMEFRAME_MINUTES,
+  SUPPORTED_TIMEFRAMES_MINUTES,
   type SimulationPlan,
   type WarmupPolicy,
 } from "../domain/simulationPlan";
@@ -91,8 +92,11 @@ export function SimulationPlanner({ onPlanChange }: Props) {
               setTimeframeMinutes(Number(event.target.value))
             }
           >
-            <option value={2}>M2 · 2 minutos</option>
-            <option value={5}>M5 · 5 minutos</option>
+            {SUPPORTED_TIMEFRAMES_MINUTES.map((minutes) => (
+              <option key={minutes} value={minutes}>
+                M{minutes} · {minutes} minutos
+              </option>
+            ))}
           </select>
         </label>
 
