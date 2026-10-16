@@ -9,6 +9,7 @@ import { SimulationPlanner } from "./components/SimulationPlanner";
 import { TrainingSessionPanel } from "./components/TrainingSessionPanel";
 import { SessionHistoryPanel } from "./components/SessionHistoryPanel";
 import { ProgressOverviewPanel } from "./components/ProgressOverviewPanel";
+import { StudentProgressPanel } from "./components/StudentProgressPanel";
 import { ExecutionSettingsPanel } from "./components/ExecutionSettingsPanel";
 import {
   ThemeToggle,
@@ -960,6 +961,11 @@ export default function App() {
           )}
         </aside>
       </section>
+
+      <StudentProgressPanel
+        refreshKey={sessionHistoryRefreshKey}
+        hidden={examActive}
+      />
 
       <ProgressOverviewPanel trades={trades} hidden={examActive} />
 
