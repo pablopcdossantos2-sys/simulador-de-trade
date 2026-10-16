@@ -67,6 +67,7 @@ Arquitetura definida a partir dos componentes validados no Candle Lab. Ver [Reap
 - [x] Planejamento prévio por ativo, data, timeframe e janela horária.
 - [x] Cálculo automático de aquecimento do indicador.
 - [x] Aviso dos pregões anteriores necessários no calendário B3 2026.
+- [x] Aviso inicial de vencimento do WIN para evitar mistura indevida de contratos.
 - [x] Sincronizar a janela do plano com o tratamento dos dados.
 - [x] Validar a janela do arquivo carregado contra o plano ativo.
 - [ ] Seleção de pregão/data no catálogo local de dados preparados.
