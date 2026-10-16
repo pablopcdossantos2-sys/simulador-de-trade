@@ -197,6 +197,24 @@ export function SessionHistoryPanel({ refreshKey }: Props) {
                     </strong>
                   </div>
                   <div>
+                    <span>Custos</span>
+                    <strong>
+                      R$ {performance.operationalCostsBRL.toFixed(2)}
+                    </strong>
+                  </div>
+                  <div>
+                    <span>Resultado líquido</span>
+                    <strong
+                      className={
+                        performance.netResultBRL >= 0
+                          ? "positive"
+                          : "negative"
+                      }
+                    >
+                      R$ {performance.netResultBRL.toFixed(2)}
+                    </strong>
+                  </div>
+                  <div>
                     <span>Win rate</span>
                     <strong>{formatPct(performance.winRatePct)}</strong>
                   </div>
