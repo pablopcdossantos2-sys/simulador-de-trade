@@ -35,6 +35,7 @@ describe("planejamento de simulação", () => {
     ]);
     expect(plan.fullSessionsNeeded).toBe(1);
     expect(plan.fullSessionPreviousDates).toEqual(["2026-10-13"]);
+    expect(plan.contractWarning).toMatch(/vencimento mensal do WIN/i);
   });
 
   it("usa 520 candles no modo estrito", () => {
