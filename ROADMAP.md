@@ -89,15 +89,15 @@ Arquitetura definida a partir dos componentes validados no Candle Lab. Ver [Reap
 - [ ] Política intrabar configurável.
 - [x] Suporte a dados negócio a negócio tratados do Profit.
 - [x] Validade inicial: autorização permanece enquanto a zona correspondente estiver ativa.
-- [ ] Definir se um mesmo sinal pode autorizar mais de uma operação após a primeira ser encerrada.
-- [ ] Impedir reutilização indevida de sinais, conforme a regra definitiva do indicador.
+- [x] Definir política: cada sinal autoriza no máximo uma entrada.
+- [x] Impedir reutilização do mesmo sinal após a primeira entrada.
 
 ## Fase 4 — Treino
 
 - [x] Modo treino livre dentro das regras com sessão formal.
-- [ ] Modo prova.
-- [ ] Ocultar resultado até o encerramento da sessão.
-- [ ] Cronômetro opcional.
+- [x] Modo prova persistido por sessão.
+- [x] Ocultar resultados da prova atual até o encerramento.
+- [x] Cronômetro real opcional da sessão.
 - [x] Feedback disciplinar inicial com linha do tempo e aderência.
 - [x] Registrar sinais ignorados sem classificá-los automaticamente como erro.
 - [x] Registrar tentativas bloqueadas.
@@ -112,7 +112,7 @@ Arquitetura definida a partir dos componentes validados no Candle Lab. Ver [Reap
 - [x] Expectativa realizada em R por sessão.
 - [x] Profit factor por sessão.
 - [x] Drawdown máximo em pontos por sessão.
-- [ ] Resultado por ativo.
+- [x] Resultado agregado por ativo (WINFUT/WDOFUT).
 - [x] Resultado por horário de entrada.
 - [x] Resultado por direção (Compra/Venda).
 - [ ] Resultado por tipo de sinal/setup.
@@ -138,7 +138,7 @@ Arquitetura definida a partir dos componentes validados no Candle Lab. Ver [Reap
 
 ## Fase 7 — Qualidade
 
-- [ ] Testes adicionais para SELL.
+- [x] Testes adicionais para SELL, incluindo slippage, stop e alvo.
 - [x] Testes iniciais de importação/tratamento.
 - [x] Testes iniciais de replay, catálogo e aquecimento.
 - [x] Teste inicial do esquema de persistência SQLite.
