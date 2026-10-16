@@ -627,6 +627,10 @@ export default function App() {
           setAsset(plan.asset);
           setCatalogMatches([]);
           setWarmupCandles([]);
+          setTrainingSession(null);
+          setTrainingEvents([]);
+          activeSignalRef.current = null;
+          usedSignalIdsRef.current = new Set();
           setFeedback(
             `Plano definido: ${plan.targetDate} · ${plan.targetStartTime}–${plan.targetEndTime}. Use os mesmos horários ao tratar o arquivo do pregão-alvo.`,
           );
@@ -652,6 +656,19 @@ export default function App() {
         }
       />
 
+      <TrainingSessionPanel
+        session={trainingSession}
+        summary={trainingSummary}
+        canStart={
+          Boolean(simulationPlan) &&
+          planIsReady(catalogMatches) &&
+          Boolean(replay.session)
+        }
+        replayLoaded={Boolean(replay.session)}
+        onStart={() => void startTraining()}
+        onEnd={() => void finishTraining()}
+      />
+
       <ReplayControls
         path={replay.path}
         onPathChange={replay.setPath}
@@ -664,7 +681,9 @@ export default function App() {
         busy={replay.busy}
         onLoad={() => void loadReplay()}
         onPlayPause={() => replay.setPlaying(!replay.playing)}
+        trainingActive={trainingActive}
         onStep={() => void replay.step()}
+        onStepCandle={() => void replay.stepCandle()}
         onReset={() => void resetReplay()}
         onSpeedChange={replay.setSpeed}
       />
