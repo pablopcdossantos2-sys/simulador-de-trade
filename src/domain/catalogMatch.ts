@@ -25,6 +25,13 @@ export function entryCoversRequirement(
   if (entry.asset !== asset) return false;
   if (entry.tradeDate !== requirement.date) return false;
 
+  if (requirement.role === "TARGET") {
+    return (
+      entry.sessionStart === requirement.startTime &&
+      entry.sessionEnd === requirement.endTime
+    );
+  }
+
   return (
     minutes(entry.sessionStart) <= minutes(requirement.startTime) &&
     minutes(entry.sessionEnd) >= minutes(requirement.endTime)
