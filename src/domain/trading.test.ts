@@ -257,3 +257,95 @@ describe("resolução OCO negócio a negócio", () => {
     expect(result?.resultPoints).toBe(-100);
   });
 });
+
+
+describe("regras e execução SELL", () => {
+  const sellSignal: IndicatorSignal = {
+    id: "signal-sell-1",
+    asset: "WINFUT",
+    side: "SELL",
+    candleIndex: 20,
+    timestamp: "2026-01-01T13:00:00.000Z",
+    price: 130000,
+    label: "Venda",
+  };
+
+  const sellIntent: TradeIntent = {
+    asset: "WINFUT",
+    side: "SELL",
+    entry: 130000,
+    contracts: 2,
+    execution: {
+      costPerContractRoundTripBRL: 1,
+      slippageTicksPerSide: 1,
+    },
+    candleIndex: 20,
+    oco: {
+      stopLoss: 130100,
+      target: 129850,
+    },
+    signal: sellSignal,
+    signalAlreadyUsed: false,
+    hasOpenPosition: false,
+  };
+
+  it("aceita venda com OCO coerente", () => {
+    expect(() => validateTradeIntent(sellIntent)).not.toThrow();
+  });
+
+  it("rejeita stop abaixo da entrada em venda", () => {
+    expect(() =>
+      validateTradeIntent({
+        ...sellIntent,
+        oco: { stopLoss: 129950, target: 129850 },
+      }),
+    ).toThrow(/stop loss precisa ficar acima/i);
+  });
+
+  it("aplica slippage adverso na entrada e no alvo da venda", () => {
+    const position = openPosition(
+      sellIntent,
+      new Date("2026-01-01T13:00:00Z"),
+    );
+
+    expect(position.requestedEntry).toBe(130000);
+    expect(position.entry).toBe(129995);
+
+    const result = resolveOcoTrade(position, {
+      asset: "WINFUT",
+      timestamp: "2026-01-01T13:01:00Z",
+      sourceRow: 1,
+      sequence: 1,
+      price: 129850,
+      quantity: 1,
+    });
+
+    expect(result?.exitReason).toBe("TARGET");
+    expect(result?.exitPrice).toBe(129855);
+    expect(result?.resultPoints).toBe(140);
+    expect(result?.grossResultBRL).toBe(56);
+    expect(result?.operationalCostsBRL).toBe(2);
+    expect(result?.netResultBRL).toBe(54);
+  });
+
+  it("piora também a execução do stop da venda", () => {
+    const position = openPosition(
+      sellIntent,
+      new Date("2026-01-01T13:00:00Z"),
+    );
+
+    const result = resolveOcoTrade(position, {
+      asset: "WINFUT",
+      timestamp: "2026-01-01T13:01:00Z",
+      sourceRow: 1,
+      sequence: 1,
+      price: 130100,
+      quantity: 1,
+    });
+
+    expect(result?.exitReason).toBe("STOP");
+    expect(result?.exitPrice).toBe(130105);
+    expect(result?.resultPoints).toBe(-110);
+    expect(result?.netResultBRL).toBe(-46);
+  });
+});
