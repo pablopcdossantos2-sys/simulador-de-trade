@@ -540,3 +540,88 @@ td {
     flex-direction: column;
   }
 }
+
+
+/* Multi Médias - Nuvem e Sinais */
+.indicator-name small {
+  color: #7187a2;
+  font-size: 0.72rem;
+  margin-top: 2px;
+}
+
+.indicator-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 12px 4px 8px;
+  color: #9cafc5;
+  font-size: 0.74rem;
+  font-weight: 750;
+}
+
+.indicator-legend span::before {
+  content: "";
+  display: inline-block;
+  width: 18px;
+  height: 2px;
+  margin-right: 6px;
+  vertical-align: middle;
+  border-radius: 99px;
+  background: currentColor;
+}
+
+.legend-wma {
+  color: #62a5ff;
+}
+
+.legend-vwap {
+  color: #ffb454;
+}
+
+.legend-ema8 {
+  color: #61d799;
+}
+
+.legend-ema52 {
+  color: #ff7181;
+}
+
+.indicator-wma-line,
+.indicator-vwap-line,
+.indicator-ema8-line,
+.indicator-ema52-line {
+  fill: none;
+  vector-effect: non-scaling-stroke;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+.indicator-wma-line {
+  stroke: #4d9cff;
+  stroke-width: 1.35;
+}
+
+.indicator-vwap-line {
+  stroke: #ffac49;
+  stroke-width: 2.15;
+}
+
+.indicator-ema8-line {
+  stroke: #4fd08f;
+  stroke-width: 1.4;
+}
+
+.indicator-ema52-line {
+  stroke: #f36375;
+  stroke-width: 1.4;
+}
+
+.indicator-cloud-green {
+  fill: rgba(71, 220, 133, 0.20);
+  stroke: none;
+}
+
+.indicator-cloud-red {
+  fill: rgba(244, 91, 111, 0.20);
+  stroke: none;
+}
