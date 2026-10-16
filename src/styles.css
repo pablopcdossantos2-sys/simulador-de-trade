@@ -1522,3 +1522,248 @@ td {
     grid-template-columns: 1fr;
   }
 }
+
+
+/* Catálogo local e preparação orientada pelo plano */
+.catalog-panel,
+.plan-data-panel {
+  margin-bottom: 16px;
+  padding: 20px;
+}
+
+.catalog-refresh {
+  min-height: 38px;
+  padding: 8px 12px;
+  border-radius: 9px;
+  background: #1b3048;
+  color: #cfe0ef;
+  cursor: pointer;
+  font-weight: 750;
+}
+
+.catalog-readiness {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin-top: 14px;
+  padding: 12px 14px;
+  border-radius: 11px;
+}
+
+.catalog-readiness.ready {
+  border: 1px solid #346b51;
+  background: #0d251a;
+  color: #a7dfbf;
+}
+
+.catalog-readiness.missing {
+  border: 1px solid #6f5634;
+  background: #2b2112;
+  color: #dfc18d;
+}
+
+.catalog-readiness span {
+  font-size: 0.78rem;
+}
+
+.catalog-requirements,
+.plan-data-list {
+  display: grid;
+  gap: 9px;
+  margin-top: 12px;
+}
+
+.catalog-requirements article,
+.plan-data-list article {
+  display: grid;
+  grid-template-columns: minmax(150px, 0.7fr) minmax(0, 1.6fr);
+  gap: 14px;
+  align-items: center;
+  padding: 12px 13px;
+  border: 1px solid #263b54;
+  border-radius: 11px;
+  background: #0b1726;
+}
+
+.catalog-requirements article.available,
+.plan-data-list article.available {
+  border-color: #2f624b;
+}
+
+.catalog-requirements article.mismatch {
+  border-color: #805a31;
+  background: #2a1e10;
+}
+
+.catalog-requirements article.missing,
+.plan-data-list article.pending {
+  border-color: #4c4051;
+}
+
+.catalog-role,
+.plan-data-identity span {
+  display: block;
+  color: #7890aa;
+  font-size: 0.69rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.catalog-requirements article strong,
+.plan-data-identity strong,
+.catalog-status strong,
+.plan-data-existing strong {
+  color: #d4e5f3;
+}
+
+.catalog-requirements article small,
+.plan-data-identity small,
+.catalog-status small,
+.plan-data-existing small {
+  display: block;
+  margin-top: 3px;
+  color: #8499af;
+  overflow-wrap: anywhere;
+}
+
+.catalog-status {
+  text-align: right;
+}
+
+.plan-data-input {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 9px;
+}
+
+.plan-data-input input {
+  min-height: 40px;
+  border: 1px solid #2a3e58;
+  border-radius: 9px;
+  padding: 9px 11px;
+  background: #091522;
+  color: #e7eff8;
+}
+
+.plan-data-input button {
+  min-height: 40px;
+  padding: 9px 13px;
+  border-radius: 9px;
+  background: #dcecff;
+  color: #0d3355;
+  cursor: pointer;
+  font-weight: 800;
+}
+
+.plan-data-input button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.mini-progress {
+  grid-column: 1 / -1;
+  height: 7px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #091321;
+}
+
+.mini-progress span {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, #4a9ce8, #67d5a4);
+}
+
+.plan-data-message {
+  grid-column: 1 / -1;
+}
+
+.plan-data-message.done {
+  color: #9ad8b5;
+}
+
+.plan-data-message.error {
+  color: #efb4bc;
+}
+
+.planner-warning-critical {
+  border-left-color: #d65a68;
+  background: #2b1419;
+  color: #f1b8c0;
+}
+
+:root[data-theme="light"] .catalog-refresh {
+  background: #e5eef6;
+  color: #334f69;
+}
+
+:root[data-theme="light"] .catalog-readiness.ready {
+  border-color: #9acbb0;
+  background: #edf8f2;
+  color: #276b4e;
+}
+
+:root[data-theme="light"] .catalog-readiness.missing {
+  border-color: #dfca9d;
+  background: #fff8e9;
+  color: #78612e;
+}
+
+:root[data-theme="light"] .catalog-requirements article,
+:root[data-theme="light"] .plan-data-list article {
+  border-color: #cbd9e5;
+  background: #f6f9fc;
+}
+
+:root[data-theme="light"] .catalog-requirements article.available,
+:root[data-theme="light"] .plan-data-list article.available {
+  border-color: #9fcdb5;
+}
+
+:root[data-theme="light"] .catalog-requirements article.mismatch {
+  border-color: #ddb57b;
+  background: #fff7eb;
+}
+
+:root[data-theme="light"] .catalog-role,
+:root[data-theme="light"] .plan-data-identity span,
+:root[data-theme="light"] .catalog-requirements article small,
+:root[data-theme="light"] .plan-data-identity small,
+:root[data-theme="light"] .catalog-status small,
+:root[data-theme="light"] .plan-data-existing small {
+  color: #647b91;
+}
+
+:root[data-theme="light"] .catalog-requirements article strong,
+:root[data-theme="light"] .plan-data-identity strong,
+:root[data-theme="light"] .catalog-status strong,
+:root[data-theme="light"] .plan-data-existing strong {
+  color: #2e465d;
+}
+
+:root[data-theme="light"] .plan-data-input input {
+  border-color: #bdcddd;
+  background: #fff;
+  color: #1c3144;
+}
+
+:root[data-theme="light"] .planner-warning-critical {
+  background: #fff0f2;
+  color: #8d3d48;
+}
+
+@media (max-width: 700px) {
+  .catalog-requirements article,
+  .plan-data-list article {
+    grid-template-columns: 1fr;
+  }
+
+  .catalog-status {
+    text-align: left;
+  }
+
+  .plan-data-input {
+    grid-template-columns: 1fr;
+  }
+}
