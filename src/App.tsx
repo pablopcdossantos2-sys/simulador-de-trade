@@ -20,6 +20,7 @@ import {
   tickSizeFor,
 } from "./domain/marketSpecs";
 import { applyReplayTrade } from "./domain/replay";
+import { captureEntryContext } from "./domain/entryContext";
 import {
   planIsReady,
   targetFileFromMatches,
@@ -607,10 +608,22 @@ export default function App() {
         );
       }
 
+      const marketTimestamp =
+        dataMode === "replay" && currentReplayTrade
+          ? currentReplayTrade.timestamp
+          : lastCandle.timestamp;
       const marketTime =
         dataMode === "replay" && currentReplayTrade
           ? new Date(currentReplayTrade.timestamp)
           : new Date();
+
+      const entryContext = captureEntryContext({
+        asset,
+        candles: visibleCandles,
+        evaluation: indicatorEvaluation,
+        signal,
+        marketTimestamp,
+      });
 
       const nextPosition = openPosition(
         {
@@ -627,6 +640,7 @@ export default function App() {
             target: Number(target),
           },
           signal,
+          entryContext,
           signalAlreadyUsed,
           hasOpenPosition: Boolean(position),
         },
