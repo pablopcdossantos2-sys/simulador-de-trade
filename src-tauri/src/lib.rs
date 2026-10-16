@@ -42,6 +42,7 @@ struct TradeRecord {
     operational_costs_brl: f64,
     #[serde(rename = "netResultBRL")]
     net_result_brl: f64,
+    post_trade_note: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -165,7 +166,8 @@ fn initialize_database(connection: &Connection) -> rusqlite::Result<()> {
                 result_points REAL NOT NULL,
                 gross_result_brl REAL NOT NULL DEFAULT 0,
                 operational_costs_brl REAL NOT NULL DEFAULT 0,
-                net_result_brl REAL NOT NULL DEFAULT 0
+                net_result_brl REAL NOT NULL DEFAULT 0,
+                post_trade_note TEXT NOT NULL DEFAULT ''
             );
 
             CREATE INDEX IF NOT EXISTS idx_trades_closed_at
@@ -288,6 +290,13 @@ fn initialize_database(connection: &Connection) -> rusqlite::Result<()> {
         )?;
     }
 
+    if !column_exists(connection, "trades", "post_trade_note")? {
+        connection.execute(
+            "ALTER TABLE trades ADD COLUMN post_trade_note TEXT NOT NULL DEFAULT ''",
+            [],
+        )?;
+    }
+
     Ok(())
 }
 
@@ -302,9 +311,9 @@ fn save_trade(state: tauri::State<'_, DbState>, trade: TradeRecord) -> Result<()
                 id, asset, side, signal_id, requested_entry, entry, stop_loss, target,
                 contracts, slippage_ticks_per_side, cost_per_contract_round_trip_brl,
                 opened_at, status, exit_price, exit_reason, closed_at, result_points,
-                gross_result_brl, operational_costs_brl, net_result_brl
+                gross_result_brl, operational_costs_brl, net_result_brl, post_trade_note
             )
-            VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20)
+            VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21)
             ON CONFLICT(id) DO UPDATE SET
                 asset = excluded.asset,
                 side = excluded.side,
@@ -324,7 +333,8 @@ fn save_trade(state: tauri::State<'_, DbState>, trade: TradeRecord) -> Result<()
                 result_points = excluded.result_points,
                 gross_result_brl = excluded.gross_result_brl,
                 operational_costs_brl = excluded.operational_costs_brl,
-                net_result_brl = excluded.net_result_brl
+                net_result_brl = excluded.net_result_brl,
+                post_trade_note = excluded.post_trade_note
             "#,
             params![
                 trade.id,
@@ -347,6 +357,7 @@ fn save_trade(state: tauri::State<'_, DbState>, trade: TradeRecord) -> Result<()
                 trade.gross_result_brl,
                 trade.operational_costs_brl,
                 trade.net_result_brl,
+                trade.post_trade_note,
             ],
         )
         .map_err(|error| error.to_string())?;
@@ -554,7 +565,8 @@ fn list_session_trades(
                 t.stop_loss, t.target, t.contracts, t.slippage_ticks_per_side,
                 t.cost_per_contract_round_trip_brl, t.opened_at, t.status,
                 t.exit_price, t.exit_reason, t.closed_at, t.result_points,
-                t.gross_result_brl, t.operational_costs_brl, t.net_result_brl
+                t.gross_result_brl, t.operational_costs_brl, t.net_result_brl,
+                t.post_trade_note
             FROM trades t
             INNER JOIN training_events e
                 ON e.trade_id = t.id
@@ -588,6 +600,7 @@ fn list_session_trades(
                 gross_result_brl: row.get(17)?,
                 operational_costs_brl: row.get(18)?,
                 net_result_brl: row.get(19)?,
+                post_trade_note: row.get(20)?,
             })
         })
         .map_err(|error| error.to_string())?;
@@ -677,6 +690,7 @@ fn list_trades(state: tauri::State<'_, DbState>) -> Result<Vec<TradeRecord>, Str
                 gross_result_brl: row.get(17)?,
                 operational_costs_brl: row.get(18)?,
                 net_result_brl: row.get(19)?,
+                post_trade_note: row.get(20)?,
             })
         })
         .map_err(|error| error.to_string())?;
@@ -1409,6 +1423,7 @@ mod tests {
             gross_result_brl: 60.0,
             operational_costs_brl: 0.0,
             net_result_brl: 60.0,
+            post_trade_note: "".to_string(),
         };
 
         let value = serde_json::to_value(record).unwrap();
@@ -1416,6 +1431,7 @@ mod tests {
         assert_eq!(value["grossResultBRL"], 60.0);
         assert_eq!(value["netResultBRL"], 60.0);
         assert_eq!(value["costPerContractRoundTripBRL"], 0.0);
+        assert_eq!(value["postTradeNote"], "");
         assert!(value.get("grossResultBrl").is_none());
     }
 
@@ -1457,11 +1473,11 @@ mod tests {
 
         initialize_database(&connection).unwrap();
 
-        let (contracts, requested, gross, net): (i64, f64, f64, f64) = connection
+        let (contracts, requested, gross, net, note): (i64, f64, f64, f64, String) = connection
             .query_row(
-                "SELECT contracts, requested_entry, gross_result_brl, net_result_brl FROM trades WHERE id = 'legacy-1'",
+                "SELECT contracts, requested_entry, gross_result_brl, net_result_brl, post_trade_note FROM trades WHERE id = 'legacy-1'",
                 [],
-                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?, row.get(4)?)),
             )
             .unwrap();
 
@@ -1469,6 +1485,7 @@ mod tests {
         assert!((requested - 130000.0).abs() < 1e-9);
         assert!((gross - 30.0).abs() < 1e-9);
         assert!((net - 30.0).abs() < 1e-9);
+        assert_eq!(note, "");
     }
 
     #[test]
