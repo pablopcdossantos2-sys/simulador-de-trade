@@ -8,6 +8,7 @@ import { RuleViolationModal } from "./components/RuleViolationModal";
 import { SimulationPlanner } from "./components/SimulationPlanner";
 import { TrainingSessionPanel } from "./components/TrainingSessionPanel";
 import { SessionHistoryPanel } from "./components/SessionHistoryPanel";
+import { ExecutionSettingsPanel } from "./components/ExecutionSettingsPanel";
 import {
   ThemeToggle,
   type ThemeMode,
@@ -48,9 +49,14 @@ import {
   saveTrainingSession,
 } from "./services/persistence";
 import { registerReplayFile } from "./services/replayCatalog";
+import {
+  DEFAULT_EXECUTION_SETTINGS,
+  loadExecutionSettings,
+} from "./services/executionSettings";
 import { loadWarmupCandles } from "./services/replayData";
 import type {
   Asset,
+  ExecutionSettings,
   IndicatorEvaluation,
   Position,
   ReplayTrade,
@@ -89,6 +95,8 @@ export default function App() {
   const [stopLoss, setStopLoss] = useState("");
   const [target, setTarget] = useState("");
   const [contracts, setContracts] = useState("1");
+  const [executionSettings, setExecutionSettings] =
+    useState<ExecutionSettings>(DEFAULT_EXECUTION_SETTINGS);
   const [theme, setTheme] = useState<ThemeMode>(initialTheme);
   const [ruleViolation, setRuleViolation] = useState<string | null>(null);
   const [feedback, setFeedback] = useState(
@@ -182,6 +190,12 @@ export default function App() {
     loadTrades()
       .then(setTrades)
       .catch(() => setFeedback("Não foi possível carregar o histórico local."));
+
+    loadExecutionSettings()
+      .then(setExecutionSettings)
+      .catch(() =>
+        setFeedback("Não foi possível carregar as configurações de execução."),
+      );
   }, []);
 
   useEffect(() => {
@@ -202,8 +216,8 @@ export default function App() {
     ]);
     setFeedback(
       closed.exitReason === "TARGET"
-        ? `Alvo atingido. Resultado: ${money.format(closed.resultPoints)} pontos.`
-        : `Stop atingido. Resultado: ${money.format(closed.resultPoints)} pontos.`,
+        ? `Alvo atingido. ${money.format(closed.resultPoints)} pts · líquido R$ ${money.format(closed.netResultBRL)}.`
+        : `Stop atingido. ${money.format(closed.resultPoints)} pts · líquido R$ ${money.format(closed.netResultBRL)}.`,
     );
     void saveTrade(closed).catch((error) => {
       const reason =
@@ -555,6 +569,7 @@ export default function App() {
           side,
           entry: lastPrice,
           contracts: Number(contracts),
+          execution: executionSettings,
           candleIndex: lastCandle.index,
           replaySequence:
             dataMode === "replay" ? currentReplayTrade?.sequence : undefined,
@@ -663,6 +678,16 @@ export default function App() {
           <small>MME 8 · MMP 20 · MME 52 · VWAP Session</small>
         </div>
       </section>
+
+      <ExecutionSettingsPanel
+        settings={executionSettings}
+        onSaved={(settings) => {
+          setExecutionSettings(settings);
+          setFeedback(
+            "Configurações salvas. Elas serão aplicadas somente às próximas operações.",
+          );
+        }}
+      />
 
       <SimulationPlanner
         onPlanChange={(plan) => {
@@ -846,12 +871,17 @@ export default function App() {
               <span>Posição aberta</span>
               <strong>
                 {sideLabel(position.side)} · {position.contracts} contrato
-                {position.contracts === 1 ? "" : "s"} ·{" "}
+                {position.contracts === 1 ? "" : "s"} · execução{" "}
                 {money.format(position.entry)}
               </strong>
               <small>
-                Stop {money.format(position.stopLoss)} · Alvo{" "}
+                Solicitada {money.format(position.requestedEntry)} · Stop{" "}
+                {money.format(position.stopLoss)} · Alvo{" "}
                 {money.format(position.target)}
+              </small>
+              <small>
+                Slippage {position.slippageTicksPerSide} tick/lado · custo R 
+                {money.format(position.costPerContractRoundTripBRL)} por contrato
               </small>
             </div>
           )}
@@ -906,6 +936,8 @@ export default function App() {
                   <th>Motivo</th>
                   <th>Resultado</th>
                   <th>Bruto (R$)</th>
+                  <th>Custos (R$)</th>
+                  <th>Líquido (R$)</th>
                 </tr>
               </thead>
               <tbody>
@@ -930,6 +962,14 @@ export default function App() {
                       }
                     >
                       {money.format(trade.grossResultBRL)}
+                    </td>
+                    <td>{money.format(trade.operationalCostsBRL)}</td>
+                    <td
+                      className={
+                        trade.netResultBRL >= 0 ? "positive" : "negative"
+                      }
+                    >
+                      {money.format(trade.netResultBRL)}
                     </td>
                   </tr>
                 ))}
