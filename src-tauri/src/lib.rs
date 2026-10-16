@@ -1225,6 +1225,56 @@ mod tests {
 
     #[test]
     #[test]
+    fn migrates_legacy_trade_table_without_losing_history() {
+        let connection = Connection::open_in_memory().unwrap();
+        connection
+            .execute_batch(
+                r#"
+                CREATE TABLE trades (
+                    id TEXT PRIMARY KEY NOT NULL,
+                    asset TEXT NOT NULL,
+                    side TEXT NOT NULL,
+                    signal_id TEXT NOT NULL,
+                    entry REAL NOT NULL,
+                    stop_loss REAL NOT NULL,
+                    target REAL NOT NULL,
+                    opened_at TEXT NOT NULL,
+                    status TEXT NOT NULL,
+                    exit_price REAL NOT NULL,
+                    exit_reason TEXT NOT NULL,
+                    closed_at TEXT NOT NULL,
+                    result_points REAL NOT NULL
+                );
+
+                INSERT INTO trades (
+                    id, asset, side, signal_id, entry, stop_loss, target,
+                    opened_at, status, exit_price, exit_reason, closed_at, result_points
+                )
+                VALUES (
+                    'legacy-1', 'WINFUT', 'BUY', 'signal-1',
+                    130000, 129900, 130150,
+                    '2026-10-14T09:00:00', 'CLOSED',
+                    130150, 'TARGET', '2026-10-14T09:10:00', 150
+                );
+                "#,
+            )
+            .unwrap();
+
+        initialize_database(&connection).unwrap();
+
+        let (contracts, gross): (i64, f64) = connection
+            .query_row(
+                "SELECT contracts, gross_result_brl FROM trades WHERE id = 'legacy-1'",
+                [],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
+            .unwrap();
+
+        assert_eq!(contracts, 1);
+        assert!((gross - 30.0).abs() < 1e-9);
+    }
+
+    #[test]
     fn database_schema_contains_training_history_tables() {
         let connection = Connection::open_in_memory().unwrap();
         initialize_database(&connection).unwrap();
