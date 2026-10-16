@@ -2,6 +2,7 @@ import type {
   Candle,
   IndicatorSignal,
   Position,
+  ReplayTrade,
   Side,
   Trade,
   TradeIntent,
@@ -99,6 +100,7 @@ export function openPosition(intent: TradeIntent, now = new Date()): Position {
     side: intent.side,
     signalId: intent.signal!.id,
     openedCandleIndex: intent.candleIndex,
+    openedReplaySequence: intent.replaySequence,
     entry: intent.entry,
     stopLoss: intent.oco.stopLoss,
     target: intent.oco.target,
@@ -156,6 +158,54 @@ export function resolveOco(
     exitPrice,
     exitReason,
     closedAt: now.toISOString(),
+    resultPoints: pointsFor(position.side, position.entry, exitPrice),
+  };
+}
+
+export function resolveOcoTrade(
+  position: Position,
+  trade: ReplayTrade,
+): Trade | null {
+  if (
+    position.openedReplaySequence !== undefined &&
+    trade.sequence <= position.openedReplaySequence
+  ) {
+    return null;
+  }
+
+  const stopTouched =
+    position.side === "BUY"
+      ? trade.price <= position.stopLoss
+      : trade.price >= position.stopLoss;
+
+  const targetTouched =
+    position.side === "BUY"
+      ? trade.price >= position.target
+      : trade.price <= position.target;
+
+  if (!stopTouched && !targetTouched) {
+    return null;
+  }
+
+  // Com dados negócio a negócio não precisamos supor qual nível veio primeiro:
+  // cada evento chega em sequência histórica canônica.
+  const exitReason = stopTouched ? "STOP" : "TARGET";
+  const exitPrice =
+    exitReason === "STOP" ? position.stopLoss : position.target;
+
+  return {
+    id: position.id,
+    asset: position.asset,
+    side: position.side,
+    signalId: position.signalId,
+    entry: position.entry,
+    stopLoss: position.stopLoss,
+    target: position.target,
+    openedAt: position.openedAt,
+    status: "CLOSED",
+    exitPrice,
+    exitReason,
+    closedAt: trade.timestamp,
     resultPoints: pointsFor(position.side, position.entry, exitPrice),
   };
 }
