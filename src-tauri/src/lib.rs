@@ -2280,16 +2280,17 @@ mod tests {
         let connection = Connection::open_in_memory().unwrap();
         initialize_database(&connection).unwrap();
 
-        let (cost, slippage): (f64, i64) = connection
+        let (cost, slippage, policy): (f64, i64, String) = connection
             .query_row(
-                "SELECT cost_per_contract_round_trip_brl, slippage_ticks_per_side FROM execution_settings WHERE id = 1",
+                "SELECT cost_per_contract_round_trip_brl, slippage_ticks_per_side, intrabar_policy FROM execution_settings WHERE id = 1",
                 [],
-                |row| Ok((row.get(0)?, row.get(1)?)),
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
             )
             .unwrap();
 
         assert_eq!(cost, 0.0);
         assert_eq!(slippage, 0);
+        assert_eq!(policy, "STOP_FIRST");
     }
 
     #[test]
@@ -2314,6 +2315,7 @@ mod tests {
         }
     }
 
+    #[test]
     fn canonicalizes_descending_replay_without_loading_rows_into_memory() {
         use std::time::{SystemTime, UNIX_EPOCH};
 
