@@ -136,6 +136,39 @@ export default function App() {
   const signal = indicatorEvaluation.authorization;
   const lastCandle = visibleCandles[visibleCandles.length - 1];
   const lastPrice = lastCandle?.close ?? 0;
+  const trainingActive = trainingSession?.status === "ACTIVE";
+  const trainingSummary = useMemo(
+    () =>
+      trainingSession
+        ? summarizeTraining(trainingSession, trainingEvents)
+        : null,
+    [trainingSession, trainingEvents],
+  );
+
+  function appendTrainingEvent(event: TrainingEvent) {
+    setTrainingEvents((current) => [...current, event]);
+    void saveTrainingEvent(event).catch(() =>
+      setFeedback("O evento de treino ocorreu, mas não pôde ser persistido."),
+    );
+  }
+
+  function recordTrainingEvent(input: {
+    type: TrainingEvent["type"];
+    marketTimestamp?: string | null;
+    signalId?: string | null;
+    side?: Side | null;
+    reason?: string | null;
+    tradeId?: string | null;
+  }) {
+    if (!trainingSession || trainingSession.status !== "ACTIVE") return;
+
+    appendTrainingEvent(
+      createTrainingEvent({
+        sessionId: trainingSession.id,
+        ...input,
+      }),
+    );
+  }
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
@@ -174,6 +207,15 @@ export default function App() {
         "A operação foi encerrada, mas houve falha ao salvar o histórico local.",
       ),
     );
+
+    recordTrainingEvent({
+      type: "TRADE_CLOSED",
+      marketTimestamp: closed.closedAt,
+      signalId: closed.signalId,
+      side: closed.side,
+      tradeId: closed.id,
+      reason: closed.exitReason,
+    });
   }
 
   useEffect(() => {
