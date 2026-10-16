@@ -1004,6 +1004,12 @@ export default function App() {
                 Slippage {position.slippageTicksPerSide} tick/lado · custo R 
                 {money.format(position.costPerContractRoundTripBRL)} por contrato
               </small>
+              <small>
+                OHLC ambíguo:{" "}
+                {position.intrabarPolicy === "TARGET_FIRST"
+                  ? "Alvo primeiro"
+                  : "Stop primeiro"}
+              </small>
             </div>
           )}
         </aside>
