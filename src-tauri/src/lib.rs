@@ -729,7 +729,8 @@ fn list_trades(state: tauri::State<'_, DbState>) -> Result<Vec<TradeRecord>, Str
                 target, contracts, slippage_ticks_per_side,
                 cost_per_contract_round_trip_brl, opened_at, status, exit_price,
                 exit_reason, closed_at, result_points, gross_result_brl,
-                operational_costs_brl, net_result_brl
+                operational_costs_brl, net_result_brl, post_trade_note,
+                entry_context_json
             FROM trades
             ORDER BY closed_at DESC
             LIMIT 500
