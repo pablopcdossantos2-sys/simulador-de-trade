@@ -51,7 +51,19 @@ Tauri command → Rust → SQLite
 
 É a fronteira entre o indicador e o restante do simulador. A interface `IndicatorAdapter` evita acoplar a aplicação inteira ao código do TradingView.
 
-O adaptador atual é apenas demonstrativo. Quando o Pine Script real for fornecido, a sua lógica será portada para uma implementação compatível com esta interface.
+O adaptador atual, `MultiMediasNuvemAdapter`, porta o Pine Script inicial **Multi Médias - Nuvem e Sinais**. Os parâmetros padrão são:
+
+- WMA/MMP: 20 períodos;
+- EMA/MME rápida: 8 períodos;
+- EMA/MME lenta: 52 períodos;
+- VWAP: ancoragem de sessão.
+
+A lógica preserva os dois alinhamentos:
+
+- alta: `EMA 8 > WMA 20 > EMA 52`;
+- baixa: `EMA 52 > WMA 20 > EMA 8`.
+
+Uma zona verde só começa quando há alinhamento de alta e um candle de alta. Uma zona vermelha só começa quando há alinhamento de baixa e um candle de baixa. O label de sinal é gerado somente no candle que inicia a zona.
 
 ### `src/domain/trading.ts`
 
@@ -102,15 +114,33 @@ O OpenTraderWorld foi estudado como referência, mas sua base não foi incorpora
 
 Manter um núcleo pequeno em React/Tauri/Rust facilita concentrar o projeto em replay, sinais, OCO e treinamento. Componentes ou ideias específicas poderão ser reavaliados posteriormente.
 
-## Pontos que dependem do indicador real
+## Política de autorização após o gatilho
 
-Antes de considerar a integração do sinal concluída, precisamos definir a partir do Pine Script:
+O Pine Script distingue o **evento do sinal** do **estado da nuvem**: o label COMPRA/VENDA aparece apenas no candle que inicia a zona, enquanto `in_green_zone` ou `in_red_zone` permanece verdadeiro até o alinhamento correspondente ser perdido.
 
-- fórmula exata de Compra e Venda;
-- em que momento o sinal passa a valer;
-- em que momento deixa de valer;
-- se um mesmo sinal pode autorizar mais de uma operação;
-- se um sinal oposto cancela imediatamente o anterior;
-- comportamento em repaint, caso exista;
-- timeframe(s) suportados;
-- parâmetros editáveis pelo usuário.
+Para o simulador foi adotada a seguinte política inicial:
+
+1. o evento COMPRA inicia uma autorização BUY;
+2. essa autorização permanece enquanto a zona verde estiver ativa;
+3. o evento VENDA inicia uma autorização SELL;
+4. essa autorização permanece enquanto a zona vermelha estiver ativa;
+5. quando não há zona ativa, nenhuma direção pode abrir uma posição.
+
+Essa política mantém a exigência de que toda autorização tenha sido precedida por um gatilho real do indicador e impede que um sinal antigo continue válido depois do fim da nuvem.
+
+Ainda precisa ser definido se um mesmo gatilho poderá autorizar várias operações sequenciais dentro da mesma zona ou apenas a primeira.
+
+## Fidelidade TradingView × simulador
+
+A implementação TypeScript possui testes para os parâmetros padrão, WMA 20, VWAP por sessão e geração de zonas/sinais em tendências controladas.
+
+Quando o replay histórico estiver disponível, deve ser criada uma suíte de regressão com candles reais e resultados conhecidos do TradingView para comparar, candle a candle:
+
+- WMA 20;
+- EMA 8;
+- EMA 52;
+- VWAP;
+- estado da zona;
+- ocorrência de COMPRA/VENDA.
+
+A ancoragem `Session` da VWAP ainda deverá usar explicitamente o calendário/timezone da sessão da B3 quando o carregador de dados históricos for implementado.
