@@ -22,6 +22,51 @@ export class TradingRuleError extends Error {
 
 const isFinitePrice = (value: number) => Number.isFinite(value) && value > 0;
 
+function validateExecutionSettings(intent: TradeIntent): void {
+  const { costPerContractRoundTripBRL, slippageTicksPerSide } =
+    intent.execution;
+
+  if (
+    !Number.isFinite(costPerContractRoundTripBRL) ||
+    costPerContractRoundTripBRL < 0
+  ) {
+    throw new TradingRuleError(
+      "O custo operacional por contrato precisa ser maior ou igual a zero.",
+    );
+  }
+
+  if (
+    !Number.isInteger(slippageTicksPerSide) ||
+    slippageTicksPerSide < 0
+  ) {
+    throw new TradingRuleError(
+      "O slippage precisa ser informado como uma quantidade inteira de ticks maior ou igual a zero.",
+    );
+  }
+}
+
+function entryExecutionPrice(intent: TradeIntent): number {
+  const slip =
+    intent.execution.slippageTicksPerSide * tickSizeFor(intent.asset);
+  return intent.side === "BUY"
+    ? intent.entry + slip
+    : intent.entry - slip;
+}
+
+function exitExecutionPrice(
+  position: Position,
+  triggerPrice: number,
+): number {
+  const slip =
+    position.slippageTicksPerSide * tickSizeFor(position.asset);
+
+  // Encerrar BUY significa vender: pior execução = preço menor.
+  // Encerrar SELL significa comprar: pior execução = preço maior.
+  return position.side === "BUY"
+    ? triggerPrice - slip
+    : triggerPrice + slip;
+}
+
 export function validateTradeIntent(intent: TradeIntent): void {
   const {
     signal,
@@ -42,6 +87,8 @@ export function validateTradeIntent(intent: TradeIntent): void {
       "A quantidade de contratos precisa ser um número inteiro maior ou igual a 1.",
     );
   }
+
+  validateExecutionSettings(intent);
 
   if (!signal) {
     throw new TradingRuleError(
@@ -107,6 +154,32 @@ export function validateTradeIntent(intent: TradeIntent): void {
       );
     }
   }
+
+  const executedEntry = entryExecutionPrice(intent);
+
+  if (side === "BUY" && executedEntry >= oco.target) {
+    throw new TradingRuleError(
+      "O slippage configurado torna o preço executado da compra igual ou superior ao alvo. Reduza o slippage ou afaste o alvo.",
+    );
+  }
+
+  if (side === "BUY" && executedEntry <= oco.stopLoss) {
+    throw new TradingRuleError(
+      "O slippage configurado torna a entrada da compra incompatível com o stop.",
+    );
+  }
+
+  if (side === "SELL" && executedEntry <= oco.target) {
+    throw new TradingRuleError(
+      "O slippage configurado torna o preço executado da venda igual ou inferior ao alvo. Reduza o slippage ou afaste o alvo.",
+    );
+  }
+
+  if (side === "SELL" && executedEntry >= oco.stopLoss) {
+    throw new TradingRuleError(
+      "O slippage configurado torna a entrada da venda incompatível com o stop.",
+    );
+  }
 }
 
 export function openPosition(intent: TradeIntent, now = new Date()): Position {
@@ -119,10 +192,14 @@ export function openPosition(intent: TradeIntent, now = new Date()): Position {
     signalId: intent.signal!.id,
     openedCandleIndex: intent.candleIndex,
     openedReplaySequence: intent.replaySequence,
-    entry: intent.entry,
+    requestedEntry: intent.entry,
+    entry: entryExecutionPrice(intent),
     stopLoss: intent.oco.stopLoss,
     target: intent.oco.target,
     contracts: intent.contracts,
+    slippageTicksPerSide: intent.execution.slippageTicksPerSide,
+    costPerContractRoundTripBRL:
+      intent.execution.costPerContractRoundTripBRL,
     openedAt: now.toISOString(),
     status: "OPEN",
   };
@@ -130,6 +207,51 @@ export function openPosition(intent: TradeIntent, now = new Date()): Position {
 
 function pointsFor(side: Side, entry: number, exit: number): number {
   return side === "BUY" ? exit - entry : entry - exit;
+}
+
+function closePosition(
+  position: Position,
+  triggerPrice: number,
+  exitReason: Trade["exitReason"],
+  closedAt: string,
+): Trade {
+  const exitPrice = exitExecutionPrice(position, triggerPrice);
+  const resultPoints = pointsFor(
+    position.side,
+    position.entry,
+    exitPrice,
+  );
+  const gross = grossResultBRL(
+    position.asset,
+    resultPoints,
+    position.contracts,
+  );
+  const operationalCostsBRL =
+    position.costPerContractRoundTripBRL * position.contracts;
+
+  return {
+    id: position.id,
+    asset: position.asset,
+    side: position.side,
+    signalId: position.signalId,
+    requestedEntry: position.requestedEntry,
+    entry: position.entry,
+    stopLoss: position.stopLoss,
+    target: position.target,
+    contracts: position.contracts,
+    slippageTicksPerSide: position.slippageTicksPerSide,
+    costPerContractRoundTripBRL:
+      position.costPerContractRoundTripBRL,
+    openedAt: position.openedAt,
+    status: "CLOSED",
+    exitPrice,
+    exitReason,
+    closedAt,
+    resultPoints,
+    grossResultBRL: gross,
+    operationalCostsBRL,
+    netResultBRL: gross - operationalCostsBRL,
+  };
 }
 
 export function resolveOco(
@@ -159,38 +281,17 @@ export function resolveOco(
 
   // Quando um candle histórico toca stop e alvo e não há informação intrabar,
   // adotamos deliberadamente a hipótese conservadora: o stop é considerado
-  // executado primeiro. Essa política será configurável na fase de replay.
+  // executado primeiro. Essa política será configurável em etapa posterior.
   const exitReason = stopTouched ? "STOP" : "TARGET";
-  const exitPrice =
+  const triggerPrice =
     exitReason === "STOP" ? position.stopLoss : position.target;
 
-  const resultPoints = pointsFor(
-    position.side,
-    position.entry,
-    exitPrice,
-  );
-
-  return {
-    id: position.id,
-    asset: position.asset,
-    side: position.side,
-    signalId: position.signalId,
-    entry: position.entry,
-    stopLoss: position.stopLoss,
-    target: position.target,
-    contracts: position.contracts,
-    openedAt: position.openedAt,
-    status: "CLOSED",
-    exitPrice,
+  return closePosition(
+    position,
+    triggerPrice,
     exitReason,
-    closedAt: now.toISOString(),
-    resultPoints,
-    grossResultBRL: grossResultBRL(
-      position.asset,
-      resultPoints,
-      position.contracts,
-    ),
-  };
+    now.toISOString(),
+  );
 }
 
 export function resolveOcoTrade(
@@ -221,36 +322,15 @@ export function resolveOcoTrade(
   // Com dados negócio a negócio não precisamos supor qual nível veio primeiro:
   // cada evento chega em sequência histórica canônica.
   const exitReason = stopTouched ? "STOP" : "TARGET";
-  const exitPrice =
+  const triggerPrice =
     exitReason === "STOP" ? position.stopLoss : position.target;
 
-  const resultPoints = pointsFor(
-    position.side,
-    position.entry,
-    exitPrice,
-  );
-
-  return {
-    id: position.id,
-    asset: position.asset,
-    side: position.side,
-    signalId: position.signalId,
-    entry: position.entry,
-    stopLoss: position.stopLoss,
-    target: position.target,
-    contracts: position.contracts,
-    openedAt: position.openedAt,
-    status: "CLOSED",
-    exitPrice,
+  return closePosition(
+    position,
+    triggerPrice,
     exitReason,
-    closedAt: trade.timestamp,
-    resultPoints,
-    grossResultBRL: grossResultBRL(
-      position.asset,
-      resultPoints,
-      position.contracts,
-    ),
-  };
+    trade.timestamp,
+  );
 }
 
 export function sideLabel(side: Side): string {
