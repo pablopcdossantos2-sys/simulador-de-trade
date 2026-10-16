@@ -1,0 +1,19 @@
+[package]
+name = "simulador-de-trade"
+version = "0.1.0"
+description = "Simulador disciplinado para WINFUT e WDOFUT"
+authors = ["Simulador de Trade contributors"]
+edition = "2021"
+
+[lib]
+name = "simulador_de_trade_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+rusqlite = { version = "0.32", features = ["bundled"] }
