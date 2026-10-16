@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   grossResultBRL,
   pointValueBRLFor,
+  roundPriceToTick,
   tickSizeFor,
 } from "./marketSpecs";
 
@@ -10,6 +11,13 @@ describe("especificações financeiras WIN/WDO", () => {
     expect(tickSizeFor("WINFUT")).toBe(5);
     expect(pointValueBRLFor("WINFUT")).toBe(0.2);
     expect(grossResultBRL("WINFUT", 150, 2)).toBe(60);
+  });
+
+  it("arredonda preços para o tick válido mais próximo", () => {
+    expect(roundPriceToTick("WINFUT", 130003)).toBe(130005);
+    expect(roundPriceToTick("WINFUT", 130002)).toBe(130000);
+    expect(roundPriceToTick("WDOFUT", 5321.27)).toBe(5321.5);
+    expect(roundPriceToTick("WDOFUT", 5321.24)).toBe(5321);
   });
 
   it("usa R$ 10 por ponto no WDO", () => {
