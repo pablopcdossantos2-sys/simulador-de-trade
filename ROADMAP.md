@@ -50,16 +50,26 @@ Arquitetura definida a partir dos componentes validados no Candle Lab. Ver [Reap
 - [x] Recalcular o indicador no candle M2 aberto a cada negócio.
 - [x] Definir formato canônico de candle M2 incremental.
 - [x] Criar ferramenta desktop para tratar CSV bruto do Profit.
+- [x] Permitir escolher horário inicial/final no tratamento.
 - [x] Validar layout, colunas e timestamps no tratamento inicial.
 - [x] Interromper o tratamento com diagnóstico da linha inválida.
+- [ ] Tratamento em lote dos pregões exigidos pelo plano.
+- [ ] Catálogo local de arquivos preparados e detecção de datas faltantes.
+- [ ] Aquecimento automático e invisível antes da janela visível.
 - [ ] Importar histórico de WIN.
 - [ ] Importar histórico de WDO.
 - [x] Não revelar candles futuros.
 - [x] Play / pause.
-- [ ] Avanço de um candle.\n- [x] Avanço manual de um negócio.
+- [ ] Avanço de um candle.
+- [x] Avanço manual de um negócio.
 - [x] Velocidades de reprodução visual 1× / 2× / 5× / 10×.
 - [ ] Seleção de timeframe.
-- [ ] Seleção de pregão/data.
+- [x] Planejamento prévio por ativo, data, timeframe e janela horária.
+- [x] Cálculo automático de aquecimento do indicador.
+- [x] Aviso dos pregões anteriores necessários no calendário B3 2026.
+- [x] Sincronizar a janela do plano com o tratamento dos dados.
+- [x] Validar a janela do arquivo carregado contra o plano ativo.
+- [ ] Seleção de pregão/data no catálogo local de dados preparados.
 - [x] Reiniciar sessão sem apagar histórico.
 - [x] Indicador calculado apenas com dados já revelados.
 
