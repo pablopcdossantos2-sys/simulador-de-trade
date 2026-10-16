@@ -276,8 +276,7 @@ fn push_warmup_trade(
     Ok(())
 }
 
-#[tauri::command]
-pub fn load_warmup_candles(
+fn process_warmup_candles(
     source_paths: Vec<String>,
     timeframe_minutes: u32,
     max_bars: usize,
@@ -360,6 +359,19 @@ pub fn load_warmup_candles(
     }
 
     Ok(candles)
+}
+
+#[tauri::command]
+pub async fn load_warmup_candles(
+    source_paths: Vec<String>,
+    timeframe_minutes: u32,
+    max_bars: usize,
+) -> Result<Vec<WarmupCandleRecord>, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        process_warmup_candles(source_paths, timeframe_minutes, max_bars)
+    })
+    .await
+    .map_err(|error| error.to_string())?
 }
 
 fn normalize_hhmm(value: &str) -> Option<String> {
