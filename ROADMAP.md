@@ -100,24 +100,26 @@ Arquitetura definida a partir dos componentes validados no Candle Lab. Ver [Reap
 - [x] Feedback disciplinar inicial com linha do tempo e aderência.
 - [x] Registrar sinais ignorados sem classificá-los automaticamente como erro.
 - [x] Registrar tentativas bloqueadas.
-- [ ] Distinguir erro técnico de erro de execução.
+- [x] Distinguir problema técnico de erro disciplinar/execução.
 - [ ] Notas pós-trade.
 - [ ] Captura do contexto do gráfico no momento da entrada.
 
 ## Fase 5 — Métricas
 
-- [ ] Win rate.
-- [ ] Payoff.
-- [ ] Expectativa em R.
-- [ ] Profit factor.
-- [ ] Drawdown.
+- [x] Win rate por sessão.
+- [x] Payoff por sessão.
+- [x] Expectativa realizada em R por sessão.
+- [x] Profit factor por sessão.
+- [x] Drawdown máximo em pontos por sessão.
 - [ ] Resultado por ativo.
-- [ ] Resultado por horário.
-- [ ] Resultado por tipo/direção de sinal.
+- [x] Resultado por horário de entrada.
+- [x] Resultado por direção (Compra/Venda).
+- [ ] Resultado por tipo de sinal/setup.
 - [ ] Aderência ao sinal.
 - [ ] Aderência ao stop.
 - [ ] Aderência ao alvo.
 - [ ] Relatório completo por sessão.
+- [x] Relatório pós-sessão inicial navegável.
 - [x] Resumo disciplinar da sessão atual.
 - [ ] Evolução do aluno ao longo do tempo.
 
@@ -137,7 +139,7 @@ Arquitetura definida a partir dos componentes validados no Candle Lab. Ver [Reap
 - [ ] Testes adicionais para SELL.
 - [x] Testes iniciais de importação/tratamento.
 - [x] Testes iniciais de replay, catálogo e aquecimento.
-- [ ] Testes de persistência.
+- [x] Teste inicial do esquema de persistência SQLite.
 - [ ] Testes de regressão do indicador.
 - [ ] Fixtures com sessões conhecidas.
 - [ ] Política explícita de versionamento do algoritmo do indicador.
