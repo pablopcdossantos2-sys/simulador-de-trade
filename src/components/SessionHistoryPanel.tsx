@@ -197,6 +197,18 @@ export function SessionHistoryPanel({ refreshKey }: Props) {
                     <strong>{ratio(performance.profitFactor)}</strong>
                   </div>
                   <div>
+                    <span>Resultado em R</span>
+                    <strong>{performance.totalR.toFixed(2)} R</strong>
+                  </div>
+                  <div>
+                    <span>Expectativa</span>
+                    <strong>{performance.expectancyR.toFixed(2)} R/trade</strong>
+                  </div>
+                  <div>
+                    <span>Drawdown máx.</span>
+                    <strong>{performance.maxDrawdownPoints.toFixed(1)} pts</strong>
+                  </div>
+                  <div>
                     <span>Aderência</span>
                     <strong>
                       {formatPct(performance.executionAdherencePct)}
@@ -256,6 +268,14 @@ export function SessionHistoryPanel({ refreshKey }: Props) {
                         <dd>
                           {performance.buyTrades} / {performance.sellTrades}
                         </dd>
+                      </div>
+                      <div>
+                        <dt>Resultado compras</dt>
+                        <dd>{formatPoints(performance.buyNetPoints)}</dd>
+                      </div>
+                      <div>
+                        <dt>Resultado vendas</dt>
+                        <dd>{formatPoints(performance.sellNetPoints)}</dd>
                       </div>
                     </dl>
                   </article>
