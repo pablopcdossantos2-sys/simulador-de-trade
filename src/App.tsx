@@ -492,6 +492,19 @@ export default function App() {
     setFeedback("Sessão de treino encerrada. O resumo disciplinar foi atualizado.");
   }
 
+  useEffect(() => {
+    if (!replay.finished || !trainingActive) return;
+
+    if (position) {
+      setFeedback(
+        "O replay chegou ao fim com uma posição aberta. A sessão permanece ativa até definirmos a política de encerramento no fim da janela.",
+      );
+      return;
+    }
+
+    void finishTraining();
+  }, [replay.finished, trainingActive, position]);
+
   function submit(side: Side) {
     try {
       if (dataMode === "replay" && !trainingActive) {
