@@ -11,6 +11,7 @@ import { SessionHistoryPanel } from "./components/SessionHistoryPanel";
 import { ProgressOverviewPanel } from "./components/ProgressOverviewPanel";
 import { StudentProgressPanel } from "./components/StudentProgressPanel";
 import { ExecutionSettingsPanel } from "./components/ExecutionSettingsPanel";
+import { BackupPanel } from "./components/BackupPanel";
 import {
   ThemeToggle,
   type ThemeMode,
@@ -765,6 +766,22 @@ export default function App() {
           setExecutionSettings(settings);
           setFeedback(
             "Configurações salvas. Elas serão aplicadas somente às próximas operações.",
+          );
+        }}
+      />
+
+      <BackupPanel
+        disabled={Boolean(position) || Boolean(trainingActive)}
+        onImported={async () => {
+          const [nextTrades, nextSettings] = await Promise.all([
+            loadTrades(),
+            loadExecutionSettings(),
+          ]);
+          setTrades(nextTrades);
+          setExecutionSettings(nextSettings);
+          setSessionHistoryRefreshKey((value) => value + 1);
+          setFeedback(
+            "Backup importado. Histórico, relatórios e configurações foram atualizados.",
           );
         }}
       />
