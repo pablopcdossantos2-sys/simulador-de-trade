@@ -204,11 +204,21 @@ export default function App() {
         ? `Alvo atingido. Resultado: ${money.format(closed.resultPoints)} pontos.`
         : `Stop atingido. Resultado: ${money.format(closed.resultPoints)} pontos.`,
     );
-    void saveTrade(closed).catch(() =>
+    void saveTrade(closed).catch((error) => {
+      const reason =
+        error instanceof Error
+          ? error.message
+          : "Falha ao salvar o histórico local da operação.";
       setFeedback(
         "A operação foi encerrada, mas houve falha ao salvar o histórico local.",
-      ),
-    );
+      );
+      recordTrainingEvent({
+        type: "TECHNICAL_ISSUE",
+        marketTimestamp: closed.closedAt,
+        reason,
+        tradeId: closed.id,
+      });
+    });
 
     recordTrainingEvent({
       type: "TRADE_CLOSED",
