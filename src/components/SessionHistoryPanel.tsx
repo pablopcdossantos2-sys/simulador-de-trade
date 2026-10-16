@@ -281,9 +281,15 @@ export function SessionHistoryPanel({ refreshKey }: Props) {
                     <strong>{performance.maxDrawdownPoints.toFixed(1)} pts</strong>
                   </div>
                   <div>
-                    <span>Aderência</span>
+                    <span>Aderência às tentativas</span>
                     <strong>
                       {formatPct(performance.executionAdherencePct)}
+                    </strong>
+                  </div>
+                  <div>
+                    <span>Aderência aos sinais</span>
+                    <strong>
+                      {formatPct(performance.signalAdherencePct)}
                     </strong>
                   </div>
                   <div>
