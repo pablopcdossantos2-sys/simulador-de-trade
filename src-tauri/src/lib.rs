@@ -402,7 +402,8 @@ fn list_session_trades(
             r#"
             SELECT DISTINCT
                 t.id, t.asset, t.side, t.signal_id, t.entry, t.stop_loss, t.target,
-                t.opened_at, t.status, t.exit_price, t.exit_reason, t.closed_at, t.result_points
+                t.contracts, t.opened_at, t.status, t.exit_price, t.exit_reason,
+                t.closed_at, t.result_points, t.gross_result_brl
             FROM trades t
             INNER JOIN training_events e
                 ON e.trade_id = t.id
@@ -423,12 +424,14 @@ fn list_session_trades(
                 entry: row.get(4)?,
                 stop_loss: row.get(5)?,
                 target: row.get(6)?,
-                opened_at: row.get(7)?,
-                status: row.get(8)?,
-                exit_price: row.get(9)?,
-                exit_reason: row.get(10)?,
-                closed_at: row.get(11)?,
-                result_points: row.get(12)?,
+                contracts: row.get(7)?,
+                opened_at: row.get(8)?,
+                status: row.get(9)?,
+                exit_price: row.get(10)?,
+                exit_reason: row.get(11)?,
+                closed_at: row.get(12)?,
+                result_points: row.get(13)?,
+                gross_result_brl: row.get(14)?,
             })
         })
         .map_err(|error| error.to_string())?;
@@ -484,7 +487,8 @@ fn list_trades(state: tauri::State<'_, DbState>) -> Result<Vec<TradeRecord>, Str
             r#"
             SELECT
                 id, asset, side, signal_id, entry, stop_loss, target,
-                opened_at, status, exit_price, exit_reason, closed_at, result_points
+                contracts, opened_at, status, exit_price, exit_reason, closed_at,
+                result_points, gross_result_brl
             FROM trades
             ORDER BY closed_at DESC
             LIMIT 500
@@ -502,12 +506,14 @@ fn list_trades(state: tauri::State<'_, DbState>) -> Result<Vec<TradeRecord>, Str
                 entry: row.get(4)?,
                 stop_loss: row.get(5)?,
                 target: row.get(6)?,
-                opened_at: row.get(7)?,
-                status: row.get(8)?,
-                exit_price: row.get(9)?,
-                exit_reason: row.get(10)?,
-                closed_at: row.get(11)?,
-                result_points: row.get(12)?,
+                contracts: row.get(7)?,
+                opened_at: row.get(8)?,
+                status: row.get(9)?,
+                exit_price: row.get(10)?,
+                exit_reason: row.get(11)?,
+                closed_at: row.get(12)?,
+                result_points: row.get(13)?,
+                gross_result_brl: row.get(14)?,
             })
         })
         .map_err(|error| error.to_string())?;
