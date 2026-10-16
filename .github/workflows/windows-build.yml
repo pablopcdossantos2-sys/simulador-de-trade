@@ -1,0 +1,56 @@
+name: Windows desktop build
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+
+jobs:
+  windows:
+    name: Build Windows installer and portable executable
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Rust stable
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install frontend dependencies
+        run: npm install
+
+      - name: Build Tauri and NSIS installer
+        run: npm run tauri build
+
+      - name: Prepare portable executable
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path artifacts | Out-Null
+          Copy-Item "src-tauri/target/release/simulador-de-trade.exe" "artifacts/Simulador-de-Trade-portable.exe"
+
+      - name: Copy NSIS installer
+        shell: pwsh
+        run: |
+          $installer = Get-ChildItem "src-tauri/target/release/bundle/nsis/*-setup.exe" | Select-Object -First 1
+          if (-not $installer) {
+            throw "Instalador NSIS não encontrado."
+          }
+          Copy-Item $installer.FullName "artifacts/Simulador-de-Trade-setup.exe"
+
+      - name: Upload Windows artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: simulador-de-trade-windows-x64
+          path: artifacts/*
+          if-no-files-found: error
+          retention-days: 30
