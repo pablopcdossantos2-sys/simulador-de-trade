@@ -128,14 +128,28 @@ export async function loadTrainingEvents(
 }
 
 
+function normalizeTrainingSession(
+  session: TrainingSession,
+): TrainingSession {
+  return {
+    ...session,
+    mode: session.mode === "EXAM" ? "EXAM" : "FREE",
+  };
+}
+
 export async function loadTrainingSessions(): Promise<TrainingSession[]> {
   if (isTauriRuntime()) {
-    return invoke<TrainingSession[]>("list_training_sessions");
+    const sessions = await invoke<TrainingSession[]>("list_training_sessions");
+    return sessions
+      .map(normalizeTrainingSession)
+      .sort((a, b) => b.startedAt.localeCompare(a.startedAt));
   }
 
   const raw = localStorage.getItem(SESSION_STORAGE_KEY);
   const sessions = raw ? (JSON.parse(raw) as TrainingSession[]) : [];
-  return sessions.sort((a, b) => b.startedAt.localeCompare(a.startedAt));
+  return sessions
+    .map(normalizeTrainingSession)
+    .sort((a, b) => b.startedAt.localeCompare(a.startedAt));
 }
 
 export async function loadSessionTrades(
