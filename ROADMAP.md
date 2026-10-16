@@ -76,15 +76,16 @@ Arquitetura definida a partir dos componentes validados no Candle Lab. Ver [Reap
 
 ## Fase 3 — Motor de execução
 
-- [ ] Quantidade de contratos.
+- [x] Quantidade inteira de contratos.
 - [x] Tick size por ativo.
 - [x] Rejeição de preços fora do incremento mínimo permitido.
 - [ ] Arredondamento obrigatório para níveis válidos.
 - [ ] Custos operacionais configuráveis.
 - [ ] Slippage configurável.
 - [x] Resultado em pontos.
-- [ ] Resultado financeiro.
-- [ ] Risco inicial e múltiplos de R.
+- [x] Resultado financeiro bruto em R$ por ativo/quantidade.
+- [ ] Resultado financeiro líquido após custos/slippage.
+- [x] Risco inicial em pontos derivado da OCO e múltiplos de R no relatório.
 - [ ] Política intrabar configurável.
 - [x] Suporte a dados negócio a negócio tratados do Profit.
 - [x] Validade inicial: autorização permanece enquanto a zona correspondente estiver ativa.
