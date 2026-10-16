@@ -49,6 +49,20 @@ export interface IndicatorEvaluation {
   zone: IndicatorZone;
 }
 
+
+export interface TradeEntryContext {
+  capturedAt: string;
+  marketTimestamp: string;
+  asset: Asset;
+  candleIndex: number;
+  currentPrice: number;
+  zone: IndicatorZone;
+  signal: IndicatorSignal;
+  candles: Candle[];
+  indicatorSeries: IndicatorPoint[];
+  signals: IndicatorSignal[];
+}
+
 export interface OcoOrder {
   stopLoss: number;
   target: number;
@@ -73,6 +87,7 @@ export interface Position {
   contracts: number;
   slippageTicksPerSide: number;
   costPerContractRoundTripBRL: number;
+  entryContext: TradeEntryContext | null;
   openedAt: string;
   status: "OPEN";
 }
@@ -101,6 +116,7 @@ export interface Trade {
   operationalCostsBRL: number;
   netResultBRL: number;
   postTradeNote: string;
+  entryContext?: TradeEntryContext | null;
 }
 
 export interface TradeIntent {
@@ -113,6 +129,7 @@ export interface TradeIntent {
   replaySequence?: number;
   oco: OcoOrder;
   signal: IndicatorSignal | null;
+  entryContext?: TradeEntryContext | null;
   signalAlreadyUsed: boolean;
   hasOpenPosition: boolean;
 }
