@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
-import type { Asset, ReplayTrade } from "../types";
+import type { Asset, Candle, ReplayTrade } from "../types";
 
 export interface ReplaySessionInfo {
   sourcePath: string;
@@ -44,4 +44,18 @@ export async function resetReplaySession(): Promise<ReplaySessionInfo> {
 export async function closeReplaySession(): Promise<void> {
   if (!("__TAURI_INTERNALS__" in window)) return;
   await invoke("close_replay_session");
+}
+
+
+export async function loadWarmupCandles(
+  sourcePaths: string[],
+  timeframeMinutes: number,
+  maxBars: number,
+): Promise<Candle[]> {
+  ensureDesktop();
+  return invoke<Candle[]>("load_warmup_candles", {
+    sourcePaths,
+    timeframeMinutes,
+    maxBars,
+  });
 }
