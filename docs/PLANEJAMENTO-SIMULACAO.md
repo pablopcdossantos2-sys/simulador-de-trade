@@ -28,7 +28,7 @@ Configuração:
 ~~~text
 Ativo: WINFUT
 Pregão: 14/10/2026
-Timeframe: 2 minutos
+Timeframe: 2 minutos (M2)
 Janela visível: 09:00–12:00
 Indicador: Multi Médias - Nuvem e Sinais
 ~~~
@@ -39,6 +39,53 @@ A janela visível possui:
 3 horas = 180 minutos
 180 / 2 = 90 candles M2
 ~~~
+
+## Escolha entre M2 e M5
+
+A interface permite escolher inicialmente:
+
+~~~text
+M2 — candles de 2 minutos
+M5 — candles de 5 minutos
+~~~
+
+A escolha afeta todo o fluxo da simulação, e não apenas a visualização:
+
+- quantidade de candles na janela visível;
+- formação OHLC/volume negócio a negócio;
+- botão **+1 candle**;
+- aquecimento oculto;
+- número de pregões anteriores necessários;
+- timeframe registrado na sessão de treinamento;
+- cálculo do indicador sobre os candles formados.
+
+Para a mesma janela 09:00–12:00:
+
+~~~text
+M2: 180 / 2 = 90 candles
+M5: 180 / 5 = 36 candles
+~~~
+
+O indicador continua exigindo 260 candles no aquecimento padrão. Portanto, no M5:
+
+~~~text
+260 × 5 = 1.300 minutos = 21h40
+~~~
+
+Se o usuário tiver apenas a faixa 09:00–12:00 dos pregões anteriores:
+
+~~~text
+ceil(260 / 36) = 8 pregões anteriores
+~~~
+
+Se houver pregões completos de WIN entre 09:00–18:00:
+
+~~~text
+540 / 5 = 108 candles M5 por pregão
+ceil(260 / 108) = 3 pregões completos
+~~~
+
+Para 14/10/2026, o planejador identifica, no exemplo M5, 13/10, 09/10 e 08/10 como os três pregões completos anteriores necessários.
 
 ## Qual média determina o aquecimento
 
@@ -222,13 +269,12 @@ Nesses casos o sistema mostra um aviso para que o aquecimento e o pregão-alvo u
 
 Misturar contratos sem regra definida pode alterar as médias e gerar sinais diferentes.
 
-## Próximas evoluções
+## Estado atual e próximas evoluções
 
-Ainda serão implementados:
+O tratamento em lote, o catálogo local, a detecção de dados faltantes, o aquecimento invisível e a seleção M2/M5 já estão integrados.
 
-1. tratamento em lote dos pregões requeridos pelo plano;
-2. catálogo local de arquivos já preparados;
-3. verificação automática de quais datas estão disponíveis ou faltando;
-4. aquecimento automático e invisível antes do replay visível;
-5. suporte a mudança/vencimento de contrato sem misturar séries de forma indevida;
-6. regressão contra valores do TradingView para definir tolerâncias de paridade.
+Ainda permanecem como evoluções importantes:
+
+1. ampliar o calendário para outros anos;
+2. aprofundar a política de rolagem/série contínua em vencimentos;
+3. ampliar os testes de paridade do indicador contra referências externas conhecidas.
