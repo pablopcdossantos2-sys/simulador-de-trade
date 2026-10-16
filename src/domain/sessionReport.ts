@@ -75,6 +75,30 @@ export function calculateSessionPerformance(
   const technicalIssues = scopedEvents.filter(
     (event) => event.type === "TECHNICAL_ISSUE",
   ).length;
+  const usedSignalIds = new Set(
+    scopedEvents
+      .filter(
+        (event) =>
+          event.type === "TRADE_OPENED" && Boolean(event.signalId),
+      )
+      .map((event) => event.signalId as string),
+  );
+  const ignoredSignalIds = new Set(
+    scopedEvents
+      .filter(
+        (event) =>
+          event.type === "SIGNAL_IGNORED" && Boolean(event.signalId),
+      )
+      .map((event) => event.signalId as string),
+  );
+  const signalOpportunities = new Set([
+    ...usedSignalIds,
+    ...ignoredSignalIds,
+  ]).size;
+  const signalAdherencePct =
+    signalOpportunities === 0
+      ? 100
+      : (usedSignalIds.size / signalOpportunities) * 100;
 
   const rMultiples = scopedTrades.map((trade) => {
     const initialRisk = Math.abs(trade.entry - trade.stopLoss);
@@ -155,6 +179,7 @@ export function calculateSessionPerformance(
     blockedAttempts: summary.blockedAttempts,
     technicalIssues,
     ignoredSignals: summary.ignoredSignals,
+    signalAdherencePct,
     executionAdherencePct: summary.executionAdherencePct,
   };
 }
