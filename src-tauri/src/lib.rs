@@ -33,6 +33,35 @@ struct TradeRecord {
     result_points: f64,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct TrainingSessionRecord {
+    id: String,
+    asset: String,
+    trade_date: String,
+    start_time: String,
+    end_time: String,
+    timeframe_minutes: i64,
+    warmup_bars: i64,
+    started_at: String,
+    ended_at: Option<String>,
+    status: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct TrainingEventRecord {
+    id: String,
+    session_id: String,
+    r#type: String,
+    timestamp: String,
+    market_timestamp: Option<String>,
+    signal_id: Option<String>,
+    side: Option<String>,
+    reason: Option<String>,
+    trade_id: Option<String>,
+}
+
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 struct ProfitPreparationProgress {
@@ -98,6 +127,38 @@ fn initialize_database(connection: &Connection) -> rusqlite::Result<()> {
 
             CREATE INDEX IF NOT EXISTS idx_trades_closed_at
             ON trades(closed_at DESC);
+
+            CREATE TABLE IF NOT EXISTS training_sessions (
+                id TEXT PRIMARY KEY NOT NULL,
+                asset TEXT NOT NULL,
+                trade_date TEXT NOT NULL,
+                start_time TEXT NOT NULL,
+                end_time TEXT NOT NULL,
+                timeframe_minutes INTEGER NOT NULL,
+                warmup_bars INTEGER NOT NULL,
+                started_at TEXT NOT NULL,
+                ended_at TEXT,
+                status TEXT NOT NULL
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_training_sessions_trade_date
+            ON training_sessions(trade_date DESC, started_at DESC);
+
+            CREATE TABLE IF NOT EXISTS training_events (
+                id TEXT PRIMARY KEY NOT NULL,
+                session_id TEXT NOT NULL,
+                type TEXT NOT NULL,
+                timestamp TEXT NOT NULL,
+                market_timestamp TEXT,
+                signal_id TEXT,
+                side TEXT,
+                reason TEXT,
+                trade_id TEXT,
+                FOREIGN KEY(session_id) REFERENCES training_sessions(id)
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_training_events_session
+            ON training_events(session_id, timestamp ASC);
             "#,
         )
         .map(|_| ())
@@ -148,6 +209,131 @@ fn save_trade(state: tauri::State<'_, DbState>, trade: TradeRecord) -> Result<()
         .map_err(|error| error.to_string())?;
 
     Ok(())
+}
+
+#[tauri::command]
+fn save_training_session(
+    state: tauri::State<'_, DbState>,
+    session: TrainingSessionRecord,
+) -> Result<(), String> {
+    let connection = state.0.lock().map_err(|error| error.to_string())?;
+
+    connection
+        .execute(
+            r#"
+            INSERT INTO training_sessions (
+                id, asset, trade_date, start_time, end_time,
+                timeframe_minutes, warmup_bars, started_at, ended_at, status
+            )
+            VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)
+            ON CONFLICT(id) DO UPDATE SET
+                asset = excluded.asset,
+                trade_date = excluded.trade_date,
+                start_time = excluded.start_time,
+                end_time = excluded.end_time,
+                timeframe_minutes = excluded.timeframe_minutes,
+                warmup_bars = excluded.warmup_bars,
+                started_at = excluded.started_at,
+                ended_at = excluded.ended_at,
+                status = excluded.status
+            "#,
+            params![
+                session.id,
+                session.asset,
+                session.trade_date,
+                session.start_time,
+                session.end_time,
+                session.timeframe_minutes,
+                session.warmup_bars,
+                session.started_at,
+                session.ended_at,
+                session.status,
+            ],
+        )
+        .map_err(|error| error.to_string())?;
+
+    Ok(())
+}
+
+#[tauri::command]
+fn save_training_event(
+    state: tauri::State<'_, DbState>,
+    event: TrainingEventRecord,
+) -> Result<(), String> {
+    let connection = state.0.lock().map_err(|error| error.to_string())?;
+
+    connection
+        .execute(
+            r#"
+            INSERT INTO training_events (
+                id, session_id, type, timestamp, market_timestamp,
+                signal_id, side, reason, trade_id
+            )
+            VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)
+            ON CONFLICT(id) DO UPDATE SET
+                session_id = excluded.session_id,
+                type = excluded.type,
+                timestamp = excluded.timestamp,
+                market_timestamp = excluded.market_timestamp,
+                signal_id = excluded.signal_id,
+                side = excluded.side,
+                reason = excluded.reason,
+                trade_id = excluded.trade_id
+            "#,
+            params![
+                event.id,
+                event.session_id,
+                event.r#type,
+                event.timestamp,
+                event.market_timestamp,
+                event.signal_id,
+                event.side,
+                event.reason,
+                event.trade_id,
+            ],
+        )
+        .map_err(|error| error.to_string())?;
+
+    Ok(())
+}
+
+#[tauri::command]
+fn list_training_events(
+    state: tauri::State<'_, DbState>,
+    session_id: String,
+) -> Result<Vec<TrainingEventRecord>, String> {
+    let connection = state.0.lock().map_err(|error| error.to_string())?;
+    let mut statement = connection
+        .prepare(
+            r#"
+            SELECT
+                id, session_id, type, timestamp, market_timestamp,
+                signal_id, side, reason, trade_id
+            FROM training_events
+            WHERE session_id = ?1
+            ORDER BY timestamp ASC
+            "#,
+        )
+        .map_err(|error| error.to_string())?;
+
+    let rows = statement
+        .query_map([session_id], |row| {
+            Ok(TrainingEventRecord {
+                id: row.get(0)?,
+                session_id: row.get(1)?,
+                r#type: row.get(2)?,
+                timestamp: row.get(3)?,
+                market_timestamp: row.get(4)?,
+                signal_id: row.get(5)?,
+                side: row.get(6)?,
+                reason: row.get(7)?,
+                trade_id: row.get(8)?,
+            })
+        })
+        .map_err(|error| error.to_string())?;
+
+    rows.collect::<Result<Vec<_>, _>>()
+        .map_err(|error| error.to_string())
 }
 
 #[tauri::command]
@@ -956,6 +1142,9 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             save_trade,
             list_trades,
+            save_training_session,
+            save_training_event,
+            list_training_events,
             prepare_profit_replay_file,
             replay::open_replay_file,
             replay::next_replay_trades,
