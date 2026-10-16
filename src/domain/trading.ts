@@ -23,8 +23,11 @@ export class TradingRuleError extends Error {
 const isFinitePrice = (value: number) => Number.isFinite(value) && value > 0;
 
 function validateExecutionSettings(intent: TradeIntent): void {
-  const { costPerContractRoundTripBRL, slippageTicksPerSide } =
-    intent.execution;
+  const {
+    costPerContractRoundTripBRL,
+    slippageTicksPerSide,
+    intrabarPolicy,
+  } = intent.execution;
 
   if (
     !Number.isFinite(costPerContractRoundTripBRL) ||
@@ -41,6 +44,15 @@ function validateExecutionSettings(intent: TradeIntent): void {
   ) {
     throw new TradingRuleError(
       "O slippage precisa ser informado como uma quantidade inteira de ticks maior ou igual a zero.",
+    );
+  }
+
+  if (
+    intrabarPolicy !== "STOP_FIRST" &&
+    intrabarPolicy !== "TARGET_FIRST"
+  ) {
+    throw new TradingRuleError(
+      "A política intrabar configurada é inválida.",
     );
   }
 }
@@ -207,6 +219,7 @@ export function openPosition(intent: TradeIntent, now = new Date()): Position {
     slippageTicksPerSide: intent.execution.slippageTicksPerSide,
     costPerContractRoundTripBRL:
       intent.execution.costPerContractRoundTripBRL,
+    intrabarPolicy: intent.execution.intrabarPolicy,
     entryContext: intent.entryContext ?? null,
     openedAt: now.toISOString(),
     status: "OPEN",
@@ -250,6 +263,7 @@ function closePosition(
     slippageTicksPerSide: position.slippageTicksPerSide,
     costPerContractRoundTripBRL:
       position.costPerContractRoundTripBRL,
+    intrabarPolicy: position.intrabarPolicy,
     openedAt: position.openedAt,
     status: "CLOSED",
     exitPrice,
@@ -289,10 +303,17 @@ export function resolveOco(
     return null;
   }
 
-  // Quando um candle histórico toca stop e alvo e não há informação intrabar,
-  // adotamos deliberadamente a hipótese conservadora: o stop é considerado
-  // executado primeiro. Essa política será configurável em etapa posterior.
-  const exitReason = stopTouched ? "STOP" : "TARGET";
+  // Quando um candle agregado toca Stop e Alvo e não existe sequência
+  // intrabar, a política armazenada na posição resolve a ambiguidade.
+  // No replay negócio a negócio esta política não é usada.
+  const bothTouched = stopTouched && targetTouched;
+  const exitReason = bothTouched
+    ? position.intrabarPolicy === "TARGET_FIRST"
+      ? "TARGET"
+      : "STOP"
+    : stopTouched
+      ? "STOP"
+      : "TARGET";
   const triggerPrice =
     exitReason === "STOP" ? position.stopLoss : position.target;
 
