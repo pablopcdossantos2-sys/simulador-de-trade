@@ -98,10 +98,13 @@ const trades: Trade[] = [
     asset: "WINFUT",
     side: "BUY",
     signalId: "sig1",
+    requestedEntry: 130000,
     entry: 130000,
     stopLoss: 129900,
     target: 130150,
     contracts: 1,
+    slippageTicksPerSide: 0,
+    costPerContractRoundTripBRL: 1,
     openedAt: "2026-10-14T09:15:00",
     status: "CLOSED",
     exitPrice: 130150,
@@ -109,16 +112,21 @@ const trades: Trade[] = [
     closedAt: "2026-10-14T09:20:00",
     resultPoints: 150,
     grossResultBRL: 30,
+    operationalCostsBRL: 1,
+    netResultBRL: 29,
   },
   {
     id: "t2",
     asset: "WINFUT",
     side: "SELL",
     signalId: "sig2",
+    requestedEntry: 130100,
     entry: 130100,
     stopLoss: 130200,
     target: 129950,
     contracts: 1,
+    slippageTicksPerSide: 0,
+    costPerContractRoundTripBRL: 1,
     openedAt: "2026-10-14T10:00:00",
     status: "CLOSED",
     exitPrice: 130200,
@@ -126,6 +134,8 @@ const trades: Trade[] = [
     closedAt: "2026-10-14T10:05:00",
     resultPoints: -100,
     grossResultBRL: -20,
+    operationalCostsBRL: 1,
+    netResultBRL: -21,
   },
 ];
 
@@ -151,6 +161,8 @@ describe("relatório por sessão", () => {
     expect(result.expectancyR).toBeCloseTo(0.25, 6);
     expect(result.maxDrawdownPoints).toBe(100);
     expect(result.grossResultBRL).toBe(10);
+    expect(result.operationalCostsBRL).toBe(2);
+    expect(result.netResultBRL).toBe(8);
     expect(result.blockedAttempts).toBe(1);
     expect(result.technicalIssues).toBe(1);
     expect(result.executionAdherencePct).toBeCloseTo(66.666, 2);
