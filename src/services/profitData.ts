@@ -33,6 +33,8 @@ function isTauriRuntime(): boolean {
 
 export async function prepareProfitReplayFile(
   sourcePath: string,
+  sessionStart: string,
+  sessionEnd: string,
   onProgress?: (progress: ProfitPreparationProgress) => void,
 ): Promise<ProfitPreparationResult> {
   if (!isTauriRuntime()) {
@@ -51,6 +53,8 @@ export async function prepareProfitReplayFile(
   try {
     return await invoke<ProfitPreparationResult>("prepare_profit_replay_file", {
       sourcePath,
+      sessionStart,
+      sessionEnd,
     });
   } finally {
     unlisten?.();
