@@ -22,7 +22,7 @@ function trade(
   };
 }
 
-describe("replay M2", () => {
+describe("replay por timeframe", () => {
   it("usa 120 segundos como timeframe padrão", () => {
     expect(REPLAY_INTERVAL_SECONDS).toBe(120);
   });
