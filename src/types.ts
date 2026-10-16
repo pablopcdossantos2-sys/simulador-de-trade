@@ -100,6 +100,7 @@ export interface Trade {
   grossResultBRL: number;
   operationalCostsBRL: number;
   netResultBRL: number;
+  postTradeNote: string;
 }
 
 export interface TradeIntent {
