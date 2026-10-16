@@ -21,6 +21,7 @@ const baseIntent: TradeIntent = {
   asset: "WINFUT",
   side: "BUY",
   entry: 130000,
+  contracts: 2,
   candleIndex: 10,
   oco: { stopLoss: 129900, target: 130150 },
   signal: buySignal,
@@ -58,6 +59,12 @@ describe("regras de entrada", () => {
     ).toThrow(/incremento mínimo de 5/i);
   });
 
+  it("bloqueia quantidade de contratos inválida", () => {
+    expect(() =>
+      validateTradeIntent({ ...baseIntent, contracts: 0 }),
+    ).toThrow(/quantidade de contratos/i);
+  });
+
   it("aceita compra com sinal e OCO válidos", () => {
     expect(() => validateTradeIntent(baseIntent)).not.toThrow();
   });
@@ -73,6 +80,7 @@ describe("resolução OCO", () => {
     entry: 130000,
     stopLoss: 129900,
     target: 130150,
+    contracts: 2,
     openedAt: "2026-01-01T12:00:00.000Z",
     status: "OPEN" as const,
   };
@@ -104,6 +112,8 @@ describe("resolução OCO", () => {
 
     expect(trade?.exitReason).toBe("TARGET");
     expect(trade?.resultPoints).toBe(150);
+    expect(trade?.contracts).toBe(2);
+    expect(trade?.grossResultBRL).toBe(60);
   });
 
   it("usa hipótese conservadora quando stop e alvo são tocados", () => {
@@ -134,6 +144,7 @@ describe("resolução OCO negócio a negócio", () => {
     entry: 130000,
     stopLoss: 129900,
     target: 130150,
+    contracts: 2,
     openedAt: "2026-01-01T09:30:00.000-03:00",
     status: "OPEN" as const,
   };
@@ -164,6 +175,7 @@ describe("resolução OCO negócio a negócio", () => {
     expect(result?.exitReason).toBe("TARGET");
     expect(result?.exitPrice).toBe(130150);
     expect(result?.resultPoints).toBe(150);
+    expect(result?.grossResultBRL).toBe(60);
   });
 
   it("encerra no stop sem depender do OHLC do candle", () => {
