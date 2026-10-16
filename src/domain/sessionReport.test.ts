@@ -91,6 +91,17 @@ const events: TrainingEvent[] = [
     reason: "Falha de leitura",
     tradeId: null,
   },
+  {
+    id: "e7",
+    sessionId: "s1",
+    type: "SIGNAL_IGNORED",
+    timestamp: "",
+    marketTimestamp: "2026-10-14T11:00:00",
+    signalId: "sig3",
+    side: "BUY",
+    reason: null,
+    tradeId: null,
+  },
 ];
 
 const trades: Trade[] = [
@@ -168,6 +179,7 @@ describe("relatório por sessão", () => {
     expect(result.netResultBRL).toBe(8);
     expect(result.blockedAttempts).toBe(1);
     expect(result.technicalIssues).toBe(1);
+    expect(result.signalAdherencePct).toBeCloseTo(66.666, 2);
     expect(result.executionAdherencePct).toBeCloseTo(66.666, 2);
   });
 
