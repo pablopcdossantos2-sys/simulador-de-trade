@@ -45,7 +45,8 @@ SQLite local
 - [ROADMAP detalhado](ROADMAP.md)\n- [Tratamento dos dados do Profit Ultra](docs/TRATAMENTO-DADOS-PROFIT.md)
 - [Planejamento da simulação e aquecimento](docs/PLANEJAMENTO-SIMULACAO.md)
 - [Catálogo local de dados preparados](docs/CATALOGO-DADOS.md)
-- [Sessão formal de treinamento](docs/SESSAO-TREINO.md)\n- [Reaproveitamento do Candle Lab](docs/REAPROVEITAMENTO-CANDLE-LAB.md)
+- [Sessão formal de treinamento](docs/SESSAO-TREINO.md)
+- [Relatório pós-sessão e métricas](docs/RELATORIO-SESSAO.md)\n- [Reaproveitamento do Candle Lab](docs/REAPROVEITAMENTO-CANDLE-LAB.md)
 
 ## Estado atual
 
@@ -73,6 +74,9 @@ A Fase 1 cria a fundação funcional do simulador:
 - avanço por negócio e por candle M2;
 - registro de tentativas bloqueadas e sinais ignorados;
 - resumo de aderência e linha do tempo disciplinar;
+- histórico navegável de sessões persistidas;
+- separação entre erro disciplinar e problema técnico;
+- relatório pós-sessão com pontos, win rate, payoff, profit factor, R, drawdown e resultado por horário/direção;
 - catálogo local que informa automaticamente datas disponíveis, faltantes e contratos incompatíveis;
 - tratamento em lote orientado pelos requisitos do plano;
 - aquecimento histórico invisível antes do replay visível.
@@ -146,7 +150,8 @@ npm test
 - [x] Registro de tentativas bloqueadas.
 - [x] Registro de sinais ignorados.
 - [x] Resumo inicial de aderência e linha do tempo.
-- [ ] Métricas completas por sinal e por sessão.
+- [x] Métricas iniciais por sessão: win rate, payoff, profit factor, R, drawdown, horário e direção.
+- [ ] Métricas completas por sinal/setup.
 - [ ] Taxa de respeito ao sinal.
 - [ ] Erros evitados pelo bloqueio.
 - [ ] R-múltiplos.
