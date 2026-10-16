@@ -672,6 +672,7 @@ export default function App() {
       <TrainingSessionPanel
         session={trainingSession}
         summary={trainingSummary}
+        events={trainingEvents}
         canStart={
           Boolean(simulationPlan) &&
           planIsReady(catalogMatches) &&
