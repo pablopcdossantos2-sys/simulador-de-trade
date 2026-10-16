@@ -1,0 +1,542 @@
+:root {
+  font-family:
+    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+    sans-serif;
+  color: #e5edf8;
+  background: #08101d;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+  background:
+    radial-gradient(circle at 20% 0%, #112641 0, transparent 34%),
+    linear-gradient(180deg, #08101d 0%, #0a1220 100%);
+}
+
+button,
+input {
+  font: inherit;
+}
+
+button {
+  border: 0;
+}
+
+button:focus-visible,
+input:focus-visible {
+  outline: 2px solid #74b9ff;
+  outline-offset: 2px;
+}
+
+.app-shell {
+  width: min(1480px, calc(100% - 32px));
+  margin: 0 auto;
+  padding: 26px 0 44px;
+}
+
+.topbar,
+.section-heading,
+.toolbar,
+.workspace {
+  display: flex;
+}
+
+.topbar,
+.section-heading,
+.toolbar {
+  align-items: center;
+  justify-content: space-between;
+}
+
+.topbar {
+  gap: 20px;
+  margin-bottom: 18px;
+}
+
+h1,
+h2,
+p {
+  margin-top: 0;
+}
+
+h1 {
+  margin-bottom: 5px;
+  font-size: clamp(1.8rem, 3vw, 2.65rem);
+  letter-spacing: -0.035em;
+}
+
+h2 {
+  margin-bottom: 0;
+  font-size: 1.18rem;
+}
+
+.subtitle,
+.chart-note,
+.empty-state {
+  color: #8ea1bb;
+}
+
+.subtitle {
+  margin-bottom: 0;
+}
+
+.eyebrow {
+  margin-bottom: 6px;
+  color: #68aee8;
+  font-size: 0.74rem;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.card {
+  border: 1px solid #203048;
+  border-radius: 18px;
+  background: rgba(13, 24, 40, 0.9);
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.18);
+}
+
+.mode-badge,
+.signal-badge,
+.history-count {
+  border-radius: 999px;
+  font-weight: 750;
+}
+
+.mode-badge {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 12px;
+  border: 1px solid #2e4963;
+  background: #0f2134;
+  color: #b8cee3;
+  font-size: 0.84rem;
+}
+
+.pulse {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #63d39b;
+  box-shadow: 0 0 0 5px rgba(99, 211, 155, 0.1);
+}
+
+.toolbar {
+  gap: 24px;
+  padding: 13px 16px;
+  margin-bottom: 16px;
+}
+
+.asset-switch {
+  display: flex;
+  gap: 7px;
+}
+
+.asset-switch button {
+  padding: 10px 16px;
+  border-radius: 10px;
+  background: #14243a;
+  color: #93a8c2;
+  cursor: pointer;
+}
+
+.asset-switch button.active {
+  background: #e6f2ff;
+  color: #0c3457;
+  font-weight: 800;
+}
+
+.asset-switch button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.quote,
+.indicator-name {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.quote span,
+.indicator-name span {
+  color: #7890ad;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.quote strong {
+  font-size: 1.12rem;
+}
+
+.indicator-name {
+  min-width: 260px;
+  text-align: right;
+}
+
+.indicator-name strong {
+  font-size: 0.86rem;
+  color: #b6c9dd;
+}
+
+.workspace {
+  align-items: stretch;
+  gap: 16px;
+}
+
+.market {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 18px;
+}
+
+.order-panel {
+  flex: 0 0 340px;
+  padding: 20px;
+}
+
+.signal-badge,
+.history-count {
+  padding: 7px 11px;
+  font-size: 0.79rem;
+}
+
+.signal-badge.buy {
+  border: 1px solid #2d8260;
+  color: #8ce1b8;
+  background: #0d2c20;
+}
+
+.signal-badge.sell {
+  border: 1px solid #8c4550;
+  color: #ffabb6;
+  background: #32151b;
+}
+
+.signal-badge.neutral,
+.history-count {
+  border: 1px solid #31445e;
+  color: #98abc0;
+  background: #122034;
+}
+
+.chart-shell {
+  margin-top: 14px;
+  overflow: hidden;
+  border: 1px solid #1d2d43;
+  border-radius: 14px;
+  background: #091321;
+}
+
+.chart {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 980 / 380;
+}
+
+.chart-bg {
+  fill: #091321;
+}
+
+.grid-line {
+  stroke: #1c2b3e;
+  stroke-width: 1;
+}
+
+.candle-up,
+.candle-down {
+  stroke-width: 1.4;
+}
+
+.candle-up {
+  stroke: #55c995;
+}
+
+.candle-down {
+  stroke: #ef7181;
+}
+
+.candle-up-fill {
+  fill: #55c995;
+}
+
+.candle-down-fill {
+  fill: #ef7181;
+}
+
+.entry-line {
+  stroke: #72b7f2;
+  stroke-width: 1.5;
+  stroke-dasharray: 6 5;
+}
+
+.stop-line {
+  stroke: #ff6e7f;
+  stroke-width: 1.5;
+  stroke-dasharray: 8 5;
+}
+
+.target-line {
+  stroke: #5fd19d;
+  stroke-width: 1.5;
+  stroke-dasharray: 8 5;
+}
+
+.price-label,
+.signal-label {
+  fill: #d9e6f3;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.signal-buy {
+  fill: #5fd19d;
+  stroke: #bff3da;
+  stroke-width: 2;
+}
+
+.signal-sell {
+  fill: #ef7181;
+  stroke: #ffd0d6;
+  stroke-width: 2;
+}
+
+.chart-note {
+  margin: 11px 4px 0;
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
+.rule-box,
+.feedback,
+.position-box {
+  border-radius: 12px;
+  padding: 12px;
+}
+
+.rule-box {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin: 16px 0;
+  border: 1px solid #29405a;
+  background: #0d1b2c;
+}
+
+.rule-box strong {
+  color: #dbe9f6;
+  font-size: 0.87rem;
+}
+
+.rule-box span {
+  color: #8ea2b9;
+  font-size: 0.78rem;
+  line-height: 1.45;
+}
+
+.order-panel label {
+  display: grid;
+  gap: 7px;
+  margin-top: 13px;
+  color: #9fb1c6;
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.order-panel input {
+  width: 100%;
+  border: 1px solid #2a3e58;
+  border-radius: 10px;
+  background: #091522;
+  color: #e7eff8;
+  padding: 11px 12px;
+}
+
+.order-panel input:read-only {
+  color: #92aac2;
+}
+
+.order-panel input:disabled {
+  opacity: 0.5;
+}
+
+.order-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 9px;
+  margin-top: 17px;
+}
+
+.order-actions button {
+  border-radius: 11px;
+  padding: 12px;
+  font-weight: 850;
+  cursor: pointer;
+  transition:
+    transform 0.16s ease,
+    opacity 0.16s ease;
+}
+
+.order-actions button:not(:disabled):active {
+  transform: translateY(1px);
+}
+
+.buy-button {
+  background: #68dca8;
+  color: #062218;
+}
+
+.sell-button {
+  background: #f57f8f;
+  color: #2b080e;
+}
+
+.order-actions button:disabled {
+  opacity: 0.22;
+  cursor: not-allowed;
+  filter: grayscale(0.4);
+}
+
+.feedback {
+  margin-top: 13px;
+  border: 1px solid #2b4059;
+  background: #0b1726;
+  color: #a8bdd2;
+  font-size: 0.81rem;
+  line-height: 1.45;
+}
+
+.position-box {
+  display: grid;
+  gap: 4px;
+  margin-top: 12px;
+  border: 1px solid #3e694f;
+  background: #0e241a;
+}
+
+.position-box span,
+.position-box small {
+  color: #83b99e;
+}
+
+.position-box strong {
+  color: #d9f3e5;
+}
+
+.history {
+  margin-top: 16px;
+  padding: 18px;
+}
+
+.table-wrap {
+  overflow-x: auto;
+  margin-top: 14px;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 680px;
+}
+
+th,
+td {
+  padding: 11px 12px;
+  border-bottom: 1px solid #203048;
+  text-align: left;
+  font-size: 0.84rem;
+}
+
+th {
+  color: #7890ad;
+  font-size: 0.72rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+td {
+  color: #c5d3e2;
+}
+
+.positive {
+  color: #72d8a9;
+  font-weight: 800;
+}
+
+.negative {
+  color: #ff8795;
+  font-weight: 800;
+}
+
+.empty-state {
+  margin: 17px 0 5px;
+}
+
+@media (max-width: 980px) {
+  .workspace {
+    flex-direction: column;
+  }
+
+  .order-panel {
+    flex-basis: auto;
+  }
+
+  .toolbar {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .indicator-name {
+    min-width: 0;
+    text-align: left;
+  }
+}
+
+@media (max-width: 620px) {
+  .app-shell {
+    width: min(100% - 20px, 1480px);
+    padding-top: 16px;
+  }
+
+  .topbar {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .mode-badge {
+    align-self: flex-start;
+  }
+
+  .toolbar {
+    gap: 14px;
+  }
+
+  .asset-switch {
+    width: 100%;
+  }
+
+  .asset-switch button {
+    flex: 1;
+  }
+
+  .order-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .section-heading {
+    align-items: flex-start;
+    gap: 10px;
+    flex-direction: column;
+  }
+}
