@@ -2984,3 +2984,68 @@ td {
     flex-direction: column;
   }
 }
+
+
+/* Diagnóstico dos bloqueios */
+.blocked-reasons {
+  margin-top: 14px;
+  padding: 13px;
+  border: 1px solid #263b54;
+  border-radius: 11px;
+  background: #0c1928;
+}
+
+.blocked-reasons article {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 9px 0;
+  border-bottom: 1px solid #1d3044;
+}
+
+.blocked-reasons article:last-child {
+  border-bottom: 0;
+}
+
+.blocked-reasons article > div {
+  display: grid;
+  gap: 3px;
+}
+
+.blocked-reasons article strong {
+  color: #d2e2ef;
+  font-size: 0.82rem;
+}
+
+.blocked-reasons article small {
+  color: #7f95aa;
+}
+
+.blocked-reasons article > span {
+  min-width: 42px;
+  color: #e6c47a;
+  font-weight: 850;
+  text-align: right;
+}
+
+:root[data-theme="light"] .blocked-reasons {
+  border-color: #cbd9e5;
+  background: #f5f8fb;
+}
+
+:root[data-theme="light"] .blocked-reasons article {
+  border-bottom-color: #dce6ed;
+}
+
+:root[data-theme="light"] .blocked-reasons article strong {
+  color: #2d465d;
+}
+
+:root[data-theme="light"] .blocked-reasons article small {
+  color: #687f94;
+}
+
+:root[data-theme="light"] .blocked-reasons article > span {
+  color: #80631f;
+}
