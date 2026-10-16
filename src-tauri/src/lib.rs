@@ -749,6 +749,58 @@ fn list_trades(state: tauri::State<'_, DbState>) -> Result<Vec<TradeRecord>, Str
         .map_err(|error| error.to_string())
 }
 
+#[tauri::command]
+fn list_all_trades(
+    state: tauri::State<'_, DbState>,
+) -> Result<Vec<TradeRecord>, String> {
+    let connection = state.0.lock().map_err(|error| error.to_string())?;
+    let mut statement = connection
+        .prepare(
+            r#"
+            SELECT
+                id, asset, side, signal_id, requested_entry, entry, stop_loss,
+                target, contracts, slippage_ticks_per_side,
+                cost_per_contract_round_trip_brl, opened_at, status, exit_price,
+                exit_reason, closed_at, result_points, gross_result_brl,
+                operational_costs_brl, net_result_brl, post_trade_note
+            FROM trades
+            ORDER BY closed_at ASC
+            "#,
+        )
+        .map_err(|error| error.to_string())?;
+
+    let rows = statement
+        .query_map([], |row| {
+            Ok(TradeRecord {
+                id: row.get(0)?,
+                asset: row.get(1)?,
+                side: row.get(2)?,
+                signal_id: row.get(3)?,
+                requested_entry: row.get(4)?,
+                entry: row.get(5)?,
+                stop_loss: row.get(6)?,
+                target: row.get(7)?,
+                contracts: row.get(8)?,
+                slippage_ticks_per_side: row.get(9)?,
+                cost_per_contract_round_trip_brl: row.get(10)?,
+                opened_at: row.get(11)?,
+                status: row.get(12)?,
+                exit_price: row.get(13)?,
+                exit_reason: row.get(14)?,
+                closed_at: row.get(15)?,
+                result_points: row.get(16)?,
+                gross_result_brl: row.get(17)?,
+                operational_costs_brl: row.get(18)?,
+                net_result_brl: row.get(19)?,
+                post_trade_note: row.get(20)?,
+            })
+        })
+        .map_err(|error| error.to_string())?;
+
+    rows.collect::<Result<Vec<_>, _>>()
+        .map_err(|error| error.to_string())
+}
+
 fn decode_line(bytes: &[u8]) -> String {
     let without_lf = bytes.strip_suffix(b"\n").unwrap_or(bytes);
     let trimmed = without_lf.strip_suffix(b"\r").unwrap_or(without_lf);
@@ -1685,6 +1737,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             save_trade,
             list_trades,
+            list_all_trades,
             load_execution_settings,
             save_execution_settings,
             save_training_session,
