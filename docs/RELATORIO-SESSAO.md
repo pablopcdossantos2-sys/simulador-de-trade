@@ -49,6 +49,19 @@ Problemas técnicos são contabilizados separadamente e não reduzem a aderênci
 resultado líquido = soma dos resultados de todos os trades da sessão
 ~~~
 
+### Resultado financeiro bruto
+
+O relatório soma também o resultado bruto em reais de cada trade:
+
+~~~text
+resultado bruto =
+resultado em pontos
+× valor monetário de 1 ponto
+× contratos
+~~~
+
+Esse valor ainda não desconta custos nem slippage.
+
 ### Win rate
 
 ~~~text
@@ -170,10 +183,8 @@ Sessões que permaneceram ativas após uma interrupção também são exibidas, 
 
 ## Limitações atuais
 
-Ainda não entram no relatório:
+Ainda não entram no resultado líquido:
 
-- resultado financeiro em reais;
-- quantidade de contratos;
 - custos;
 - slippage;
 - notas pós-trade;
