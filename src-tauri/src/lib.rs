@@ -55,6 +55,7 @@ struct TrainingSessionRecord {
     end_time: String,
     timeframe_minutes: i64,
     warmup_bars: i64,
+    mode: String,
     started_at: String,
     ended_at: Option<String>,
     status: String,
@@ -181,6 +182,7 @@ fn initialize_database(connection: &Connection) -> rusqlite::Result<()> {
                 end_time TEXT NOT NULL,
                 timeframe_minutes INTEGER NOT NULL,
                 warmup_bars INTEGER NOT NULL,
+                mode TEXT NOT NULL DEFAULT 'FREE',
                 started_at TEXT NOT NULL,
                 ended_at TEXT,
                 status TEXT NOT NULL
@@ -293,6 +295,13 @@ fn initialize_database(connection: &Connection) -> rusqlite::Result<()> {
     if !column_exists(connection, "trades", "post_trade_note")? {
         connection.execute(
             "ALTER TABLE trades ADD COLUMN post_trade_note TEXT NOT NULL DEFAULT ''",
+            [],
+        )?;
+    }
+
+    if !column_exists(connection, "training_sessions", "mode")? {
+        connection.execute(
+            "ALTER TABLE training_sessions ADD COLUMN mode TEXT NOT NULL DEFAULT 'FREE'",
             [],
         )?;
     }
@@ -438,9 +447,9 @@ fn save_training_session(
             r#"
             INSERT INTO training_sessions (
                 id, asset, trade_date, start_time, end_time,
-                timeframe_minutes, warmup_bars, started_at, ended_at, status
+                timeframe_minutes, warmup_bars, mode, started_at, ended_at, status
             )
-            VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)
+            VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)
             ON CONFLICT(id) DO UPDATE SET
                 asset = excluded.asset,
                 trade_date = excluded.trade_date,
@@ -448,6 +457,7 @@ fn save_training_session(
                 end_time = excluded.end_time,
                 timeframe_minutes = excluded.timeframe_minutes,
                 warmup_bars = excluded.warmup_bars,
+                mode = excluded.mode,
                 started_at = excluded.started_at,
                 ended_at = excluded.ended_at,
                 status = excluded.status
@@ -460,6 +470,7 @@ fn save_training_session(
                 session.end_time,
                 session.timeframe_minutes,
                 session.warmup_bars,
+                session.mode,
                 session.started_at,
                 session.ended_at,
                 session.status,
@@ -522,7 +533,7 @@ fn list_training_sessions(
             r#"
             SELECT
                 id, asset, trade_date, start_time, end_time,
-                timeframe_minutes, warmup_bars, started_at, ended_at, status
+                timeframe_minutes, warmup_bars, mode, started_at, ended_at, status
             FROM training_sessions
             ORDER BY started_at DESC
             LIMIT 500
@@ -540,9 +551,10 @@ fn list_training_sessions(
                 end_time: row.get(4)?,
                 timeframe_minutes: row.get(5)?,
                 warmup_bars: row.get(6)?,
-                started_at: row.get(7)?,
-                ended_at: row.get(8)?,
-                status: row.get(9)?,
+                mode: row.get(7)?,
+                started_at: row.get(8)?,
+                ended_at: row.get(9)?,
+                status: row.get(10)?,
             })
         })
         .map_err(|error| error.to_string())?;
@@ -1486,6 +1498,50 @@ mod tests {
         assert!((gross - 30.0).abs() < 1e-9);
         assert!((net - 30.0).abs() < 1e-9);
         assert_eq!(note, "");
+    }
+
+    #[test]
+    fn legacy_training_sessions_default_to_free_mode() {
+        let connection = Connection::open_in_memory().unwrap();
+        connection
+            .execute_batch(
+                r#"
+                CREATE TABLE training_sessions (
+                    id TEXT PRIMARY KEY NOT NULL,
+                    asset TEXT NOT NULL,
+                    trade_date TEXT NOT NULL,
+                    start_time TEXT NOT NULL,
+                    end_time TEXT NOT NULL,
+                    timeframe_minutes INTEGER NOT NULL,
+                    warmup_bars INTEGER NOT NULL,
+                    started_at TEXT NOT NULL,
+                    ended_at TEXT,
+                    status TEXT NOT NULL
+                );
+
+                INSERT INTO training_sessions (
+                    id, asset, trade_date, start_time, end_time,
+                    timeframe_minutes, warmup_bars, started_at, ended_at, status
+                )
+                VALUES (
+                    'legacy-session', 'WINFUT', '2026-10-14', '09:00', '12:00',
+                    2, 260, '2026-10-16T10:00:00Z', NULL, 'ACTIVE'
+                );
+                "#,
+            )
+            .unwrap();
+
+        initialize_database(&connection).unwrap();
+
+        let mode: String = connection
+            .query_row(
+                "SELECT mode FROM training_sessions WHERE id = 'legacy-session'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+
+        assert_eq!(mode, "FREE");
     }
 
     #[test]
