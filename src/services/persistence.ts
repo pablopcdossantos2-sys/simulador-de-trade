@@ -46,6 +46,10 @@ function normalizeTrade(raw: Trade): Trade {
     contracts,
     slippageTicksPerSide,
     costPerContractRoundTripBRL,
+    intrabarPolicy:
+      raw.intrabarPolicy === "TARGET_FIRST"
+        ? "TARGET_FIRST"
+        : "STOP_FIRST",
     grossResultBRL: gross,
     operationalCostsBRL,
     netResultBRL: Number.isFinite(raw.netResultBRL)
