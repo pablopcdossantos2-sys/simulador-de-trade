@@ -36,6 +36,18 @@
 
 ## Fase 2 — Dados e replay histórico
 
+Arquitetura definida a partir dos componentes validados no Candle Lab. Ver [Reaproveitamento do Candle Lab](docs/REAPROVEITAMENTO-CANDLE-LAB.md).
+
+- [x] Definir estratégia de fonte bruta externa + índice local leve.
+- [x] Definir índice-base M1 capaz de localizar M2 por linhas/bytes.
+- [x] Definir modelo mínimo de evento: timestamp + sequência + preço + quantidade.
+- [ ] Portar parser Profit do Candle Lab para Rust.
+- [ ] Portar indexador temporal M1 para Rust.
+- [ ] Implementar seek direto no CSV original por pregão.
+- [ ] Implementar ReplayTrade em streaming.
+- [ ] Implementar agregador incremental de candles M2.
+- [ ] Avaliar OCO em cada negócio, não apenas no OHLC fechado.
+- [ ] Recalcular o indicador no candle M2 aberto a cada negócio.
 - [ ] Definir formato canônico de candle.
 - [ ] Importar CSV.
 - [ ] Validar colunas e timestamps.
