@@ -14,6 +14,14 @@ export interface Candle {
   volume: number;
 }
 
+export interface ReplayTrade {
+  asset: Asset;
+  timestamp: string;
+  sourceRow: number;
+  price: number;
+  quantity: number;
+}
+
 export interface IndicatorSignal {
   id: string;
   asset: Asset;
