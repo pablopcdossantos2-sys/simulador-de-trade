@@ -1554,7 +1554,26 @@ mod tests {
             operational_costs_brl: 0.0,
             net_result_brl: 60.0,
             post_trade_note: "".to_string(),
-            entry_context: None,
+            entry_context: Some(json!({
+                "capturedAt": "2026-10-16T18:00:00Z",
+                "marketTimestamp": "2026-10-14T09:00:00-03:00",
+                "asset": "WINFUT",
+                "candleIndex": 10,
+                "currentPrice": 130000,
+                "zone": "GREEN",
+                "signal": {
+                    "id": "s1",
+                    "asset": "WINFUT",
+                    "side": "BUY",
+                    "candleIndex": 10,
+                    "timestamp": "2026-10-14T09:00:00-03:00",
+                    "price": 130000,
+                    "label": "Compra"
+                },
+                "candles": [],
+                "indicatorSeries": [],
+                "signals": []
+            })),
         };
 
         let value = serde_json::to_value(record).unwrap();
@@ -1563,7 +1582,8 @@ mod tests {
         assert_eq!(value["netResultBRL"], 60.0);
         assert_eq!(value["costPerContractRoundTripBRL"], 0.0);
         assert_eq!(value["postTradeNote"], "");
-        assert!(value["entryContext"].is_null());
+        assert_eq!(value["entryContext"]["zone"], "GREEN");
+        assert_eq!(value["entryContext"]["signal"]["id"], "s1");
         assert!(value.get("grossResultBrl").is_none());
     }
 
@@ -1605,11 +1625,18 @@ mod tests {
 
         initialize_database(&connection).unwrap();
 
-        let (contracts, requested, gross, net, note): (i64, f64, f64, f64, String) = connection
+        let (contracts, requested, gross, net, note, context): (i64, f64, f64, f64, String, Option<String>) = connection
             .query_row(
-                "SELECT contracts, requested_entry, gross_result_brl, net_result_brl, post_trade_note FROM trades WHERE id = 'legacy-1'",
+                "SELECT contracts, requested_entry, gross_result_brl, net_result_brl, post_trade_note, entry_context_json FROM trades WHERE id = 'legacy-1'",
                 [],
-                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?, row.get(4)?)),
+                |row| Ok((
+                    row.get(0)?,
+                    row.get(1)?,
+                    row.get(2)?,
+                    row.get(3)?,
+                    row.get(4)?,
+                    row.get(5)?,
+                )),
             )
             .unwrap();
 
@@ -1618,6 +1645,7 @@ mod tests {
         assert!((gross - 30.0).abs() < 1e-9);
         assert!((net - 30.0).abs() < 1e-9);
         assert_eq!(note, "");
+        assert!(context.is_none());
     }
 
     #[test]
