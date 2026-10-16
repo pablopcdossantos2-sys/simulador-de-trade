@@ -67,10 +67,10 @@ export function ReplayControls({
             value={path}
             onChange={(event) => onPathChange(event.target.value)}
             placeholder={'Ex.: C:\\Dados\\WINV26_TRADES_0900-1200.replay.csv'}
-            disabled={playing}
+            disabled={playing || trainingActive}
           />
         </label>
-        <button type="button" onClick={onLoad} disabled={busy || playing}>
+        <button type="button" onClick={onLoad} disabled={busy || playing || trainingActive}>
           {busy ? "Carregando..." : "Carregar replay"}
         </button>
       </div>
@@ -119,7 +119,7 @@ export function ReplayControls({
             >
               +1 candle
             </button>
-            <button type="button" onClick={onReset} disabled={busy}>
+            <button type="button" onClick={onReset} disabled={busy || trainingActive}>
               Reiniciar
             </button>
 
