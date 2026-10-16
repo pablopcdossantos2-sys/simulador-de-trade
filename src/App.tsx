@@ -89,7 +89,7 @@ export default function App() {
     setFeedback(
       `${signal.label} liberada pelo indicador. Configure o OCO e envie somente a direção autorizada.`,
     );
-  }, [signal?.id, asset, lastPrice, position]);
+  }, [signal?.id, asset, position]);
 
   function changeAsset(next: Asset) {
     setAsset(next);
@@ -108,6 +108,7 @@ export default function App() {
         asset,
         side,
         entry: lastPrice,
+        candleIndex: lastCandle.index,
         oco: {
           stopLoss: Number(stopLoss),
           target: Number(target),
