@@ -13,7 +13,10 @@ import {
   ThemeToggle,
   type ThemeMode,
 } from "./components/ThemeToggle";
-import { tickSizeFor } from "./domain/marketSpecs";
+import {
+  roundPriceToTick,
+  tickSizeFor,
+} from "./domain/marketSpecs";
 import { applyReplayTrade } from "./domain/replay";
 import {
   planIsReady,
@@ -544,6 +547,26 @@ export default function App() {
     void finishTraining();
   }, [replay.finished, trainingActive, position]);
 
+  function normalizeOrderPrice(
+    raw: string,
+    setter: (value: string) => void,
+    label: string,
+  ) {
+    if (!raw.trim()) return;
+
+    const parsed = Number(raw);
+    if (!Number.isFinite(parsed) || parsed <= 0) return;
+
+    const rounded = roundPriceToTick(asset, parsed);
+    setter(String(rounded));
+
+    if (Math.abs(rounded - parsed) > 1e-9) {
+      setFeedback(
+        `${label} ajustado de ${money.format(parsed)} para ${money.format(rounded)} para respeitar o tick de ${tickSizeFor(asset)} do ${asset}.`,
+      );
+    }
+  }
+
   function submit(side: Side) {
     try {
       if (dataMode === "replay" && !trainingActive) {
@@ -828,6 +851,9 @@ export default function App() {
               step={tickSizeFor(asset)}
               value={stopLoss}
               onChange={(event) => setStopLoss(event.target.value)}
+              onBlur={() =>
+                normalizeOrderPrice(stopLoss, setStopLoss, "Stop loss")
+              }
               disabled={Boolean(position) || !lastCandle}
               placeholder="Obrigatório"
             />
@@ -840,6 +866,9 @@ export default function App() {
               step={tickSizeFor(asset)}
               value={target}
               onChange={(event) => setTarget(event.target.value)}
+              onBlur={() =>
+                normalizeOrderPrice(target, setTarget, "Alvo")
+              }
               disabled={Boolean(position) || !lastCandle}
               placeholder="Obrigatório"
             />
