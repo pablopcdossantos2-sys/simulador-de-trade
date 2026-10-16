@@ -623,6 +623,7 @@ export default function App() {
         evaluation: indicatorEvaluation,
         signal,
         marketTimestamp,
+        indicatorVersion: indicator.version,
       });
 
       const nextPosition = openPosition(
