@@ -46,7 +46,8 @@ SQLite local
 - [Planejamento da simulação e aquecimento](docs/PLANEJAMENTO-SIMULACAO.md)
 - [Catálogo local de dados preparados](docs/CATALOGO-DADOS.md)
 - [Sessão formal de treinamento](docs/SESSAO-TREINO.md)
-- [Relatório pós-sessão e métricas](docs/RELATORIO-SESSAO.md)\n- [Reaproveitamento do Candle Lab](docs/REAPROVEITAMENTO-CANDLE-LAB.md)
+- [Relatório pós-sessão e métricas](docs/RELATORIO-SESSAO.md)
+- [Quantidade de contratos e resultado financeiro](docs/RESULTADO-FINANCEIRO.md)\n- [Reaproveitamento do Candle Lab](docs/REAPROVEITAMENTO-CANDLE-LAB.md)
 
 ## Estado atual
 
@@ -77,6 +78,8 @@ A Fase 1 cria a fundação funcional do simulador:
 - histórico navegável de sessões persistidas;
 - separação entre erro disciplinar e problema técnico;
 - relatório pós-sessão com pontos, win rate, payoff, profit factor, R, drawdown e resultado por horário/direção;
+- quantidade inteira de contratos na boleta;
+- resultado bruto em reais usando os multiplicadores contratuais de WIN/WDO;
 - catálogo local que informa automaticamente datas disponíveis, faltantes e contratos incompatíveis;
 - tratamento em lote orientado pelos requisitos do plano;
 - aquecimento histórico invisível antes do replay visível.
@@ -139,7 +142,8 @@ npm test
 - [x] Aquecimento histórico invisível a partir dos arquivos preparados.
 
 ### Fase 3 — Fidelidade de execução
-- [ ] Quantidade de contratos.
+- [x] Quantidade de contratos.
+- [x] Resultado bruto em R$.
 - [ ] Slippage configurável.
 - [ ] Custos operacionais configuráveis.
 - [x] Regras de tick específicas de WIN/WDO.
