@@ -41,3 +41,16 @@ export function grossResultBRL(
 ): number {
   return resultPoints * pointValueBRLFor(asset) * contracts;
 }
+
+
+export function roundPriceToTick(asset: Asset, price: number): number {
+  if (!Number.isFinite(price)) return price;
+
+  const tick = tickSizeFor(asset);
+  const rounded = Math.round(price / tick) * tick;
+  const decimals = tick.toString().includes(".")
+    ? tick.toString().split(".")[1].length
+    : 0;
+
+  return Number(rounded.toFixed(decimals));
+}
