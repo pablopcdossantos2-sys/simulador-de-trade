@@ -19,6 +19,8 @@ function brDate(value: string): string {
 export function SimulationPlanner({ onPlanChange }: Props) {
   const [asset, setAsset] = useState<Asset>("WINFUT");
   const [date, setDate] = useState("2026-10-14");
+  const [timeframeMinutes, setTimeframeMinutes] =
+    useState(DEFAULT_TIMEFRAME_MINUTES);
   const [startTime, setStartTime] = useState("09:00");
   const [endTime, setEndTime] = useState("12:00");
   const [warmupPolicy, setWarmupPolicy] =
@@ -30,7 +32,7 @@ export function SimulationPlanner({ onPlanChange }: Props) {
         plan: calculateSimulationPlan({
           asset,
           date,
-          timeframeMinutes: DEFAULT_TIMEFRAME_MINUTES,
+          timeframeMinutes,
           startTime,
           endTime,
           warmupPolicy,
@@ -43,7 +45,7 @@ export function SimulationPlanner({ onPlanChange }: Props) {
         error: error instanceof Error ? error.message : String(error),
       };
     }
-  }, [asset, date, startTime, endTime, warmupPolicy]);
+  }, [asset, date, timeframeMinutes, startTime, endTime, warmupPolicy]);
 
   function applyPlan() {
     if (result.plan) onPlanChange?.(result.plan);
@@ -56,7 +58,9 @@ export function SimulationPlanner({ onPlanChange }: Props) {
           <p className="eyebrow">Antes de coletar os dados</p>
           <h2>Planejar simulação</h2>
         </div>
-        <span className="session-window">M2 · 2 minutos</span>
+        <span className="session-window">
+          M{timeframeMinutes} · {timeframeMinutes} minutos
+        </span>
       </div>
 
       <p className="data-description">
@@ -77,6 +81,19 @@ export function SimulationPlanner({ onPlanChange }: Props) {
         <label>
           Data do pregão
           <input type="date" value={date} onChange={(event) => setDate(event.target.value)} />
+        </label>
+
+        <label>
+          Timeframe
+          <select
+            value={timeframeMinutes}
+            onChange={(event) =>
+              setTimeframeMinutes(Number(event.target.value))
+            }
+          >
+            <option value={2}>M2 · 2 minutos</option>
+            <option value={5}>M5 · 5 minutos</option>
+          </select>
         </label>
 
         <label>
@@ -111,12 +128,12 @@ export function SimulationPlanner({ onPlanChange }: Props) {
               <strong>
                 {brDate(result.plan.targetDate)} · {result.plan.targetStartTime}–{result.plan.targetEndTime}
               </strong>
-              <small>{result.plan.visibleBars} candles M2</small>
+              <small>{result.plan.visibleBars} candles M{result.plan.timeframeMinutes}</small>
             </div>
             <div>
               <span>Aquecimento oculto</span>
               <strong>{result.plan.warmupBars} candles</strong>
-              <small>{Math.floor(result.plan.warmupMinutes / 60)}h {result.plan.warmupMinutes % 60}min de barras M2</small>
+              <small>{Math.floor(result.plan.warmupMinutes / 60)}h {result.plan.warmupMinutes % 60}min de barras M{result.plan.timeframeMinutes}</small>
             </div>
           </div>
 
@@ -127,7 +144,7 @@ export function SimulationPlanner({ onPlanChange }: Props) {
                 Colete {result.plan.fullSessionsNeeded === 1 ? "o pregão" : "os pregões"}{" "}
                 {result.plan.fullSessionPreviousDates.map(brDate).join(", ")} entre 09:00 e{" "}
                 {result.plan.fullSessionEnd}. Isso fornece aproximadamente{" "}
-                {result.plan.fullSessionBars} candles M2 para aquecimento.
+                {result.plan.fullSessionBars} candles M{result.plan.timeframeMinutes} para aquecimento.
               </p>
             </article>
 
