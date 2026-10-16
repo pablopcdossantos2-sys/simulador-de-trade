@@ -1,15 +1,18 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { CandleChart } from "./components/CandleChart";
 import { DataPreparationPanel } from "./components/DataPreparationPanel";
+import { ReplayControls } from "./components/ReplayControls";
 import { RuleViolationModal } from "./components/RuleViolationModal";
 import {
   ThemeToggle,
   type ThemeMode,
 } from "./components/ThemeToggle";
 import { tickSizeFor } from "./domain/marketSpecs";
+import { applyReplayTrade } from "./domain/replay";
 import {
   openPosition,
   resolveOco,
+  resolveOcoTrade,
   sideLabel,
   signalAllows,
   TradingRuleError,
@@ -19,12 +22,14 @@ import {
   nextDemoCandle,
   suggestedOcoDistance,
 } from "./data/demoMarket";
+import { useReplayPlayer } from "./hooks/useReplayPlayer";
 import { indicator } from "./services/indicator";
 import { loadTrades, saveTrade } from "./services/persistence";
 import type {
   Asset,
   IndicatorEvaluation,
   Position,
+  ReplayTrade,
   Side,
   Trade,
 } from "./types";
@@ -44,9 +49,14 @@ function initialTheme(): ThemeMode {
     : "dark";
 }
 
+type DataMode = "demo" | "replay";
+
 export default function App() {
   const [asset, setAsset] = useState<Asset>("WINFUT");
+  const [dataMode, setDataMode] = useState<DataMode>("demo");
   const [candles, setCandles] = useState(() => createDemoCandles("WINFUT"));
+  const [currentReplayTrade, setCurrentReplayTrade] =
+    useState<ReplayTrade | null>(null);
   const [position, setPosition] = useState<Position | null>(null);
   const [trades, setTrades] = useState<Trade[]>([]);
   const [stopLoss, setStopLoss] = useState("");
@@ -56,6 +66,13 @@ export default function App() {
   const [feedback, setFeedback] = useState(
     "Aguarde a formação de uma zona válida do indicador para liberar uma direção.",
   );
+
+  const handleReplayTrade = useCallback((trade: ReplayTrade) => {
+    setCurrentReplayTrade(trade);
+    setCandles((current) => applyReplayTrade(current, trade));
+  }, []);
+
+  const replay = useReplayPlayer(handleReplayTrade);
 
   const indicatorEvaluation = useMemo(
     () => indicator.calculate(asset, candles),
@@ -77,17 +94,16 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    if (dataMode !== "demo") return;
+
     const timer = window.setInterval(() => {
       setCandles((current) => [...current, nextDemoCandle(asset, current)]);
     }, 1500);
+
     return () => window.clearInterval(timer);
-  }, [asset]);
+  }, [asset, dataMode]);
 
-  useEffect(() => {
-    if (!position || !lastCandle) return;
-    const closed = resolveOco(position, lastCandle);
-    if (!closed) return;
-
+  function persistClosedTrade(closed: Trade) {
     setPosition(null);
     setTrades((current) => [
       closed,
@@ -103,10 +119,29 @@ export default function App() {
         "A operação foi encerrada, mas houve falha ao salvar o histórico local.",
       ),
     );
-  }, [lastCandle, position]);
+  }
 
   useEffect(() => {
-    if (!signal || position) return;
+    if (dataMode !== "demo" || !position || !lastCandle) return;
+    const closed = resolveOco(position, lastCandle);
+    if (closed) persistClosedTrade(closed);
+  }, [dataMode, lastCandle, position]);
+
+  useEffect(() => {
+    if (
+      dataMode !== "replay" ||
+      !position ||
+      !currentReplayTrade
+    ) {
+      return;
+    }
+
+    const closed = resolveOcoTrade(position, currentReplayTrade);
+    if (closed) persistClosedTrade(closed);
+  }, [dataMode, currentReplayTrade?.sequence, position]);
+
+  useEffect(() => {
+    if (!signal || position || !lastCandle) return;
 
     const distance = suggestedOcoDistance(asset);
     const entry = lastPrice;
@@ -122,16 +157,23 @@ export default function App() {
     setFeedback(
       `Zona ${signal.side === "BUY" ? "verde" : "vermelha"} ativa após sinal de ${signal.label}. Somente ${signal.label.toLowerCase()} está autorizada.`,
     );
-  }, [signal?.id, asset, position]);
+  }, [signal?.id, asset, position, lastCandle?.index]);
 
   useEffect(() => {
-    if (signal || position) return;
+    if (signal || position || !lastCandle) return;
     setFeedback(
       "Sem zona autorizadora ativa. Compra e Venda permanecem bloqueadas.",
     );
-  }, [indicatorEvaluation.zone, signal, position]);
+  }, [indicatorEvaluation.zone, signal, position, lastCandle?.index]);
+
+  useEffect(() => {
+    if (replay.error) {
+      setFeedback(replay.error);
+    }
+  }, [replay.error]);
 
   function changeAsset(next: Asset) {
+    if (dataMode === "replay") return;
     setAsset(next);
     setCandles(createDemoCandles(next));
     setPosition(null);
@@ -142,6 +184,32 @@ export default function App() {
     );
   }
 
+  async function loadReplay() {
+    const info = await replay.loadReplay();
+    if (!info) return;
+
+    setDataMode("replay");
+    setAsset(info.asset);
+    setCandles([]);
+    setCurrentReplayTrade(null);
+    setPosition(null);
+    setStopLoss("");
+    setTarget("");
+    setFeedback(
+      `Replay ${info.symbol} carregado. Avance os negócios até o indicador liberar uma operação.`,
+    );
+  }
+
+  async function resetReplay() {
+    await replay.reset();
+    setCandles([]);
+    setCurrentReplayTrade(null);
+    setPosition(null);
+    setStopLoss("");
+    setTarget("");
+    setFeedback("Replay reiniciado no começo da sessão.");
+  }
+
   function submit(side: Side) {
     try {
       if (!lastCandle) {
@@ -150,18 +218,28 @@ export default function App() {
         );
       }
 
-      const nextPosition = openPosition({
-        asset,
-        side,
-        entry: lastPrice,
-        candleIndex: lastCandle.index,
-        oco: {
-          stopLoss: Number(stopLoss),
-          target: Number(target),
+      const marketTime =
+        dataMode === "replay" && currentReplayTrade
+          ? new Date(currentReplayTrade.timestamp)
+          : new Date();
+
+      const nextPosition = openPosition(
+        {
+          asset,
+          side,
+          entry: lastPrice,
+          candleIndex: lastCandle.index,
+          replaySequence:
+            dataMode === "replay" ? currentReplayTrade?.sequence : undefined,
+          oco: {
+            stopLoss: Number(stopLoss),
+            target: Number(target),
+          },
+          signal,
+          hasOpenPosition: Boolean(position),
         },
-        signal,
-        hasOpenPosition: Boolean(position),
-      });
+        marketTime,
+      );
 
       setPosition(nextPosition);
       setFeedback(
@@ -194,7 +272,9 @@ export default function App() {
         <div className="topbar-actions">
           <div className="mode-badge">
             <span className="pulse" />
-            Indicador real · candles sintéticos
+            {dataMode === "replay"
+              ? `Replay real · ${replay.session?.symbol ?? asset}`
+              : "Indicador real · candles sintéticos"}
           </div>
           <ThemeToggle
             theme={theme}
@@ -212,7 +292,7 @@ export default function App() {
               key={item}
               className={asset === item ? "active" : ""}
               onClick={() => changeAsset(item)}
-              disabled={Boolean(position)}
+              disabled={Boolean(position) || dataMode === "replay"}
             >
               {item}
             </button>
@@ -221,7 +301,7 @@ export default function App() {
 
         <div className="quote">
           <span>Último preço</span>
-          <strong>{money.format(lastPrice)}</strong>
+          <strong>{lastCandle ? money.format(lastPrice) : "—"}</strong>
         </div>
 
         <div className="indicator-name">
@@ -231,26 +311,53 @@ export default function App() {
         </div>
       </section>
 
+      <ReplayControls
+        path={replay.path}
+        onPathChange={replay.setPath}
+        session={replay.session}
+        playing={replay.playing}
+        speed={replay.speed}
+        processed={replay.processed}
+        currentTimestamp={replay.currentTimestamp}
+        finished={replay.finished}
+        busy={replay.busy}
+        onLoad={() => void loadReplay()}
+        onPlayPause={() => replay.setPlaying(!replay.playing)}
+        onStep={() => void replay.step()}
+        onReset={() => void resetReplay()}
+        onSpeedChange={replay.setSpeed}
+      />
+
       <section className="workspace">
         <div className="market card">
           <div className="section-heading">
             <div>
-              <p className="eyebrow">Motor do indicador integrado</p>
+              <p className="eyebrow">
+                {dataMode === "replay"
+                  ? "Mercado histórico revelado até agora"
+                  : "Motor do indicador integrado"}
+              </p>
               <h2>{asset}</h2>
             </div>
             <SignalBadge evaluation={indicatorEvaluation} />
           </div>
 
-          <CandleChart
-            candles={candles}
-            evaluation={indicatorEvaluation}
-            position={position}
-          />
+          {candles.length ? (
+            <CandleChart
+              candles={candles}
+              evaluation={indicatorEvaluation}
+              position={position}
+            />
+          ) : (
+            <div className="chart-placeholder">
+              Carregue o replay e avance o primeiro negócio para iniciar o gráfico M2.
+            </div>
+          )}
 
           <p className="chart-note">
-            A lógica do indicador foi portada do Pine Script fornecido. Os dados
-            de preço ainda são sintéticos nesta fase; o replay histórico real
-            será conectado aos arquivos tratados do Profit Ultra.
+            {dataMode === "replay"
+              ? "Cada negócio revelado atualiza o candle M2 aberto, o volume, o indicador e as regras de execução. Candles futuros permanecem ocultos."
+              : "Modo demonstrativo com candles sintéticos. Carregue um .replay.csv para usar dados tratados do Profit Ultra."}
           </p>
         </div>
 
@@ -270,7 +377,7 @@ export default function App() {
 
           <label>
             Preço de entrada
-            <input value={money.format(lastPrice)} readOnly />
+            <input value={lastCandle ? money.format(lastPrice) : ""} readOnly />
           </label>
 
           <label>
@@ -280,7 +387,7 @@ export default function App() {
               step={tickSizeFor(asset)}
               value={stopLoss}
               onChange={(event) => setStopLoss(event.target.value)}
-              disabled={Boolean(position)}
+              disabled={Boolean(position) || !lastCandle}
               placeholder="Obrigatório"
             />
           </label>
@@ -292,7 +399,7 @@ export default function App() {
               step={tickSizeFor(asset)}
               value={target}
               onChange={(event) => setTarget(event.target.value)}
-              disabled={Boolean(position)}
+              disabled={Boolean(position) || !lastCandle}
               placeholder="Obrigatório"
             />
           </label>
@@ -333,7 +440,9 @@ export default function App() {
         </aside>
       </section>
 
-      <DataPreparationPanel />
+      <DataPreparationPanel
+        onPrepared={(result) => replay.setPath(result.outputPath)}
+      />
 
       <section className="history card">
         <div className="section-heading">
