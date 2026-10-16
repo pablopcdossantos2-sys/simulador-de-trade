@@ -98,7 +98,7 @@ A Fase 1 cria a fundação funcional do simulador:
 - cronômetro opcional da sessão;
 - política de uma única entrada por sinal;
 - painel agregado de resultados por WINFUT/WDOFUT;
-- snapshot reconstruível do contexto gráfico no instante da entrada;
+- snapshot reconstruível do contexto gráfico no instante da entrada, identificado pela versão do algoritmo do indicador;
 - aderência aos sinais utilizados versus ignorados;
 - painel de evolução histórica por sessão com aderência, R e resultado líquido;
 - catálogo local que informa automaticamente datas disponíveis, faltantes e contratos incompatíveis;
@@ -181,7 +181,7 @@ npm test
 - [ ] Métricas completas por sinal/setup.
 - [x] Aderência aos sinais utilizados versus ignorados.
 - [x] Evolução histórica do trader por sessão.
-- [ ] Taxa de respeito ao sinal.
+- [ ] Aderência ao stop e ao alvo quando houver edição dinâmica dessas ordens.
 - [ ] Erros evitados pelo bloqueio.
 - [x] R-múltiplos.
 - [x] Relatório pós-sessão inicial.
