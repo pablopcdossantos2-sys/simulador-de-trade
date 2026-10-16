@@ -10,17 +10,22 @@ import {
 
 const CHUNK_SIZE = 750;
 const BASE_VISUAL_DELAY_MS = 90;
-const CANDLE_MS = 2 * 60 * 1000;
-
-function bucketKey(timestamp: string): number {
+function bucketKey(
+  timestamp: string,
+  timeframeMinutes: number,
+): number {
   const parsed = Date.parse(timestamp);
   if (!Number.isFinite(parsed)) {
     throw new Error(`Timestamp inválido no replay: ${timestamp}`);
   }
-  return Math.floor(parsed / CANDLE_MS);
+  const candleMs = timeframeMinutes * 60 * 1000;
+  return Math.floor(parsed / candleMs);
 }
 
-export function useReplayPlayer(onTrade: (trade: ReplayTrade) => void) {
+export function useReplayPlayer(
+  onTrade: (trade: ReplayTrade) => void,
+  timeframeMinutes = 2,
+) {
   const [path, setPath] = useState("");
   const [session, setSession] = useState<ReplaySessionInfo | null>(null);
   const [playing, setPlaying] = useState(false);
@@ -126,7 +131,9 @@ export function useReplayPlayer(onTrade: (trade: ReplayTrade) => void) {
 
     try {
       let targetBucket =
-        currentTimestamp === null ? null : bucketKey(currentTimestamp);
+        currentTimestamp === null
+          ? null
+          : bucketKey(currentTimestamp, timeframeMinutes);
       let consumed = 0;
 
       while (true) {
@@ -136,7 +143,7 @@ export function useReplayPlayer(onTrade: (trade: ReplayTrade) => void) {
         const next = queueRef.current[0];
         if (!next) break;
 
-        const nextBucket = bucketKey(next.timestamp);
+        const nextBucket = bucketKey(next.timestamp, timeframeMinutes);
         if (targetBucket === null) {
           targetBucket = nextBucket;
         }
