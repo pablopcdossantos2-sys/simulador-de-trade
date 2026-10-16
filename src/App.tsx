@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { CandleChart } from "./components/CandleChart";
 import { DataPreparationPanel } from "./components/DataPreparationPanel";
 import { ReplayControls } from "./components/ReplayControls";
+import { ReplayCatalogPanel } from "./components/ReplayCatalogPanel";
 import { RuleViolationModal } from "./components/RuleViolationModal";
 import { SimulationPlanner } from "./components/SimulationPlanner";
 import {
@@ -10,6 +11,12 @@ import {
 } from "./components/ThemeToggle";
 import { tickSizeFor } from "./domain/marketSpecs";
 import { applyReplayTrade } from "./domain/replay";
+import {
+  planIsReady,
+  targetFileFromMatches,
+  warmupFilesFromMatches,
+  type RequirementMatch,
+} from "./domain/catalogMatch";
 import {
   openPosition,
   resolveOco,
@@ -26,6 +33,8 @@ import {
 import { useReplayPlayer } from "./hooks/useReplayPlayer";
 import { indicator } from "./services/indicator";
 import { loadTrades, saveTrade } from "./services/persistence";
+import { registerReplayFile } from "./services/replayCatalog";
+import { loadWarmupCandles } from "./services/replayData";
 import type {
   Asset,
   IndicatorEvaluation,
@@ -69,6 +78,9 @@ export default function App() {
     "Aguarde a formação de uma zona válida do indicador para liberar uma direção.",
   );
   const [simulationPlan, setSimulationPlan] = useState<SimulationPlan | null>(null);
+  const [catalogMatches, setCatalogMatches] = useState<RequirementMatch[]>([]);
+  const [catalogRefreshKey, setCatalogRefreshKey] = useState(0);
+  const [warmupCandles, setWarmupCandles] = useState<import("./types").Candle[]>([]);
 
   const handleReplayTrade = useCallback((trade: ReplayTrade) => {
     setCurrentReplayTrade(trade);
@@ -77,12 +89,32 @@ export default function App() {
 
   const replay = useReplayPlayer(handleReplayTrade);
 
+  const visibleCandles = useMemo(() => {
+    if (dataMode !== "replay") return candles;
+    const offset = warmupCandles.length;
+    return candles.map((candle, index) => ({
+      ...candle,
+      index: offset + index,
+    }));
+  }, [candles, dataMode, warmupCandles.length]);
+
+  const indicatorCandles = useMemo(() => {
+    if (dataMode !== "replay") return candles;
+
+    const hidden = warmupCandles.map((candle, index) => ({
+      ...candle,
+      index,
+    }));
+
+    return [...hidden, ...visibleCandles];
+  }, [candles, dataMode, visibleCandles, warmupCandles]);
+
   const indicatorEvaluation = useMemo(
-    () => indicator.calculate(asset, candles),
-    [asset, candles],
+    () => indicator.calculate(asset, indicatorCandles),
+    [asset, indicatorCandles],
   );
   const signal = indicatorEvaluation.authorization;
-  const lastCandle = candles[candles.length - 1];
+  const lastCandle = visibleCandles[visibleCandles.length - 1];
   const lastPrice = lastCandle?.close ?? 0;
 
   useEffect(() => {
@@ -188,22 +220,59 @@ export default function App() {
   }
 
   async function loadReplay() {
-    const info = await replay.loadReplay(
-      simulationPlan?.targetStartTime,
-      simulationPlan?.targetEndTime,
-    );
-    if (!info) return;
+    if (!simulationPlan) {
+      setFeedback("Defina e aplique um plano de simulação antes de carregar o replay.");
+      return;
+    }
 
-    setDataMode("replay");
-    setAsset(info.asset);
-    setCandles([]);
-    setCurrentReplayTrade(null);
-    setPosition(null);
-    setStopLoss("");
-    setTarget("");
-    setFeedback(
-      `Replay ${info.symbol} carregado. Avance os negócios até o indicador liberar uma operação.`,
-    );
+    if (!planIsReady(catalogMatches)) {
+      setFeedback(
+        "O plano ainda possui dados ausentes ou contratos incompatíveis. Complete o catálogo antes de iniciar.",
+      );
+      return;
+    }
+
+    const targetPath = targetFileFromMatches(catalogMatches);
+    if (!targetPath) {
+      setFeedback("O arquivo do pregão-alvo não foi encontrado no catálogo.");
+      return;
+    }
+
+    replay.setPath(targetPath);
+
+    try {
+      const warmupPaths = warmupFilesFromMatches(catalogMatches);
+      const hiddenCandles = await loadWarmupCandles(
+        warmupPaths,
+        simulationPlan.visibleMinutes / simulationPlan.visibleBars,
+        simulationPlan.warmupBars,
+      );
+      setWarmupCandles(hiddenCandles);
+
+      const info = await replay.loadReplay(
+        simulationPlan.targetStartTime,
+        simulationPlan.targetEndTime,
+        targetPath,
+      );
+      if (!info) return;
+
+      setDataMode("replay");
+      setAsset(info.asset);
+      setCandles([]);
+      setCurrentReplayTrade(null);
+      setPosition(null);
+      setStopLoss("");
+      setTarget("");
+      setFeedback(
+        `Replay ${info.symbol} carregado com ${hiddenCandles.length} candles ocultos de aquecimento.`,
+      );
+    } catch (error) {
+      setFeedback(
+        error instanceof Error
+          ? error.message
+          : "Falha ao preparar o aquecimento do replay.",
+      );
+    }
   }
 
   async function resetReplay() {
@@ -320,9 +389,22 @@ export default function App() {
       <SimulationPlanner
         onPlanChange={(plan) => {
           setSimulationPlan(plan);
+          setCatalogMatches([]);
+          setWarmupCandles([]);
           setFeedback(
             `Plano definido: ${plan.targetDate} · ${plan.targetStartTime}–${plan.targetEndTime}. Use os mesmos horários ao tratar o arquivo do pregão-alvo.`,
           );
+        }}
+      />
+
+      <ReplayCatalogPanel
+        plan={simulationPlan}
+        asset={simulationPlan ? asset : asset}
+        refreshKey={catalogRefreshKey}
+        onMatchesChange={(matches) => {
+          setCatalogMatches(matches);
+          const targetPath = targetFileFromMatches(matches);
+          if (targetPath) replay.setPath(targetPath);
         }}
       />
 
@@ -357,9 +439,9 @@ export default function App() {
             <SignalBadge evaluation={indicatorEvaluation} />
           </div>
 
-          {candles.length ? (
+          {visibleCandles.length ? (
             <CandleChart
-              candles={candles}
+              candles={visibleCandles}
               evaluation={indicatorEvaluation}
               position={position}
             />
@@ -458,7 +540,21 @@ export default function App() {
       <DataPreparationPanel
         plannedStart={simulationPlan?.targetStartTime}
         plannedEnd={simulationPlan?.targetEndTime}
-        onPrepared={(result) => replay.setPath(result.outputPath)}
+        onPrepared={async (result) => {
+          try {
+            await registerReplayFile(result.outputPath);
+            setCatalogRefreshKey((value) => value + 1);
+            setFeedback(
+              "Arquivo tratado e adicionado ao catálogo local de dados.",
+            );
+          } catch (error) {
+            setFeedback(
+              error instanceof Error
+                ? error.message
+                : "O arquivo foi tratado, mas não pôde ser catalogado.",
+            );
+          }
+        }}
       />
 
       <section className="history card">
