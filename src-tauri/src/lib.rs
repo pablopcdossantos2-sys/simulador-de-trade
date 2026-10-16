@@ -1967,6 +1967,29 @@ mod tests {
     }
 
     #[test]
+    fn old_backup_without_intrabar_policy_defaults_to_stop_first() {
+        let raw = r#"{
+          "format": "simulador-de-trade-backup",
+          "schemaVersion": 1,
+          "appVersion": "0.1.0",
+          "exportedAt": "2026-10-16T18:00:00Z",
+          "trades": [],
+          "trainingSessions": [],
+          "trainingEvents": [],
+          "executionSettings": {
+            "costPerContractRoundTripBRL": 0,
+            "slippageTicksPerSide": 0
+          }
+        }"#;
+
+        let restored: BackupBundle = serde_json::from_str(raw).unwrap();
+        assert_eq!(
+            restored.execution_settings.intrabar_policy,
+            "STOP_FIRST"
+        );
+    }
+
+    #[test]
     fn backup_json_round_trip_preserves_entry_context() {
         let trade = TradeRecord {
             id: "backup-trade".to_string(),
