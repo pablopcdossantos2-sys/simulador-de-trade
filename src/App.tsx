@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { CandleChart } from "./components/CandleChart";
+import { tickSizeFor } from "./domain/marketSpecs";
 import {
   openPosition,
   resolveOco,
@@ -14,8 +15,13 @@ import {
 } from "./data/demoMarket";
 import { indicator } from "./services/indicator";
 import { loadTrades, saveTrade } from "./services/persistence";
-import { tickSizeFor } from "./domain/marketSpecs";
-import type { Asset, Position, Side, Trade } from "./types";
+import type {
+  Asset,
+  IndicatorEvaluation,
+  Position,
+  Side,
+  Trade,
+} from "./types";
 
 const money = new Intl.NumberFormat("pt-BR", {
   maximumFractionDigits: 2,
@@ -29,13 +35,14 @@ export default function App() {
   const [stopLoss, setStopLoss] = useState("");
   const [target, setTarget] = useState("");
   const [feedback, setFeedback] = useState(
-    "Aguarde um sinal do indicador para liberar a direção permitida.",
+    "Aguarde a formação de uma zona válida do indicador para liberar uma direção.",
   );
 
-  const signal = useMemo(
-    () => indicator.evaluate(asset, candles),
+  const indicatorEvaluation = useMemo(
+    () => indicator.calculate(asset, candles),
     [asset, candles],
   );
+  const signal = indicatorEvaluation.authorization;
   const lastCandle = candles[candles.length - 1];
   const lastPrice = lastCandle?.close ?? 0;
 
@@ -76,6 +83,7 @@ export default function App() {
 
   useEffect(() => {
     if (!signal || position) return;
+
     const distance = suggestedOcoDistance(asset);
     const entry = lastPrice;
 
@@ -88,9 +96,16 @@ export default function App() {
     }
 
     setFeedback(
-      `${signal.label} liberada pelo indicador. Configure o OCO e envie somente a direção autorizada.`,
+      `Zona ${signal.side === "BUY" ? "verde" : "vermelha"} ativa após sinal de ${signal.label}. Somente ${signal.label.toLowerCase()} está autorizada.`,
     );
   }, [signal?.id, asset, position]);
+
+  useEffect(() => {
+    if (signal || position) return;
+    setFeedback(
+      "Sem zona autorizadora ativa. Compra e Venda permanecem bloqueadas.",
+    );
+  }, [indicatorEvaluation.zone, signal, position]);
 
   function changeAsset(next: Asset) {
     setAsset(next);
@@ -99,12 +114,16 @@ export default function App() {
     setStopLoss("");
     setTarget("");
     setFeedback(
-      `Ativo alterado para ${next}. Aguarde o sinal correspondente antes de operar.`,
+      `Ativo alterado para ${next}. Aguarde a formação de uma zona válida antes de operar.`,
     );
   }
 
   function submit(side: Side) {
     try {
+      if (!lastCandle) {
+        throw new TradingRuleError("Não há candle disponível para executar a entrada.");
+      }
+
       const nextPosition = openPosition({
         asset,
         side,
@@ -143,12 +162,12 @@ export default function App() {
           <p className="eyebrow">Treino de execução disciplinada</p>
           <h1>Simulador de Trade</h1>
           <p className="subtitle">
-            WINFUT e WDOFUT · entradas somente após sinal · OCO obrigatório
+            WINFUT e WDOFUT · Multi Médias - Nuvem e Sinais · OCO obrigatório
           </p>
         </div>
         <div className="mode-badge">
           <span className="pulse" />
-          Modo demonstração
+          Indicador real · candles sintéticos
         </div>
       </header>
 
@@ -165,13 +184,16 @@ export default function App() {
             </button>
           ))}
         </div>
+
         <div className="quote">
           <span>Último preço</span>
           <strong>{money.format(lastPrice)}</strong>
         </div>
+
         <div className="indicator-name">
           <span>Indicador</span>
           <strong>{indicator.name}</strong>
+          <small>MME 8 · MMP 20 · MME 52 · VWAP Session</small>
         </div>
       </section>
 
@@ -179,20 +201,22 @@ export default function App() {
         <div className="market card">
           <div className="section-heading">
             <div>
-              <p className="eyebrow">Replay demonstrativo</p>
+              <p className="eyebrow">Motor do indicador integrado</p>
               <h2>{asset}</h2>
             </div>
-            <SignalBadge signal={signal} />
+            <SignalBadge evaluation={indicatorEvaluation} />
           </div>
+
           <CandleChart
             candles={candles}
-            signal={signal}
+            evaluation={indicatorEvaluation}
             position={position}
           />
+
           <p className="chart-note">
-            Os candles e sinais desta fase são sintéticos. O adaptador do
-            indicador real substituirá esta lógica quando o Pine Script for
-            integrado.
+            A lógica do indicador foi portada do Pine Script fornecido. Os dados
+            de preço ainda são sintéticos nesta fase; o replay histórico real
+            será conectado na etapa de importação de mercado.
           </p>
         </div>
 
@@ -203,8 +227,9 @@ export default function App() {
           <div className="rule-box">
             <strong>Regra de treino</strong>
             <span>
-              Sem sinal, nenhuma entrada. Com sinal de Compra, Venda permanece
-              bloqueada — e vice-versa.
+              A zona precisa ter sido iniciada pelo gatilho original do indicador.
+              Zona verde autoriza apenas Compra; zona vermelha, apenas Venda.
+              Fora das zonas, ambas ficam bloqueadas.
             </span>
           </div>
 
@@ -326,18 +351,22 @@ export default function App() {
 }
 
 function SignalBadge({
-  signal,
+  evaluation,
 }: {
-  signal: ReturnType<typeof indicator.evaluate>;
+  evaluation: IndicatorEvaluation;
 }) {
+  const signal = evaluation.authorization;
+
   if (!signal) {
-    return <div className="signal-badge neutral">Sem sinal</div>;
+    return <div className="signal-badge neutral">Sem zona ativa</div>;
   }
+
   return (
     <div
       className={`signal-badge ${signal.side === "BUY" ? "buy" : "sell"}`}
     >
-      Sinal: {signal.label}
+      {evaluation.zone === "GREEN" ? "Zona verde" : "Zona vermelha"} ·{" "}
+      {signal.label} autorizada
     </div>
   );
 }
