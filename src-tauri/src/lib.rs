@@ -694,7 +694,6 @@ fn list_all_training_events(
                 signal_id, side, reason, trade_id
             FROM training_events
             ORDER BY timestamp ASC
-            LIMIT 50000
             "#,
         )
         .map_err(|error| error.to_string())?;
