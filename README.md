@@ -54,6 +54,7 @@ SQLite local
 - [Modo Prova](docs/MODO-PROVA.md)
 - [Contexto do gráfico na entrada](docs/CONTEXTO-ENTRADA.md)
 - [Evolução do trader](docs/EVOLUCAO-TRADER.md)
+- [Backup e restauração](docs/BACKUP.md)
 - [Reaproveitamento do Candle Lab](docs/REAPROVEITAMENTO-CANDLE-LAB.md)
 
 ## Estado atual
@@ -103,6 +104,7 @@ A Fase 1 cria a fundação funcional do simulador:
 - painel de evolução histórica por sessão com aderência, R e resultado líquido;
 - diagnóstico dos erros evitados pelo bloqueio, agrupado por regra;
 - golden test do indicador v1.0.0 e fixture de sessão conhecida;
+- backup JSON versionado com exportação/importação nativa e restauração transacional;
 - catálogo local que informa automaticamente datas disponíveis, faltantes e contratos incompatíveis;
 - tratamento em lote orientado pelos requisitos do plano;
 - aquecimento histórico invisível antes do replay visível.
