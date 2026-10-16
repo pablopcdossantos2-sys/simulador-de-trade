@@ -2,6 +2,7 @@ import type { ReplaySessionInfo } from "../services/replayData";
 
 interface Props {
   path: string;
+  timeframeMinutes: number;
   onPathChange: (value: string) => void;
   session: ReplaySessionInfo | null;
   playing: boolean;
@@ -32,6 +33,7 @@ function clock(timestamp: string | null): string {
 
 export function ReplayControls({
   path,
+  timeframeMinutes,
   onPathChange,
   session,
   playing,
@@ -52,7 +54,9 @@ export function ReplayControls({
     <section className="replay-controls card">
       <div className="section-heading replay-heading">
         <div>
-          <p className="eyebrow">Replay histórico · M2</p>
+          <p className="eyebrow">
+            Replay histórico · M{timeframeMinutes}
+          </p>
           <h2>Reprodução negócio a negócio</h2>
         </div>
         <span className={`replay-status ${finished ? "finished" : session ? "ready" : ""}`}>
@@ -141,8 +145,8 @@ export function ReplayControls({
           <p className="replay-note">
             Todos os negócios são processados na ordem histórica. O multiplicador altera apenas
             o ritmo visual do treino; ele não inventa milissegundos ausentes do arquivo do Profit.
-            O botão +1 candle para exatamente na fronteira M2, sem revelar o primeiro negócio
-            do candle seguinte.
+            O botão +1 candle para exatamente na fronteira M{timeframeMinutes},
+            sem revelar o primeiro negócio do candle seguinte.
           </p>
         </>
       )}
