@@ -1,3 +1,5 @@
+mod replay;
+
 use chrono::{DateTime, NaiveDate, NaiveDateTime, NaiveTime};
 use encoding_rs::WINDOWS_1252;
 use rusqlite::{params, Connection};
@@ -8,6 +10,7 @@ use std::io::{BufRead, BufReader, BufWriter, Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 use tauri::{Emitter, Manager};
+use replay::ReplayState;
 
 struct DbState(Mutex<Connection>);
 
@@ -827,13 +830,18 @@ pub fn run() {
             let connection = Connection::open(database_path)?;
             initialize_database(&connection)?;
             app.manage(DbState(Mutex::new(connection)));
+            app.manage(ReplayState(Mutex::new(None)));
 
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
             save_trade,
             list_trades,
-            prepare_profit_replay_file
+            prepare_profit_replay_file,
+            replay::open_replay_file,
+            replay::next_replay_trades,
+            replay::reset_replay_session,
+            replay::close_replay_session
         ])
         .run(tauri::generate_context!())
         .expect("error while running Simulador de Trade");
