@@ -165,6 +165,11 @@ export interface SessionPerformance {
   worstTradePoints: number;
   buyTrades: number;
   sellTrades: number;
+  buyNetPoints: number;
+  sellNetPoints: number;
+  totalR: number;
+  expectancyR: number;
+  maxDrawdownPoints: number;
   blockedAttempts: number;
   technicalIssues: number;
   ignoredSignals: number;
