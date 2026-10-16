@@ -64,6 +64,33 @@ export function calculateSessionPerformance(
     (event) => event.type === "TECHNICAL_ISSUE",
   ).length;
 
+  const rMultiples = scopedTrades.map((trade) => {
+    const initialRisk = Math.abs(trade.entry - trade.stopLoss);
+    return initialRisk > 0 ? trade.resultPoints / initialRisk : 0;
+  });
+  const totalR = rMultiples.reduce((sum, value) => sum + value, 0);
+  const expectancyR = safeAverage(rMultiples);
+
+  let running = 0;
+  let peak = 0;
+  let maxDrawdownPoints = 0;
+  for (const trade of scopedTrades) {
+    running += trade.resultPoints;
+    peak = Math.max(peak, running);
+    maxDrawdownPoints = Math.max(maxDrawdownPoints, peak - running);
+  }
+
+  const buyTradesList = scopedTrades.filter((trade) => trade.side === "BUY");
+  const sellTradesList = scopedTrades.filter((trade) => trade.side === "SELL");
+  const buyNetPoints = buyTradesList.reduce(
+    (sum, trade) => sum + trade.resultPoints,
+    0,
+  );
+  const sellNetPoints = sellTradesList.reduce(
+    (sum, trade) => sum + trade.resultPoints,
+    0,
+  );
+
   return {
     totalTrades: scopedTrades.length,
     wins: wins.length,
@@ -103,8 +130,13 @@ export function calculateSessionPerformance(
       scopedTrades.length === 0
         ? 0
         : Math.min(...scopedTrades.map((trade) => trade.resultPoints)),
-    buyTrades: scopedTrades.filter((trade) => trade.side === "BUY").length,
-    sellTrades: scopedTrades.filter((trade) => trade.side === "SELL").length,
+    buyTrades: buyTradesList.length,
+    sellTrades: sellTradesList.length,
+    buyNetPoints,
+    sellNetPoints,
+    totalR,
+    expectancyR,
+    maxDrawdownPoints,
     blockedAttempts: summary.blockedAttempts,
     technicalIssues,
     ignoredSignals: summary.ignoredSignals,
