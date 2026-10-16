@@ -116,7 +116,7 @@ npm test
 - [x] Integrar o indicador inicial Multi Médias - Nuvem e Sinais.
 
 ### Fase 2 — Replay histórico
-- [x] Tratamento do CSV bruto do Profit para 09:00–12:00.
+- [x] Tratamento do CSV bruto do Profit para a faixa horária definida no plano.
 - [x] Arquivo de replay canônico em ordem cronológica.
 - [x] Formação M2 negócio a negócio.
 - [x] Reprodução, pausa, +1 negócio, reinício e velocidade visual.
@@ -125,6 +125,8 @@ npm test
 - [x] OCO avaliada negócio a negócio.
 - [x] Planejamento explícito de pregão/data/horário.
 - [x] Catálogo local e detecção automática de dados faltantes.
+- [x] Tratamento em lote dos arquivos exigidos pelo plano.
+- [x] Verificação de contrato entre aquecimento e pregão-alvo.
 - [x] Aquecimento histórico invisível a partir dos arquivos preparados.
 
 ### Fase 3 — Fidelidade de execução
