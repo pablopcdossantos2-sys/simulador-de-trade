@@ -47,6 +47,7 @@ export function EntryContextPreview({ trade }: Props) {
     contracts: trade.contracts,
     slippageTicksPerSide: trade.slippageTicksPerSide,
     costPerContractRoundTripBRL: trade.costPerContractRoundTripBRL,
+    intrabarPolicy: trade.intrabarPolicy ?? "STOP_FIRST",
     entryContext: context,
     openedAt: trade.openedAt,
     status: "OPEN",
