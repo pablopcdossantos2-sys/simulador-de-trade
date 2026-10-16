@@ -123,6 +123,7 @@ describe("regras de entrada", () => {
     expect(closed?.grossResultBRL).toBe(28);
     expect(closed?.operationalCostsBRL).toBe(1);
     expect(closed?.netResultBRL).toBe(27);
+    expect(closed?.entryContext).toBeNull();
   });
 });
 
@@ -140,6 +141,7 @@ describe("resolução OCO", () => {
     contracts: 2,
     slippageTicksPerSide: 0,
     costPerContractRoundTripBRL: 1,
+    entryContext: null,
     openedAt: "2026-01-01T12:00:00.000Z",
     status: "OPEN" as const,
   };
@@ -209,6 +211,7 @@ describe("resolução OCO negócio a negócio", () => {
     contracts: 2,
     slippageTicksPerSide: 0,
     costPerContractRoundTripBRL: 1,
+    entryContext: null,
     openedAt: "2026-01-01T09:30:00.000-03:00",
     status: "OPEN" as const,
   };
