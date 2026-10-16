@@ -49,7 +49,8 @@
 ## Fase 3 — Motor de execução
 
 - [ ] Quantidade de contratos.
-- [ ] Tick size por ativo.
+- [x] Tick size por ativo.
+- [x] Rejeição de preços fora do incremento mínimo permitido.
 - [ ] Arredondamento obrigatório para níveis válidos.
 - [ ] Custos operacionais configuráveis.
 - [ ] Slippage configurável.
