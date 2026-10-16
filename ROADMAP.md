@@ -60,7 +60,7 @@ Arquitetura definida a partir dos componentes validados no Candle Lab. Ver [Reap
 - [ ] Importar histórico de WDO.
 - [x] Não revelar candles futuros.
 - [x] Play / pause.
-- [ ] Avanço de um candle.
+- [x] Avanço de um candle sem revelar o primeiro negócio do candle seguinte.
 - [x] Avanço manual de um negócio.
 - [x] Velocidades de reprodução visual 1× / 2× / 5× / 10×.
 - [ ] Seleção de timeframe.
@@ -93,13 +93,13 @@ Arquitetura definida a partir dos componentes validados no Candle Lab. Ver [Reap
 
 ## Fase 4 — Treino
 
-- [ ] Modo treino livre dentro das regras.
+- [x] Modo treino livre dentro das regras com sessão formal.
 - [ ] Modo prova.
 - [ ] Ocultar resultado até o encerramento da sessão.
 - [ ] Cronômetro opcional.
-- [ ] Feedback de disciplina.
-- [ ] Registrar sinais ignorados.
-- [ ] Registrar tentativas bloqueadas.
+- [x] Feedback disciplinar inicial com linha do tempo e aderência.
+- [x] Registrar sinais ignorados sem classificá-los automaticamente como erro.
+- [x] Registrar tentativas bloqueadas.
 - [ ] Distinguir erro técnico de erro de execução.
 - [ ] Notas pós-trade.
 - [ ] Captura do contexto do gráfico no momento da entrada.
@@ -117,7 +117,8 @@ Arquitetura definida a partir dos componentes validados no Candle Lab. Ver [Reap
 - [ ] Aderência ao sinal.
 - [ ] Aderência ao stop.
 - [ ] Aderência ao alvo.
-- [ ] Relatório por sessão.
+- [ ] Relatório completo por sessão.
+- [x] Resumo disciplinar da sessão atual.
 - [ ] Evolução do aluno ao longo do tempo.
 
 ## Fase 6 — Experiência desktop
