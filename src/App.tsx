@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { CandleChart } from "./components/CandleChart";
 import { DataPreparationPanel } from "./components/DataPreparationPanel";
 import { ReplayControls } from "./components/ReplayControls";
@@ -6,6 +6,7 @@ import { ReplayCatalogPanel } from "./components/ReplayCatalogPanel";
 import { PlanDataPreparationPanel } from "./components/PlanDataPreparationPanel";
 import { RuleViolationModal } from "./components/RuleViolationModal";
 import { SimulationPlanner } from "./components/SimulationPlanner";
+import { TrainingSessionPanel } from "./components/TrainingSessionPanel";
 import {
   ThemeToggle,
   type ThemeMode,
@@ -18,6 +19,12 @@ import {
   warmupFilesFromMatches,
   type RequirementMatch,
 } from "./domain/catalogMatch";
+import {
+  createTrainingEvent,
+  createTrainingSession,
+  endTrainingSession,
+  summarizeTraining,
+} from "./domain/training";
 import {
   openPosition,
   resolveOco,
@@ -33,7 +40,12 @@ import {
 } from "./data/demoMarket";
 import { useReplayPlayer } from "./hooks/useReplayPlayer";
 import { indicator } from "./services/indicator";
-import { loadTrades, saveTrade } from "./services/persistence";
+import {
+  loadTrades,
+  saveTrade,
+  saveTrainingEvent,
+  saveTrainingSession,
+} from "./services/persistence";
 import { registerReplayFile } from "./services/replayCatalog";
 import { loadWarmupCandles } from "./services/replayData";
 import type {
@@ -43,6 +55,8 @@ import type {
   ReplayTrade,
   Side,
   Trade,
+  TrainingEvent,
+  TrainingSession,
 } from "./types";
 import type { SimulationPlan } from "./domain/simulationPlan";
 
@@ -82,6 +96,11 @@ export default function App() {
   const [catalogMatches, setCatalogMatches] = useState<RequirementMatch[]>([]);
   const [catalogRefreshKey, setCatalogRefreshKey] = useState(0);
   const [warmupCandles, setWarmupCandles] = useState<import("./types").Candle[]>([]);
+  const [trainingSession, setTrainingSession] =
+    useState<TrainingSession | null>(null);
+  const [trainingEvents, setTrainingEvents] = useState<TrainingEvent[]>([]);
+  const activeSignalRef = useRef<{ id: string; side: Side } | null>(null);
+  const usedSignalIdsRef = useRef<Set<string>>(new Set());
 
   const handleReplayTrade = useCallback((trade: ReplayTrade) => {
     setCurrentReplayTrade(trade);
