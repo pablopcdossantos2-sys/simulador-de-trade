@@ -20,14 +20,37 @@ function normalizeTrade(raw: Trade): Trade {
       ? raw.contracts
       : 1;
   const storedGross = raw.grossResultBRL;
+  const gross = Number.isFinite(storedGross)
+    ? storedGross
+    : grossResultBRL(raw.asset, raw.resultPoints, contracts);
+  const operationalCostsBRL = Number.isFinite(raw.operationalCostsBRL)
+    ? raw.operationalCostsBRL
+    : 0;
+  const requestedEntry = Number.isFinite(raw.requestedEntry)
+    ? raw.requestedEntry
+    : raw.entry;
+  const slippageTicksPerSide =
+    Number.isInteger(raw.slippageTicksPerSide) &&
+    raw.slippageTicksPerSide >= 0
+      ? raw.slippageTicksPerSide
+      : 0;
+  const costPerContractRoundTripBRL =
+    Number.isFinite(raw.costPerContractRoundTripBRL) &&
+    raw.costPerContractRoundTripBRL >= 0
+      ? raw.costPerContractRoundTripBRL
+      : 0;
 
   return {
     ...raw,
+    requestedEntry,
     contracts,
-    grossResultBRL:
-      Number.isFinite(storedGross)
-        ? storedGross
-        : grossResultBRL(raw.asset, raw.resultPoints, contracts),
+    slippageTicksPerSide,
+    costPerContractRoundTripBRL,
+    grossResultBRL: gross,
+    operationalCostsBRL,
+    netResultBRL: Number.isFinite(raw.netResultBRL)
+      ? raw.netResultBRL
+      : gross - operationalCostsBRL,
   };
 }
 
