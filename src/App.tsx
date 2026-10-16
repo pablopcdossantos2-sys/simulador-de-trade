@@ -188,7 +188,10 @@ export default function App() {
   }
 
   async function loadReplay() {
-    const info = await replay.loadReplay();
+    const info = await replay.loadReplay(
+      simulationPlan?.targetStartTime,
+      simulationPlan?.targetEndTime,
+    );
     if (!info) return;
 
     setDataMode("replay");
