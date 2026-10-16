@@ -389,6 +389,7 @@ export default function App() {
       <SimulationPlanner
         onPlanChange={(plan) => {
           setSimulationPlan(plan);
+          setAsset(plan.asset);
           setCatalogMatches([]);
           setWarmupCandles([]);
           setFeedback(
@@ -399,7 +400,7 @@ export default function App() {
 
       <ReplayCatalogPanel
         plan={simulationPlan}
-        asset={simulationPlan ? asset : asset}
+        asset={simulationPlan?.asset ?? asset}
         refreshKey={catalogRefreshKey}
         onMatchesChange={(matches) => {
           setCatalogMatches(matches);
