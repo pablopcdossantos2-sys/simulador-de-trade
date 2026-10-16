@@ -1,7 +1,7 @@
 mod catalog;
 mod replay;
 
-use chrono::{DateTime, NaiveDate, NaiveDateTime, NaiveTime};
+use chrono::{DateTime, NaiveDate, NaiveDateTime, NaiveTime, Utc};
 use encoding_rs::WINDOWS_1252;
 use rusqlite::{params, Connection};
 use serde::{Deserialize, Serialize};
@@ -112,6 +112,29 @@ struct ProfitPreparationResult {
     last_timestamp: Option<String>,
     session_start: String,
     session_end: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct BackupBundle {
+    format: String,
+    schema_version: u32,
+    app_version: String,
+    exported_at: String,
+    trades: Vec<TradeRecord>,
+    training_sessions: Vec<TrainingSessionRecord>,
+    training_events: Vec<TrainingEventRecord>,
+    execution_settings: ExecutionSettingsRecord,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct BackupSummary {
+    path: String,
+    schema_version: u32,
+    trades: usize,
+    sessions: usize,
+    events: usize,
 }
 
 #[derive(Debug, Clone)]
@@ -827,6 +850,399 @@ fn list_all_trades(
 
     rows.collect::<Result<Vec<_>, _>>()
         .map_err(|error| error.to_string())
+}
+
+
+fn query_backup_trades(connection: &Connection) -> Result<Vec<TradeRecord>, String> {
+    let mut statement = connection
+        .prepare(
+            r#"
+            SELECT
+                id, asset, side, signal_id, requested_entry, entry, stop_loss,
+                target, contracts, slippage_ticks_per_side,
+                cost_per_contract_round_trip_brl, opened_at, status, exit_price,
+                exit_reason, closed_at, result_points, gross_result_brl,
+                operational_costs_brl, net_result_brl, post_trade_note,
+                entry_context_json
+            FROM trades
+            ORDER BY closed_at ASC
+            "#,
+        )
+        .map_err(|error| error.to_string())?;
+
+    let rows = statement
+        .query_map([], |row| {
+            Ok(TradeRecord {
+                id: row.get(0)?,
+                asset: row.get(1)?,
+                side: row.get(2)?,
+                signal_id: row.get(3)?,
+                requested_entry: row.get(4)?,
+                entry: row.get(5)?,
+                stop_loss: row.get(6)?,
+                target: row.get(7)?,
+                contracts: row.get(8)?,
+                slippage_ticks_per_side: row.get(9)?,
+                cost_per_contract_round_trip_brl: row.get(10)?,
+                opened_at: row.get(11)?,
+                status: row.get(12)?,
+                exit_price: row.get(13)?,
+                exit_reason: row.get(14)?,
+                closed_at: row.get(15)?,
+                result_points: row.get(16)?,
+                gross_result_brl: row.get(17)?,
+                operational_costs_brl: row.get(18)?,
+                net_result_brl: row.get(19)?,
+                post_trade_note: row.get(20)?,
+                entry_context: row
+                    .get::<_, Option<String>>(21)?
+                    .and_then(|value| serde_json::from_str(&value).ok()),
+            })
+        })
+        .map_err(|error| error.to_string())?;
+
+    rows.collect::<Result<Vec<_>, _>>()
+        .map_err(|error| error.to_string())
+}
+
+fn query_backup_sessions(
+    connection: &Connection,
+) -> Result<Vec<TrainingSessionRecord>, String> {
+    let mut statement = connection
+        .prepare(
+            r#"
+            SELECT
+                id, asset, trade_date, start_time, end_time,
+                timeframe_minutes, warmup_bars, mode, started_at, ended_at, status
+            FROM training_sessions
+            ORDER BY started_at ASC
+            "#,
+        )
+        .map_err(|error| error.to_string())?;
+
+    let rows = statement
+        .query_map([], |row| {
+            Ok(TrainingSessionRecord {
+                id: row.get(0)?,
+                asset: row.get(1)?,
+                trade_date: row.get(2)?,
+                start_time: row.get(3)?,
+                end_time: row.get(4)?,
+                timeframe_minutes: row.get(5)?,
+                warmup_bars: row.get(6)?,
+                mode: row.get(7)?,
+                started_at: row.get(8)?,
+                ended_at: row.get(9)?,
+                status: row.get(10)?,
+            })
+        })
+        .map_err(|error| error.to_string())?;
+
+    rows.collect::<Result<Vec<_>, _>>()
+        .map_err(|error| error.to_string())
+}
+
+fn query_backup_events(
+    connection: &Connection,
+) -> Result<Vec<TrainingEventRecord>, String> {
+    let mut statement = connection
+        .prepare(
+            r#"
+            SELECT
+                id, session_id, type, timestamp, market_timestamp,
+                signal_id, side, reason, trade_id
+            FROM training_events
+            ORDER BY timestamp ASC
+            "#,
+        )
+        .map_err(|error| error.to_string())?;
+
+    let rows = statement
+        .query_map([], |row| {
+            Ok(TrainingEventRecord {
+                id: row.get(0)?,
+                session_id: row.get(1)?,
+                r#type: row.get(2)?,
+                timestamp: row.get(3)?,
+                market_timestamp: row.get(4)?,
+                signal_id: row.get(5)?,
+                side: row.get(6)?,
+                reason: row.get(7)?,
+                trade_id: row.get(8)?,
+            })
+        })
+        .map_err(|error| error.to_string())?;
+
+    rows.collect::<Result<Vec<_>, _>>()
+        .map_err(|error| error.to_string())
+}
+
+fn query_backup_execution_settings(
+    connection: &Connection,
+) -> Result<ExecutionSettingsRecord, String> {
+    connection
+        .query_row(
+            r#"
+            SELECT cost_per_contract_round_trip_brl, slippage_ticks_per_side
+            FROM execution_settings
+            WHERE id = 1
+            "#,
+            [],
+            |row| {
+                Ok(ExecutionSettingsRecord {
+                    cost_per_contract_round_trip_brl: row.get(0)?,
+                    slippage_ticks_per_side: row.get(1)?,
+                })
+            },
+        )
+        .map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+fn export_backup(
+    state: tauri::State<'_, DbState>,
+    destination_path: String,
+) -> Result<BackupSummary, String> {
+    let path = PathBuf::from(destination_path.trim().trim_matches('"'));
+    if path.as_os_str().is_empty() {
+        return Err("Caminho de destino inválido.".to_string());
+    }
+
+    let connection = state.0.lock().map_err(|error| error.to_string())?;
+    let trades = query_backup_trades(&connection)?;
+    let sessions = query_backup_sessions(&connection)?;
+    let events = query_backup_events(&connection)?;
+    let settings = query_backup_execution_settings(&connection)?;
+
+    let bundle = BackupBundle {
+        format: "simulador-de-trade-backup".to_string(),
+        schema_version: 1,
+        app_version: env!("CARGO_PKG_VERSION").to_string(),
+        exported_at: Utc::now().to_rfc3339(),
+        trades,
+        training_sessions: sessions,
+        training_events: events,
+        execution_settings: settings,
+    };
+
+    let text = serde_json::to_string_pretty(&bundle)
+        .map_err(|error| error.to_string())?;
+    fs::write(&path, text).map_err(|error| error.to_string())?;
+
+    Ok(BackupSummary {
+        path: path.to_string_lossy().to_string(),
+        schema_version: bundle.schema_version,
+        trades: bundle.trades.len(),
+        sessions: bundle.training_sessions.len(),
+        events: bundle.training_events.len(),
+    })
+}
+
+#[tauri::command]
+fn import_backup(
+    state: tauri::State<'_, DbState>,
+    source_path: String,
+) -> Result<BackupSummary, String> {
+    let path = PathBuf::from(source_path.trim().trim_matches('"'));
+    if !path.exists() || !path.is_file() {
+        return Err("Arquivo de backup não encontrado.".to_string());
+    }
+
+    let raw = fs::read_to_string(&path).map_err(|error| error.to_string())?;
+    let bundle: BackupBundle =
+        serde_json::from_str(&raw).map_err(|error| {
+            format!("Backup JSON inválido: {error}")
+        })?;
+
+    if bundle.format != "simulador-de-trade-backup" {
+        return Err(
+            "O arquivo selecionado não é um backup do Simulador de Trade."
+                .to_string(),
+        );
+    }
+
+    if bundle.schema_version != 1 {
+        return Err(format!(
+            "Versão de backup não suportada: {}.",
+            bundle.schema_version
+        ));
+    }
+
+    let mut connection = state.0.lock().map_err(|error| error.to_string())?;
+    let transaction = connection
+        .transaction()
+        .map_err(|error| error.to_string())?;
+
+    for session in &bundle.training_sessions {
+        transaction
+            .execute(
+                r#"
+                INSERT INTO training_sessions (
+                    id, asset, trade_date, start_time, end_time,
+                    timeframe_minutes, warmup_bars, mode, started_at, ended_at, status
+                )
+                VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)
+                ON CONFLICT(id) DO UPDATE SET
+                    asset = excluded.asset,
+                    trade_date = excluded.trade_date,
+                    start_time = excluded.start_time,
+                    end_time = excluded.end_time,
+                    timeframe_minutes = excluded.timeframe_minutes,
+                    warmup_bars = excluded.warmup_bars,
+                    mode = excluded.mode,
+                    started_at = excluded.started_at,
+                    ended_at = excluded.ended_at,
+                    status = excluded.status
+                "#,
+                params![
+                    session.id,
+                    session.asset,
+                    session.trade_date,
+                    session.start_time,
+                    session.end_time,
+                    session.timeframe_minutes,
+                    session.warmup_bars,
+                    session.mode,
+                    session.started_at,
+                    session.ended_at,
+                    session.status,
+                ],
+            )
+            .map_err(|error| error.to_string())?;
+    }
+
+    for trade in &bundle.trades {
+        let entry_context_json = trade
+            .entry_context
+            .as_ref()
+            .map(serde_json::to_string)
+            .transpose()
+            .map_err(|error| error.to_string())?;
+
+        transaction
+            .execute(
+                r#"
+                INSERT INTO trades (
+                    id, asset, side, signal_id, requested_entry, entry, stop_loss,
+                    target, contracts, slippage_ticks_per_side,
+                    cost_per_contract_round_trip_brl, opened_at, status, exit_price,
+                    exit_reason, closed_at, result_points, gross_result_brl,
+                    operational_costs_brl, net_result_brl, post_trade_note,
+                    entry_context_json
+                )
+                VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22)
+                ON CONFLICT(id) DO UPDATE SET
+                    asset = excluded.asset,
+                    side = excluded.side,
+                    signal_id = excluded.signal_id,
+                    requested_entry = excluded.requested_entry,
+                    entry = excluded.entry,
+                    stop_loss = excluded.stop_loss,
+                    target = excluded.target,
+                    contracts = excluded.contracts,
+                    slippage_ticks_per_side = excluded.slippage_ticks_per_side,
+                    cost_per_contract_round_trip_brl = excluded.cost_per_contract_round_trip_brl,
+                    opened_at = excluded.opened_at,
+                    status = excluded.status,
+                    exit_price = excluded.exit_price,
+                    exit_reason = excluded.exit_reason,
+                    closed_at = excluded.closed_at,
+                    result_points = excluded.result_points,
+                    gross_result_brl = excluded.gross_result_brl,
+                    operational_costs_brl = excluded.operational_costs_brl,
+                    net_result_brl = excluded.net_result_brl,
+                    post_trade_note = excluded.post_trade_note,
+                    entry_context_json = excluded.entry_context_json
+                "#,
+                params![
+                    trade.id,
+                    trade.asset,
+                    trade.side,
+                    trade.signal_id,
+                    trade.requested_entry,
+                    trade.entry,
+                    trade.stop_loss,
+                    trade.target,
+                    trade.contracts,
+                    trade.slippage_ticks_per_side,
+                    trade.cost_per_contract_round_trip_brl,
+                    trade.opened_at,
+                    trade.status,
+                    trade.exit_price,
+                    trade.exit_reason,
+                    trade.closed_at,
+                    trade.result_points,
+                    trade.gross_result_brl,
+                    trade.operational_costs_brl,
+                    trade.net_result_brl,
+                    trade.post_trade_note,
+                    entry_context_json,
+                ],
+            )
+            .map_err(|error| error.to_string())?;
+    }
+
+    for event in &bundle.training_events {
+        transaction
+            .execute(
+                r#"
+                INSERT INTO training_events (
+                    id, session_id, type, timestamp, market_timestamp,
+                    signal_id, side, reason, trade_id
+                )
+                VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)
+                ON CONFLICT(id) DO UPDATE SET
+                    session_id = excluded.session_id,
+                    type = excluded.type,
+                    timestamp = excluded.timestamp,
+                    market_timestamp = excluded.market_timestamp,
+                    signal_id = excluded.signal_id,
+                    side = excluded.side,
+                    reason = excluded.reason,
+                    trade_id = excluded.trade_id
+                "#,
+                params![
+                    event.id,
+                    event.session_id,
+                    event.r#type,
+                    event.timestamp,
+                    event.market_timestamp,
+                    event.signal_id,
+                    event.side,
+                    event.reason,
+                    event.trade_id,
+                ],
+            )
+            .map_err(|error| error.to_string())?;
+    }
+
+    transaction
+        .execute(
+            r#"
+            INSERT INTO execution_settings (
+                id, cost_per_contract_round_trip_brl, slippage_ticks_per_side
+            )
+            VALUES (1, ?1, ?2)
+            ON CONFLICT(id) DO UPDATE SET
+                cost_per_contract_round_trip_brl = excluded.cost_per_contract_round_trip_brl,
+                slippage_ticks_per_side = excluded.slippage_ticks_per_side
+            "#,
+            params![
+                bundle.execution_settings.cost_per_contract_round_trip_brl,
+                bundle.execution_settings.slippage_ticks_per_side,
+            ],
+        )
+        .map_err(|error| error.to_string())?;
+
+    transaction.commit().map_err(|error| error.to_string())?;
+
+    Ok(BackupSummary {
+        path: path.to_string_lossy().to_string(),
+        schema_version: bundle.schema_version,
+        trades: bundle.trades.len(),
+        sessions: bundle.training_sessions.len(),
+        events: bundle.training_events.len(),
+    })
 }
 
 fn decode_line(bytes: &[u8]) -> String {
@@ -1797,6 +2213,8 @@ pub fn run() {
             save_trade,
             list_trades,
             list_all_trades,
+            export_backup,
+            import_backup,
             load_execution_settings,
             save_execution_settings,
             save_training_session,
