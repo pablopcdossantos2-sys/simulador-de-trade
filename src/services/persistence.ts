@@ -1,4 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
+import { grossResultBRL } from "../domain/marketSpecs";
 import type {
   Trade,
   TrainingEvent,
@@ -13,13 +14,32 @@ function isTauriRuntime(): boolean {
   return "__TAURI_INTERNALS__" in window;
 }
 
+function normalizeTrade(raw: Trade): Trade {
+  const contracts =
+    Number.isInteger(raw.contracts) && raw.contracts > 0
+      ? raw.contracts
+      : 1;
+  const storedGross = raw.grossResultBRL;
+
+  return {
+    ...raw,
+    contracts,
+    grossResultBRL:
+      Number.isFinite(storedGross)
+        ? storedGross
+        : grossResultBRL(raw.asset, raw.resultPoints, contracts),
+  };
+}
+
 export async function loadTrades(): Promise<Trade[]> {
   if (isTauriRuntime()) {
-    return invoke<Trade[]>("list_trades");
+    const trades = await invoke<Trade[]>("list_trades");
+    return trades.map(normalizeTrade);
   }
 
   const raw = localStorage.getItem(STORAGE_KEY);
-  return raw ? (JSON.parse(raw) as Trade[]) : [];
+  const trades = raw ? (JSON.parse(raw) as Trade[]) : [];
+  return trades.map(normalizeTrade);
 }
 
 export async function saveTrade(trade: Trade): Promise<void> {
