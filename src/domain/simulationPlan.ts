@@ -42,6 +42,13 @@ export interface SimulationPlanInput {
   warmupPolicy: WarmupPolicy;
 }
 
+export interface SimulationDataRequirement {
+  role: "WARMUP" | "TARGET";
+  date: string;
+  startTime: string;
+  endTime: string;
+}
+
 export interface SimulationPlan {
   visibleMinutes: number;
   visibleBars: number;
@@ -57,6 +64,7 @@ export interface SimulationPlan {
   targetStartTime: string;
   targetEndTime: string;
   contractWarning: string | null;
+  dataRequirements: SimulationDataRequirement[];
 }
 
 function timeToMinutes(value: string): number {
@@ -196,6 +204,7 @@ export function calculateSimulationPlan(
   const fullSessionEnd = FULL_SESSION_END_2026[input.asset];
 
   const fullSessionPreviousDates: string[] = [];
+  const warmupRequirements: SimulationDataRequirement[] = [];
   let fullSessionBars = 0;
   let cursorCount = 1;
 
@@ -205,6 +214,12 @@ export function calculateSimulationPlan(
 
     fullSessionPreviousDates.push(previousDate);
     const sessionStart = B3_SPECIAL_SESSION_START_2026[previousDate] ?? "09:00";
+    warmupRequirements.push({
+      role: "WARMUP",
+      date: previousDate,
+      startTime: sessionStart,
+      endTime: fullSessionEnd,
+    });
     fullSessionBars += barsForWindow(
       sessionStart,
       fullSessionEnd,
@@ -212,6 +227,16 @@ export function calculateSimulationPlan(
     ).bars;
     cursorCount += 1;
   }
+
+  const dataRequirements: SimulationDataRequirement[] = [
+    ...warmupRequirements.reverse(),
+    {
+      role: "TARGET",
+      date: input.date,
+      startTime: input.startTime,
+      endTime: input.endTime,
+    },
+  ];
 
   return {
     visibleMinutes: visible.minutes,
@@ -231,5 +256,6 @@ export function calculateSimulationPlan(
     targetStartTime: input.startTime,
     targetEndTime: input.endTime,
     contractWarning: winExpiryWarning(input.date, input.asset),
+    dataRequirements,
   };
 }
