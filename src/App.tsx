@@ -325,6 +325,10 @@ export default function App() {
       setPosition(null);
       setStopLoss("");
       setTarget("");
+      setTrainingSession(null);
+      setTrainingEvents([]);
+      activeSignalRef.current = null;
+      usedSignalIdsRef.current = new Set();
       setFeedback(
         `Replay ${info.symbol} carregado com ${hiddenCandles.length} candles ocultos de aquecimento.`,
       );
@@ -345,6 +349,108 @@ export default function App() {
     setStopLoss("");
     setTarget("");
     setFeedback("Replay reiniciado no começo da sessão.");
+  }
+
+  async function startTraining() {
+    if (!simulationPlan || !replay.session || !planIsReady(catalogMatches)) {
+      setFeedback(
+        "Carregue um replay compatível e complete todos os dados do plano antes de iniciar o treino.",
+      );
+      return;
+    }
+
+    await replay.reset();
+    setCandles([]);
+    setCurrentReplayTrade(null);
+    setPosition(null);
+    setStopLoss("");
+    setTarget("");
+    activeSignalRef.current = null;
+    usedSignalIdsRef.current = new Set();
+
+    const timeframeMinutes =
+      simulationPlan.visibleMinutes / simulationPlan.visibleBars;
+    const session = createTrainingSession({
+      asset: simulationPlan.asset,
+      tradeDate: simulationPlan.targetDate,
+      startTime: simulationPlan.targetStartTime,
+      endTime: simulationPlan.targetEndTime,
+      timeframeMinutes,
+      warmupBars: simulationPlan.warmupBars,
+    });
+    const startedEvent = createTrainingEvent({
+      sessionId: session.id,
+      type: "SESSION_STARTED",
+      marketTimestamp: null,
+    });
+
+    setTrainingSession(session);
+    setTrainingEvents([startedEvent]);
+    await Promise.all([
+      saveTrainingSession(session),
+      saveTrainingEvent(startedEvent),
+    ]).catch(() =>
+      setFeedback(
+        "O treino foi iniciado, mas houve falha ao persistir parte dos metadados.",
+      ),
+    );
+
+    setFeedback(
+      `Treino iniciado para ${session.tradeDate}, das ${session.startTime} às ${session.endTime}.`,
+    );
+  }
+
+  async function finishTraining() {
+    if (!trainingSession || trainingSession.status !== "ACTIVE") return;
+
+    if (position) {
+      setFeedback(
+        "Encerre a posição aberta antes de finalizar a sessão de treino.",
+      );
+      return;
+    }
+
+    replay.setPlaying(false);
+
+    const finalEvents = [...trainingEvents];
+    const pendingSignal = activeSignalRef.current;
+    if (
+      pendingSignal &&
+      !usedSignalIdsRef.current.has(pendingSignal.id)
+    ) {
+      const ignored = createTrainingEvent({
+        sessionId: trainingSession.id,
+        type: "SIGNAL_IGNORED",
+        marketTimestamp: currentReplayTrade?.timestamp ?? null,
+        signalId: pendingSignal.id,
+        side: pendingSignal.side,
+      });
+      finalEvents.push(ignored);
+      void saveTrainingEvent(ignored);
+    }
+    activeSignalRef.current = null;
+
+    const ended = endTrainingSession(trainingSession);
+    const endedEvent = createTrainingEvent({
+      sessionId: trainingSession.id,
+      type: "SESSION_ENDED",
+      marketTimestamp: currentReplayTrade?.timestamp ?? null,
+    });
+    finalEvents.push(endedEvent);
+
+    setTrainingSession(ended);
+    setTrainingEvents(finalEvents);
+
+    await Promise.all([
+      saveTrainingSession(ended),
+      saveTrainingEvent(endedEvent),
+    ]).catch(() =>
+      setFeedback(
+        "A sessão foi encerrada, mas houve falha ao persistir parte do resumo.",
+      ),
+    );
+
+    setFeedback("Sessão de treino encerrada. O resumo disciplinar foi atualizado.");
   }
 
   function submit(side: Side) {
