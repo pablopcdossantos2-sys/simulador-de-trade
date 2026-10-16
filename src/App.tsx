@@ -14,6 +14,7 @@ import {
 } from "./data/demoMarket";
 import { indicator } from "./services/indicator";
 import { loadTrades, saveTrade } from "./services/persistence";
+import { tickSizeFor } from "./domain/marketSpecs";
 import type { Asset, Position, Side, Trade } from "./types";
 
 const money = new Intl.NumberFormat("pt-BR", {
@@ -216,7 +217,7 @@ export default function App() {
             Stop loss
             <input
               type="number"
-              step="any"
+              step={tickSizeFor(asset)}
               value={stopLoss}
               onChange={(event) => setStopLoss(event.target.value)}
               disabled={Boolean(position)}
@@ -228,7 +229,7 @@ export default function App() {
             Alvo
             <input
               type="number"
-              step="any"
+              step={tickSizeFor(asset)}
               value={target}
               onChange={(event) => setTarget(event.target.value)}
               disabled={Boolean(position)}
