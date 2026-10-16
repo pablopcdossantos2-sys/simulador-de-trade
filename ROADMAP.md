@@ -144,4 +144,4 @@ Arquitetura definida a partir dos componentes validados no Candle Lab. Ver [Reap
 - [x] Teste inicial do esquema de persistência SQLite.
 - [ ] Testes de regressão do indicador.
 - [ ] Fixtures com sessões conhecidas.
-- [ ] Política explícita de versionamento do algoritmo do indicador.
+- [x] Política explícita de versionamento do algoritmo do indicador e gravação da versão nos snapshots de entrada.
