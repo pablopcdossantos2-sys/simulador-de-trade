@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { EntryContextPreview } from "./EntryContextPreview";
 import {
+  blockedAttemptBreakdown,
   calculateSessionPerformance,
   classifyTrainingEvent,
   performanceByHour,
@@ -147,6 +148,7 @@ export function SessionHistoryPanel({ refreshKey }: Props) {
   const technicalEvents = events.filter(
     (event) => classifyTrainingEvent(event) === "TECHNICAL",
   );
+  const blockedReasons = blockedAttemptBreakdown(events);
 
   return (
     <section className="session-history card">
@@ -437,6 +439,26 @@ export function SessionHistoryPanel({ refreshKey }: Props) {
                     ))
                   )}
                 </div>
+
+                {blockedReasons.length > 0 && (
+                  <div className="blocked-reasons">
+                    <div className="training-timeline-heading">
+                      <strong>Erros evitados pelo bloqueio</strong>
+                      <span>{blockedReasons.reduce((sum, item) => sum + item.count, 0)} tentativas</span>
+                    </div>
+                    {blockedReasons.map((item) => (
+                      <article key={item.reason}>
+                        <div>
+                          <strong>{item.reason}</strong>
+                          <small>
+                            Compra {item.buyAttempts} · Venda {item.sellAttempts}
+                          </small>
+                        </div>
+                        <span>{item.count}×</span>
+                      </article>
+                    ))}
+                  </div>
+                )}
 
                 <div className="error-separation">
                   <article>
