@@ -37,7 +37,7 @@ jobs:
         run: npm run build
 
   rust:
-    name: Rust / Tauri check
+    name: Rust / Tauri tests
     runs-on: windows-latest
     steps:
       - name: Checkout
