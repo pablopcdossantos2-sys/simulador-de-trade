@@ -215,6 +215,7 @@ export interface SessionPerformance {
   blockedAttempts: number;
   technicalIssues: number;
   ignoredSignals: number;
+  signalAdherencePct: number;
   executionAdherencePct: number;
 }
 
