@@ -164,6 +164,10 @@ export function StudentProgressPanel({
               <strong>{summary.averageAdherencePct.toFixed(1)}%</strong>
             </div>
             <div>
+              <span>Aderência aos sinais</span>
+              <strong>{summary.averageSignalAdherencePct.toFixed(1)}%</strong>
+            </div>
+            <div>
               <span>Win rate médio</span>
               <strong>{summary.averageWinRatePct.toFixed(1)}%</strong>
             </div>
@@ -222,6 +226,7 @@ export function StudentProgressPanel({
                   <th>Modo</th>
                   <th>Trades</th>
                   <th>Aderência</th>
+                  <th>Sinais</th>
                   <th>R</th>
                   <th>Líquido</th>
                 </tr>
@@ -237,6 +242,7 @@ export function StudentProgressPanel({
                       <td>{point.mode === "EXAM" ? "Prova" : "Treino"}</td>
                       <td>{point.trades}</td>
                       <td>{point.adherencePct.toFixed(1)}%</td>
+                      <td>{point.signalAdherencePct.toFixed(1)}%</td>
                       <td
                         className={point.totalR >= 0 ? "positive" : "negative"}
                       >
