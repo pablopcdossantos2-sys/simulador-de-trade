@@ -130,8 +130,9 @@ Arquitetura definida a partir dos componentes validados no Candle Lab. Ver [Reap
 - [ ] Ampliar tela de configurações para demais preferências.
 - [x] Banco SQLite com backup JSON versionado e restauração transacional.
 - [x] Exportação/importação do histórico por diálogos nativos, com mesclagem por ID.
-- [ ] Instalador Windows.
-- [ ] Avaliar build portátil.
+- [x] Instalador Windows NSIS gerado e validado no GitHub Actions.
+- [x] Build portátil Windows gerado e validado como executável independente do instalador.
+- [x] Pipeline de build Windows x64 com instalador + portátil como artefato.
 - [ ] Assinatura de releases.
 - [ ] Atualizador Tauri.
 - [ ] Pipeline de release no GitHub Actions.
