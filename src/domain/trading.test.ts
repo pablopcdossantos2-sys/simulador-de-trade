@@ -26,6 +26,7 @@ const baseIntent: TradeIntent = {
   execution: {
     costPerContractRoundTripBRL: 1,
     slippageTicksPerSide: 0,
+    intrabarPolicy: "STOP_FIRST",
   },
   candleIndex: 10,
   oco: { stopLoss: 129900, target: 130150 },
@@ -77,6 +78,18 @@ describe("regras de entrada", () => {
     ).toThrow(/já foi utilizado/i);
   });
 
+  it("bloqueia política intrabar inválida", () => {
+    expect(() =>
+      validateTradeIntent({
+        ...baseIntent,
+        execution: {
+          ...baseIntent.execution,
+          intrabarPolicy: "INVALID" as "STOP_FIRST",
+        },
+      }),
+    ).toThrow(/política intrabar/i);
+  });
+
   it("bloqueia slippage fracionário", () => {
     expect(() =>
       validateTradeIntent({
@@ -101,6 +114,7 @@ describe("regras de entrada", () => {
         execution: {
           costPerContractRoundTripBRL: 1,
           slippageTicksPerSide: 1,
+          intrabarPolicy: "STOP_FIRST",
         },
       },
       new Date("2026-01-01T09:30:00Z"),
@@ -141,6 +155,7 @@ describe("resolução OCO", () => {
     contracts: 2,
     slippageTicksPerSide: 0,
     costPerContractRoundTripBRL: 1,
+    intrabarPolicy: "STOP_FIRST",
     entryContext: null,
     openedAt: "2026-01-01T12:00:00.000Z",
     status: "OPEN" as const,
@@ -179,7 +194,7 @@ describe("resolução OCO", () => {
     expect(trade?.netResultBRL).toBe(58);
   });
 
-  it("usa hipótese conservadora quando stop e alvo são tocados", () => {
+  it("usa Stop primeiro por padrão quando stop e alvo são tocados", () => {
     const trade = resolveOco(position, {
       index: 11,
       timestamp: "2026-01-01T12:01:00.000Z",
@@ -192,6 +207,24 @@ describe("resolução OCO", () => {
 
     expect(trade?.exitReason).toBe("STOP");
     expect(trade?.resultPoints).toBe(-100);
+  });
+
+  it("pode priorizar o alvo em candle OHLC ambíguo", () => {
+    const trade = resolveOco(
+      { ...position, intrabarPolicy: "TARGET_FIRST" as const },
+      {
+        index: 11,
+        timestamp: "2026-01-01T12:01:00.000Z",
+        open: 130000,
+        high: 130200,
+        low: 129850,
+        close: 130100,
+        volume: 100,
+      },
+    );
+
+    expect(trade?.exitReason).toBe("TARGET");
+    expect(trade?.resultPoints).toBe(150);
   });
 });
 
@@ -211,6 +244,7 @@ describe("resolução OCO negócio a negócio", () => {
     contracts: 2,
     slippageTicksPerSide: 0,
     costPerContractRoundTripBRL: 1,
+    intrabarPolicy: "STOP_FIRST",
     entryContext: null,
     openedAt: "2026-01-01T09:30:00.000-03:00",
     status: "OPEN" as const,
@@ -281,6 +315,7 @@ describe("regras e execução SELL", () => {
     execution: {
       costPerContractRoundTripBRL: 1,
       slippageTicksPerSide: 1,
+      intrabarPolicy: "STOP_FIRST",
     },
     candleIndex: 20,
     oco: {
