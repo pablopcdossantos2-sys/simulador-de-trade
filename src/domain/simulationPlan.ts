@@ -27,6 +27,10 @@ const FULL_SESSION_END_2026: Record<Asset, string> = {
   WDOFUT: "18:30",
 };
 
+const B3_SPECIAL_SESSION_START_2026: Record<string, string> = {
+  "2026-02-18": "13:00",
+};
+
 export type WarmupPolicy = "STANDARD" | "STRICT";
 
 export interface SimulationPlanInput {
@@ -151,12 +155,24 @@ export function calculateSimulationPlan(
 
   const sameWindowSessionsNeeded = Math.ceil(warmupBars / visible.bars);
   const fullSessionEnd = FULL_SESSION_END_2026[input.asset];
-  const fullSession = barsForWindow(
-    "09:00",
-    fullSessionEnd,
-    input.timeframeMinutes,
-  );
-  const fullSessionsNeeded = Math.ceil(warmupBars / fullSession.bars);
+
+  const fullSessionPreviousDates: string[] = [];
+  let fullSessionBars = 0;
+  let cursorCount = 1;
+
+  while (fullSessionBars < warmupBars) {
+    const [previousDate] = previousB3Sessions2026(input.date, cursorCount).slice(-1);
+    if (!previousDate) break;
+
+    fullSessionPreviousDates.push(previousDate);
+    const sessionStart = B3_SPECIAL_SESSION_START_2026[previousDate] ?? "09:00";
+    fullSessionBars += barsForWindow(
+      sessionStart,
+      fullSessionEnd,
+      input.timeframeMinutes,
+    ).bars;
+    cursorCount += 1;
+  }
 
   return {
     visibleMinutes: visible.minutes,
@@ -169,12 +185,9 @@ export function calculateSimulationPlan(
       sameWindowSessionsNeeded,
     ),
     fullSessionEnd,
-    fullSessionBars: fullSession.bars,
-    fullSessionsNeeded,
-    fullSessionPreviousDates: previousB3Sessions2026(
-      input.date,
-      fullSessionsNeeded,
-    ),
+    fullSessionBars,
+    fullSessionsNeeded: fullSessionPreviousDates.length,
+    fullSessionPreviousDates,
     targetDate: input.date,
     targetStartTime: input.startTime,
     targetEndTime: input.endTime,
