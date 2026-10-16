@@ -14,6 +14,8 @@ pub struct ReplaySession {
     asset: String,
     sequence: u64,
     finished: bool,
+    session_start: Option<String>,
+    session_end: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -23,6 +25,8 @@ pub struct ReplaySessionInfo {
     pub symbol: String,
     pub asset: String,
     pub finished: bool,
+    pub session_start: Option<String>,
+    pub session_end: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -108,6 +112,30 @@ fn validate_header(header: &str) -> Result<(), String> {
     Ok(())
 }
 
+
+fn read_replay_window(path: &Path) -> (Option<String>, Option<String>) {
+    let metadata_path = path.with_extension("meta.json");
+    let Ok(raw) = std::fs::read_to_string(metadata_path) else {
+        return (None, None);
+    };
+    let Ok(value) = serde_json::from_str::<serde_json::Value>(&raw) else {
+        return (None, None);
+    };
+
+    let start = value
+        .get("window")
+        .and_then(|window| window.get("startInclusive"))
+        .and_then(|value| value.as_str())
+        .map(ToOwned::to_owned);
+    let end = value
+        .get("window")
+        .and_then(|window| window.get("endExclusive"))
+        .and_then(|value| value.as_str())
+        .map(ToOwned::to_owned);
+
+    (start, end)
+}
+
 fn open_session(path: &Path) -> Result<(ReplaySession, ReplaySessionInfo), String> {
     if !path.exists() || !path.is_file() {
         return Err("Arquivo de replay não encontrado.".to_string());
@@ -144,11 +172,15 @@ fn open_session(path: &Path) -> Result<(ReplaySession, ReplaySessionInfo), Strin
         .seek(SeekFrom::Start(data_start))
         .map_err(|error| error.to_string())?;
 
+    let (session_start, session_end) = read_replay_window(path);
+
     let info = ReplaySessionInfo {
         source_path: path.to_string_lossy().to_string(),
         symbol: symbol.clone(),
         asset: asset.clone(),
         finished: false,
+        session_start: session_start.clone(),
+        session_end: session_end.clone(),
     };
 
     Ok((
@@ -160,6 +192,8 @@ fn open_session(path: &Path) -> Result<(ReplaySession, ReplaySessionInfo), Strin
             asset,
             sequence: 0,
             finished: false,
+            session_start,
+            session_end,
         },
         info,
     ))
@@ -235,6 +269,8 @@ pub fn reset_replay_session(
         symbol: session.symbol.clone(),
         asset: session.asset.clone(),
         finished: false,
+        session_start: session.session_start.clone(),
+        session_end: session.session_end.clone(),
     })
 }
 
