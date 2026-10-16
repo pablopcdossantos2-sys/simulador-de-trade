@@ -122,12 +122,27 @@ export default function App() {
   const activeSignalRef = useRef<{ id: string; side: Side } | null>(null);
   const usedSignalIdsRef = useRef<Set<string>>(new Set());
 
-  const handleReplayTrade = useCallback((trade: ReplayTrade) => {
-    setCurrentReplayTrade(trade);
-    setCandles((current) => applyReplayTrade(current, trade));
-  }, []);
+  const replayTimeframeMinutes =
+    simulationPlan?.timeframeMinutes ?? 2;
 
-  const replay = useReplayPlayer(handleReplayTrade);
+  const handleReplayTrade = useCallback(
+    (trade: ReplayTrade) => {
+      setCurrentReplayTrade(trade);
+      setCandles((current) =>
+        applyReplayTrade(
+          current,
+          trade,
+          replayTimeframeMinutes * 60,
+        ),
+      );
+    },
+    [replayTimeframeMinutes],
+  );
+
+  const replay = useReplayPlayer(
+    handleReplayTrade,
+    replayTimeframeMinutes,
+  );
 
   const visibleCandles = useMemo(() => {
     if (dataMode !== "replay") return candles;
@@ -410,7 +425,7 @@ export default function App() {
       const warmupPaths = warmupFilesFromMatches(catalogMatches);
       const hiddenCandles = await loadWarmupCandles(
         warmupPaths,
-        simulationPlan.visibleMinutes / simulationPlan.visibleBars,
+        simulationPlan.timeframeMinutes,
         simulationPlan.warmupBars,
       );
       setWarmupCandles(hiddenCandles);
@@ -475,8 +490,7 @@ export default function App() {
     activeSignalRef.current = null;
     usedSignalIdsRef.current = new Set();
 
-    const timeframeMinutes =
-      simulationPlan.visibleMinutes / simulationPlan.visibleBars;
+    const timeframeMinutes = simulationPlan.timeframeMinutes;
     const session = createTrainingSession({
       asset: simulationPlan.asset,
       tradeDate: simulationPlan.targetDate,
@@ -840,6 +854,7 @@ export default function App() {
 
       <ReplayControls
         path={replay.path}
+        timeframeMinutes={replayTimeframeMinutes}
         onPathChange={replay.setPath}
         session={replay.session}
         playing={replay.playing}
@@ -879,13 +894,13 @@ export default function App() {
             />
           ) : (
             <div className="chart-placeholder">
-              Carregue o replay e avance o primeiro negócio para iniciar o gráfico M2.
+              Carregue o replay e avance o primeiro negócio para iniciar o gráfico M{replayTimeframeMinutes}.
             </div>
           )}
 
           <p className="chart-note">
             {dataMode === "replay"
-              ? "Cada negócio revelado atualiza o candle M2 aberto, o volume, o indicador e as regras de execução. Candles futuros permanecem ocultos."
+              ? `Cada negócio revelado atualiza o candle M${replayTimeframeMinutes} aberto, o volume, o indicador e as regras de execução. Candles futuros permanecem ocultos.`
               : "Modo demonstrativo com candles sintéticos. Carregue um .replay.csv para usar dados tratados do Profit Ultra."}
           </p>
         </div>
