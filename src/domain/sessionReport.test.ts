@@ -18,6 +18,7 @@ const session: TrainingSession = {
   endTime: "12:00",
   timeframeMinutes: 2,
   warmupBars: 260,
+  mode: "FREE",
   startedAt: "2026-10-16T12:00:00Z",
   endedAt: "2026-10-16T13:00:00Z",
   status: "ENDED",
