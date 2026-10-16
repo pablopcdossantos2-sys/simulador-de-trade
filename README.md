@@ -42,7 +42,8 @@ SQLite local
 ## Documentação do projeto
 
 - [Arquitetura](docs/ARQUITETURA.md)
-- [ROADMAP detalhado](ROADMAP.md)\n- [Tratamento dos dados do Profit Ultra](docs/TRATAMENTO-DADOS-PROFIT.md)\n- [Reaproveitamento do Candle Lab](docs/REAPROVEITAMENTO-CANDLE-LAB.md)
+- [ROADMAP detalhado](ROADMAP.md)\n- [Tratamento dos dados do Profit Ultra](docs/TRATAMENTO-DADOS-PROFIT.md)
+- [Planejamento da simulação e aquecimento](docs/PLANEJAMENTO-SIMULACAO.md)\n- [Reaproveitamento do Candle Lab](docs/REAPROVEITAMENTO-CANDLE-LAB.md)
 
 ## Estado atual
 
@@ -62,7 +63,10 @@ A Fase 1 cria a fundação funcional do simulador:
 - histórico de operações;
 - persistência em SQLite quando executado pelo Tauri;
 - fallback para `localStorage` durante desenvolvimento no navegador;
-- testes unitários das regras críticas;\n- ferramenta desktop para reduzir CSVs brutos do Profit ao intervalo 09:00–12:00 e aos campos necessários ao replay.
+- testes unitários das regras críticas;\n- ferramenta desktop para reduzir CSVs brutos do Profit à faixa horária escolhida e aos campos necessários ao replay;
+- planejador prévio de simulação com data, ativo, M2, horário e cálculo de aquecimento;
+- aviso dos pregões anteriores necessários antes da coleta dos dados;
+- validação para impedir carregar um replay tratado em horário diferente do plano.
 
 > **Importante:** o modo demonstrativo com candles sintéticos continua disponível, mas o aplicativo desktop já possui um player de `.replay.csv` tratado do Profit. Nesse modo, os candles M2 são construídos negócio a negócio e nenhum candle futuro é revelado.
 
