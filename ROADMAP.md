@@ -79,12 +79,12 @@ Arquitetura definida a partir dos componentes validados no Candle Lab. Ver [Reap
 - [x] Quantidade inteira de contratos.
 - [x] Tick size por ativo.
 - [x] Rejeição de preços fora do incremento mínimo permitido.
-- [ ] Arredondamento obrigatório para níveis válidos.
-- [ ] Custos operacionais configuráveis.
-- [ ] Slippage configurável.
+- [x] Arredondamento automático para o tick válido mais próximo, mantendo validação no domínio.
+- [x] Custos operacionais configuráveis por contrato/round trip.
+- [x] Slippage configurável em ticks por lado.
 - [x] Resultado em pontos.
 - [x] Resultado financeiro bruto em R$ por ativo/quantidade.
-- [ ] Resultado financeiro líquido após custos/slippage.
+- [x] Resultado financeiro líquido após custos e slippage.
 - [x] Risco inicial em pontos derivado da OCO e múltiplos de R no relatório.
 - [ ] Política intrabar configurável.
 - [x] Suporte a dados negócio a negócio tratados do Profit.
@@ -102,7 +102,7 @@ Arquitetura definida a partir dos componentes validados no Candle Lab. Ver [Reap
 - [x] Registrar sinais ignorados sem classificá-los automaticamente como erro.
 - [x] Registrar tentativas bloqueadas.
 - [x] Distinguir problema técnico de erro disciplinar/execução.
-- [ ] Notas pós-trade.
+- [x] Notas pós-trade persistidas por operação.
 - [ ] Captura do contexto do gráfico no momento da entrada.
 
 ## Fase 5 — Métricas
@@ -126,7 +126,8 @@ Arquitetura definida a partir dos componentes validados no Candle Lab. Ver [Reap
 
 ## Fase 6 — Experiência desktop
 
-- [ ] Tela de configurações.
+- [x] Tela inicial de configurações de execução (custos/slippage).
+- [ ] Ampliar tela de configurações para demais preferências.
 - [ ] Banco e backup.
 - [ ] Exportação/importação do histórico.
 - [ ] Instalador Windows.
