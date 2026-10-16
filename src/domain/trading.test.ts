@@ -48,6 +48,15 @@ describe("regras de entrada", () => {
     ).toThrow(/stop loss precisa ficar abaixo/i);
   });
 
+  it("bloqueia preços fora do tick do ativo", () => {
+    expect(() =>
+      validateTradeIntent({
+        ...baseIntent,
+        oco: { stopLoss: 129903, target: 130150 },
+      }),
+    ).toThrow(/incremento mínimo de 5/i);
+  });
+
   it("aceita compra com sinal e OCO válidos", () => {
     expect(() => validateTradeIntent(baseIntent)).not.toThrow();
   });
