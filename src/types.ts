@@ -18,6 +18,7 @@ export interface ReplayTrade {
   asset: Asset;
   timestamp: string;
   sourceRow: number;
+  sequence: number;
   price: number;
   quantity: number;
 }
@@ -59,6 +60,7 @@ export interface Position {
   side: Side;
   signalId: string;
   openedCandleIndex: number;
+  openedReplaySequence?: number;
   entry: number;
   stopLoss: number;
   target: number;
@@ -89,6 +91,7 @@ export interface TradeIntent {
   side: Side;
   entry: number;
   candleIndex: number;
+  replaySequence?: number;
   oco: OcoOrder;
   signal: IndicatorSignal | null;
   hasOpenPosition: boolean;
