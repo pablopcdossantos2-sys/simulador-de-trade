@@ -1,3 +1,4 @@
+use chrono::{NaiveDateTime, NaiveTime, Timelike};
 use serde::Serialize;
 use std::fs::File;
 use std::io::{BufRead, BufReader, Seek, SeekFrom};
@@ -38,6 +39,18 @@ pub struct ReplayTradeRecord {
     pub sequence: u64,
     pub price: f64,
     pub quantity: f64,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WarmupCandleRecord {
+    pub index: usize,
+    pub timestamp: String,
+    pub open: f64,
+    pub high: f64,
+    pub low: f64,
+    pub close: f64,
+    pub volume: f64,
 }
 
 fn parse_asset(symbol: &str) -> Result<&'static str, String> {
@@ -199,6 +212,156 @@ fn open_session(path: &Path) -> Result<(ReplaySession, ReplaySessionInfo), Strin
     ))
 }
 
+
+fn parse_replay_timestamp(raw: &str) -> Result<NaiveDateTime, String> {
+    for format in [
+        "%Y-%m-%dT%H:%M:%S%.f",
+        "%Y-%m-%dT%H:%M:%S",
+        "%Y-%m-%d %H:%M:%S%.f",
+        "%Y-%m-%d %H:%M:%S",
+    ] {
+        if let Ok(value) = NaiveDateTime::parse_from_str(raw.trim(), format) {
+            return Ok(value);
+        }
+    }
+
+    Err(format!("Timestamp inválido no replay: {raw}"))
+}
+
+fn bucket_timestamp(
+    timestamp: NaiveDateTime,
+    timeframe_minutes: u32,
+) -> Result<NaiveDateTime, String> {
+    if timeframe_minutes == 0 || timeframe_minutes > 60 {
+        return Err("Timeframe de aquecimento inválido.".to_string());
+    }
+
+    let minute = timestamp.minute();
+    let bucket_minute = minute - (minute % timeframe_minutes);
+    let time = NaiveTime::from_hms_opt(timestamp.hour(), bucket_minute, 0)
+        .ok_or_else(|| "Falha ao calcular início do candle.".to_string())?;
+    Ok(NaiveDateTime::new(timestamp.date(), time))
+}
+
+fn push_warmup_trade(
+    candles: &mut Vec<WarmupCandleRecord>,
+    timestamp: NaiveDateTime,
+    price: f64,
+    quantity: f64,
+    timeframe_minutes: u32,
+) -> Result<(), String> {
+    let bucket = bucket_timestamp(timestamp, timeframe_minutes)?;
+    let bucket_text = bucket.format("%Y-%m-%dT%H:%M:%S").to_string();
+
+    if let Some(last) = candles.last_mut() {
+        if last.timestamp == bucket_text {
+            last.high = last.high.max(price);
+            last.low = last.low.min(price);
+            last.close = price;
+            last.volume += quantity;
+            return Ok(());
+        }
+    }
+
+    let index = candles.len();
+    candles.push(WarmupCandleRecord {
+        index,
+        timestamp: bucket_text,
+        open: price,
+        high: price,
+        low: price,
+        close: price,
+        volume: quantity,
+    });
+    Ok(())
+}
+
+#[tauri::command]
+pub fn load_warmup_candles(
+    source_paths: Vec<String>,
+    timeframe_minutes: u32,
+    max_bars: usize,
+) -> Result<Vec<WarmupCandleRecord>, String> {
+    if source_paths.is_empty() {
+        return Ok(Vec::new());
+    }
+    if max_bars == 0 {
+        return Err("O número máximo de candles de aquecimento precisa ser maior que zero.".to_string());
+    }
+
+    let mut candles: Vec<WarmupCandleRecord> = Vec::new();
+    let mut expected_asset: Option<String> = None;
+    let mut expected_symbol: Option<String> = None;
+    let mut previous_timestamp: Option<NaiveDateTime> = None;
+
+    for raw_path in source_paths {
+        let path = PathBuf::from(raw_path.trim().trim_matches('"'));
+        let (mut session, info) = open_session(&path)?;
+
+        if let Some(asset) = &expected_asset {
+            if asset != &info.asset {
+                return Err("Os arquivos de aquecimento pertencem a ativos diferentes.".to_string());
+            }
+        } else {
+            expected_asset = Some(info.asset.clone());
+        }
+
+        if let Some(symbol) = &expected_symbol {
+            if symbol != &info.symbol {
+                return Err(format!(
+                    "Os arquivos de aquecimento misturam contratos diferentes ({symbol} e {}).",
+                    info.symbol
+                ));
+            }
+        } else {
+            expected_symbol = Some(info.symbol.clone());
+        }
+
+        loop {
+            let mut line = String::new();
+            let read = session
+                .reader
+                .read_line(&mut line)
+                .map_err(|error| error.to_string())?;
+            if read == 0 {
+                break;
+            }
+
+            let trade = parse_replay_line(&line, &session.asset, 0)?;
+            let timestamp = parse_replay_timestamp(&trade.timestamp)?;
+
+            if let Some(previous) = previous_timestamp {
+                if timestamp < previous {
+                    return Err(
+                        "Os arquivos de aquecimento não estão em ordem cronológica. Ordene-os do pregão mais antigo para o mais recente."
+                            .to_string(),
+                    );
+                }
+            }
+            previous_timestamp = Some(timestamp);
+
+            push_warmup_trade(
+                &mut candles,
+                timestamp,
+                trade.price,
+                trade.quantity,
+                timeframe_minutes,
+            )?;
+        }
+    }
+
+    if candles.len() > max_bars {
+        let keep_from = candles.len() - max_bars;
+        candles = candles.split_off(keep_from);
+    }
+
+    for (index, candle) in candles.iter_mut().enumerate() {
+        candle.index = index;
+    }
+
+    Ok(candles)
+}
+
 fn normalize_hhmm(value: &str) -> Option<String> {
     let trimmed = value.trim();
     if trimmed.len() < 5 {
@@ -350,5 +513,41 @@ mod tests {
     fn validates_exact_replay_header() {
         assert!(validate_header("symbol,timestamp,source_row,price,quantity\n").is_ok());
         assert!(validate_header("timestamp,price\n").is_err());
+    }
+
+    #[test]
+    fn aggregates_warmup_trades_into_m2_candles() {
+        let mut candles = Vec::new();
+        push_warmup_trade(
+            &mut candles,
+            parse_replay_timestamp("2026-10-13T09:00:01").unwrap(),
+            130000.0,
+            2.0,
+            2,
+        )
+        .unwrap();
+        push_warmup_trade(
+            &mut candles,
+            parse_replay_timestamp("2026-10-13T09:01:59").unwrap(),
+            130010.0,
+            3.0,
+            2,
+        )
+        .unwrap();
+        push_warmup_trade(
+            &mut candles,
+            parse_replay_timestamp("2026-10-13T09:02:00").unwrap(),
+            130005.0,
+            1.0,
+            2,
+        )
+        .unwrap();
+
+        assert_eq!(candles.len(), 2);
+        assert_eq!(candles[0].open, 130000.0);
+        assert_eq!(candles[0].high, 130010.0);
+        assert_eq!(candles[0].close, 130010.0);
+        assert_eq!(candles[0].volume, 5.0);
+        assert_eq!(candles[1].open, 130005.0);
     }
 }
