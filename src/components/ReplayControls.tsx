@@ -12,7 +12,9 @@ interface Props {
   busy: boolean;
   onLoad: () => void;
   onPlayPause: () => void;
+  trainingActive: boolean;
   onStep: () => void;
+  onStepCandle: () => void;
   onReset: () => void;
   onSpeedChange: (value: number) => void;
 }
@@ -40,7 +42,9 @@ export function ReplayControls({
   busy,
   onLoad,
   onPlayPause,
+  trainingActive,
   onStep,
+  onStepCandle,
   onReset,
   onSpeedChange,
 }: Props) {
@@ -93,11 +97,27 @@ export function ReplayControls({
           </div>
 
           <div className="replay-buttons">
-            <button type="button" className="replay-primary" onClick={onPlayPause} disabled={finished}>
+            <button
+              type="button"
+              className="replay-primary"
+              onClick={onPlayPause}
+              disabled={finished || !trainingActive}
+            >
               {playing ? "Pausar" : "Reproduzir"}
             </button>
-            <button type="button" onClick={onStep} disabled={playing || finished || busy}>
+            <button
+              type="button"
+              onClick={onStep}
+              disabled={playing || finished || busy || !trainingActive}
+            >
               +1 negócio
+            </button>
+            <button
+              type="button"
+              onClick={onStepCandle}
+              disabled={playing || finished || busy || !trainingActive}
+            >
+              +1 candle
             </button>
             <button type="button" onClick={onReset} disabled={busy}>
               Reiniciar
@@ -121,6 +141,8 @@ export function ReplayControls({
           <p className="replay-note">
             Todos os negócios são processados na ordem histórica. O multiplicador altera apenas
             o ritmo visual do treino; ele não inventa milissegundos ausentes do arquivo do Profit.
+            O botão +1 candle para exatamente na fronteira M2, sem revelar o primeiro negócio
+            do candle seguinte.
           </p>
         </>
       )}
