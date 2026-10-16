@@ -2662,3 +2662,91 @@ td {
     grid-template-columns: 1fr;
   }
 }
+
+
+/* Evolução agregada por ativo */
+.progress-overview {
+  margin-top: 16px;
+  padding: 20px;
+}
+
+.asset-performance-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.asset-performance-grid article {
+  padding: 14px;
+  border: 1px solid #263b54;
+  border-radius: 12px;
+  background: #0c1928;
+}
+
+.asset-performance-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 11px;
+}
+
+.asset-performance-head strong {
+  color: #d6e6f4;
+  font-size: 1rem;
+}
+
+.asset-performance-head span {
+  color: #8096ab;
+  font-size: 0.75rem;
+}
+
+.asset-performance-grid dl {
+  display: grid;
+  gap: 7px;
+  margin: 0;
+}
+
+.asset-performance-grid dl > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid #1c3044;
+}
+
+.asset-performance-grid dt {
+  color: #7f95aa;
+}
+
+.asset-performance-grid dd {
+  margin: 0;
+  color: #d2e2ef;
+  text-align: right;
+}
+
+:root[data-theme="light"] .asset-performance-grid article {
+  border-color: #cbd9e5;
+  background: #f5f8fb;
+}
+
+:root[data-theme="light"] .asset-performance-head strong,
+:root[data-theme="light"] .asset-performance-grid dd {
+  color: #2d465d;
+}
+
+:root[data-theme="light"] .asset-performance-head span,
+:root[data-theme="light"] .asset-performance-grid dt {
+  color: #687f94;
+}
+
+:root[data-theme="light"] .asset-performance-grid dl > div {
+  border-bottom-color: #dfe7ee;
+}
+
+@media (max-width: 720px) {
+  .asset-performance-grid {
+    grid-template-columns: 1fr;
+  }
+}
