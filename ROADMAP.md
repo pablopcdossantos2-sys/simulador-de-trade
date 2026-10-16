@@ -63,7 +63,7 @@ Arquitetura definida a partir dos componentes validados no Candle Lab. Ver [Reap
 - [x] Avanço de um candle sem revelar o primeiro negócio do candle seguinte.
 - [x] Avanço manual de um negócio.
 - [x] Velocidades de reprodução visual 1× / 2× / 5× / 10×.
-- [ ] Seleção de timeframe.
+- [x] Seleção de timeframe M2/M5 integrada ao planejamento, aquecimento, replay e avanço por candle.
 - [x] Planejamento prévio por ativo, data, timeframe e janela horária.
 - [x] Cálculo automático de aquecimento do indicador.
 - [x] Aviso dos pregões anteriores necessários no calendário B3 2026.
