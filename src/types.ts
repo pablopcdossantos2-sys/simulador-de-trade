@@ -64,6 +64,7 @@ export interface Position {
   entry: number;
   stopLoss: number;
   target: number;
+  contracts: number;
   openedAt: string;
   status: "OPEN";
 }
@@ -78,18 +79,21 @@ export interface Trade {
   entry: number;
   stopLoss: number;
   target: number;
+  contracts: number;
   openedAt: string;
   status: "CLOSED";
   exitPrice: number;
   exitReason: ExitReason;
   closedAt: string;
   resultPoints: number;
+  grossResultBRL: number;
 }
 
 export interface TradeIntent {
   asset: Asset;
   side: Side;
   entry: number;
+  contracts: number;
   candleIndex: number;
   replaySequence?: number;
   oco: OcoOrder;
@@ -170,6 +174,7 @@ export interface SessionPerformance {
   totalR: number;
   expectancyR: number;
   maxDrawdownPoints: number;
+  grossResultBRL: number;
   blockedAttempts: number;
   technicalIssues: number;
   ignoredSignals: number;
