@@ -41,7 +41,7 @@ Arquitetura definida a partir dos componentes validados no Candle Lab. Ver [Reap
 - [x] Definir estratégia de fonte bruta externa + índice local leve.
 - [x] Definir índice-base M1 capaz de localizar M2 por linhas/bytes.
 - [x] Definir modelo mínimo de evento: timestamp + sequência + preço + quantidade.
-- [ ] Portar parser Profit do Candle Lab para Rust.
+- [x] Portar parser Profit inicial do Candle Lab para Rust.
 - [ ] Portar indexador temporal M1 para Rust.
 - [ ] Implementar seek direto no CSV original por pregão.
 - [ ] Implementar ReplayTrade em streaming.
@@ -49,9 +49,9 @@ Arquitetura definida a partir dos componentes validados no Candle Lab. Ver [Reap
 - [ ] Avaliar OCO em cada negócio, não apenas no OHLC fechado.
 - [ ] Recalcular o indicador no candle M2 aberto a cada negócio.
 - [ ] Definir formato canônico de candle.
-- [ ] Importar CSV.
-- [ ] Validar colunas e timestamps.
-- [ ] Detectar e informar linhas inválidas.
+- [x] Criar ferramenta desktop para tratar CSV bruto do Profit.
+- [x] Validar layout, colunas e timestamps no tratamento inicial.
+- [x] Interromper o tratamento com diagnóstico da linha inválida.
 - [ ] Importar histórico de WIN.
 - [ ] Importar histórico de WDO.
 - [ ] Não revelar candles futuros.
