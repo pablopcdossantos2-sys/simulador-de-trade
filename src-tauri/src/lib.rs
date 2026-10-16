@@ -5,7 +5,7 @@ use chrono::{DateTime, NaiveDate, NaiveDateTime, NaiveTime};
 use encoding_rs::WINDOWS_1252;
 use rusqlite::{params, Connection};
 use serde::{Deserialize, Serialize};
-use serde_json::json;
+use serde_json::{json, Value};
 use std::fs::{self, File};
 use std::io::{BufRead, BufReader, BufWriter, Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
@@ -43,6 +43,7 @@ struct TradeRecord {
     #[serde(rename = "netResultBRL")]
     net_result_brl: f64,
     post_trade_note: String,
+    entry_context: Option<Value>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -168,7 +169,8 @@ fn initialize_database(connection: &Connection) -> rusqlite::Result<()> {
                 gross_result_brl REAL NOT NULL DEFAULT 0,
                 operational_costs_brl REAL NOT NULL DEFAULT 0,
                 net_result_brl REAL NOT NULL DEFAULT 0,
-                post_trade_note TEXT NOT NULL DEFAULT ''
+                post_trade_note TEXT NOT NULL DEFAULT '',
+                entry_context_json TEXT
             );
 
             CREATE INDEX IF NOT EXISTS idx_trades_closed_at
@@ -299,6 +301,13 @@ fn initialize_database(connection: &Connection) -> rusqlite::Result<()> {
         )?;
     }
 
+    if !column_exists(connection, "trades", "entry_context_json")? {
+        connection.execute(
+            "ALTER TABLE trades ADD COLUMN entry_context_json TEXT",
+            [],
+        )?;
+    }
+
     if !column_exists(connection, "training_sessions", "mode")? {
         connection.execute(
             "ALTER TABLE training_sessions ADD COLUMN mode TEXT NOT NULL DEFAULT 'FREE'",
@@ -311,6 +320,12 @@ fn initialize_database(connection: &Connection) -> rusqlite::Result<()> {
 
 #[tauri::command]
 fn save_trade(state: tauri::State<'_, DbState>, trade: TradeRecord) -> Result<(), String> {
+    let entry_context_json = trade
+        .entry_context
+        .as_ref()
+        .map(serde_json::to_string)
+        .transpose()
+        .map_err(|error| error.to_string())?;
     let connection = state.0.lock().map_err(|error| error.to_string())?;
 
     connection
@@ -320,9 +335,10 @@ fn save_trade(state: tauri::State<'_, DbState>, trade: TradeRecord) -> Result<()
                 id, asset, side, signal_id, requested_entry, entry, stop_loss, target,
                 contracts, slippage_ticks_per_side, cost_per_contract_round_trip_brl,
                 opened_at, status, exit_price, exit_reason, closed_at, result_points,
-                gross_result_brl, operational_costs_brl, net_result_brl, post_trade_note
+                gross_result_brl, operational_costs_brl, net_result_brl,
+                post_trade_note, entry_context_json
             )
-            VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21)
+            VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22)
             ON CONFLICT(id) DO UPDATE SET
                 asset = excluded.asset,
                 side = excluded.side,
@@ -343,7 +359,8 @@ fn save_trade(state: tauri::State<'_, DbState>, trade: TradeRecord) -> Result<()
                 gross_result_brl = excluded.gross_result_brl,
                 operational_costs_brl = excluded.operational_costs_brl,
                 net_result_brl = excluded.net_result_brl,
-                post_trade_note = excluded.post_trade_note
+                post_trade_note = excluded.post_trade_note,
+                entry_context_json = excluded.entry_context_json
             "#,
             params![
                 trade.id,
@@ -367,6 +384,7 @@ fn save_trade(state: tauri::State<'_, DbState>, trade: TradeRecord) -> Result<()
                 trade.operational_costs_brl,
                 trade.net_result_brl,
                 trade.post_trade_note,
+                entry_context_json,
             ],
         )
         .map_err(|error| error.to_string())?;
@@ -578,7 +596,7 @@ fn list_session_trades(
                 t.cost_per_contract_round_trip_brl, t.opened_at, t.status,
                 t.exit_price, t.exit_reason, t.closed_at, t.result_points,
                 t.gross_result_brl, t.operational_costs_brl, t.net_result_brl,
-                t.post_trade_note
+                t.post_trade_note, t.entry_context_json
             FROM trades t
             INNER JOIN training_events e
                 ON e.trade_id = t.id
@@ -613,6 +631,9 @@ fn list_session_trades(
                 operational_costs_brl: row.get(18)?,
                 net_result_brl: row.get(19)?,
                 post_trade_note: row.get(20)?,
+                entry_context: row
+                    .get::<_, Option<String>>(21)?
+                    .and_then(|value| serde_json::from_str(&value).ok()),
             })
         })
         .map_err(|error| error.to_string())?;
@@ -741,6 +762,9 @@ fn list_trades(state: tauri::State<'_, DbState>) -> Result<Vec<TradeRecord>, Str
                 operational_costs_brl: row.get(18)?,
                 net_result_brl: row.get(19)?,
                 post_trade_note: row.get(20)?,
+                entry_context: row
+                    .get::<_, Option<String>>(21)?
+                    .and_then(|value| serde_json::from_str(&value).ok()),
             })
         })
         .map_err(|error| error.to_string())?;
@@ -762,7 +786,8 @@ fn list_all_trades(
                 target, contracts, slippage_ticks_per_side,
                 cost_per_contract_round_trip_brl, opened_at, status, exit_price,
                 exit_reason, closed_at, result_points, gross_result_brl,
-                operational_costs_brl, net_result_brl, post_trade_note
+                operational_costs_brl, net_result_brl, post_trade_note,
+                entry_context_json
             FROM trades
             ORDER BY closed_at ASC
             "#,
@@ -793,6 +818,9 @@ fn list_all_trades(
                 operational_costs_brl: row.get(18)?,
                 net_result_brl: row.get(19)?,
                 post_trade_note: row.get(20)?,
+                entry_context: row
+                    .get::<_, Option<String>>(21)?
+                    .and_then(|value| serde_json::from_str(&value).ok()),
             })
         })
         .map_err(|error| error.to_string())?;
@@ -1526,6 +1554,7 @@ mod tests {
             operational_costs_brl: 0.0,
             net_result_brl: 60.0,
             post_trade_note: "".to_string(),
+            entry_context: None,
         };
 
         let value = serde_json::to_value(record).unwrap();
@@ -1534,6 +1563,7 @@ mod tests {
         assert_eq!(value["netResultBRL"], 60.0);
         assert_eq!(value["costPerContractRoundTripBRL"], 0.0);
         assert_eq!(value["postTradeNote"], "");
+        assert!(value["entryContext"].is_null());
         assert!(value.get("grossResultBrl").is_none());
     }
 
