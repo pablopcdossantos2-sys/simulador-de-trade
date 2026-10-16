@@ -53,9 +53,9 @@ Arquitetura definida a partir dos componentes validados no Candle Lab. Ver [Reap
 - [x] Permitir escolher horário inicial/final no tratamento.
 - [x] Validar layout, colunas e timestamps no tratamento inicial.
 - [x] Interromper o tratamento com diagnóstico da linha inválida.
-- [ ] Tratamento em lote dos pregões exigidos pelo plano.
-- [ ] Catálogo local de arquivos preparados e detecção de datas faltantes.
-- [ ] Aquecimento automático e invisível antes da janela visível.
+- [x] Tratamento em lote dos pregões exigidos pelo plano.
+- [x] Catálogo local de arquivos preparados e detecção de datas faltantes.
+- [x] Aquecimento automático e invisível antes da janela visível.
 - [ ] Importar histórico de WIN.
 - [ ] Importar histórico de WDO.
 - [x] Não revelar candles futuros.
@@ -70,7 +70,7 @@ Arquitetura definida a partir dos componentes validados no Candle Lab. Ver [Reap
 - [x] Aviso inicial de vencimento do WIN para evitar mistura indevida de contratos.
 - [x] Sincronizar a janela do plano com o tratamento dos dados.
 - [x] Validar a janela do arquivo carregado contra o plano ativo.
-- [ ] Seleção de pregão/data no catálogo local de dados preparados.
+- [x] Seleção automática do pregão-alvo compatível no catálogo local.
 - [x] Reiniciar sessão sem apagar histórico.
 - [x] Indicador calculado apenas com dados já revelados.
 
@@ -134,8 +134,8 @@ Arquitetura definida a partir dos componentes validados no Candle Lab. Ver [Reap
 ## Fase 7 — Qualidade
 
 - [ ] Testes adicionais para SELL.
-- [ ] Testes de importação.
-- [ ] Testes de replay.
+- [x] Testes iniciais de importação/tratamento.
+- [x] Testes iniciais de replay, catálogo e aquecimento.
 - [ ] Testes de persistência.
 - [ ] Testes de regressão do indicador.
 - [ ] Fixtures com sessões conhecidas.
