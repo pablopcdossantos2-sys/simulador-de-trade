@@ -49,8 +49,10 @@ SQLite local
 A Fase 1 cria a fundação funcional do simulador:
 
 - seleção entre WINFUT e WDOFUT;
-- gráfico didático em modo de demonstração;
-- sinais de demonstração por um `IndicatorAdapter`;
+- gráfico didático com o indicador **Multi Médias - Nuvem e Sinais**;
+- port do Pine Script para TypeScript por meio do `IndicatorAdapter`;
+- MMP/WMA 20, VWAP, MME/EMA 8 e MME/EMA 52 plotadas no gráfico;
+- nuvens verde/vermelha e labels COMPRA/VENDA;
 - compra/venda desbloqueadas exclusivamente pelo sinal ativo;
 - formulário OCO obrigatório;
 - validação de stop e alvo;
@@ -62,7 +64,11 @@ A Fase 1 cria a fundação funcional do simulador:
 - fallback para `localStorage` durante desenvolvimento no navegador;
 - testes unitários das regras críticas.
 
-> **Importante:** o sinal atualmente incluído é somente um gerador de demonstração. Ele **não reproduz o indicador do TradingView**. Para integrar o indicador real, a lógica Pine Script precisa ser portada para o adaptador TypeScript (ou outra fonte de sinais precisa ser definida).
+> **Importante:** a lógica do indicador é a do Pine Script fornecido, mas os candles ainda são sintéticos. A próxima etapa é conectar o mesmo cálculo a dados históricos/replay de WINFUT e WDOFUT.
+
+### Regra de autorização do simulador
+
+O Pine gera o label **COMPRA** ou **VENDA** somente no candle que inicia a nuvem. No simulador, esse gatilho cria uma autorização direcional que permanece válida apenas enquanto a própria zona correspondente continuar ativa. Quando o alinhamento que sustenta a nuvem é perdido, a autorização é cancelada e os dois botões voltam a ficar bloqueados.
 
 ## Executar em modo web de desenvolvimento
 
@@ -99,7 +105,7 @@ npm test
 - [x] WINFUT e WDOFUT.
 - [x] Persistência local inicial.
 - [x] Testes das regras críticas.
-- [ ] Substituir o sinal de demonstração pelo indicador real.
+- [x] Integrar o indicador inicial Multi Médias - Nuvem e Sinais.
 
 ### Fase 2 — Replay histórico
 - [ ] Importação de candles históricos por CSV.
