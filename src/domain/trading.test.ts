@@ -30,6 +30,7 @@ const baseIntent: TradeIntent = {
   candleIndex: 10,
   oco: { stopLoss: 129900, target: 130150 },
   signal: buySignal,
+  signalAlreadyUsed: false,
   hasOpenPosition: false,
 };
 
@@ -68,6 +69,12 @@ describe("regras de entrada", () => {
     expect(() =>
       validateTradeIntent({ ...baseIntent, contracts: 0 }),
     ).toThrow(/quantidade de contratos/i);
+  });
+
+  it("bloqueia reutilização do mesmo sinal", () => {
+    expect(() =>
+      validateTradeIntent({ ...baseIntent, signalAlreadyUsed: true }),
+    ).toThrow(/já foi utilizado/i);
   });
 
   it("bloqueia slippage fracionário", () => {
