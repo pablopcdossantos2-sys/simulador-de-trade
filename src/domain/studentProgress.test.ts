@@ -133,6 +133,17 @@ const events: TrainingEvent[] = [
     reason: "Sem sinal",
     tradeId: null,
   },
+  {
+    id: "e6",
+    sessionId: "s2",
+    type: "SIGNAL_IGNORED",
+    timestamp: "",
+    marketTimestamp: null,
+    signalId: "sig3",
+    side: "SELL",
+    reason: null,
+    tradeId: null,
+  },
 ];
 
 describe("evolução do aluno", () => {
@@ -147,6 +158,7 @@ describe("evolução do aluno", () => {
     expect(points[0].totalR).toBe(2);
     expect(points[1].totalR).toBe(-1);
     expect(points[1].adherencePct).toBe(50);
+    expect(points[1].signalAdherencePct).toBe(50);
   });
 
   it("agrega o histórico sem contar sessão ativa", () => {
@@ -162,6 +174,7 @@ describe("evolução do aluno", () => {
     expect(summary.totalR).toBe(1);
     expect(summary.netResultBRL).toBe(10);
     expect(summary.averageAdherencePct).toBe(75);
+    expect(summary.averageSignalAdherencePct).toBe(75);
     expect(summary.blockedAttempts).toBe(1);
   });
 });
