@@ -1341,3 +1341,184 @@ td {
     width: 100%;
   }
 }
+
+
+/* Planejamento da simulação */
+.simulation-planner {
+  margin-bottom: 16px;
+  padding: 20px;
+}
+
+.planner-grid,
+.data-window-grid {
+  display: grid;
+  gap: 12px;
+}
+
+.planner-grid {
+  grid-template-columns: repeat(5, minmax(130px, 1fr));
+  margin-top: 15px;
+}
+
+.data-window-grid {
+  grid-template-columns: repeat(2, minmax(160px, 220px));
+  margin-bottom: 12px;
+}
+
+.planner-grid label,
+.data-window-grid label {
+  display: grid;
+  gap: 7px;
+  color: #9fb1c6;
+  font-size: 0.8rem;
+  font-weight: 750;
+}
+
+.planner-grid input,
+.planner-grid select,
+.data-window-grid input {
+  min-height: 42px;
+  width: 100%;
+  border: 1px solid #2a3e58;
+  border-radius: 10px;
+  background: #091522;
+  color: #e7eff8;
+  padding: 9px 10px;
+}
+
+.planner-result {
+  margin-top: 15px;
+}
+
+.planner-summary {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.planner-summary > div {
+  display: grid;
+  gap: 4px;
+  padding: 12px 13px;
+  border: 1px solid #273d55;
+  border-radius: 11px;
+  background: #0b1726;
+}
+
+.planner-summary span {
+  color: #7c93aa;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.planner-summary strong {
+  color: #d6e6f4;
+}
+
+.planner-summary small {
+  color: #8197ad;
+}
+
+.planner-options {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.planner-options article {
+  padding: 13px 14px;
+  border: 1px solid #2b425b;
+  border-radius: 12px;
+  background: #0d1a2a;
+}
+
+.planner-options article strong {
+  color: #cfe1f1;
+  font-size: 0.84rem;
+}
+
+.planner-options article p {
+  margin: 7px 0 0;
+  color: #8fa3b8;
+  font-size: 0.8rem;
+  line-height: 1.5;
+}
+
+.planner-warning {
+  margin: 11px 0 0;
+  padding: 11px 12px;
+  border-left: 3px solid #c59646;
+  border-radius: 8px;
+  background: #241e13;
+  color: #cdbb91;
+  font-size: 0.78rem;
+  line-height: 1.5;
+}
+
+.planner-apply {
+  margin-top: 12px;
+  min-height: 42px;
+  padding: 10px 15px;
+  border-radius: 10px;
+  background: #dcecff;
+  color: #0d3355;
+  cursor: pointer;
+  font-weight: 850;
+}
+
+:root[data-theme="light"] .planner-grid label,
+:root[data-theme="light"] .data-window-grid label {
+  color: #5f7488;
+}
+
+:root[data-theme="light"] .planner-grid input,
+:root[data-theme="light"] .planner-grid select,
+:root[data-theme="light"] .data-window-grid input {
+  border-color: #bdcddd;
+  background: #fff;
+  color: #1c3144;
+}
+
+:root[data-theme="light"] .planner-summary > div,
+:root[data-theme="light"] .planner-options article {
+  border-color: #cbd9e5;
+  background: #f5f8fb;
+}
+
+:root[data-theme="light"] .planner-summary span,
+:root[data-theme="light"] .planner-summary small,
+:root[data-theme="light"] .planner-options article p {
+  color: #657b91;
+}
+
+:root[data-theme="light"] .planner-summary strong,
+:root[data-theme="light"] .planner-options article strong {
+  color: #2d465d;
+}
+
+:root[data-theme="light"] .planner-warning {
+  background: #fff8e7;
+  color: #705d2e;
+}
+
+:root[data-theme="light"] .planner-apply {
+  background: #173f64;
+  color: #fff;
+}
+
+@media (max-width: 1050px) {
+  .planner-grid {
+    grid-template-columns: repeat(2, minmax(150px, 1fr));
+  }
+}
+
+@media (max-width: 620px) {
+  .planner-grid,
+  .planner-summary,
+  .planner-options,
+  .data-window-grid {
+    grid-template-columns: 1fr;
+  }
+}
