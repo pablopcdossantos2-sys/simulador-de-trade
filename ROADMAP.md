@@ -17,7 +17,12 @@
 - [x] WINFUT e WDOFUT.
 - [x] Interface inicial com gráfico e boleta.
 - [x] `IndicatorAdapter`.
-- [x] Indicador sintético temporário para demonstração.
+- [x] Indicador sintético temporário usado apenas na fundação inicial.
+- [x] Port do indicador Multi Médias - Nuvem e Sinais.
+- [x] MMP 20, VWAP, MME 8 e MME 52 no gráfico.
+- [x] Estados persistentes de nuvem verde/vermelha.
+- [x] Labels COMPRA/VENDA no candle de gatilho.
+- [x] Autorização operacional cancelada ao fim da zona.
 - [x] Bloqueio de operações sem sinal.
 - [x] Bloqueio da direção contrária.
 - [x] OCO obrigatória.
@@ -27,7 +32,7 @@
 - [x] Persistência do histórico.
 - [x] Testes unitários das invariantes centrais.
 - [x] CI para teste/build/check.
-- [ ] Integrar o indicador Pine Script real.
+- [x] Integrar o indicador Pine Script inicial.
 
 ## Fase 2 — Dados e replay histórico
 
@@ -59,7 +64,8 @@
 - [ ] Risco inicial e múltiplos de R.
 - [ ] Política intrabar configurável.
 - [ ] Suporte a dados de tick quando disponíveis.
-- [ ] Definir consumo/validade de cada sinal.
+- [x] Validade inicial: autorização permanece enquanto a zona correspondente estiver ativa.
+- [ ] Definir se um mesmo sinal pode autorizar mais de uma operação após a primeira ser encerrada.
 - [ ] Impedir reutilização indevida de sinais, conforme a regra definitiva do indicador.
 
 ## Fase 4 — Treino
