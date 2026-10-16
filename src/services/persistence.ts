@@ -81,3 +81,33 @@ export async function loadTrainingEvents(
     .filter((event) => event.sessionId === sessionId)
     .sort((a, b) => a.timestamp.localeCompare(b.timestamp));
 }
+
+
+export async function loadTrainingSessions(): Promise<TrainingSession[]> {
+  if (isTauriRuntime()) {
+    return invoke<TrainingSession[]>("list_training_sessions");
+  }
+
+  const raw = localStorage.getItem(SESSION_STORAGE_KEY);
+  const sessions = raw ? (JSON.parse(raw) as TrainingSession[]) : [];
+  return sessions.sort((a, b) => b.startedAt.localeCompare(a.startedAt));
+}
+
+export async function loadSessionTrades(
+  sessionId: string,
+): Promise<Trade[]> {
+  if (isTauriRuntime()) {
+    return invoke<Trade[]>("list_session_trades", { sessionId });
+  }
+
+  const events = await loadTrainingEvents(sessionId);
+  const tradeIds = new Set(
+    events
+      .filter((event) => event.type === "TRADE_CLOSED" && event.tradeId)
+      .map((event) => event.tradeId as string),
+  );
+  const trades = await loadTrades();
+  return trades
+    .filter((trade) => tradeIds.has(trade.id))
+    .sort((a, b) => a.closedAt.localeCompare(b.closedAt));
+}
