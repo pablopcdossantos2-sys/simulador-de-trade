@@ -6,6 +6,7 @@ import type {
   Trade,
   TradeIntent,
 } from "../types";
+import { isPriceOnTick, tickSizeFor } from "./marketSpecs";
 
 export class TradingRuleError extends Error {
   constructor(message: string) {
@@ -49,6 +50,16 @@ export function validateTradeIntent(intent: TradeIntent): void {
   ) {
     throw new TradingRuleError(
       "Entrada, stop loss e alvo devem possuir preços válidos.",
+    );
+  }
+
+  if (
+    !isPriceOnTick(asset, entry) ||
+    !isPriceOnTick(asset, oco.stopLoss) ||
+    !isPriceOnTick(asset, oco.target)
+  ) {
+    throw new TradingRuleError(
+      `Entrada, stop loss e alvo precisam respeitar o incremento mínimo de ${tickSizeFor(asset)} do ativo.`,
     );
   }
 
