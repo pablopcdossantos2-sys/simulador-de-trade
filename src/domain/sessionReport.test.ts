@@ -5,6 +5,7 @@ import type {
   TrainingSession,
 } from "../types";
 import {
+  blockedAttemptBreakdown,
   calculateSessionPerformance,
   classifyTrainingEvent,
   performanceByHour,
@@ -181,6 +182,17 @@ describe("relatório por sessão", () => {
     expect(result.technicalIssues).toBe(1);
     expect(result.signalAdherencePct).toBeCloseTo(66.666, 2);
     expect(result.executionAdherencePct).toBeCloseTo(66.666, 2);
+  });
+
+  it("agrupa tentativas bloqueadas por motivo", () => {
+    expect(blockedAttemptBreakdown(events)).toEqual([
+      {
+        reason: "Sem sinal",
+        count: 1,
+        buyAttempts: 1,
+        sellAttempts: 0,
+      },
+    ]);
   });
 
   it("agrupa resultado por horário da entrada", () => {
