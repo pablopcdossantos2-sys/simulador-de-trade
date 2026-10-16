@@ -97,7 +97,13 @@ export function ReplayCatalogPanel({
             {matches.map((match) => (
               <article
                 key={`${match.requirement.role}-${match.requirement.date}`}
-                className={match.status === "AVAILABLE" ? "available" : "missing"}
+                className={
+                  match.status === "AVAILABLE"
+                    ? "available"
+                    : match.status === "CONTRACT_MISMATCH"
+                      ? "mismatch"
+                      : "missing"
+                }
               >
                 <div>
                   <span className="catalog-role">
@@ -111,11 +117,17 @@ export function ReplayCatalogPanel({
 
                 <div className="catalog-status">
                   <strong>
-                    {match.status === "AVAILABLE" ? "Disponível" : "Faltando"}
+                    {match.status === "AVAILABLE"
+                      ? "Disponível"
+                      : match.status === "CONTRACT_MISMATCH"
+                        ? "Contrato incompatível"
+                        : "Faltando"}
                   </strong>
                   <small>
                     {match.entry
-                      ? `${match.entry.symbol} · ${match.entry.sessionStart}–${match.entry.sessionEnd}`
+                      ? match.status === "CONTRACT_MISMATCH"
+                        ? `${match.entry.symbol} disponível, mas o pregão-alvo usa outro contrato.`
+                        : `${match.entry.symbol} · ${match.entry.sessionStart}–${match.entry.sessionEnd}`
                       : "Trate e catalogue um arquivo compatível do Profit Ultra."}
                   </small>
                 </div>
