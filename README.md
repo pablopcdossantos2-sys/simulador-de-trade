@@ -43,7 +43,8 @@ SQLite local
 
 - [Arquitetura](docs/ARQUITETURA.md)
 - [ROADMAP detalhado](ROADMAP.md)\n- [Tratamento dos dados do Profit Ultra](docs/TRATAMENTO-DADOS-PROFIT.md)
-- [Planejamento da simulação e aquecimento](docs/PLANEJAMENTO-SIMULACAO.md)\n- [Reaproveitamento do Candle Lab](docs/REAPROVEITAMENTO-CANDLE-LAB.md)
+- [Planejamento da simulação e aquecimento](docs/PLANEJAMENTO-SIMULACAO.md)
+- [Catálogo local de dados preparados](docs/CATALOGO-DADOS.md)\n- [Reaproveitamento do Candle Lab](docs/REAPROVEITAMENTO-CANDLE-LAB.md)
 
 ## Estado atual
 
@@ -66,7 +67,10 @@ A Fase 1 cria a fundação funcional do simulador:
 - testes unitários das regras críticas;\n- ferramenta desktop para reduzir CSVs brutos do Profit à faixa horária escolhida e aos campos necessários ao replay;
 - planejador prévio de simulação com data, ativo, M2, horário e cálculo de aquecimento;
 - aviso dos pregões anteriores necessários antes da coleta dos dados;
-- validação para impedir carregar um replay tratado em horário diferente do plano.
+- validação para impedir carregar um replay tratado em horário diferente do plano;
+- catálogo local que informa automaticamente datas disponíveis, faltantes e contratos incompatíveis;
+- tratamento em lote orientado pelos requisitos do plano;
+- aquecimento histórico invisível antes do replay visível.
 
 > **Importante:** o modo demonstrativo com candles sintéticos continua disponível, mas o aplicativo desktop já possui um player de `.replay.csv` tratado do Profit. Nesse modo, os candles M2 são construídos negócio a negócio e nenhum candle futuro é revelado.
 
@@ -119,8 +123,9 @@ npm test
 - [x] Ocultação dos candles futuros.
 - [x] Indicador recalculado durante o candle M2 aberto.
 - [x] OCO avaliada negócio a negócio.
-- [ ] Seleção explícita de pregão/data.
-- [ ] Aquecimento histórico do indicador antes do início do treino.
+- [x] Planejamento explícito de pregão/data/horário.
+- [x] Catálogo local e detecção automática de dados faltantes.
+- [x] Aquecimento histórico invisível a partir dos arquivos preparados.
 
 ### Fase 3 — Fidelidade de execução
 - [ ] Quantidade de contratos.
