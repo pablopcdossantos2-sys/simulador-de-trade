@@ -22,10 +22,14 @@ struct TradeRecord {
     asset: String,
     side: String,
     signal_id: String,
+    requested_entry: f64,
     entry: f64,
     stop_loss: f64,
     target: f64,
     contracts: i64,
+    slippage_ticks_per_side: i64,
+    #[serde(rename = "costPerContractRoundTripBRL")]
+    cost_per_contract_round_trip_brl: f64,
     opened_at: String,
     status: String,
     exit_price: f64,
@@ -34,6 +38,10 @@ struct TradeRecord {
     result_points: f64,
     #[serde(rename = "grossResultBRL")]
     gross_result_brl: f64,
+    #[serde(rename = "operationalCostsBRL")]
+    operational_costs_brl: f64,
+    #[serde(rename = "netResultBRL")]
+    net_result_brl: f64,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -63,6 +71,14 @@ struct TrainingEventRecord {
     side: Option<String>,
     reason: Option<String>,
     trade_id: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct ExecutionSettingsRecord {
+    #[serde(rename = "costPerContractRoundTripBRL")]
+    cost_per_contract_round_trip_brl: f64,
+    slippage_ticks_per_side: i64,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -134,17 +150,22 @@ fn initialize_database(connection: &Connection) -> rusqlite::Result<()> {
                 asset TEXT NOT NULL,
                 side TEXT NOT NULL,
                 signal_id TEXT NOT NULL,
+                requested_entry REAL NOT NULL DEFAULT 0,
                 entry REAL NOT NULL,
                 stop_loss REAL NOT NULL,
                 target REAL NOT NULL,
                 contracts INTEGER NOT NULL DEFAULT 1,
+                slippage_ticks_per_side INTEGER NOT NULL DEFAULT 0,
+                cost_per_contract_round_trip_brl REAL NOT NULL DEFAULT 0,
                 opened_at TEXT NOT NULL,
                 status TEXT NOT NULL,
                 exit_price REAL NOT NULL,
                 exit_reason TEXT NOT NULL,
                 closed_at TEXT NOT NULL,
                 result_points REAL NOT NULL,
-                gross_result_brl REAL NOT NULL DEFAULT 0
+                gross_result_brl REAL NOT NULL DEFAULT 0,
+                operational_costs_brl REAL NOT NULL DEFAULT 0,
+                net_result_brl REAL NOT NULL DEFAULT 0
             );
 
             CREATE INDEX IF NOT EXISTS idx_trades_closed_at
@@ -181,6 +202,17 @@ fn initialize_database(connection: &Connection) -> rusqlite::Result<()> {
 
             CREATE INDEX IF NOT EXISTS idx_training_events_session
             ON training_events(session_id, timestamp ASC);
+
+            CREATE TABLE IF NOT EXISTS execution_settings (
+                id INTEGER PRIMARY KEY NOT NULL CHECK(id = 1),
+                cost_per_contract_round_trip_brl REAL NOT NULL DEFAULT 0,
+                slippage_ticks_per_side INTEGER NOT NULL DEFAULT 0
+            );
+
+            INSERT OR IGNORE INTO execution_settings (
+                id, cost_per_contract_round_trip_brl, slippage_ticks_per_side
+            )
+            VALUES (1, 0, 0);
             "#,
         )?;
 
@@ -213,6 +245,49 @@ fn initialize_database(connection: &Connection) -> rusqlite::Result<()> {
         )?;
     }
 
+    if !column_exists(connection, "trades", "requested_entry")? {
+        connection.execute(
+            "ALTER TABLE trades ADD COLUMN requested_entry REAL NOT NULL DEFAULT 0",
+            [],
+        )?;
+        connection.execute(
+            "UPDATE trades SET requested_entry = entry",
+            [],
+        )?;
+    }
+
+    if !column_exists(connection, "trades", "slippage_ticks_per_side")? {
+        connection.execute(
+            "ALTER TABLE trades ADD COLUMN slippage_ticks_per_side INTEGER NOT NULL DEFAULT 0",
+            [],
+        )?;
+    }
+
+    if !column_exists(connection, "trades", "cost_per_contract_round_trip_brl")? {
+        connection.execute(
+            "ALTER TABLE trades ADD COLUMN cost_per_contract_round_trip_brl REAL NOT NULL DEFAULT 0",
+            [],
+        )?;
+    }
+
+    if !column_exists(connection, "trades", "operational_costs_brl")? {
+        connection.execute(
+            "ALTER TABLE trades ADD COLUMN operational_costs_brl REAL NOT NULL DEFAULT 0",
+            [],
+        )?;
+    }
+
+    if !column_exists(connection, "trades", "net_result_brl")? {
+        connection.execute(
+            "ALTER TABLE trades ADD COLUMN net_result_brl REAL NOT NULL DEFAULT 0",
+            [],
+        )?;
+        connection.execute(
+            "UPDATE trades SET net_result_brl = gross_result_brl - operational_costs_brl",
+            [],
+        )?;
+    }
+
     Ok(())
 }
 
@@ -224,36 +299,45 @@ fn save_trade(state: tauri::State<'_, DbState>, trade: TradeRecord) -> Result<()
         .execute(
             r#"
             INSERT INTO trades (
-                id, asset, side, signal_id, entry, stop_loss, target, contracts,
+                id, asset, side, signal_id, requested_entry, entry, stop_loss, target,
+                contracts, slippage_ticks_per_side, cost_per_contract_round_trip_brl,
                 opened_at, status, exit_price, exit_reason, closed_at, result_points,
-                gross_result_brl
+                gross_result_brl, operational_costs_brl, net_result_brl
             )
-            VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15)
+            VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20)
             ON CONFLICT(id) DO UPDATE SET
                 asset = excluded.asset,
                 side = excluded.side,
                 signal_id = excluded.signal_id,
+                requested_entry = excluded.requested_entry,
                 entry = excluded.entry,
                 stop_loss = excluded.stop_loss,
                 target = excluded.target,
                 contracts = excluded.contracts,
+                slippage_ticks_per_side = excluded.slippage_ticks_per_side,
+                cost_per_contract_round_trip_brl = excluded.cost_per_contract_round_trip_brl,
                 opened_at = excluded.opened_at,
                 status = excluded.status,
                 exit_price = excluded.exit_price,
                 exit_reason = excluded.exit_reason,
                 closed_at = excluded.closed_at,
                 result_points = excluded.result_points,
-                gross_result_brl = excluded.gross_result_brl
+                gross_result_brl = excluded.gross_result_brl,
+                operational_costs_brl = excluded.operational_costs_brl,
+                net_result_brl = excluded.net_result_brl
             "#,
             params![
                 trade.id,
                 trade.asset,
                 trade.side,
                 trade.signal_id,
+                trade.requested_entry,
                 trade.entry,
                 trade.stop_loss,
                 trade.target,
                 trade.contracts,
+                trade.slippage_ticks_per_side,
+                trade.cost_per_contract_round_trip_brl,
                 trade.opened_at,
                 trade.status,
                 trade.exit_price,
@@ -261,6 +345,69 @@ fn save_trade(state: tauri::State<'_, DbState>, trade: TradeRecord) -> Result<()
                 trade.closed_at,
                 trade.result_points,
                 trade.gross_result_brl,
+                trade.operational_costs_brl,
+                trade.net_result_brl,
+            ],
+        )
+        .map_err(|error| error.to_string())?;
+
+    Ok(())
+}
+
+#[tauri::command]
+fn load_execution_settings(
+    state: tauri::State<'_, DbState>,
+) -> Result<ExecutionSettingsRecord, String> {
+    let connection = state.0.lock().map_err(|error| error.to_string())?;
+
+    connection
+        .query_row(
+            r#"
+            SELECT cost_per_contract_round_trip_brl, slippage_ticks_per_side
+            FROM execution_settings
+            WHERE id = 1
+            "#,
+            [],
+            |row| {
+                Ok(ExecutionSettingsRecord {
+                    cost_per_contract_round_trip_brl: row.get(0)?,
+                    slippage_ticks_per_side: row.get(1)?,
+                })
+            },
+        )
+        .map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+fn save_execution_settings(
+    state: tauri::State<'_, DbState>,
+    settings: ExecutionSettingsRecord,
+) -> Result<(), String> {
+    if !settings.cost_per_contract_round_trip_brl.is_finite()
+        || settings.cost_per_contract_round_trip_brl < 0.0
+    {
+        return Err("O custo operacional precisa ser maior ou igual a zero.".to_string());
+    }
+
+    if settings.slippage_ticks_per_side < 0 {
+        return Err("O slippage precisa ser maior ou igual a zero.".to_string());
+    }
+
+    let connection = state.0.lock().map_err(|error| error.to_string())?;
+    connection
+        .execute(
+            r#"
+            INSERT INTO execution_settings (
+                id, cost_per_contract_round_trip_brl, slippage_ticks_per_side
+            )
+            VALUES (1, ?1, ?2)
+            ON CONFLICT(id) DO UPDATE SET
+                cost_per_contract_round_trip_brl = excluded.cost_per_contract_round_trip_brl,
+                slippage_ticks_per_side = excluded.slippage_ticks_per_side
+            "#,
+            params![
+                settings.cost_per_contract_round_trip_brl,
+                settings.slippage_ticks_per_side,
             ],
         )
         .map_err(|error| error.to_string())?;
@@ -1226,7 +1373,6 @@ mod tests {
     }
 
     #[test]
-    #[test]
     fn trade_record_uses_expected_tauri_financial_field_name() {
         let record = TradeRecord {
             id: "t1".to_string(),
@@ -1383,6 +1529,8 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             save_trade,
             list_trades,
+            load_execution_settings,
+            save_execution_settings,
             save_training_session,
             save_training_event,
             list_training_sessions,
