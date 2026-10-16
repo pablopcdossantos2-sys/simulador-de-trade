@@ -148,15 +148,17 @@ O arquivo `.meta.json` registra:
 
 ## Ordem cronológica
 
-Nesta primeira etapa, o arquivo tratado preserva a ordem física da fonte.
-
-O metadado informa se a fonte foi detectada como:
+O tratamento registra a ordem física detectada na fonte como:
 
 - `ASCENDING`;
 - `DESCENDING`;
 - `UNKNOWN`.
 
-O próximo estágio do replay usará `timestamp + source_row + sourceOrder` para reconstruir a ordem cronológica determinística, inclusive dentro de um mesmo segundo.
+Se a fonte for descendente, o processador usa offsets leves das linhas preservadas e grava o arquivo final `.replay.csv` já em **ordem cronológica ascendente**. Os registros completos não precisam ser mantidos em memória.
+
+O campo `source_row` continua preservando a posição física no CSV bruto para auditoria. O metadado registra também `canonicalOrder: "ASCENDING"`.
+
+Se o arquivo bruto alternar entre trechos ascendentes e descendentes, o tratamento é interrompido em vez de produzir uma sequência ambígua.
 
 ## Segurança dos dados
 
@@ -169,12 +171,18 @@ O tratamento cria novos arquivos derivados. Isso permite:
 - comparar o derivado com a fonte;
 - atualizar o algoritmo sem perder o dado original.
 
-## Próxima etapa
+## Player de replay já integrado
 
-O próximo componente deverá consumir diretamente o `.replay.csv` para:
+O aplicativo desktop já consegue abrir o `.replay.csv` como uma sessão de streaming. O backend Rust entrega os eventos em blocos para reduzir o custo de comunicação com o frontend, mas o motor processa cada negócio individualmente.
 
-1. reconstruir a sequência cronológica;
-2. formar candles M2 incrementalmente;
-3. atualizar preço/volume negócio a negócio;
-4. recalcular o indicador durante o candle aberto;
-5. avaliar stop e alvo em cada negócio.
+A cada negócio revelado:
+
+1. o candle M2 aberto é criado ou atualizado;
+2. preço e volume mudam;
+3. o indicador é recalculado somente com o histórico já revelado;
+4. a autorização Compra/Venda é atualizada;
+5. uma OCO aberta é testada contra aquele negócio exato.
+
+A interface oferece Reprodução, Pausa, +1 negócio, Reiniciar e ritmos visuais 1×, 2×, 5× e 10×.
+
+A próxima etapa de dados será a seleção explícita de pregão/data e o mecanismo de aquecimento do indicador antes das 09:00 lógicas do treino.
