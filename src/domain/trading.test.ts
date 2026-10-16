@@ -3,6 +3,7 @@ import type { IndicatorSignal, TradeIntent } from "../types";
 import {
   TradingRuleError,
   resolveOco,
+  resolveOcoTrade,
   validateTradeIntent,
 } from "./trading";
 
@@ -118,5 +119,64 @@ describe("resolução OCO", () => {
 
     expect(trade?.exitReason).toBe("STOP");
     expect(trade?.resultPoints).toBe(-100);
+  });
+});
+
+
+describe("resolução OCO negócio a negócio", () => {
+  const position = {
+    id: "trade-tick-1",
+    asset: "WINFUT" as const,
+    side: "BUY" as const,
+    signalId: "signal-1",
+    openedCandleIndex: 10,
+    openedReplaySequence: 100,
+    entry: 130000,
+    stopLoss: 129900,
+    target: 130150,
+    openedAt: "2026-01-01T09:30:00.000-03:00",
+    status: "OPEN" as const,
+  };
+
+  it("ignora o próprio negócio de entrada", () => {
+    expect(
+      resolveOcoTrade(position, {
+        asset: "WINFUT",
+        timestamp: "2026-01-01T09:30:00.000-03:00",
+        sourceRow: 500,
+        sequence: 100,
+        price: 129850,
+        quantity: 1,
+      }),
+    ).toBeNull();
+  });
+
+  it("encerra no primeiro negócio posterior que toca o alvo", () => {
+    const result = resolveOcoTrade(position, {
+      asset: "WINFUT",
+      timestamp: "2026-01-01T09:30:01.000-03:00",
+      sourceRow: 499,
+      sequence: 101,
+      price: 130155,
+      quantity: 2,
+    });
+
+    expect(result?.exitReason).toBe("TARGET");
+    expect(result?.exitPrice).toBe(130150);
+    expect(result?.resultPoints).toBe(150);
+  });
+
+  it("encerra no stop sem depender do OHLC do candle", () => {
+    const result = resolveOcoTrade(position, {
+      asset: "WINFUT",
+      timestamp: "2026-01-01T09:30:01.000-03:00",
+      sourceRow: 499,
+      sequence: 101,
+      price: 129895,
+      quantity: 2,
+    });
+
+    expect(result?.exitReason).toBe("STOP");
+    expect(result?.resultPoints).toBe(-100);
   });
 });
