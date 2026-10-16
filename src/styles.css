@@ -1767,3 +1767,147 @@ td {
     grid-template-columns: 1fr;
   }
 }
+
+
+/* Sessão formal de treino */
+.training-session-panel {
+  margin-bottom: 16px;
+  padding: 20px;
+}
+
+.training-status {
+  padding: 7px 11px;
+  border: 1px solid #34485f;
+  border-radius: 999px;
+  background: #111f31;
+  color: #91a5ba;
+  font-size: 0.76rem;
+  font-weight: 800;
+}
+
+.training-status.active {
+  border-color: #2f6b4f;
+  background: #0d271b;
+  color: #9fe0bc;
+}
+
+.training-status.ended {
+  border-color: #5d536d;
+  background: #221c2b;
+  color: #c8b8dd;
+}
+
+.training-kpis,
+.training-summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(120px, 1fr));
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.training-kpis > div,
+.training-summary > div {
+  display: grid;
+  gap: 4px;
+  padding: 11px 12px;
+  border: 1px solid #263b54;
+  border-radius: 11px;
+  background: #0b1726;
+}
+
+.training-kpis span,
+.training-summary span {
+  color: #7890aa;
+  font-size: 0.69rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.training-kpis strong,
+.training-summary strong {
+  color: #d5e6f5;
+}
+
+.training-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.training-actions button {
+  min-height: 42px;
+  padding: 10px 16px;
+  border-radius: 10px;
+  cursor: pointer;
+  font-weight: 850;
+}
+
+.training-start {
+  background: #67d5a4;
+  color: #062318;
+}
+
+.training-end {
+  background: #e2a05f;
+  color: #2b1506;
+}
+
+.training-actions button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.training-hint {
+  display: block;
+  margin-top: 9px;
+  color: #7e93aa;
+}
+
+:root[data-theme="light"] .training-status {
+  border-color: #c5d4e1;
+  background: #edf3f8;
+  color: #526d85;
+}
+
+:root[data-theme="light"] .training-status.active {
+  border-color: #98cbb0;
+  background: #eaf7f0;
+  color: #266b4e;
+}
+
+:root[data-theme="light"] .training-status.ended {
+  border-color: #cbbddd;
+  background: #f4eef9;
+  color: #655278;
+}
+
+:root[data-theme="light"] .training-kpis > div,
+:root[data-theme="light"] .training-summary > div {
+  border-color: #cbd9e5;
+  background: #f5f8fb;
+}
+
+:root[data-theme="light"] .training-kpis span,
+:root[data-theme="light"] .training-summary span,
+:root[data-theme="light"] .training-hint {
+  color: #657b91;
+}
+
+:root[data-theme="light"] .training-kpis strong,
+:root[data-theme="light"] .training-summary strong {
+  color: #2d465d;
+}
+
+@media (max-width: 760px) {
+  .training-kpis,
+  .training-summary {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 480px) {
+  .training-kpis,
+  .training-summary {
+    grid-template-columns: 1fr;
+  }
+}
