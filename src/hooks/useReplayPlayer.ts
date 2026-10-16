@@ -10,6 +10,15 @@ import {
 
 const CHUNK_SIZE = 750;
 const BASE_VISUAL_DELAY_MS = 90;
+const CANDLE_MS = 2 * 60 * 1000;
+
+function bucketKey(timestamp: string): number {
+  const parsed = Date.parse(timestamp);
+  if (!Number.isFinite(parsed)) {
+    throw new Error(`Timestamp inválido no replay: ${timestamp}`);
+  }
+  return Math.floor(parsed / CANDLE_MS);
+}
 
 export function useReplayPlayer(onTrade: (trade: ReplayTrade) => void) {
   const [path, setPath] = useState("");
@@ -35,7 +44,9 @@ export function useReplayPlayer(onTrade: (trade: ReplayTrade) => void) {
     expectedEnd?: string,
     sourcePathOverride?: string,
   ): Promise<ReplaySessionInfo | null> {
-    const normalized = (sourcePathOverride ?? path).trim().replace(/^"(.*)"$/, "$1");
+    const normalized = (sourcePathOverride ?? path)
+      .trim()
+      .replace(/^"(.*)"$/, "$1");
     if (!normalized) {
       setError("Informe o caminho de um arquivo .replay.csv.");
       return null;
@@ -66,32 +77,89 @@ export function useReplayPlayer(onTrade: (trade: ReplayTrade) => void) {
     }
   }
 
+  async function ensureQueue(): Promise<boolean> {
+    if (queueRef.current.length > 0) return true;
+
+    const chunk = await nextReplayTrades(CHUNK_SIZE);
+    if (chunk.length === 0) {
+      setFinished(true);
+      setPlaying(false);
+      return false;
+    }
+
+    queueRef.current = chunk;
+    return true;
+  }
+
+  function applyTrade(trade: ReplayTrade) {
+    onTradeRef.current(trade);
+    setProcessed((value) => value + 1);
+    setCurrentTimestamp(trade.timestamp);
+  }
+
   async function pullOne(): Promise<ReplayTrade | null> {
     if (!session || finished || steppingRef.current) return null;
     steppingRef.current = true;
 
     try {
-      if (queueRef.current.length === 0) {
-        const chunk = await nextReplayTrades(CHUNK_SIZE);
-        if (chunk.length === 0) {
-          setFinished(true);
-          setPlaying(false);
-          return null;
-        }
-        queueRef.current = chunk;
-      }
+      const available = await ensureQueue();
+      if (!available) return null;
 
       const trade = queueRef.current.shift() ?? null;
       if (!trade) return null;
 
-      onTradeRef.current(trade);
-      setProcessed((value) => value + 1);
-      setCurrentTimestamp(trade.timestamp);
+      applyTrade(trade);
       return trade;
     } catch (reason) {
       setPlaying(false);
       setError(reason instanceof Error ? reason.message : String(reason));
       return null;
+    } finally {
+      steppingRef.current = false;
+    }
+  }
+
+  async function pullOneCandle(): Promise<number> {
+    if (!session || finished || steppingRef.current) return 0;
+    steppingRef.current = true;
+    setPlaying(false);
+
+    try {
+      let targetBucket =
+        currentTimestamp === null ? null : bucketKey(currentTimestamp);
+      let consumed = 0;
+
+      while (true) {
+        const available = await ensureQueue();
+        if (!available) break;
+
+        const next = queueRef.current[0];
+        if (!next) break;
+
+        const nextBucket = bucketKey(next.timestamp);
+        if (targetBucket === null) {
+          targetBucket = nextBucket;
+        }
+
+        if (nextBucket !== targetBucket && consumed > 0) {
+          break;
+        }
+
+        if (nextBucket !== targetBucket && consumed === 0) {
+          targetBucket = nextBucket;
+        }
+
+        const trade = queueRef.current.shift();
+        if (!trade) break;
+
+        applyTrade(trade);
+        consumed += 1;
+      }
+
+      return consumed;
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : String(reason));
+      return 0;
     } finally {
       steppingRef.current = false;
     }
@@ -150,6 +218,7 @@ export function useReplayPlayer(onTrade: (trade: ReplayTrade) => void) {
     error,
     loadReplay,
     step: pullOne,
+    stepCandle: pullOneCandle,
     reset,
   };
 }
