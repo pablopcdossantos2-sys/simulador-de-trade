@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { EntryContextPreview } from "./EntryContextPreview";
 import {
   calculateSessionPerformance,
   classifyTrainingEvent,
@@ -402,6 +403,8 @@ export function SessionHistoryPanel({ refreshKey }: Props) {
                             {trade.netResultBRL.toFixed(2)}
                           </small>
                         </div>
+
+                        <EntryContextPreview trade={trade} />
 
                         <textarea
                           value={noteDrafts[trade.id] ?? ""}
