@@ -51,6 +51,8 @@ function normalizeTrade(raw: Trade): Trade {
     netResultBRL: Number.isFinite(raw.netResultBRL)
       ? raw.netResultBRL
       : gross - operationalCostsBRL,
+    postTradeNote:
+      typeof raw.postTradeNote === "string" ? raw.postTradeNote : "",
   };
 }
 
