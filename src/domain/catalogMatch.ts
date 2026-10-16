@@ -3,6 +3,7 @@ import type {
   SimulationPlan,
 } from "./simulationPlan";
 import type { ReplayCatalogEntry } from "../services/replayCatalog";
+import type { Asset } from "../types";
 
 export interface RequirementMatch {
   requirement: SimulationDataRequirement;
@@ -18,7 +19,7 @@ function minutes(value: string): number {
 export function entryCoversRequirement(
   entry: ReplayCatalogEntry,
   requirement: SimulationDataRequirement,
-  asset: SimulationPlan extends never ? never : string,
+  asset: Asset,
 ): boolean {
   if (!entry.exists) return false;
   if (entry.asset !== asset) return false;
@@ -32,7 +33,7 @@ export function entryCoversRequirement(
 
 export function matchSimulationPlan(
   plan: SimulationPlan,
-  asset: "WINFUT" | "WDOFUT",
+  asset: Asset,
   entries: ReplayCatalogEntry[],
 ): RequirementMatch[] {
   return plan.dataRequirements.map((requirement) => {
