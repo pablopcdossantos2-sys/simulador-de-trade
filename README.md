@@ -52,6 +52,8 @@ SQLite local
 - [Custos, slippage e resultado líquido](docs/CUSTOS-SLIPPAGE.md)
 - [Notas pós-trade](docs/NOTAS-POS-TRADE.md)
 - [Modo Prova](docs/MODO-PROVA.md)
+- [Contexto do gráfico na entrada](docs/CONTEXTO-ENTRADA.md)
+- [Evolução do trader](docs/EVOLUCAO-TRADER.md)
 - [Reaproveitamento do Candle Lab](docs/REAPROVEITAMENTO-CANDLE-LAB.md)
 
 ## Estado atual
@@ -96,6 +98,9 @@ A Fase 1 cria a fundação funcional do simulador:
 - cronômetro opcional da sessão;
 - política de uma única entrada por sinal;
 - painel agregado de resultados por WINFUT/WDOFUT;
+- snapshot reconstruível do contexto gráfico no instante da entrada;
+- aderência aos sinais utilizados versus ignorados;
+- painel de evolução histórica por sessão com aderência, R e resultado líquido;
 - catálogo local que informa automaticamente datas disponíveis, faltantes e contratos incompatíveis;
 - tratamento em lote orientado pelos requisitos do plano;
 - aquecimento histórico invisível antes do replay visível.
@@ -174,6 +179,8 @@ npm test
 - [x] Resumo inicial de aderência e linha do tempo.
 - [x] Métricas iniciais por sessão: win rate, payoff, profit factor, R, drawdown, horário e direção.
 - [ ] Métricas completas por sinal/setup.
+- [x] Aderência aos sinais utilizados versus ignorados.
+- [x] Evolução histórica do trader por sessão.
 - [ ] Taxa de respeito ao sinal.
 - [ ] Erros evitados pelo bloqueio.
 - [x] R-múltiplos.
