@@ -1911,3 +1911,113 @@ td {
     grid-template-columns: 1fr;
   }
 }
+
+
+.training-summary {
+  grid-template-columns: repeat(5, minmax(110px, 1fr));
+}
+
+.training-timeline {
+  margin-top: 16px;
+  border-top: 1px solid #263b54;
+  padding-top: 14px;
+}
+
+.training-timeline-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 9px;
+}
+
+.training-timeline-heading strong {
+  color: #d5e6f5;
+}
+
+.training-timeline-heading span {
+  color: #7e93aa;
+  font-size: 0.74rem;
+}
+
+.training-event {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  padding: 9px 10px;
+  border-left: 3px solid #40556c;
+  border-bottom: 1px solid #1d3045;
+}
+
+.training-event > div {
+  display: grid;
+  gap: 2px;
+}
+
+.training-event strong {
+  color: #d1e0ed;
+  font-size: 0.82rem;
+}
+
+.training-event small {
+  color: #879bb0;
+  line-height: 1.35;
+}
+
+.training-event time {
+  color: #71879d;
+  font-size: 0.76rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.training-event.event-blocked-attempt {
+  border-left-color: #d25b67;
+}
+
+.training-event.event-signal-ignored {
+  border-left-color: #c89a48;
+}
+
+.training-event.event-trade-opened {
+  border-left-color: #4fae7f;
+}
+
+.training-event.event-trade-closed {
+  border-left-color: #4b8fd1;
+}
+
+:root[data-theme="light"] .training-timeline {
+  border-top-color: #d1dce6;
+}
+
+:root[data-theme="light"] .training-timeline-heading strong,
+:root[data-theme="light"] .training-event strong {
+  color: #2e465d;
+}
+
+:root[data-theme="light"] .training-timeline-heading span,
+:root[data-theme="light"] .training-event small,
+:root[data-theme="light"] .training-event time {
+  color: #687f95;
+}
+
+:root[data-theme="light"] .training-event {
+  border-bottom-color: #e0e8ef;
+}
+
+@media (max-width: 920px) {
+  .training-summary {
+    grid-template-columns: repeat(2, minmax(120px, 1fr));
+  }
+}
+
+@media (max-width: 480px) {
+  .training-summary {
+    grid-template-columns: 1fr;
+  }
+
+  .training-event {
+    grid-template-columns: 1fr;
+  }
+}
