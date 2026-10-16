@@ -187,11 +187,8 @@ fn list_trades(state: tauri::State<'_, DbState>) -> Result<Vec<TradeRecord>, Str
 }
 
 fn decode_line(bytes: &[u8]) -> String {
-    let trimmed = bytes
-        .strip_suffix(b"\n")
-        .unwrap_or(bytes)
-        .strip_suffix(b"\r")
-        .unwrap_or(bytes);
+    let without_lf = bytes.strip_suffix(b"\n").unwrap_or(bytes);
+    let trimmed = without_lf.strip_suffix(b"\r").unwrap_or(without_lf);
 
     if let Ok(text) = std::str::from_utf8(trimmed) {
         return text.trim_start_matches('\u{feff}').to_string();
@@ -258,14 +255,19 @@ fn normalize_header(value: &str) -> String {
     value
         .trim()
         .to_lowercase()
-        .replace(['á', 'à', 'ã', 'â'], "a")
-        .replace(['é', 'ê'], "e")
-        .replace('í', "i")
-        .replace(['ó', 'ô', 'õ'], "o")
-        .replace('ú', "u")
-        .replace('ç', "c")
-        .replace(['º', '°'], "o")
-        .replace('_', " ")
+        .chars()
+        .map(|ch| match ch {
+            'á' | 'à' | 'ã' | 'â' => 'a',
+            'é' | 'ê' => 'e',
+            'í' => 'i',
+            'ó' | 'ô' | 'õ' => 'o',
+            'ú' => 'u',
+            'ç' => 'c',
+            'º' | '°' => 'o',
+            '_' => ' ',
+            other => other,
+        })
+        .collect()
 }
 
 fn find_alias(fields: &[String], aliases: &[&str]) -> Option<usize> {
@@ -427,7 +429,7 @@ fn in_training_window(time: NaiveTime) -> bool {
 }
 
 fn csv_escape(value: &str) -> String {
-    if value.contains([',', '"', '\n', '\r']) {
+    if value.contains(',') || value.contains('"') || value.contains('\n') || value.contains('\r') {
         format!("\"{}\"", value.replace('"', "\"\""))
     } else {
         value.to_string()
