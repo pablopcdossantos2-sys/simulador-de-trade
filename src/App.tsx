@@ -1,5 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 import { CandleChart } from "./components/CandleChart";
+import { DataPreparationPanel } from "./components/DataPreparationPanel";
+import { RuleViolationModal } from "./components/RuleViolationModal";
+import {
+  ThemeToggle,
+  type ThemeMode,
+} from "./components/ThemeToggle";
 import { tickSizeFor } from "./domain/marketSpecs";
 import {
   openPosition,
@@ -23,9 +29,20 @@ import type {
   Trade,
 } from "./types";
 
+const THEME_KEY = "simulador-de-trade:theme";
+
 const money = new Intl.NumberFormat("pt-BR", {
   maximumFractionDigits: 2,
 });
+
+function initialTheme(): ThemeMode {
+  const stored = localStorage.getItem(THEME_KEY);
+  if (stored === "light" || stored === "dark") return stored;
+
+  return window.matchMedia?.("(prefers-color-scheme: light)").matches
+    ? "light"
+    : "dark";
+}
 
 export default function App() {
   const [asset, setAsset] = useState<Asset>("WINFUT");
@@ -34,6 +51,8 @@ export default function App() {
   const [trades, setTrades] = useState<Trade[]>([]);
   const [stopLoss, setStopLoss] = useState("");
   const [target, setTarget] = useState("");
+  const [theme, setTheme] = useState<ThemeMode>(initialTheme);
+  const [ruleViolation, setRuleViolation] = useState<string | null>(null);
   const [feedback, setFeedback] = useState(
     "Aguarde a formação de uma zona válida do indicador para liberar uma direção.",
   );
@@ -45,6 +64,11 @@ export default function App() {
   const signal = indicatorEvaluation.authorization;
   const lastCandle = candles[candles.length - 1];
   const lastPrice = lastCandle?.close ?? 0;
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme;
+    localStorage.setItem(THEME_KEY, theme);
+  }, [theme]);
 
   useEffect(() => {
     loadTrades()
@@ -121,7 +145,9 @@ export default function App() {
   function submit(side: Side) {
     try {
       if (!lastCandle) {
-        throw new TradingRuleError("Não há candle disponível para executar a entrada.");
+        throw new TradingRuleError(
+          "Não há candle disponível para executar a entrada.",
+        );
       }
 
       const nextPosition = openPosition({
@@ -142,18 +168,17 @@ export default function App() {
         `${sideLabel(side)} aberta em ${money.format(lastPrice)} com OCO obrigatório ativo.`,
       );
     } catch (error) {
-      setFeedback(
+      const reason =
         error instanceof TradingRuleError
           ? error.message
-          : "Não foi possível abrir a operação.",
-      );
+          : "Não foi possível abrir a operação.";
+      setFeedback(reason);
+      setRuleViolation(reason);
     }
   }
 
-  const buyAllowed =
-    !position && signalAllows(signal, asset, "BUY");
-  const sellAllowed =
-    !position && signalAllows(signal, asset, "SELL");
+  const buyAllowed = !position && signalAllows(signal, asset, "BUY");
+  const sellAllowed = !position && signalAllows(signal, asset, "SELL");
 
   return (
     <main className="app-shell">
@@ -165,9 +190,18 @@ export default function App() {
             WINFUT e WDOFUT · Multi Médias - Nuvem e Sinais · OCO obrigatório
           </p>
         </div>
-        <div className="mode-badge">
-          <span className="pulse" />
-          Indicador real · candles sintéticos
+
+        <div className="topbar-actions">
+          <div className="mode-badge">
+            <span className="pulse" />
+            Indicador real · candles sintéticos
+          </div>
+          <ThemeToggle
+            theme={theme}
+            onToggle={() =>
+              setTheme((current) => (current === "dark" ? "light" : "dark"))
+            }
+          />
         </div>
       </header>
 
@@ -216,7 +250,7 @@ export default function App() {
           <p className="chart-note">
             A lógica do indicador foi portada do Pine Script fornecido. Os dados
             de preço ainda são sintéticos nesta fase; o replay histórico real
-            será conectado na etapa de importação de mercado.
+            será conectado aos arquivos tratados do Profit Ultra.
           </p>
         </div>
 
@@ -229,7 +263,8 @@ export default function App() {
             <span>
               A zona precisa ter sido iniciada pelo gatilho original do indicador.
               Zona verde autoriza apenas Compra; zona vermelha, apenas Venda.
-              Fora das zonas, ambas ficam bloqueadas.
+              Fora das zonas, qualquer tentativa será bloqueada e registrada como
+              fora do operacional.
             </span>
           </div>
 
@@ -264,15 +299,15 @@ export default function App() {
 
           <div className="order-actions">
             <button
-              className="buy-button"
-              disabled={!buyAllowed}
+              className={`buy-button ${buyAllowed ? "" : "locked"}`}
+              aria-disabled={!buyAllowed}
               onClick={() => submit("BUY")}
             >
               Comprar
             </button>
             <button
-              className="sell-button"
-              disabled={!sellAllowed}
+              className={`sell-button ${sellAllowed ? "" : "locked"}`}
+              aria-disabled={!sellAllowed}
               onClick={() => submit("SELL")}
             >
               Vender
@@ -297,6 +332,8 @@ export default function App() {
           )}
         </aside>
       </section>
+
+      <DataPreparationPanel />
 
       <section className="history card">
         <div className="section-heading">
@@ -346,6 +383,11 @@ export default function App() {
           </div>
         )}
       </section>
+
+      <RuleViolationModal
+        message={ruleViolation}
+        onClose={() => setRuleViolation(null)}
+      />
     </main>
   );
 }
