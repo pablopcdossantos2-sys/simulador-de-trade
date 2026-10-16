@@ -1,3 +1,4 @@
+mod catalog;
 mod replay;
 
 use chrono::{DateTime, NaiveDate, NaiveDateTime, NaiveTime};
@@ -959,7 +960,10 @@ pub fn run() {
             replay::open_replay_file,
             replay::next_replay_trades,
             replay::reset_replay_session,
-            replay::close_replay_session
+            replay::close_replay_session,
+            catalog::register_replay_file,
+            catalog::list_replay_catalog,
+            catalog::prune_missing_replay_catalog
         ])
         .run(tauri::generate_context!())
         .expect("error while running Simulador de Trade");
