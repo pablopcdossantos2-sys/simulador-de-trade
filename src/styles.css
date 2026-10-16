@@ -3049,3 +3049,54 @@ td {
 :root[data-theme="light"] .blocked-reasons article > span {
   color: #80631f;
 }
+
+
+/* Backup e restauração */
+.backup-panel {
+  margin-bottom: 16px;
+  padding: 20px;
+}
+
+.backup-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.backup-actions button {
+  min-height: 42px;
+  padding: 10px 15px;
+  border-radius: 10px;
+  border: 1px solid #31506d;
+  background: #10263b;
+  color: #d8e8f5;
+  cursor: pointer;
+  font-weight: 800;
+}
+
+.backup-actions button:first-child {
+  background: #dcecff;
+  color: #0d3355;
+}
+
+.backup-actions button:disabled {
+  opacity: 0.48;
+  cursor: not-allowed;
+}
+
+:root[data-theme="light"] .backup-actions button {
+  border-color: #aec5d8;
+  background: #edf4f9;
+  color: #35536b;
+}
+
+:root[data-theme="light"] .backup-actions button:first-child {
+  background: #dbeeff;
+  color: #123d61;
+}
+
+@media (max-width: 620px) {
+  .backup-actions {
+    flex-direction: column;
+  }
+}
