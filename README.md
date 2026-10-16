@@ -106,6 +106,7 @@ A Fase 1 cria a fundação funcional do simulador:
 - diagnóstico dos erros evitados pelo bloqueio, agrupado por regra;
 - golden test do indicador v1.0.0 e fixture de sessão conhecida;
 - backup JSON versionado com exportação/importação nativa e restauração transacional;
+- instalador NSIS e executável portátil Windows gerados pelo GitHub Actions;
 - catálogo local que informa automaticamente datas disponíveis, faltantes e contratos incompatíveis;
 - tratamento em lote orientado pelos requisitos do plano;
 - aquecimento histórico invisível antes do replay visível.
@@ -196,9 +197,9 @@ npm test
 - [x] Uma entrada por sinal do indicador.
 
 ### Fase 5 — Distribuição desktop
-- [ ] Instalador Windows.
-- [ ] Build portátil, se tecnicamente viável.
-- [ ] GitHub Actions.
+- [x] Instalador Windows NSIS.
+- [x] Executável portátil Windows.
+- [x] GitHub Actions para build Windows x64.
 - [ ] Atualizador assinado do Tauri.
 
 ## Sobre o OpenTraderWorld
