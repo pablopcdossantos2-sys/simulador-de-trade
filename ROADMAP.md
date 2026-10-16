@@ -45,7 +45,7 @@ Arquitetura definida a partir dos componentes validados no Candle Lab. Ver [Reap
 - [ ] Portar indexador temporal M1 para Rust.
 - [ ] Implementar seek direto no CSV original por pregão.
 - [ ] Implementar ReplayTrade em streaming.
-- [ ] Implementar agregador incremental de candles M2.
+- [x] Implementar agregador incremental de candles M2.
 - [ ] Avaliar OCO em cada negócio, não apenas no OHLC fechado.
 - [ ] Recalcular o indicador no candle M2 aberto a cada negócio.
 - [ ] Definir formato canônico de candle.
