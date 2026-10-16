@@ -6,6 +6,7 @@ const STORAGE_KEY = "simulador-de-trade:execution-settings";
 export const DEFAULT_EXECUTION_SETTINGS: ExecutionSettings = {
   costPerContractRoundTripBRL: 0,
   slippageTicksPerSide: 0,
+  intrabarPolicy: "STOP_FIRST",
 };
 
 function isTauriRuntime(): boolean {
@@ -15,12 +16,17 @@ function isTauriRuntime(): boolean {
 function normalize(value: Partial<ExecutionSettings> | null): ExecutionSettings {
   const cost = Number(value?.costPerContractRoundTripBRL);
   const slippage = Number(value?.slippageTicksPerSide);
+  const intrabarPolicy =
+    value?.intrabarPolicy === "TARGET_FIRST"
+      ? "TARGET_FIRST"
+      : "STOP_FIRST";
 
   return {
     costPerContractRoundTripBRL:
       Number.isFinite(cost) && cost >= 0 ? cost : 0,
     slippageTicksPerSide:
       Number.isInteger(slippage) && slippage >= 0 ? slippage : 0,
+    intrabarPolicy,
   };
 }
 
