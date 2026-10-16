@@ -20,6 +20,7 @@ const baseIntent: TradeIntent = {
   asset: "WINFUT",
   side: "BUY",
   entry: 130000,
+  candleIndex: 10,
   oco: { stopLoss: 129900, target: 130150 },
   signal: buySignal,
   hasOpenPosition: false,
@@ -47,7 +48,7 @@ describe("regras de entrada", () => {
     ).toThrow(/stop loss precisa ficar abaixo/i);
   });
 
-  it("aceita compra com sinal e OCM válidos", () => {
+  it("aceita compra com sinal e OCO válidos", () => {
     expect(() => validateTradeIntent(baseIntent)).not.toThrow();
   });
 });
@@ -58,12 +59,27 @@ describe("resolução OCO", () => {
     asset: "WINFUT" as const,
     side: "BUY" as const,
     signalId: "signal-1",
+    openedCandleIndex: 10,
     entry: 130000,
     stopLoss: 129900,
     target: 130150,
     openedAt: "2026-01-01T12:00:00.000Z",
     status: "OPEN" as const,
   };
+
+  it("ignora o range do candle em que a posição foi aberta", () => {
+    const trade = resolveOco(position, {
+      index: 10,
+      timestamp: "2026-01-01T12:00:00.000Z",
+      open: 130000,
+      high: 130200,
+      low: 129850,
+      close: 130050,
+      volume: 100,
+    });
+
+    expect(trade).toBeNull();
+  });
 
   it("fecha no alvo", () => {
     const trade = resolveOco(position, {
