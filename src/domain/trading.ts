@@ -75,6 +75,7 @@ export function validateTradeIntent(intent: TradeIntent): void {
     contracts,
     oco,
     asset,
+    signalAlreadyUsed,
     hasOpenPosition,
   } = intent;
 
@@ -93,6 +94,12 @@ export function validateTradeIntent(intent: TradeIntent): void {
   if (!signal) {
     throw new TradingRuleError(
       "Nenhuma operação pode ser aberta sem um sinal ativo do indicador.",
+    );
+  }
+
+  if (signalAlreadyUsed) {
+    throw new TradingRuleError(
+      "Este sinal já foi utilizado em uma operação. Aguarde um novo gatilho do indicador.",
     );
   }
 
@@ -342,6 +349,12 @@ export function signalAllows(
   signal: IndicatorSignal | null,
   asset: TradeIntent["asset"],
   side: Side,
+  signalAlreadyUsed = false,
 ): boolean {
-  return Boolean(signal && signal.asset === asset && signal.side === side);
+  return Boolean(
+    signal &&
+      !signalAlreadyUsed &&
+      signal.asset === asset &&
+      signal.side === side,
+  );
 }
