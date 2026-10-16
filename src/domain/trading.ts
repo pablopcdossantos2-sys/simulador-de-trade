@@ -7,7 +7,11 @@ import type {
   Trade,
   TradeIntent,
 } from "../types";
-import { isPriceOnTick, tickSizeFor } from "./marketSpecs";
+import {
+  grossResultBRL,
+  isPriceOnTick,
+  tickSizeFor,
+} from "./marketSpecs";
 
 export class TradingRuleError extends Error {
   constructor(message: string) {
@@ -19,10 +23,24 @@ export class TradingRuleError extends Error {
 const isFinitePrice = (value: number) => Number.isFinite(value) && value > 0;
 
 export function validateTradeIntent(intent: TradeIntent): void {
-  const { signal, side, entry, oco, asset, hasOpenPosition } = intent;
+  const {
+    signal,
+    side,
+    entry,
+    contracts,
+    oco,
+    asset,
+    hasOpenPosition,
+  } = intent;
 
   if (hasOpenPosition) {
     throw new TradingRuleError("Já existe uma posição aberta.");
+  }
+
+  if (!Number.isInteger(contracts) || contracts < 1) {
+    throw new TradingRuleError(
+      "A quantidade de contratos precisa ser um número inteiro maior ou igual a 1.",
+    );
   }
 
   if (!signal) {
@@ -104,6 +122,7 @@ export function openPosition(intent: TradeIntent, now = new Date()): Position {
     entry: intent.entry,
     stopLoss: intent.oco.stopLoss,
     target: intent.oco.target,
+    contracts: intent.contracts,
     openedAt: now.toISOString(),
     status: "OPEN",
   };
@@ -145,6 +164,12 @@ export function resolveOco(
   const exitPrice =
     exitReason === "STOP" ? position.stopLoss : position.target;
 
+  const resultPoints = pointsFor(
+    position.side,
+    position.entry,
+    exitPrice,
+  );
+
   return {
     id: position.id,
     asset: position.asset,
@@ -153,12 +178,18 @@ export function resolveOco(
     entry: position.entry,
     stopLoss: position.stopLoss,
     target: position.target,
+    contracts: position.contracts,
     openedAt: position.openedAt,
     status: "CLOSED",
     exitPrice,
     exitReason,
     closedAt: now.toISOString(),
-    resultPoints: pointsFor(position.side, position.entry, exitPrice),
+    resultPoints,
+    grossResultBRL: grossResultBRL(
+      position.asset,
+      resultPoints,
+      position.contracts,
+    ),
   };
 }
 
@@ -193,6 +224,12 @@ export function resolveOcoTrade(
   const exitPrice =
     exitReason === "STOP" ? position.stopLoss : position.target;
 
+  const resultPoints = pointsFor(
+    position.side,
+    position.entry,
+    exitPrice,
+  );
+
   return {
     id: position.id,
     asset: position.asset,
@@ -201,12 +238,18 @@ export function resolveOcoTrade(
     entry: position.entry,
     stopLoss: position.stopLoss,
     target: position.target,
+    contracts: position.contracts,
     openedAt: position.openedAt,
     status: "CLOSED",
     exitPrice,
     exitReason,
     closedAt: trade.timestamp,
-    resultPoints: pointsFor(position.side, position.entry, exitPrice),
+    resultPoints,
+    grossResultBRL: grossResultBRL(
+      position.asset,
+      resultPoints,
+      position.contracts,
+    ),
   };
 }
 
