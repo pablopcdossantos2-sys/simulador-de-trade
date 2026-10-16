@@ -32,6 +32,8 @@ function eventLabel(event: TrainingEvent): string {
       return "Operação aberta";
     case "TRADE_CLOSED":
       return "Operação encerrada";
+    case "TECHNICAL_ISSUE":
+      return "Problema técnico";
   }
 }
 
@@ -50,6 +52,10 @@ function eventDetail(event: TrainingEvent): string {
 
   if (event.type === "TRADE_CLOSED") {
     return event.reason === "TARGET" ? "Alvo atingido" : "Stop atingido";
+  }
+
+  if (event.type === "TECHNICAL_ISSUE") {
+    return event.reason ?? "Falha técnica registrada pelo simulador.";
   }
 
   return event.marketTimestamp
