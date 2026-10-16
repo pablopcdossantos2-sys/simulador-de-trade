@@ -3,6 +3,7 @@ export type Side = "BUY" | "SELL";
 export type SignalSide = Side | "NONE";
 export type IndicatorZone = "GREEN" | "RED" | "NONE";
 export type VwapAnchor = "Session" | "Week" | "Month" | "Year";
+export type IntrabarPolicy = "STOP_FIRST" | "TARGET_FIRST";
 
 export interface Candle {
   index: number;
@@ -72,6 +73,7 @@ export interface OcoOrder {
 export interface ExecutionSettings {
   costPerContractRoundTripBRL: number;
   slippageTicksPerSide: number;
+  intrabarPolicy: IntrabarPolicy;
 }
 
 export interface Position {
@@ -88,6 +90,7 @@ export interface Position {
   contracts: number;
   slippageTicksPerSide: number;
   costPerContractRoundTripBRL: number;
+  intrabarPolicy: IntrabarPolicy;
   entryContext: TradeEntryContext | null;
   openedAt: string;
   status: "OPEN";
@@ -107,6 +110,7 @@ export interface Trade {
   contracts: number;
   slippageTicksPerSide: number;
   costPerContractRoundTripBRL: number;
+  intrabarPolicy?: IntrabarPolicy;
   openedAt: string;
   status: "CLOSED";
   exitPrice: number;
