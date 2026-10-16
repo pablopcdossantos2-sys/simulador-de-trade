@@ -212,6 +212,16 @@ Por isso, ao voltar pregões anteriores a 14/10/2026, o sistema pula automaticam
 
 O calendário deverá ser versionado por ano para que o planejador continue correto em simulações de outros anos.
 
+## Atenção a vencimentos de contrato
+
+O planejador também deve detectar datas de vencimento quando a regra é conhecida.
+
+No exemplo de 14/10/2026, a data coincide com a quarta-feira mais próxima do dia 15 de outubro, regra de vencimento do WIN nos meses pares.
+
+Nesses casos o sistema mostra um aviso para que o aquecimento e o pregão-alvo usem a mesma série de contrato, salvo se existir uma política explícita de série contínua/rolagem.
+
+Misturar contratos sem regra definida pode alterar as médias e gerar sinais diferentes.
+
 ## Próximas evoluções
 
 Ainda serão implementados:
