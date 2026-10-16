@@ -44,7 +44,8 @@ SQLite local
 - [Arquitetura](docs/ARQUITETURA.md)
 - [ROADMAP detalhado](ROADMAP.md)\n- [Tratamento dos dados do Profit Ultra](docs/TRATAMENTO-DADOS-PROFIT.md)
 - [Planejamento da simulação e aquecimento](docs/PLANEJAMENTO-SIMULACAO.md)
-- [Catálogo local de dados preparados](docs/CATALOGO-DADOS.md)\n- [Reaproveitamento do Candle Lab](docs/REAPROVEITAMENTO-CANDLE-LAB.md)
+- [Catálogo local de dados preparados](docs/CATALOGO-DADOS.md)
+- [Sessão formal de treinamento](docs/SESSAO-TREINO.md)\n- [Reaproveitamento do Candle Lab](docs/REAPROVEITAMENTO-CANDLE-LAB.md)
 
 ## Estado atual
 
@@ -68,6 +69,10 @@ A Fase 1 cria a fundação funcional do simulador:
 - planejador prévio de simulação com data, ativo, M2, horário e cálculo de aquecimento;
 - aviso dos pregões anteriores necessários antes da coleta dos dados;
 - validação para impedir carregar um replay tratado em horário diferente do plano;
+- sessão formal de treinamento com início/fim e persistência local;
+- avanço por negócio e por candle M2;
+- registro de tentativas bloqueadas e sinais ignorados;
+- resumo de aderência e linha do tempo disciplinar;
 - catálogo local que informa automaticamente datas disponíveis, faltantes e contratos incompatíveis;
 - tratamento em lote orientado pelos requisitos do plano;
 - aquecimento histórico invisível antes do replay visível.
@@ -137,7 +142,11 @@ npm test
 - [ ] Saída OCO intrabar com política explícita para candles que tocam stop e alvo.
 
 ### Fase 4 — Treino e avaliação
-- [ ] Métricas por sinal e por sessão.
+- [x] Sessão formal de treinamento.
+- [x] Registro de tentativas bloqueadas.
+- [x] Registro de sinais ignorados.
+- [x] Resumo inicial de aderência e linha do tempo.
+- [ ] Métricas completas por sinal e por sessão.
 - [ ] Taxa de respeito ao sinal.
 - [ ] Erros evitados pelo bloqueio.
 - [ ] R-múltiplos.
