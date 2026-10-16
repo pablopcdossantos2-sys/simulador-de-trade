@@ -88,6 +88,7 @@ export default function App() {
   const [trades, setTrades] = useState<Trade[]>([]);
   const [stopLoss, setStopLoss] = useState("");
   const [target, setTarget] = useState("");
+  const [contracts, setContracts] = useState("1");
   const [theme, setTheme] = useState<ThemeMode>(initialTheme);
   const [ruleViolation, setRuleViolation] = useState<string | null>(null);
   const [feedback, setFeedback] = useState(
@@ -334,6 +335,7 @@ export default function App() {
     setPosition(null);
     setStopLoss("");
     setTarget("");
+    setContracts("1");
     setFeedback(
       `Ativo alterado para ${next}. Aguarde a formação de uma zona válida antes de operar.`,
     );
@@ -383,6 +385,7 @@ export default function App() {
       setPosition(null);
       setStopLoss("");
       setTarget("");
+      setContracts("1");
       setTrainingSession(null);
       setTrainingEvents([]);
       activeSignalRef.current = null;
@@ -423,6 +426,7 @@ export default function App() {
     setPosition(null);
     setStopLoss("");
     setTarget("");
+    setContracts("1");
     activeSignalRef.current = null;
     usedSignalIdsRef.current = new Set();
 
@@ -549,6 +553,7 @@ export default function App() {
           asset,
           side,
           entry: lastPrice,
+          contracts: Number(contracts),
           candleIndex: lastCandle.index,
           replaySequence:
             dataMode === "replay" ? currentReplayTrade?.sequence : undefined,
@@ -779,6 +784,18 @@ export default function App() {
           </label>
 
           <label>
+            Quantidade de contratos
+            <input
+              type="number"
+              min="1"
+              step="1"
+              value={contracts}
+              onChange={(event) => setContracts(event.target.value)}
+              disabled={Boolean(position) || !lastCandle}
+            />
+          </label>
+
+          <label>
             Stop loss
             <input
               type="number"
@@ -827,7 +844,9 @@ export default function App() {
             <div className="position-box">
               <span>Posição aberta</span>
               <strong>
-                {sideLabel(position.side)} · {money.format(position.entry)}
+                {sideLabel(position.side)} · {position.contracts} contrato
+                {position.contracts === 1 ? "" : "s"} ·{" "}
+                {money.format(position.entry)}
               </strong>
               <small>
                 Stop {money.format(position.stopLoss)} · Alvo{" "}
@@ -880,10 +899,12 @@ export default function App() {
                 <tr>
                   <th>Ativo</th>
                   <th>Direção</th>
+                  <th>Qtd.</th>
                   <th>Entrada</th>
                   <th>Saída</th>
                   <th>Motivo</th>
                   <th>Resultado</th>
+                  <th>Bruto (R$)</th>
                 </tr>
               </thead>
               <tbody>
@@ -891,6 +912,7 @@ export default function App() {
                   <tr key={trade.id}>
                     <td>{trade.asset}</td>
                     <td>{sideLabel(trade.side)}</td>
+                    <td>{trade.contracts}</td>
                     <td>{money.format(trade.entry)}</td>
                     <td>{money.format(trade.exitPrice)}</td>
                     <td>{trade.exitReason === "TARGET" ? "Alvo" : "Stop"}</td>
@@ -900,6 +922,13 @@ export default function App() {
                       }
                     >
                       {money.format(trade.resultPoints)} pts
+                    </td>
+                    <td
+                      className={
+                        trade.grossResultBRL >= 0 ? "positive" : "negative"
+                      }
+                    >
+                      {money.format(trade.grossResultBRL)}
                     </td>
                   </tr>
                 ))}
