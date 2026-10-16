@@ -5,7 +5,11 @@ import {
   type ProfitPreparationResult,
 } from "../services/profitData";
 
-export function DataPreparationPanel() {
+interface Props {
+  onPrepared?: (result: ProfitPreparationResult) => void;
+}
+
+export function DataPreparationPanel({ onPrepared }: Props) {
   const [sourcePath, setSourcePath] = useState("");
   const [status, setStatus] = useState("idle");
   const [message, setMessage] = useState(
@@ -38,6 +42,7 @@ export function DataPreparationPanel() {
     try {
       const next = await prepareProfitReplayFile(path, setProgress);
       setResult(next);
+      onPrepared?.(next);
       setProgress((current) =>
         current ? { ...current, percent: 100 } : current,
       );
