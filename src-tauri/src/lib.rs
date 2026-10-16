@@ -25,6 +25,7 @@ struct TradeRecord {
     entry: f64,
     stop_loss: f64,
     target: f64,
+    contracts: i64,
     opened_at: String,
     status: String,
     exit_price: f64,
