@@ -4,23 +4,21 @@
 
 O Simulador de Trade não precisa armazenar toda a exportação bruta do Profit Ultra.
 
-A ferramenta de preparação cria um arquivo derivado focado exclusivamente no replay de WIN/WDO entre **09:00 e 12:00**, preservando o arquivo bruto original.
+A ferramenta de preparação cria um arquivo derivado focado exclusivamente no replay de WIN/WDO dentro da **faixa horária escolhida pelo usuário**, preservando o arquivo bruto original.
 
 ## Janela de treino
 
-A regra temporal adotada é:
+O usuário escolhe o horário inicial e final. A regra é sempre **início inclusivo, fim exclusivo**.
+
+Exemplo:
 
 ```text
 09:00:00 <= negócio < 12:00:00
 ```
 
-Assim, em M2, o último candle completo da janela é:
+Em M2, isso produz como último candle completo o intervalo 11:58–12:00. Dados fora da janela selecionada são descartados do arquivo tratado.
 
-```text
-11:58:00 <= negócio < 12:00:00
-```
-
-Negócios anteriores a 09:00 ou a partir de 12:00 são descartados do arquivo tratado.
+Quando existe um plano de simulação ativo, o formulário herda automaticamente a mesma janela horária. O player também confere o `.replay.meta.json` e rejeita arquivos tratados para horários diferentes.
 
 ## Campos preservados
 
