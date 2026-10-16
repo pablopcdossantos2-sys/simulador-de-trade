@@ -113,6 +113,7 @@ export interface TradeIntent {
   replaySequence?: number;
   oco: OcoOrder;
   signal: IndicatorSignal | null;
+  signalAlreadyUsed: boolean;
   hasOpenPosition: boolean;
 }
 
