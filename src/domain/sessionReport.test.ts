@@ -101,12 +101,14 @@ const trades: Trade[] = [
     entry: 130000,
     stopLoss: 129900,
     target: 130150,
+    contracts: 1,
     openedAt: "2026-10-14T09:15:00",
     status: "CLOSED",
     exitPrice: 130150,
     exitReason: "TARGET",
     closedAt: "2026-10-14T09:20:00",
     resultPoints: 150,
+    grossResultBRL: 30,
   },
   {
     id: "t2",
@@ -116,12 +118,14 @@ const trades: Trade[] = [
     entry: 130100,
     stopLoss: 130200,
     target: 129950,
+    contracts: 1,
     openedAt: "2026-10-14T10:00:00",
     status: "CLOSED",
     exitPrice: 130200,
     exitReason: "STOP",
     closedAt: "2026-10-14T10:05:00",
     resultPoints: -100,
+    grossResultBRL: -20,
   },
 ];
 
@@ -146,6 +150,7 @@ describe("relatório por sessão", () => {
     expect(result.totalR).toBeCloseTo(0.5, 6);
     expect(result.expectancyR).toBeCloseTo(0.25, 6);
     expect(result.maxDrawdownPoints).toBe(100);
+    expect(result.grossResultBRL).toBe(10);
     expect(result.blockedAttempts).toBe(1);
     expect(result.technicalIssues).toBe(1);
     expect(result.executionAdherencePct).toBeCloseTo(66.666, 2);
