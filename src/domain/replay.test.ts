@@ -64,6 +64,31 @@ describe("replay M2", () => {
     });
   });
 
+  it("forma candles M5 quando o intervalo é de 300 segundos", () => {
+    const candles = buildReplayCandles(
+      [
+        trade("2026-10-07T09:00:00-03:00", 130000, 1, 1),
+        trade("2026-10-07T09:04:59-03:00", 130010, 2, 2),
+        trade("2026-10-07T09:05:00-03:00", 130020, 3, 3),
+      ],
+      300,
+    );
+
+    expect(candles).toHaveLength(2);
+    expect(candles[0]).toMatchObject({
+      open: 130000,
+      high: 130010,
+      close: 130010,
+      volume: 3,
+    });
+    expect(candles[1]).toMatchObject({
+      open: 130020,
+      high: 130020,
+      close: 130020,
+      volume: 3,
+    });
+  });
+
   it("rejeita negócios entregues fora de ordem", () => {
     const first = applyReplayTrade(
       [],
