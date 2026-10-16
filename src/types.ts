@@ -32,6 +32,7 @@ export interface Position {
   asset: Asset;
   side: Side;
   signalId: string;
+  openedCandleIndex: number;
   entry: number;
   stopLoss: number;
   target: number;
@@ -61,6 +62,7 @@ export interface TradeIntent {
   asset: Asset;
   side: Side;
   entry: number;
+  candleIndex: number;
   oco: OcoOrder;
   signal: IndicatorSignal | null;
   hasOpenPosition: boolean;
