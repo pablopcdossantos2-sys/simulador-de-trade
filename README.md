@@ -101,6 +101,8 @@ A Fase 1 cria a fundação funcional do simulador:
 - snapshot reconstruível do contexto gráfico no instante da entrada, identificado pela versão do algoritmo do indicador;
 - aderência aos sinais utilizados versus ignorados;
 - painel de evolução histórica por sessão com aderência, R e resultado líquido;
+- diagnóstico dos erros evitados pelo bloqueio, agrupado por regra;
+- golden test do indicador v1.0.0 e fixture de sessão conhecida;
 - catálogo local que informa automaticamente datas disponíveis, faltantes e contratos incompatíveis;
 - tratamento em lote orientado pelos requisitos do plano;
 - aquecimento histórico invisível antes do replay visível.
