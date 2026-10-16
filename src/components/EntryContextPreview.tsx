@@ -78,6 +78,12 @@ export function EntryContextPreview({ trade }: Props) {
         <span>
           Indicador {context.indicatorVersion ?? "versão não registrada"}
         </span>
+        <span>
+          OHLC ambíguo:{" "}
+          {trade.intrabarPolicy === "TARGET_FIRST"
+            ? "Alvo primeiro"
+            : "Stop primeiro"}
+        </span>
       </div>
     </div>
   );
