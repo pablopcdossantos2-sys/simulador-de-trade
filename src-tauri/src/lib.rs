@@ -998,6 +998,24 @@ fn query_backup_execution_settings(
         .map_err(|error| error.to_string())
 }
 
+fn validate_backup_bundle(bundle: &BackupBundle) -> Result<(), String> {
+    if bundle.format != "simulador-de-trade-backup" {
+        return Err(
+            "O arquivo selecionado não é um backup do Simulador de Trade."
+                .to_string(),
+        );
+    }
+
+    if bundle.schema_version != 1 {
+        return Err(format!(
+            "Versão de backup não suportada: {}.",
+            bundle.schema_version
+        ));
+    }
+
+    Ok(())
+}
+
 #[tauri::command]
 fn export_backup(
     state: tauri::State<'_, DbState>,
@@ -1054,19 +1072,7 @@ fn import_backup(
             format!("Backup JSON inválido: {error}")
         })?;
 
-    if bundle.format != "simulador-de-trade-backup" {
-        return Err(
-            "O arquivo selecionado não é um backup do Simulador de Trade."
-                .to_string(),
-        );
-    }
-
-    if bundle.schema_version != 1 {
-        return Err(format!(
-            "Versão de backup não suportada: {}.",
-            bundle.schema_version
-        ));
-    }
+    validate_backup_bundle(&bundle)?;
 
     let mut connection = state.0.lock().map_err(|error| error.to_string())?;
     let transaction = connection
@@ -1884,6 +1890,92 @@ async fn prepare_profit_replay_file(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn backup_schema_validation_rejects_wrong_format_and_version() {
+        let settings = ExecutionSettingsRecord {
+            cost_per_contract_round_trip_brl: 0.0,
+            slippage_ticks_per_side: 0,
+        };
+
+        let mut bundle = BackupBundle {
+            format: "simulador-de-trade-backup".to_string(),
+            schema_version: 1,
+            app_version: "0.1.0".to_string(),
+            exported_at: "2026-10-16T18:00:00Z".to_string(),
+            trades: Vec::new(),
+            training_sessions: Vec::new(),
+            training_events: Vec::new(),
+            execution_settings: settings,
+        };
+
+        assert!(validate_backup_bundle(&bundle).is_ok());
+
+        bundle.format = "outro-formato".to_string();
+        assert!(validate_backup_bundle(&bundle).is_err());
+
+        bundle.format = "simulador-de-trade-backup".to_string();
+        bundle.schema_version = 2;
+        assert!(validate_backup_bundle(&bundle).is_err());
+    }
+
+    #[test]
+    fn backup_json_round_trip_preserves_entry_context() {
+        let trade = TradeRecord {
+            id: "backup-trade".to_string(),
+            asset: "WINFUT".to_string(),
+            side: "BUY".to_string(),
+            signal_id: "signal-1".to_string(),
+            requested_entry: 130000.0,
+            entry: 130000.0,
+            stop_loss: 129900.0,
+            target: 130150.0,
+            contracts: 1,
+            slippage_ticks_per_side: 0,
+            cost_per_contract_round_trip_brl: 0.0,
+            opened_at: "2026-10-14T09:00:00".to_string(),
+            status: "CLOSED".to_string(),
+            exit_price: 130150.0,
+            exit_reason: "TARGET".to_string(),
+            closed_at: "2026-10-14T09:10:00".to_string(),
+            result_points: 150.0,
+            gross_result_brl: 30.0,
+            operational_costs_brl: 0.0,
+            net_result_brl: 30.0,
+            post_trade_note: "Execução disciplinada".to_string(),
+            entry_context: Some(json!({
+                "indicatorVersion": "multi-medias-nuvem-v1.0.0",
+                "zone": "GREEN"
+            })),
+        };
+
+        let bundle = BackupBundle {
+            format: "simulador-de-trade-backup".to_string(),
+            schema_version: 1,
+            app_version: "0.1.0".to_string(),
+            exported_at: "2026-10-16T18:00:00Z".to_string(),
+            trades: vec![trade],
+            training_sessions: Vec::new(),
+            training_events: Vec::new(),
+            execution_settings: ExecutionSettingsRecord {
+                cost_per_contract_round_trip_brl: 0.0,
+                slippage_ticks_per_side: 0,
+            },
+        };
+
+        let raw = serde_json::to_string(&bundle).unwrap();
+        let restored: BackupBundle = serde_json::from_str(&raw).unwrap();
+
+        assert_eq!(restored.trades.len(), 1);
+        assert_eq!(
+            restored.trades[0].entry_context.as_ref().unwrap()["indicatorVersion"],
+            "multi-medias-nuvem-v1.0.0"
+        );
+        assert_eq!(
+            restored.trades[0].post_trade_note,
+            "Execução disciplinada"
+        );
+    }
 
     #[test]
     fn configurable_training_window_is_start_inclusive_end_exclusive() {
