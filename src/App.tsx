@@ -3,6 +3,7 @@ import { CandleChart } from "./components/CandleChart";
 import { DataPreparationPanel } from "./components/DataPreparationPanel";
 import { ReplayControls } from "./components/ReplayControls";
 import { RuleViolationModal } from "./components/RuleViolationModal";
+import { SimulationPlanner } from "./components/SimulationPlanner";
 import {
   ThemeToggle,
   type ThemeMode,
@@ -33,6 +34,7 @@ import type {
   Side,
   Trade,
 } from "./types";
+import type { SimulationPlan } from "./domain/simulationPlan";
 
 const THEME_KEY = "simulador-de-trade:theme";
 
@@ -66,6 +68,7 @@ export default function App() {
   const [feedback, setFeedback] = useState(
     "Aguarde a formação de uma zona válida do indicador para liberar uma direção.",
   );
+  const [simulationPlan, setSimulationPlan] = useState<SimulationPlan | null>(null);
 
   const handleReplayTrade = useCallback((trade: ReplayTrade) => {
     setCurrentReplayTrade(trade);
@@ -311,6 +314,15 @@ export default function App() {
         </div>
       </section>
 
+      <SimulationPlanner
+        onPlanChange={(plan) => {
+          setSimulationPlan(plan);
+          setFeedback(
+            `Plano definido: ${plan.targetDate} · ${plan.targetStartTime}–${plan.targetEndTime}. Use os mesmos horários ao tratar o arquivo do pregão-alvo.`,
+          );
+        }}
+      />
+
       <ReplayControls
         path={replay.path}
         onPathChange={replay.setPath}
@@ -441,6 +453,8 @@ export default function App() {
       </section>
 
       <DataPreparationPanel
+        plannedStart={simulationPlan?.targetStartTime}
+        plannedEnd={simulationPlan?.targetEndTime}
         onPrepared={(result) => replay.setPath(result.outputPath)}
       />
 
