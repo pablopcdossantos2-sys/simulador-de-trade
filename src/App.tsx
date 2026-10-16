@@ -150,6 +150,9 @@ export default function App() {
     [asset, indicatorCandles],
   );
   const signal = indicatorEvaluation.authorization;
+  const signalAlreadyUsed = Boolean(
+    signal && usedSignalIdsRef.current.has(signal.id),
+  );
   const lastCandle = visibleCandles[visibleCandles.length - 1];
   const lastPrice = lastCandle?.close ?? 0;
   const trainingActive = trainingSession?.status === "ACTIVE";
@@ -277,6 +280,13 @@ export default function App() {
   useEffect(() => {
     if (!signal || position || !lastCandle) return;
 
+    if (signalAlreadyUsed) {
+      setFeedback(
+        "O sinal ativo já foi utilizado em uma operação. Aguarde um novo gatilho do indicador antes de reentrar.",
+      );
+      return;
+    }
+
     const distance = suggestedOcoDistance(asset);
     const entry = lastPrice;
 
@@ -291,7 +301,13 @@ export default function App() {
     setFeedback(
       `Zona ${signal.side === "BUY" ? "verde" : "vermelha"} ativa após sinal de ${signal.label}. Somente ${signal.label.toLowerCase()} está autorizada.`,
     );
-  }, [signal?.id, asset, position, lastCandle?.index]);
+  }, [
+    signal?.id,
+    signalAlreadyUsed,
+    asset,
+    position,
+    lastCandle?.index,
+  ]);
 
   useEffect(() => {
     if (signal || position || !lastCandle) return;
@@ -609,6 +625,7 @@ export default function App() {
             target: Number(target),
           },
           signal,
+          signalAlreadyUsed,
           hasOpenPosition: Boolean(position),
         },
         marketTime,
@@ -653,9 +670,13 @@ export default function App() {
 
   const tradingEnabled = dataMode === "demo" || trainingActive;
   const buyAllowed =
-    tradingEnabled && !position && signalAllows(signal, asset, "BUY");
+    tradingEnabled &&
+    !position &&
+    signalAllows(signal, asset, "BUY", signalAlreadyUsed);
   const sellAllowed =
-    tradingEnabled && !position && signalAllows(signal, asset, "SELL");
+    tradingEnabled &&
+    !position &&
+    signalAllows(signal, asset, "SELL", signalAlreadyUsed);
 
   const historyTradesForDisplay = examActive
     ? trades.filter(
