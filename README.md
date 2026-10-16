@@ -47,7 +47,9 @@ SQLite local
 - [Catálogo local de dados preparados](docs/CATALOGO-DADOS.md)
 - [Sessão formal de treinamento](docs/SESSAO-TREINO.md)
 - [Relatório pós-sessão e métricas](docs/RELATORIO-SESSAO.md)
-- [Quantidade de contratos e resultado financeiro](docs/RESULTADO-FINANCEIRO.md)\n- [Reaproveitamento do Candle Lab](docs/REAPROVEITAMENTO-CANDLE-LAB.md)
+- [Quantidade de contratos e resultado financeiro](docs/RESULTADO-FINANCEIRO.md)
+- [Custos, slippage e resultado líquido](docs/CUSTOS-SLIPPAGE.md)
+- [Notas pós-trade](docs/NOTAS-POS-TRADE.md)\n- [Reaproveitamento do Candle Lab](docs/REAPROVEITAMENTO-CANDLE-LAB.md)
 
 ## Estado atual
 
@@ -80,6 +82,10 @@ A Fase 1 cria a fundação funcional do simulador:
 - relatório pós-sessão com pontos, win rate, payoff, profit factor, R, drawdown e resultado por horário/direção;
 - quantidade inteira de contratos na boleta;
 - resultado bruto em reais usando os multiplicadores contratuais de WIN/WDO;
+- configuração persistente de custos por contrato e slippage por lado;
+- resultado líquido por trade e por sessão;
+- arredondamento automático de Stop/Alvo ao tick válido;
+- notas pós-trade editáveis no histórico da sessão;
 - catálogo local que informa automaticamente datas disponíveis, faltantes e contratos incompatíveis;
 - tratamento em lote orientado pelos requisitos do plano;
 - aquecimento histórico invisível antes do replay visível.
@@ -144,8 +150,10 @@ npm test
 ### Fase 3 — Fidelidade de execução
 - [x] Quantidade de contratos.
 - [x] Resultado bruto em R$.
-- [ ] Slippage configurável.
-- [ ] Custos operacionais configuráveis.
+- [x] Slippage configurável.
+- [x] Custos operacionais configuráveis.
+- [x] Resultado líquido em R$.
+- [x] Arredondamento automático ao tick válido.
 - [x] Regras de tick específicas de WIN/WDO.
 - [ ] Saída OCO intrabar com política explícita para candles que tocam stop e alvo.
 
@@ -158,8 +166,9 @@ npm test
 - [ ] Métricas completas por sinal/setup.
 - [ ] Taxa de respeito ao sinal.
 - [ ] Erros evitados pelo bloqueio.
-- [ ] R-múltiplos.
-- [ ] Relatório pós-sessão.
+- [x] R-múltiplos.
+- [x] Relatório pós-sessão inicial.
+- [x] Notas pós-trade.
 - [ ] Modo prova sem revelar candles futuros.
 
 ### Fase 5 — Distribuição desktop
