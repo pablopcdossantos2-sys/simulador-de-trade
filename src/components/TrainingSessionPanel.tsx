@@ -1,4 +1,5 @@
 import type {
+  TrainingEvent,
   TrainingSession,
   TrainingSummary,
 } from "../types";
@@ -6,6 +7,7 @@ import type {
 interface Props {
   session: TrainingSession | null;
   summary: TrainingSummary | null;
+  events: TrainingEvent[];
   canStart: boolean;
   replayLoaded: boolean;
   onStart: () => void;
@@ -16,15 +18,68 @@ function formatPct(value: number): string {
   return `${value.toFixed(1)}%`;
 }
 
+function eventLabel(event: TrainingEvent): string {
+  switch (event.type) {
+    case "SESSION_STARTED":
+      return "Sessão iniciada";
+    case "SESSION_ENDED":
+      return "Sessão encerrada";
+    case "BLOCKED_ATTEMPT":
+      return "Tentativa bloqueada";
+    case "SIGNAL_IGNORED":
+      return "Sinal ignorado";
+    case "TRADE_OPENED":
+      return "Operação aberta";
+    case "TRADE_CLOSED":
+      return "Operação encerrada";
+  }
+}
+
+function eventDetail(event: TrainingEvent): string {
+  if (event.type === "BLOCKED_ATTEMPT") {
+    return event.reason ?? "Entrada recusada pelas regras.";
+  }
+
+  if (event.type === "SIGNAL_IGNORED") {
+    return `${event.side === "BUY" ? "Compra" : "Venda"} · sinal não utilizado`;
+  }
+
+  if (event.type === "TRADE_OPENED") {
+    return `${event.side === "BUY" ? "Compra" : "Venda"} · entrada válida`;
+  }
+
+  if (event.type === "TRADE_CLOSED") {
+    return event.reason === "TARGET" ? "Alvo atingido" : "Stop atingido";
+  }
+
+  return event.marketTimestamp
+    ? `Mercado: ${event.marketTimestamp}`
+    : "Evento da sessão";
+}
+
+function marketClock(value: string | null): string {
+  if (!value) return "—";
+  const match = value.match(/T(\d{2}:\d{2}:\d{2})/);
+  return match?.[1] ?? value;
+}
+
 export function TrainingSessionPanel({
   session,
   summary,
+  events,
   canStart,
   replayLoaded,
   onStart,
   onEnd,
 }: Props) {
   const active = session?.status === "ACTIVE";
+  const relevantEvents = session
+    ? events
+        .filter((event) => event.sessionId === session.id)
+        .slice()
+        .reverse()
+        .slice(0, 12)
+    : [];
 
   return (
     <section className="training-session-panel card">
@@ -105,6 +160,10 @@ export function TrainingSessionPanel({
             <strong>{summary.tradesExecuted}</strong>
           </div>
           <div>
+            <span>Operações encerradas</span>
+            <strong>{summary.closedTrades}</strong>
+          </div>
+          <div>
             <span>Tentativas bloqueadas</span>
             <strong>{summary.blockedAttempts}</strong>
           </div>
@@ -116,6 +175,28 @@ export function TrainingSessionPanel({
             <span>Aderência às tentativas</span>
             <strong>{formatPct(summary.executionAdherencePct)}</strong>
           </div>
+        </div>
+      )}
+
+      {relevantEvents.length > 0 && (
+        <div className="training-timeline">
+          <div className="training-timeline-heading">
+            <strong>Linha do tempo disciplinar</strong>
+            <span>últimos {relevantEvents.length} eventos</span>
+          </div>
+
+          {relevantEvents.map((event) => (
+            <div
+              key={event.id}
+              className={`training-event event-${event.type.toLowerCase().replaceAll("_", "-")}`}
+            >
+              <div>
+                <strong>{eventLabel(event)}</strong>
+                <small>{eventDetail(event)}</small>
+              </div>
+              <time>{marketClock(event.marketTimestamp)}</time>
+            </div>
+          ))}
         </div>
       )}
     </section>
