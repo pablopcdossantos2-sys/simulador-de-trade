@@ -3,6 +3,7 @@ import { CandleChart } from "./components/CandleChart";
 import { DataPreparationPanel } from "./components/DataPreparationPanel";
 import { ReplayControls } from "./components/ReplayControls";
 import { ReplayCatalogPanel } from "./components/ReplayCatalogPanel";
+import { PlanDataPreparationPanel } from "./components/PlanDataPreparationPanel";
 import { RuleViolationModal } from "./components/RuleViolationModal";
 import { SimulationPlanner } from "./components/SimulationPlanner";
 import {
@@ -407,6 +408,14 @@ export default function App() {
           const targetPath = targetFileFromMatches(matches);
           if (targetPath) replay.setPath(targetPath);
         }}
+      />
+
+      <PlanDataPreparationPanel
+        plan={simulationPlan}
+        matches={catalogMatches}
+        onCatalogUpdated={() =>
+          setCatalogRefreshKey((value) => value + 1)
+        }
       />
 
       <ReplayControls
