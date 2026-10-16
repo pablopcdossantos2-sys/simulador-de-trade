@@ -269,6 +269,45 @@ export default function App() {
     }
   }, [replay.error]);
 
+  useEffect(() => {
+    if (!trainingActive) {
+      activeSignalRef.current = null;
+      return;
+    }
+
+    const previous = activeSignalRef.current;
+
+    if (signal && (!previous || previous.id !== signal.id)) {
+      if (previous && !usedSignalIdsRef.current.has(previous.id)) {
+        recordTrainingEvent({
+          type: "SIGNAL_IGNORED",
+          marketTimestamp: currentReplayTrade?.timestamp ?? null,
+          signalId: previous.id,
+          side: previous.side,
+        });
+      }
+
+      activeSignalRef.current = {
+        id: signal.id,
+        side: signal.side,
+      };
+      return;
+    }
+
+    if (!signal && previous) {
+      if (!usedSignalIdsRef.current.has(previous.id)) {
+        recordTrainingEvent({
+          type: "SIGNAL_IGNORED",
+          marketTimestamp: currentReplayTrade?.timestamp ?? null,
+          signalId: previous.id,
+          side: previous.side,
+        });
+      }
+
+      activeSignalRef.current = null;
+    }
+  }, [trainingActive, signal?.id, currentReplayTrade?.sequence]);
+
   function changeAsset(next: Asset) {
     if (dataMode === "replay") return;
     setAsset(next);
@@ -455,6 +494,12 @@ export default function App() {
 
   function submit(side: Side) {
     try {
+      if (dataMode === "replay" && !trainingActive) {
+        throw new TradingRuleError(
+          "Inicie a sessão formal de treino antes de enviar uma operação.",
+        );
+      }
+
       if (!lastCandle) {
         throw new TradingRuleError(
           "Não há candle disponível para executar a entrada.",
@@ -485,6 +530,16 @@ export default function App() {
       );
 
       setPosition(nextPosition);
+      if (signal) {
+        usedSignalIdsRef.current.add(signal.id);
+      }
+      recordTrainingEvent({
+        type: "TRADE_OPENED",
+        marketTimestamp: currentReplayTrade?.timestamp ?? null,
+        signalId: signal?.id ?? null,
+        side,
+        tradeId: nextPosition.id,
+      });
       setFeedback(
         `${sideLabel(side)} aberta em ${money.format(lastPrice)} com OCO obrigatório ativo.`,
       );
@@ -495,11 +550,23 @@ export default function App() {
           : "Não foi possível abrir a operação.";
       setFeedback(reason);
       setRuleViolation(reason);
+      if (trainingActive) {
+        recordTrainingEvent({
+          type: "BLOCKED_ATTEMPT",
+          marketTimestamp: currentReplayTrade?.timestamp ?? null,
+          signalId: signal?.id ?? null,
+          side,
+          reason,
+        });
+      }
     }
   }
 
-  const buyAllowed = !position && signalAllows(signal, asset, "BUY");
-  const sellAllowed = !position && signalAllows(signal, asset, "SELL");
+  const tradingEnabled = dataMode === "demo" || trainingActive;
+  const buyAllowed =
+    tradingEnabled && !position && signalAllows(signal, asset, "BUY");
+  const sellAllowed =
+    tradingEnabled && !position && signalAllows(signal, asset, "SELL");
 
   return (
     <main className="app-shell">
