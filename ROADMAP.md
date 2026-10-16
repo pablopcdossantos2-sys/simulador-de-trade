@@ -44,24 +44,24 @@ Arquitetura definida a partir dos componentes validados no Candle Lab. Ver [Reap
 - [x] Portar parser Profit inicial do Candle Lab para Rust.
 - [ ] Portar indexador temporal M1 para Rust.
 - [ ] Implementar seek direto no CSV original por pregão.
-- [ ] Implementar ReplayTrade em streaming.
+- [x] Implementar ReplayTrade em streaming a partir do `.replay.csv`.
 - [x] Implementar agregador incremental de candles M2.
-- [ ] Avaliar OCO em cada negócio, não apenas no OHLC fechado.
-- [ ] Recalcular o indicador no candle M2 aberto a cada negócio.
-- [ ] Definir formato canônico de candle.
+- [x] Avaliar OCO em cada negócio, não apenas no OHLC fechado.
+- [x] Recalcular o indicador no candle M2 aberto a cada negócio.
+- [x] Definir formato canônico de candle M2 incremental.
 - [x] Criar ferramenta desktop para tratar CSV bruto do Profit.
 - [x] Validar layout, colunas e timestamps no tratamento inicial.
 - [x] Interromper o tratamento com diagnóstico da linha inválida.
 - [ ] Importar histórico de WIN.
 - [ ] Importar histórico de WDO.
-- [ ] Não revelar candles futuros.
-- [ ] Play / pause.
-- [ ] Avanço de um candle.
-- [ ] Velocidades de reprodução.
+- [x] Não revelar candles futuros.
+- [x] Play / pause.
+- [ ] Avanço de um candle.\n- [x] Avanço manual de um negócio.
+- [x] Velocidades de reprodução visual 1× / 2× / 5× / 10×.
 - [ ] Seleção de timeframe.
 - [ ] Seleção de pregão/data.
-- [ ] Reiniciar sessão sem apagar histórico.
-- [ ] Indicador calculado apenas com dados já revelados.
+- [x] Reiniciar sessão sem apagar histórico.
+- [x] Indicador calculado apenas com dados já revelados.
 
 ## Fase 3 — Motor de execução
 
@@ -71,11 +71,11 @@ Arquitetura definida a partir dos componentes validados no Candle Lab. Ver [Reap
 - [ ] Arredondamento obrigatório para níveis válidos.
 - [ ] Custos operacionais configuráveis.
 - [ ] Slippage configurável.
-- [ ] Resultado em pontos.
+- [x] Resultado em pontos.
 - [ ] Resultado financeiro.
 - [ ] Risco inicial e múltiplos de R.
 - [ ] Política intrabar configurável.
-- [ ] Suporte a dados de tick quando disponíveis.
+- [x] Suporte a dados negócio a negócio tratados do Profit.
 - [x] Validade inicial: autorização permanece enquanto a zona correspondente estiver ativa.
 - [ ] Definir se um mesmo sinal pode autorizar mais de uma operação após a primeira ser encerrada.
 - [ ] Impedir reutilização indevida de sinais, conforme a regra definitiva do indicador.
