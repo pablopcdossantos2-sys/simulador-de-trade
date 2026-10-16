@@ -106,7 +106,8 @@ export type TrainingEventType =
   | "BLOCKED_ATTEMPT"
   | "SIGNAL_IGNORED"
   | "TRADE_OPENED"
-  | "TRADE_CLOSED";
+  | "TRADE_CLOSED"
+  | "TECHNICAL_ISSUE";
 
 export interface TrainingSession {
   id: string;
@@ -139,4 +140,40 @@ export interface TrainingSummary {
   ignoredSignals: number;
   closedTrades: number;
   executionAdherencePct: number;
+}
+
+
+export type TrainingEventClass =
+  | "DISCIPLINE"
+  | "EXECUTION"
+  | "OBSERVATION"
+  | "TECHNICAL"
+  | "SESSION";
+
+export interface SessionPerformance {
+  totalTrades: number;
+  wins: number;
+  losses: number;
+  winRatePct: number;
+  netPoints: number;
+  averagePoints: number;
+  averageWinPoints: number;
+  averageLossPoints: number;
+  payoff: number | null;
+  profitFactor: number | null;
+  bestTradePoints: number;
+  worstTradePoints: number;
+  buyTrades: number;
+  sellTrades: number;
+  blockedAttempts: number;
+  technicalIssues: number;
+  ignoredSignals: number;
+  executionAdherencePct: number;
+}
+
+export interface SessionReport {
+  session: TrainingSession;
+  events: TrainingEvent[];
+  trades: Trade[];
+  performance: SessionPerformance;
 }
