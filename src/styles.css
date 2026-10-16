@@ -2406,3 +2406,115 @@ td {
     flex-direction: column;
   }
 }
+
+
+/* Notas pós-trade */
+.post-trade-notes {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid #263b54;
+}
+
+.post-trade-note {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  margin-top: 9px;
+  border: 1px solid #263b54;
+  border-radius: 11px;
+  background: #0c1928;
+}
+
+.post-trade-note-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.post-trade-note-head > div {
+  display: grid;
+  gap: 2px;
+}
+
+.post-trade-note-head span,
+.post-trade-note-head small {
+  color: #7e94aa;
+  font-size: 0.72rem;
+}
+
+.post-trade-note-head strong {
+  color: #d3e3f1;
+}
+
+.post-trade-note textarea {
+  width: 100%;
+  resize: vertical;
+  min-height: 92px;
+  border: 1px solid #2a4059;
+  border-radius: 10px;
+  padding: 10px 11px;
+  background: #081522;
+  color: #e5eef7;
+  font: inherit;
+  line-height: 1.45;
+}
+
+.post-trade-note textarea:focus-visible {
+  outline: 2px solid #74b9ff;
+  outline-offset: 2px;
+}
+
+.post-trade-note-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.post-trade-note-actions button {
+  min-height: 38px;
+  padding: 8px 12px;
+  border-radius: 9px;
+  background: #dcecff;
+  color: #0d3355;
+  cursor: pointer;
+  font-weight: 800;
+}
+
+.post-trade-note-actions span {
+  color: #83a0b8;
+  font-size: 0.75rem;
+}
+
+:root[data-theme="light"] .post-trade-notes {
+  border-top-color: #d7e1e9;
+}
+
+:root[data-theme="light"] .post-trade-note {
+  border-color: #cbd9e5;
+  background: #f5f8fb;
+}
+
+:root[data-theme="light"] .post-trade-note-head strong {
+  color: #2d465d;
+}
+
+:root[data-theme="light"] .post-trade-note-head span,
+:root[data-theme="light"] .post-trade-note-head small,
+:root[data-theme="light"] .post-trade-note-actions span {
+  color: #687f94;
+}
+
+:root[data-theme="light"] .post-trade-note textarea {
+  border-color: #bfd0df;
+  background: #fff;
+  color: #20364a;
+}
+
+@media (max-width: 620px) {
+  .post-trade-note-head,
+  .post-trade-note-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+}
