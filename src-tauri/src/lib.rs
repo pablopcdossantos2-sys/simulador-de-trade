@@ -1163,6 +1163,23 @@ mod tests {
     }
 
     #[test]
+    #[test]
+    fn database_schema_contains_training_history_tables() {
+        let connection = Connection::open_in_memory().unwrap();
+        initialize_database(&connection).unwrap();
+
+        for table in ["trades", "training_sessions", "training_events"] {
+            let count: i64 = connection
+                .query_row(
+                    "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = ?1",
+                    [table],
+                    |row| row.get(0),
+                )
+                .unwrap();
+            assert_eq!(count, 1, "missing table {table}");
+        }
+    }
+
     fn canonicalizes_descending_replay_without_loading_rows_into_memory() {
         use std::time::{SystemTime, UNIX_EPOCH};
 
