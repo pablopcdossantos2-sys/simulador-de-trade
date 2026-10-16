@@ -298,6 +298,91 @@ fn save_training_event(
 }
 
 #[tauri::command]
+fn list_training_sessions(
+    state: tauri::State<'_, DbState>,
+) -> Result<Vec<TrainingSessionRecord>, String> {
+    let connection = state.0.lock().map_err(|error| error.to_string())?;
+    let mut statement = connection
+        .prepare(
+            r#"
+            SELECT
+                id, asset, trade_date, start_time, end_time,
+                timeframe_minutes, warmup_bars, started_at, ended_at, status
+            FROM training_sessions
+            ORDER BY started_at DESC
+            LIMIT 500
+            "#,
+        )
+        .map_err(|error| error.to_string())?;
+
+    let rows = statement
+        .query_map([], |row| {
+            Ok(TrainingSessionRecord {
+                id: row.get(0)?,
+                asset: row.get(1)?,
+                trade_date: row.get(2)?,
+                start_time: row.get(3)?,
+                end_time: row.get(4)?,
+                timeframe_minutes: row.get(5)?,
+                warmup_bars: row.get(6)?,
+                started_at: row.get(7)?,
+                ended_at: row.get(8)?,
+                status: row.get(9)?,
+            })
+        })
+        .map_err(|error| error.to_string())?;
+
+    rows.collect::<Result<Vec<_>, _>>()
+        .map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+fn list_session_trades(
+    state: tauri::State<'_, DbState>,
+    session_id: String,
+) -> Result<Vec<TradeRecord>, String> {
+    let connection = state.0.lock().map_err(|error| error.to_string())?;
+    let mut statement = connection
+        .prepare(
+            r#"
+            SELECT DISTINCT
+                t.id, t.asset, t.side, t.signal_id, t.entry, t.stop_loss, t.target,
+                t.opened_at, t.status, t.exit_price, t.exit_reason, t.closed_at, t.result_points
+            FROM trades t
+            INNER JOIN training_events e
+                ON e.trade_id = t.id
+            WHERE e.session_id = ?1
+              AND e.type = 'TRADE_CLOSED'
+            ORDER BY t.closed_at ASC
+            "#,
+        )
+        .map_err(|error| error.to_string())?;
+
+    let rows = statement
+        .query_map([session_id], |row| {
+            Ok(TradeRecord {
+                id: row.get(0)?,
+                asset: row.get(1)?,
+                side: row.get(2)?,
+                signal_id: row.get(3)?,
+                entry: row.get(4)?,
+                stop_loss: row.get(5)?,
+                target: row.get(6)?,
+                opened_at: row.get(7)?,
+                status: row.get(8)?,
+                exit_price: row.get(9)?,
+                exit_reason: row.get(10)?,
+                closed_at: row.get(11)?,
+                result_points: row.get(12)?,
+            })
+        })
+        .map_err(|error| error.to_string())?;
+
+    rows.collect::<Result<Vec<_>, _>>()
+        .map_err(|error| error.to_string())
+}
+
+#[tauri::command]
 fn list_training_events(
     state: tauri::State<'_, DbState>,
     session_id: String,
@@ -1144,7 +1229,9 @@ pub fn run() {
             list_trades,
             save_training_session,
             save_training_event,
+            list_training_sessions,
             list_training_events,
+            list_session_trades,
             prepare_profit_replay_file,
             replay::open_replay_file,
             replay::next_replay_trades,
