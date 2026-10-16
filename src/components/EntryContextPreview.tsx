@@ -74,6 +74,9 @@ export function EntryContextPreview({ trade }: Props) {
         <span>{context.candles.length} candles visíveis</span>
         <span>Preço {context.currentPrice}</span>
         <span>Snapshot {formatTimestamp(context.capturedAt)}</span>
+        <span>
+          Indicador {context.indicatorVersion ?? "versão não registrada"}
+        </span>
       </div>
     </div>
   );
