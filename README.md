@@ -42,7 +42,7 @@ SQLite local
 ## Documentação do projeto
 
 - [Arquitetura](docs/ARQUITETURA.md)
-- [ROADMAP detalhado](ROADMAP.md)
+- [ROADMAP detalhado](ROADMAP.md)\n- [Tratamento dos dados do Profit Ultra](docs/TRATAMENTO-DADOS-PROFIT.md)\n- [Reaproveitamento do Candle Lab](docs/REAPROVEITAMENTO-CANDLE-LAB.md)
 
 ## Estado atual
 
@@ -53,7 +53,7 @@ A Fase 1 cria a fundação funcional do simulador:
 - port do Pine Script para TypeScript por meio do `IndicatorAdapter`;
 - MMP/WMA 20, VWAP, MME/EMA 8 e MME/EMA 52 plotadas no gráfico;
 - nuvens verde/vermelha e labels COMPRA/VENDA;
-- compra/venda desbloqueadas exclusivamente pelo sinal ativo;
+- compra/venda condicionadas exclusivamente pelo sinal ativo;\n- tentativa fora das regras bloqueada com pop-up de **Fora do operacional**;\n- modo claro e modo escuro com preferência persistente;
 - formulário OCO obrigatório;
 - validação de stop e alvo;
 - validação do incremento mínimo de preço de WIN/WDO;
@@ -62,9 +62,9 @@ A Fase 1 cria a fundação funcional do simulador:
 - histórico de operações;
 - persistência em SQLite quando executado pelo Tauri;
 - fallback para `localStorage` durante desenvolvimento no navegador;
-- testes unitários das regras críticas.
+- testes unitários das regras críticas;\n- ferramenta desktop para reduzir CSVs brutos do Profit ao intervalo 09:00–12:00 e aos campos necessários ao replay.
 
-> **Importante:** a lógica do indicador é a do Pine Script fornecido, mas os candles ainda são sintéticos. A próxima etapa é conectar o mesmo cálculo a dados históricos/replay de WINFUT e WDOFUT.
+> **Importante:** a lógica do indicador é a do Pine Script fornecido, mas o gráfico principal ainda usa candles sintéticos. A infraestrutura de tratamento dos CSVs do Profit já foi iniciada; o próximo passo é consumir o arquivo `.replay.csv` negócio a negócio para formar candles M2 reais.
 
 ### Regra de autorização do simulador
 
