@@ -6,6 +6,8 @@ export interface ReplaySessionInfo {
   symbol: string;
   asset: Asset;
   finished: boolean;
+  sessionStart: string | null;
+  sessionEnd: string | null;
 }
 
 function ensureDesktop(): void {
@@ -16,9 +18,15 @@ function ensureDesktop(): void {
 
 export async function openReplayFile(
   sourcePath: string,
+  expectedStart?: string,
+  expectedEnd?: string,
 ): Promise<ReplaySessionInfo> {
   ensureDesktop();
-  return invoke<ReplaySessionInfo>("open_replay_file", { sourcePath });
+  return invoke<ReplaySessionInfo>("open_replay_file", {
+    sourcePath,
+    expectedStart,
+    expectedEnd,
+  });
 }
 
 export async function nextReplayTrades(
