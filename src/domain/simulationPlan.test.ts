@@ -52,6 +52,40 @@ describe("planejamento de simulação", () => {
     expect(plan.contractWarning).toMatch(/vencimento mensal do WIN/i);
   });
 
+  it("planeja M5 de ponta a ponta", () => {
+    const plan = calculateSimulationPlan({
+      asset: "WINFUT",
+      date: "2026-10-14",
+      timeframeMinutes: 5,
+      startTime: "09:00",
+      endTime: "12:00",
+      warmupPolicy: "STANDARD",
+    });
+
+    expect(plan.timeframeMinutes).toBe(5);
+    expect(plan.visibleBars).toBe(36);
+    expect(plan.warmupBars).toBe(260);
+    expect(plan.warmupMinutes).toBe(1300);
+    expect(plan.sameWindowSessionsNeeded).toBe(8);
+    expect(plan.sameWindowPreviousDates).toEqual([
+      "2026-10-13",
+      "2026-10-09",
+      "2026-10-08",
+      "2026-10-07",
+      "2026-10-06",
+      "2026-10-05",
+      "2026-10-02",
+      "2026-10-01",
+    ]);
+    expect(plan.fullSessionsNeeded).toBe(3);
+    expect(plan.fullSessionPreviousDates).toEqual([
+      "2026-10-13",
+      "2026-10-09",
+      "2026-10-08",
+    ]);
+    expect(plan.fullSessionBars).toBe(324);
+  });
+
   it("usa 520 candles no modo estrito", () => {
     const plan = calculateSimulationPlan({
       asset: "WINFUT",
