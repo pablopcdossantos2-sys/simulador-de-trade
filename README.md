@@ -64,7 +64,7 @@ A Fase 1 cria a fundação funcional do simulador:
 - fallback para `localStorage` durante desenvolvimento no navegador;
 - testes unitários das regras críticas;\n- ferramenta desktop para reduzir CSVs brutos do Profit ao intervalo 09:00–12:00 e aos campos necessários ao replay.
 
-> **Importante:** a lógica do indicador é a do Pine Script fornecido, mas o gráfico principal ainda usa candles sintéticos. A infraestrutura de tratamento dos CSVs do Profit já foi iniciada; o próximo passo é consumir o arquivo `.replay.csv` negócio a negócio para formar candles M2 reais.
+> **Importante:** o modo demonstrativo com candles sintéticos continua disponível, mas o aplicativo desktop já possui um player de `.replay.csv` tratado do Profit. Nesse modo, os candles M2 são construídos negócio a negócio e nenhum candle futuro é revelado.
 
 ### Regra de autorização do simulador
 
@@ -108,11 +108,15 @@ npm test
 - [x] Integrar o indicador inicial Multi Médias - Nuvem e Sinais.
 
 ### Fase 2 — Replay histórico
-- [ ] Importação de candles históricos por CSV.
-- [ ] Reprodução candle a candle.
-- [ ] Controle de velocidade, pausa e avanço manual.
-- [ ] Ocultação dos candles futuros.
-- [ ] Controle de sessão e horários da B3.
+- [x] Tratamento do CSV bruto do Profit para 09:00–12:00.
+- [x] Arquivo de replay canônico em ordem cronológica.
+- [x] Formação M2 negócio a negócio.
+- [x] Reprodução, pausa, +1 negócio, reinício e velocidade visual.
+- [x] Ocultação dos candles futuros.
+- [x] Indicador recalculado durante o candle M2 aberto.
+- [x] OCO avaliada negócio a negócio.
+- [ ] Seleção explícita de pregão/data.
+- [ ] Aquecimento histórico do indicador antes do início do treino.
 
 ### Fase 3 — Fidelidade de execução
 - [ ] Quantidade de contratos.
