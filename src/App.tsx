@@ -7,6 +7,7 @@ import { PlanDataPreparationPanel } from "./components/PlanDataPreparationPanel"
 import { RuleViolationModal } from "./components/RuleViolationModal";
 import { SimulationPlanner } from "./components/SimulationPlanner";
 import { TrainingSessionPanel } from "./components/TrainingSessionPanel";
+import { SessionHistoryPanel } from "./components/SessionHistoryPanel";
 import {
   ThemeToggle,
   type ThemeMode,
@@ -99,6 +100,7 @@ export default function App() {
   const [trainingSession, setTrainingSession] =
     useState<TrainingSession | null>(null);
   const [trainingEvents, setTrainingEvents] = useState<TrainingEvent[]>([]);
+  const [sessionHistoryRefreshKey, setSessionHistoryRefreshKey] = useState(0);
   const activeSignalRef = useRef<{ id: string; side: Side } | null>(null);
   const usedSignalIdsRef = useRef<Set<string>>(new Set());
 
@@ -264,8 +266,15 @@ export default function App() {
   }, [indicatorEvaluation.zone, signal, position, lastCandle?.index]);
 
   useEffect(() => {
-    if (replay.error) {
-      setFeedback(replay.error);
+    if (!replay.error) return;
+
+    setFeedback(replay.error);
+    if (trainingActive) {
+      recordTrainingEvent({
+        type: "TECHNICAL_ISSUE",
+        marketTimestamp: currentReplayTrade?.timestamp ?? null,
+        reason: replay.error,
+      });
     }
   }, [replay.error]);
 
@@ -489,6 +498,7 @@ export default function App() {
       ),
     );
 
+    setSessionHistoryRefreshKey((value) => value + 1);
     setFeedback("Sessão de treino encerrada. O resumo disciplinar foi atualizado.");
   }
 
@@ -557,18 +567,22 @@ export default function App() {
         `${sideLabel(side)} aberta em ${money.format(lastPrice)} com OCO obrigatório ativo.`,
       );
     } catch (error) {
-      const reason =
-        error instanceof TradingRuleError
+      const isDisciplineError = error instanceof TradingRuleError;
+      const reason = isDisciplineError
+        ? error.message
+        : error instanceof Error
           ? error.message
           : "Não foi possível abrir a operação.";
+
       setFeedback(reason);
       setRuleViolation(reason);
+
       if (trainingActive) {
         recordTrainingEvent({
-          type: "BLOCKED_ATTEMPT",
+          type: isDisciplineError ? "BLOCKED_ATTEMPT" : "TECHNICAL_ISSUE",
           marketTimestamp: currentReplayTrade?.timestamp ?? null,
           signalId: signal?.id ?? null,
-          side,
+          side: isDisciplineError ? side : null,
           reason,
         });
       }
@@ -813,6 +827,8 @@ export default function App() {
           )}
         </aside>
       </section>
+
+      <SessionHistoryPanel refreshKey={sessionHistoryRefreshKey} />
 
       <DataPreparationPanel
         plannedStart={simulationPlan?.targetStartTime}
