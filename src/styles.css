@@ -2315,3 +2315,94 @@ td {
     grid-column: 1 / -1;
   }
 }
+
+
+/* Configurações de execução */
+.execution-settings {
+  margin-bottom: 16px;
+  padding: 20px;
+}
+
+.execution-settings-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.execution-settings-grid label {
+  display: grid;
+  gap: 6px;
+  color: #b8cce0;
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.execution-settings-grid input {
+  min-height: 42px;
+  border: 1px solid #2b4059;
+  border-radius: 10px;
+  padding: 9px 11px;
+  background: #091522;
+  color: #e8f0f8;
+}
+
+.execution-settings-grid small {
+  color: #7f95aa;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+.execution-settings-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.execution-settings-actions button {
+  min-height: 42px;
+  padding: 10px 15px;
+  border-radius: 10px;
+  background: #dcecff;
+  color: #0d3355;
+  cursor: pointer;
+  font-weight: 850;
+}
+
+.execution-settings-actions button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.execution-settings-actions span {
+  color: #8197ad;
+  font-size: 0.78rem;
+  line-height: 1.4;
+}
+
+:root[data-theme="light"] .execution-settings-grid label {
+  color: #405a72;
+}
+
+:root[data-theme="light"] .execution-settings-grid input {
+  border-color: #bfd0df;
+  background: #fff;
+  color: #20364a;
+}
+
+:root[data-theme="light"] .execution-settings-grid small,
+:root[data-theme="light"] .execution-settings-actions span {
+  color: #687f94;
+}
+
+@media (max-width: 700px) {
+  .execution-settings-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .execution-settings-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+}
