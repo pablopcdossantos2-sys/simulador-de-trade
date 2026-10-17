@@ -48,6 +48,7 @@ SQLite local
 - [Catálogo local de dados preparados](docs/CATALOGO-DADOS.md)
 - [Sessão formal de treinamento](docs/SESSAO-TREINO.md)
 - [Relatório pós-sessão e métricas](docs/RELATORIO-SESSAO.md)
+- [Exportação do relatório de sessão](docs/EXPORTACAO-SESSAO.md)
 - [Quantidade de contratos e resultado financeiro](docs/RESULTADO-FINANCEIRO.md)
 - [Custos, slippage e resultado líquido](docs/CUSTOS-SLIPPAGE.md)
 - [Notas pós-trade](docs/NOTAS-POS-TRADE.md)
@@ -90,6 +91,7 @@ A Fase 1 cria a fundação funcional do simulador:
 - histórico navegável de sessões persistidas;
 - separação entre erro disciplinar e problema técnico;
 - relatório pós-sessão com pontos, win rate, payoff, profit factor, R, drawdown e resultado por horário/direção;
+- exportação JSON versionada e CSV dos trades para sessões concluídas;
 - quantidade inteira de contratos na boleta;
 - resultado bruto em reais usando os multiplicadores contratuais de WIN/WDO;
 - configuração persistente de custos por contrato, slippage por lado e política intrabar para candles OHLC ambíguos;
@@ -190,7 +192,7 @@ npm test
 - [x] Aderência aos sinais utilizados versus ignorados.
 - [x] Evolução histórica do trader por sessão.
 - [ ] Aderência ao stop e ao alvo quando houver edição dinâmica dessas ordens.
-- [ ] Erros evitados pelo bloqueio.
+- [x] Erros evitados pelo bloqueio, agrupados por regra e direção.
 - [x] R-múltiplos.
 - [x] Relatório pós-sessão inicial.
 - [x] Notas pós-trade.
