@@ -3,6 +3,7 @@ import { save } from "@tauri-apps/plugin-dialog";
 import {
   blockedAttemptBreakdown,
   performanceByHour,
+  performanceBySetup,
 } from "../domain/sessionReport";
 import type {
   SessionPerformance,
@@ -13,11 +14,12 @@ import type {
 
 export interface CompleteSessionExport {
   format: "simulador-de-trade-session-report";
-  schemaVersion: 1;
+  schemaVersion: 2;
   exportedAt: string;
   session: TrainingSession;
   performance: SessionPerformance;
   hourlyPerformance: ReturnType<typeof performanceByHour>;
+  setupPerformance: ReturnType<typeof performanceBySetup>;
   blockedAttempts: ReturnType<typeof blockedAttemptBreakdown>;
   events: TrainingEvent[];
   trades: Trade[];
@@ -54,11 +56,12 @@ export function buildCompleteSessionExport(input: {
 }): CompleteSessionExport {
   return {
     format: "simulador-de-trade-session-report",
-    schemaVersion: 1,
+    schemaVersion: 2,
     exportedAt: new Date().toISOString(),
     session: input.session,
     performance: input.performance,
     hourlyPerformance: performanceByHour(input.trades),
+    setupPerformance: performanceBySetup(input.trades),
     blockedAttempts: blockedAttemptBreakdown(input.events),
     events: input.events,
     trades: input.trades,
