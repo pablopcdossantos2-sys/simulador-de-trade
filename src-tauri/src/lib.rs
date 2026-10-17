@@ -1554,10 +1554,10 @@ fn parse_combined_timestamp(raw: &str) -> Result<NaiveDateTime, String> {
     }
 
     for format in [
-        "%d/%m/%Y %H:%M:%S%.f",
-        "%d/%m/%Y %H:%M:%S",
         "%d/%m/%y %H:%M:%S%.f",
         "%d/%m/%y %H:%M:%S",
+        "%d/%m/%Y %H:%M:%S%.f",
+        "%d/%m/%Y %H:%M:%S",
         "%Y-%m-%d %H:%M:%S%.f",
         "%Y-%m-%d %H:%M:%S",
         "%Y-%m-%dT%H:%M:%S%.f",
@@ -2279,6 +2279,18 @@ mod tests {
         assert!(validate_training_window("12:00", "09:00").is_err());
         assert!(validate_training_window("09:00", "09:00").is_err());
         assert!(validate_training_window("abc", "12:00").is_err());
+    }
+
+    #[test]
+    fn parses_two_digit_year_in_combined_profit_timestamp() {
+        let parsed = parse_combined_timestamp("07/10/26 09:30:15").unwrap();
+        assert_eq!(
+            parsed,
+            NaiveDate::from_ymd_opt(2026, 10, 7)
+                .unwrap()
+                .and_hms_opt(9, 30, 15)
+                .unwrap()
+        );
     }
 
     #[test]
