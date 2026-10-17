@@ -64,6 +64,12 @@ export function ReplayControls({
         </span>
       </div>
 
+      <p className="data-description">
+        Carregue aqui o arquivo tratado. Para começar a reproduzir o mercado,
+        primeiro inicie a sessão na Etapa 5; depois volte a esta seção para
+        clicar em Reproduzir ou avançar negócio a negócio.
+      </p>
+
       <div className="replay-load-row">
         <label>
           Arquivo tratado (.replay.csv)
