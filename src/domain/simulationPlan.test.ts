@@ -14,6 +14,15 @@ describe("planejamento de simulação", () => {
     ]);
   });
 
+  it("não usa 24, 25 ou 31/12/2025 como aquecimento de janeiro de 2026", () => {
+    expect(previousB3Sessions2026("2026-01-05", 4)).toEqual([
+      "2026-01-02",
+      "2025-12-30",
+      "2025-12-29",
+      "2025-12-26",
+    ]);
+  });
+
   it("rejeita timeframe fora de M2/M5", () => {
     expect(() =>
       calculateSimulationPlan({
