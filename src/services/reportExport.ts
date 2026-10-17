@@ -131,7 +131,7 @@ export function sessionTradesToCsv(
     trade.stopLoss,
     trade.target,
     trade.contracts,
-    trade.openedAt,
+    trade.entryContext?.marketTimestamp ?? trade.openedAt,
     trade.closedAt,
     trade.exitReason,
     trade.exitPrice,
