@@ -9,6 +9,8 @@ import {
   calculateSessionPerformance,
   classifyTrainingEvent,
   performanceByHour,
+  performanceBySetup,
+  tradeSetupLabel,
 } from "./sessionReport";
 
 const session: TrainingSession = {
@@ -191,6 +193,88 @@ describe("relatório por sessão", () => {
         count: 1,
         buyAttempts: 1,
         sellAttempts: 0,
+      },
+    ]);
+  });
+
+  it("classifica setup a partir do snapshot da entrada", () => {
+    const classified: Trade = {
+      ...trades[0],
+      entryContext: {
+        capturedAt: "2026-10-14T09:15:00",
+        marketTimestamp: "2026-10-14T09:15:00",
+        asset: "WINFUT",
+        candleIndex: 10,
+        currentPrice: 130000,
+        zone: "GREEN",
+        signal: {
+          id: "sig1",
+          asset: "WINFUT",
+          side: "BUY",
+          candleIndex: 10,
+          timestamp: "2026-10-14T09:14:00",
+          price: 130000,
+          label: "Compra",
+        },
+        indicatorVersion: "multi-medias-nuvem-v1.0.0",
+        candles: [],
+        indicatorSeries: [],
+        signals: [],
+      },
+    };
+
+    expect(tradeSetupLabel(classified)).toBe(
+      "multi-medias-nuvem-v1.0.0 · Compra",
+    );
+    expect(tradeSetupLabel(trades[1])).toBe(
+      "Legado / sem classificação",
+    );
+  });
+
+  it("agrupa resultado por setup sem inventar classificação para legado", () => {
+    const buyWithContext: Trade = {
+      ...trades[0],
+      entryContext: {
+        capturedAt: "2026-10-14T09:15:00",
+        marketTimestamp: "2026-10-14T09:15:00",
+        asset: "WINFUT",
+        candleIndex: 10,
+        currentPrice: 130000,
+        zone: "GREEN",
+        signal: {
+          id: "sig1",
+          asset: "WINFUT",
+          side: "BUY",
+          candleIndex: 10,
+          timestamp: "2026-10-14T09:14:00",
+          price: 130000,
+          label: "Compra",
+        },
+        indicatorVersion: "multi-medias-nuvem-v1.0.0",
+        candles: [],
+        indicatorSeries: [],
+        signals: [],
+      },
+    };
+
+    expect(performanceBySetup([buyWithContext, trades[1]])).toEqual([
+      {
+        setup: "Legado / sem classificação",
+        trades: 1,
+        wins: 0,
+        losses: 1,
+        winRatePct: 0,
+        netPoints: -100,
+        netResultBRL: -21,
+      },
+      {
+        setup: "multi-medias-nuvem-v1.0.0 · Compra",
+        trades: 1,
+        wins: 1,
+        losses: 0,
+        winRatePct: 100,
+        netPoints: 150,
+        netResultBRL: 29,
       },
     ]);
   });
