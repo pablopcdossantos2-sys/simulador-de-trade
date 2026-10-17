@@ -55,7 +55,7 @@ export function ReplayControls({
       <div className="section-heading replay-heading">
         <div>
           <p className="eyebrow">
-            Replay histórico · M{timeframeMinutes}
+            Etapa 4 · Carregar e reproduzir · M{timeframeMinutes}
           </p>
           <h2>Reprodução negócio a negócio</h2>
         </div>
