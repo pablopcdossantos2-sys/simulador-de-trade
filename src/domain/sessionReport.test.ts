@@ -259,15 +259,6 @@ describe("relatório por sessão", () => {
 
     expect(performanceBySetup([buyWithContext, trades[1]])).toEqual([
       {
-        setup: "Legado / sem classificação",
-        trades: 1,
-        wins: 0,
-        losses: 1,
-        winRatePct: 0,
-        netPoints: -100,
-        netResultBRL: -21,
-      },
-      {
         setup: "multi-medias-nuvem-v1.0.0 · Compra",
         trades: 1,
         wins: 1,
@@ -275,6 +266,15 @@ describe("relatório por sessão", () => {
         winRatePct: 100,
         netPoints: 150,
         netResultBRL: 29,
+      },
+      {
+        setup: "Legado / sem classificação",
+        trades: 1,
+        wins: 0,
+        losses: 1,
+        winRatePct: 0,
+        netPoints: -100,
+        netResultBRL: -21,
       },
     ]);
   });
