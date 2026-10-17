@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import { performanceByAsset } from "../domain/portfolioMetrics";
+import { performanceBySetup } from "../domain/sessionReport";
 import type { Trade } from "../types";
 
 interface Props {
@@ -16,6 +17,7 @@ function money(value: number): string {
 
 export function ProgressOverviewPanel({ trades, hidden = false }: Props) {
   const assets = useMemo(() => performanceByAsset(trades), [trades]);
+  const setups = useMemo(() => performanceBySetup(trades), [trades]);
 
   return (
     <section className="progress-overview card">
@@ -36,6 +38,7 @@ export function ProgressOverviewPanel({ trades, hidden = false }: Props) {
           </span>
         </div>
       ) : (
+        <>
         <div className="asset-performance-grid">
           {assets.map((item) => (
             <article key={item.asset}>
@@ -81,6 +84,43 @@ export function ProgressOverviewPanel({ trades, hidden = false }: Props) {
             </article>
           ))}
         </div>
+
+        <div className="aggregate-setup-section">
+          <div className="training-timeline-heading">
+            <strong>Resultado histórico por setup/sinal</strong>
+            <span>{setups.length} grupo{setups.length === 1 ? "" : "s"}</span>
+          </div>
+          <div className="setup-report-grid">
+            {setups.map((item) => (
+              <article key={item.setup}>
+                <strong>{item.setup}</strong>
+                <dl>
+                  <div>
+                    <dt>Trades</dt>
+                    <dd>{item.trades}</dd>
+                  </div>
+                  <div>
+                    <dt>Win rate</dt>
+                    <dd>{item.winRatePct.toFixed(1)}%</dd>
+                  </div>
+                  <div>
+                    <dt>Pontos</dt>
+                    <dd className={item.netPoints >= 0 ? "positive" : "negative"}>
+                      {item.netPoints.toFixed(1)}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>Líquido</dt>
+                    <dd className={item.netResultBRL >= 0 ? "positive" : "negative"}>
+                      {money(item.netResultBRL)}
+                    </dd>
+                  </div>
+                </dl>
+              </article>
+            ))}
+          </div>
+        </div>
+        </>
       )}
     </section>
   );
