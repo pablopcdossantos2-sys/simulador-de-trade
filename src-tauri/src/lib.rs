@@ -1758,10 +1758,16 @@ fn canonicalize_replay_file(
             drop(writer);
 
             let replace_result = replace_file_safely(&new_path, output_path);
-            if replace_result.is_err() {
-                let _ = fs::remove_file(&new_path);
+            match replace_result {
+                Ok(()) => {
+                    fs::remove_file(temp_path).map_err(|error| error.to_string())?;
+                    Ok(())
+                }
+                Err(error) => {
+                    let _ = fs::remove_file(&new_path);
+                    Err(error)
+                }
             }
-            replace_result
         }
         _ => Err(
             "A ordem temporal do arquivo do Profit é mista. O replay exige uma fonte cronologicamente ascendente ou descendente."
