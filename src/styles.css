@@ -3247,3 +3247,14 @@ td {
     grid-template-columns: 1fr;
   }
 }
+
+
+.aggregate-setup-section {
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px solid #263b54;
+}
+
+:root[data-theme="light"] .aggregate-setup-section {
+  border-top-color: #d7e1e9;
+}
