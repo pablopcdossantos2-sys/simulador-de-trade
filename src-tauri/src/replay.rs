@@ -17,6 +17,7 @@ pub struct ReplaySession {
     finished: bool,
     session_start: Option<String>,
     session_end: Option<String>,
+    pending_error: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -207,6 +208,7 @@ fn open_session(path: &Path) -> Result<(ReplaySession, ReplaySessionInfo), Strin
             finished: false,
             session_start,
             session_end,
+            pending_error: None,
         },
         info,
     ))
@@ -379,7 +381,7 @@ fn normalize_hhmm(value: &str) -> Option<String> {
     if trimmed.len() < 5 {
         return None;
     }
-    Some(trimmed[0..5].to_string())
+    Some(trimmed.chars().take(5).collect())
 }
 
 #[tauri::command]
@@ -433,6 +435,10 @@ pub fn next_replay_trades(
         .as_mut()
         .ok_or_else(|| "Nenhum arquivo de replay está aberto.".to_string())?;
 
+    if let Some(error) = session.pending_error.take() {
+        return Err(error);
+    }
+
     if session.finished {
         return Ok(Vec::new());
     }
@@ -440,7 +446,7 @@ pub fn next_replay_trades(
     let limit = max_events.clamp(1, 5000);
     let mut result = Vec::with_capacity(limit);
 
-    for _ in 0..limit {
+    while result.len() < limit {
         let mut line = String::new();
         let read = session
             .reader
@@ -452,9 +458,24 @@ pub fn next_replay_trades(
             break;
         }
 
-        let record = parse_replay_line(&line, &session.asset, session.sequence)?;
-        session.sequence += 1;
-        result.push(record);
+        if line.trim().is_empty() {
+            continue;
+        }
+
+        match parse_replay_line(&line, &session.asset, session.sequence) {
+            Ok(record) => {
+                session.sequence += 1;
+                result.push(record);
+            }
+            Err(error) => {
+                if result.is_empty() {
+                    return Err(error);
+                }
+
+                session.pending_error = Some(error);
+                break;
+            }
+        }
     }
 
     Ok(result)
@@ -475,6 +496,7 @@ pub fn reset_replay_session(
         .map_err(|error| error.to_string())?;
     session.sequence = 0;
     session.finished = false;
+    session.pending_error = None;
 
     Ok(ReplaySessionInfo {
         source_path: session.source_path.to_string_lossy().to_string(),
@@ -525,6 +547,12 @@ mod tests {
     fn validates_exact_replay_header() {
         assert!(validate_header("symbol,timestamp,source_row,price,quantity\n").is_ok());
         assert!(validate_header("timestamp,price\n").is_err());
+    }
+
+    #[test]
+    fn normalize_hhmm_handles_multibyte_input_without_panicking() {
+        assert_eq!(normalize_hhmm("09:00:00"), Some("09:00".to_string()));
+        assert_eq!(normalize_hhmm("á9:00"), Some("á9:00".to_string()));
     }
 
     #[test]
