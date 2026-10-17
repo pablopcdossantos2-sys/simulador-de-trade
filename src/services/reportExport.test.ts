@@ -102,7 +102,7 @@ describe("exportação de relatório por sessão", () => {
     });
 
     expect(bundle.format).toBe("simulador-de-trade-session-report");
-    expect(bundle.schemaVersion).toBe(1);
+    expect(bundle.schemaVersion).toBe(2);
     expect(bundle.session.id).toBe("s1");
     expect(bundle.performance.netResultBRL).toBe(29);
     expect(bundle.trades[0].postTradeNote).toContain("hesitação");
