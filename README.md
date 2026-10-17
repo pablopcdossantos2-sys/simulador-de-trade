@@ -191,7 +191,7 @@ npm test
 - [x] Registro de sinais ignorados.
 - [x] Resumo inicial de aderência e linha do tempo.
 - [x] Métricas iniciais por sessão: win rate, payoff, profit factor, R, drawdown, horário e direção.
-- [ ] Métricas completas por sinal/setup.
+- [x] Métricas completas por sinal/setup.
 - [x] Aderência aos sinais utilizados versus ignorados.
 - [x] Evolução histórica do trader por sessão.
 - [ ] Aderência ao stop e ao alvo quando houver edição dinâmica dessas ordens.
