@@ -132,7 +132,7 @@ export function TrainingSessionPanel({
     <section className="training-session-panel card">
       <div className="section-heading">
         <div>
-          <p className="eyebrow">Sessão formal</p>
+          <p className="eyebrow">Etapa 5 · Iniciar e acompanhar o treino</p>
           <h2>Treino disciplinado</h2>
         </div>
         <span
