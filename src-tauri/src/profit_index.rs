@@ -502,9 +502,14 @@ fn load_fresh_index(source: &Path) -> Result<Option<(PathBuf, ProfitTimeIndex)>,
     }
 
     let metadata = fs::metadata(source).map_err(|error| error.to_string())?;
-    let raw = fs::read_to_string(&index_path).map_err(|error| error.to_string())?;
-    let index: ProfitTimeIndex =
-        serde_json::from_str(&raw).map_err(|error| format!("Índice M1 inválido: {error}"))?;
+    let raw = match fs::read_to_string(&index_path) {
+        Ok(raw) => raw,
+        Err(_) => return Ok(None),
+    };
+    let index: ProfitTimeIndex = match serde_json::from_str(&raw) {
+        Ok(index) => index,
+        Err(_) => return Ok(None),
+    };
 
     if index.schema_version != INDEX_SCHEMA_VERSION
         || index.source_bytes != metadata.len()
