@@ -75,9 +75,6 @@ export function SimulationPlanner({
           : "Defina primeiro o pregão que deseja treinar. O sistema calcula a janela visível e o histórico anterior necessário para aquecer o indicador sem revelar esses dados ao trader durante a simulação."}
       </p>
 
-      {!disabled && <p className="data-description planner-helper">
-        o ativo, a data, o timeframe e a janela desejada.
-      </p>}
 
       <div className="planner-grid">
         <label>
