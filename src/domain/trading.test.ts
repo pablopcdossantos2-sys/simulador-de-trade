@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { IndicatorSignal, TradeIntent } from "../types";
 import {
   TradingRuleError,
+  closePositionAtMarket,
   openPosition,
   resolveOco,
   resolveOcoTrade,
@@ -104,6 +105,15 @@ describe("regras de entrada", () => {
 
   it("aceita compra com sinal e OCO válidos", () => {
     expect(() => validateTradeIntent(baseIntent)).not.toThrow();
+  });
+
+  it("preserva o timestamp de mercado do replay sem converter para UTC", () => {
+    const position = openPosition(
+      baseIntent,
+      "2026-10-14T09:20:00",
+    );
+
+    expect(position.openedAt).toBe("2026-10-14T09:20:00");
   });
 
   it("aplica slippage adverso na entrada e saída", () => {
@@ -295,6 +305,40 @@ describe("resolução OCO negócio a negócio", () => {
   });
 });
 
+
+describe("encerramento explícito no fim do replay", () => {
+  it("fecha a mercado usando o último preço disponível", () => {
+    const position = {
+      id: "session-end-1",
+      asset: "WINFUT" as const,
+      side: "BUY" as const,
+      signalId: "signal-1",
+      openedCandleIndex: 10,
+      requestedEntry: 130000,
+      entry: 130000,
+      stopLoss: 129900,
+      target: 130150,
+      contracts: 1,
+      slippageTicksPerSide: 0,
+      costPerContractRoundTripBRL: 0,
+      intrabarPolicy: "STOP_FIRST" as const,
+      entryContext: null,
+      openedAt: "2026-10-14T11:50:00",
+      status: "OPEN" as const,
+    };
+
+    const result = closePositionAtMarket(
+      position,
+      130075,
+      "2026-10-14T12:00:00",
+    );
+
+    expect(result.exitReason).toBe("SESSION_END");
+    expect(result.exitPrice).toBe(130075);
+    expect(result.resultPoints).toBe(75);
+    expect(result.closedAt).toBe("2026-10-14T12:00:00");
+  });
+});
 
 describe("regras e execução SELL", () => {
   const sellSignal: IndicatorSignal = {
