@@ -9,9 +9,14 @@ on:
       - "v*"
     paths:
       - ".github/workflows/windows-build.yml"
+      - "src/**"
+      - "src-tauri/src/**"
       - "src-tauri/tauri.conf.json"
       - "src-tauri/Cargo.toml"
       - "src-tauri/Cargo.lock"
+      - "index.html"
+      - "vite.config.ts"
+      - "tsconfig*.json"
       - "package.json"
       - "package-lock.json"
 
