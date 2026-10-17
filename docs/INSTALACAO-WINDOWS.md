@@ -110,12 +110,12 @@ simulador-de-trade-windows-x64
 
 ## Para desenvolvedores: compilação local
 
-Quem quiser compilar o projeto manualmente precisa instalar os pré-requisitos do Tauri 2 para Windows, além de Node.js/npm e Rust.
+Quem quiser compilar o projeto manualmente precisa instalar os pré-requisitos do Tauri 2 para Windows, além de Node.js/npm e Rust. O repositório inclui `package-lock.json`, portanto `npm ci` reproduz as versões usadas no CI.
 
 Depois, na pasta do projeto:
 
 ~~~text
-npm install
+npm ci
 npm run tauri build
 ~~~
 
