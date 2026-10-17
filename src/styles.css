@@ -3345,3 +3345,32 @@ td {
   background: #fff6e8;
   color: #72511f;
 }
+
+
+/* Ferramenta de preparação manual mantida fora do fluxo principal. */
+.advanced-tools {
+  margin-top: 18px;
+  padding: 14px 16px;
+  border: 1px solid #263b54;
+  border-radius: 12px;
+  background: #0c1727;
+}
+
+.advanced-tools > summary {
+  color: #a9c4e4;
+  cursor: pointer;
+  font-weight: 800;
+}
+
+.advanced-tools[open] > summary {
+  margin-bottom: 14px;
+}
+
+:root[data-theme="light"] .advanced-tools {
+  border-color: #d7e1e9;
+  background: #f6f9fc;
+}
+
+:root[data-theme="light"] .advanced-tools > summary {
+  color: #31516e;
+}
