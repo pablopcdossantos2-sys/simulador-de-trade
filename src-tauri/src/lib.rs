@@ -2282,6 +2282,43 @@ mod tests {
     }
 
     #[test]
+    fn parses_two_and_four_digit_profit_years_unambiguously() {
+        assert_eq!(
+            parse_date("07/10/26").unwrap(),
+            NaiveDate::from_ymd_opt(2026, 10, 7).unwrap()
+        );
+        assert_eq!(
+            parse_date("07/10/2026").unwrap(),
+            NaiveDate::from_ymd_opt(2026, 10, 7).unwrap()
+        );
+        assert!(parse_date("07/10/026").is_err());
+    }
+
+    #[test]
+    fn backup_validation_rejects_invalid_execution_values() {
+        let mut bundle = BackupBundle {
+            format: "simulador-de-trade-backup".to_string(),
+            schema_version: 1,
+            app_version: "0.1.0".to_string(),
+            exported_at: "2026-10-16T18:00:00Z".to_string(),
+            trades: Vec::new(),
+            training_sessions: Vec::new(),
+            training_events: Vec::new(),
+            execution_settings: ExecutionSettingsRecord {
+                cost_per_contract_round_trip_brl: -1.0,
+                slippage_ticks_per_side: 0,
+                intrabar_policy: "STOP_FIRST".to_string(),
+            },
+        };
+
+        assert!(validate_backup_bundle(&bundle).is_err());
+
+        bundle.execution_settings.cost_per_contract_round_trip_brl = 0.0;
+        bundle.execution_settings.intrabar_policy = "INVALID".to_string();
+        assert!(validate_backup_bundle(&bundle).is_err());
+    }
+
+    #[test]
     fn profit_number_normalization_handles_brazilian_prices() {
         assert_eq!(normalize_profit_number("205.935").unwrap(), "205935");
         assert_eq!(normalize_profit_number("5.321,5").unwrap(), "5321.5");
