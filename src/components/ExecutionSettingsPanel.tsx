@@ -76,7 +76,7 @@ export function ExecutionSettingsPanel({ settings, onSaved }: Props) {
     <section className="execution-settings card">
       <div className="section-heading">
         <div>
-          <p className="eyebrow">Configurações</p>
+          <p className="eyebrow">Ajustes antes do treino</p>
           <h2>Execução simulada</h2>
         </div>
         <span className="history-count">
