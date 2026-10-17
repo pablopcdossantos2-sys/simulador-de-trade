@@ -3258,3 +3258,65 @@ td {
 :root[data-theme="light"] .aggregate-setup-section {
   border-top-color: #d7e1e9;
 }
+
+
+.market-close-button {
+  margin-top: 10px;
+  min-height: 40px;
+  border: 1px solid #a6793e;
+  border-radius: 9px;
+  padding: 8px 12px;
+  background: #2a2113;
+  color: #edc98e;
+  cursor: pointer;
+  font-weight: 800;
+}
+
+.market-close-button:hover {
+  background: #352919;
+}
+
+.fatal-error-screen {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: #07111d;
+}
+
+.fatal-error-card {
+  width: min(720px, 100%);
+  padding: 24px;
+  border: 1px solid #643842;
+  border-radius: 14px;
+  background: #1d1016;
+  color: #f1dfe3;
+}
+
+.fatal-error-card h1 {
+  margin: 6px 0 12px;
+  font-size: 1.35rem;
+}
+
+.fatal-error-card pre {
+  overflow: auto;
+  padding: 12px;
+  border-radius: 9px;
+  background: #0c0c12;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.fatal-error-card button {
+  min-height: 42px;
+  padding: 9px 14px;
+  border-radius: 9px;
+  cursor: pointer;
+  font-weight: 800;
+}
+
+:root[data-theme="light"] .market-close-button {
+  border-color: #d4ae73;
+  background: #fff6e8;
+  color: #72511f;
+}
