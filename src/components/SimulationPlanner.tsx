@@ -9,7 +9,8 @@ import {
 import type { Asset } from "../types";
 
 interface Props {
-  onPlanChange?: (plan: SimulationPlan) => void;
+  onPlanChange?: (plan: SimulationPlan) => void | Promise<void>;
+  disabled?: boolean;
 }
 
 function brDate(value: string): string {
@@ -17,7 +18,10 @@ function brDate(value: string): string {
   return `${day}/${month}/${year}`;
 }
 
-export function SimulationPlanner({ onPlanChange }: Props) {
+export function SimulationPlanner({
+  onPlanChange,
+  disabled = false,
+}: Props) {
   const [asset, setAsset] = useState<Asset>("WINFUT");
   const [date, setDate] = useState("2026-10-14");
   const [timeframeMinutes, setTimeframeMinutes] =
@@ -49,7 +53,8 @@ export function SimulationPlanner({ onPlanChange }: Props) {
   }, [asset, date, timeframeMinutes, startTime, endTime, warmupPolicy]);
 
   function applyPlan() {
-    if (result.plan) onPlanChange?.(result.plan);
+    if (disabled || !result.plan) return;
+    void onPlanChange?.(result.plan);
   }
 
   return (
@@ -65,15 +70,23 @@ export function SimulationPlanner({ onPlanChange }: Props) {
       </div>
 
       <p className="data-description">
-        Defina primeiro o pregão que deseja treinar. O sistema calcula a janela
-        visível e o histórico anterior necessário para aquecer o indicador sem
-        revelar esses dados ao trader durante a simulação.
+        {disabled
+          ? "O plano fica bloqueado enquanto há uma sessão ou posição ativa. Encerre o treino antes de alterá-lo."
+          : "Defina primeiro o pregão que deseja treinar. O sistema calcula a janela visível e o histórico anterior necessário para aquecer o indicador sem revelar esses dados ao trader durante a simulação."}
       </p>
+
+      {!disabled && <p className="data-description planner-helper">
+        o ativo, a data, o timeframe e a janela desejada.
+      </p>}
 
       <div className="planner-grid">
         <label>
           Ativo
-          <select value={asset} onChange={(event) => setAsset(event.target.value as Asset)}>
+          <select
+            value={asset}
+            disabled={disabled}
+            onChange={(event) => setAsset(event.target.value as Asset)}
+          >
             <option value="WINFUT">WINFUT</option>
             <option value="WDOFUT">WDOFUT</option>
           </select>
@@ -81,13 +94,19 @@ export function SimulationPlanner({ onPlanChange }: Props) {
 
         <label>
           Data do pregão
-          <input type="date" value={date} onChange={(event) => setDate(event.target.value)} />
+          <input
+            type="date"
+            value={date}
+            disabled={disabled}
+            onChange={(event) => setDate(event.target.value)}
+          />
         </label>
 
         <label>
           Timeframe
           <select
             value={timeframeMinutes}
+            disabled={disabled}
             onChange={(event) =>
               setTimeframeMinutes(Number(event.target.value))
             }
@@ -102,18 +121,29 @@ export function SimulationPlanner({ onPlanChange }: Props) {
 
         <label>
           Início visível
-          <input type="time" value={startTime} onChange={(event) => setStartTime(event.target.value)} />
+          <input
+            type="time"
+            value={startTime}
+            disabled={disabled}
+            onChange={(event) => setStartTime(event.target.value)}
+          />
         </label>
 
         <label>
           Final visível
-          <input type="time" value={endTime} onChange={(event) => setEndTime(event.target.value)} />
+          <input
+            type="time"
+            value={endTime}
+            disabled={disabled}
+            onChange={(event) => setEndTime(event.target.value)}
+          />
         </label>
 
         <label>
           Aquecimento
           <select
             value={warmupPolicy}
+            disabled={disabled}
             onChange={(event) => setWarmupPolicy(event.target.value as WarmupPolicy)}
           >
             <option value="STANDARD">Padrão · 5× MME 52</option>
@@ -174,7 +204,12 @@ export function SimulationPlanner({ onPlanChange }: Props) {
             </p>
           )}
 
-          <button type="button" className="planner-apply" onClick={applyPlan}>
+          <button
+            type="button"
+            className="planner-apply"
+            onClick={applyPlan}
+            disabled={disabled}
+          >
             Usar estes horários no tratamento
           </button>
         </div>
