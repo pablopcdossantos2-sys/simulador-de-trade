@@ -1,4 +1,5 @@
 import type {
+  Trade,
   TrainingEvent,
   TrainingSession,
   TrainingSummary,
@@ -96,4 +97,27 @@ export function createTrainingEvent(input: {
     reason: input.reason ?? null,
     tradeId: input.tradeId ?? null,
   };
+}
+
+
+export function visibleTradesForTrainingState(
+  trades: Trade[],
+  session: TrainingSession | null,
+  events: TrainingEvent[],
+): Trade[] {
+  if (!session || session.status !== "ACTIVE" || session.mode !== "EXAM") {
+    return trades;
+  }
+
+  const hiddenTradeIds = new Set(
+    events
+      .filter(
+        (event) =>
+          event.sessionId === session.id &&
+          Boolean(event.tradeId),
+      )
+      .map((event) => event.tradeId as string),
+  );
+
+  return trades.filter((trade) => !hiddenTradeIds.has(trade.id));
 }
