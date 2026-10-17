@@ -263,13 +263,10 @@ fn initialize_database(connection: &Connection) -> rusqlite::Result<()> {
     }
 
     if !column_exists(connection, "trades", "gross_result_brl")? {
-        connection.execute(
-            "ALTER TABLE trades ADD COLUMN gross_result_brl REAL NOT NULL DEFAULT 0",
-            [],
-        )?;
-
-        connection.execute(
+        connection.execute_batch(
             r#"
+            SAVEPOINT migrate_gross_result;
+            ALTER TABLE trades ADD COLUMN gross_result_brl REAL NOT NULL DEFAULT 0;
             UPDATE trades
             SET gross_result_brl =
                 result_points *
@@ -278,20 +275,20 @@ fn initialize_database(connection: &Connection) -> rusqlite::Result<()> {
                     WHEN asset = 'WDOFUT' THEN 10.0
                     ELSE 0.0
                 END *
-                contracts
+                contracts;
+            RELEASE migrate_gross_result;
             "#,
-            [],
         )?;
     }
 
     if !column_exists(connection, "trades", "requested_entry")? {
-        connection.execute(
-            "ALTER TABLE trades ADD COLUMN requested_entry REAL NOT NULL DEFAULT 0",
-            [],
-        )?;
-        connection.execute(
-            "UPDATE trades SET requested_entry = entry",
-            [],
+        connection.execute_batch(
+            r#"
+            SAVEPOINT migrate_requested_entry;
+            ALTER TABLE trades ADD COLUMN requested_entry REAL NOT NULL DEFAULT 0;
+            UPDATE trades SET requested_entry = entry;
+            RELEASE migrate_requested_entry;
+            "#,
         )?;
     }
 
@@ -317,13 +314,14 @@ fn initialize_database(connection: &Connection) -> rusqlite::Result<()> {
     }
 
     if !column_exists(connection, "trades", "net_result_brl")? {
-        connection.execute(
-            "ALTER TABLE trades ADD COLUMN net_result_brl REAL NOT NULL DEFAULT 0",
-            [],
-        )?;
-        connection.execute(
-            "UPDATE trades SET net_result_brl = gross_result_brl - operational_costs_brl",
-            [],
+        connection.execute_batch(
+            r#"
+            SAVEPOINT migrate_net_result;
+            ALTER TABLE trades ADD COLUMN net_result_brl REAL NOT NULL DEFAULT 0;
+            UPDATE trades
+            SET net_result_brl = gross_result_brl - operational_costs_brl;
+            RELEASE migrate_net_result;
+            "#,
         )?;
     }
 
@@ -362,6 +360,7 @@ fn initialize_database(connection: &Connection) -> rusqlite::Result<()> {
         )?;
     }
 
+    connection.execute_batch("PRAGMA user_version = 5;")?;
     Ok(())
 }
 
