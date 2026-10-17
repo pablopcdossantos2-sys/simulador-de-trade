@@ -6,7 +6,21 @@ export const SUPPORTED_TIMEFRAMES_MINUTES = [2, 5] as const;
 export const STANDARD_WARMUP_MULTIPLIER = 5;
 export const STRICT_WARMUP_MULTIPLIER = 10;
 
-const B3_CLOSED_DATES_2026 = new Set([
+const B3_CLOSED_DATES = new Set([
+  // 2025: necessário para aquecer simulações do começo de 2026.
+  "2025-01-01",
+  "2025-03-03",
+  "2025-03-04",
+  "2025-04-18",
+  "2025-04-21",
+  "2025-05-01",
+  "2025-06-19",
+  "2025-11-20",
+  "2025-12-24",
+  "2025-12-25",
+  "2025-12-31",
+
+  // 2026: calendário-alvo incorporado nesta versão.
   "2026-01-01",
   "2026-02-16",
   "2026-02-17",
@@ -98,7 +112,7 @@ export function isB3TradingDate2026(value: string): boolean {
 
   const weekday = date.getUTCDay();
   if (weekday === 0 || weekday === 6) return false;
-  return !B3_CLOSED_DATES_2026.has(value);
+  return !B3_CLOSED_DATES.has(value);
 }
 
 export function previousB3Sessions2026(
