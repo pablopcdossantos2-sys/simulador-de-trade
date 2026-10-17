@@ -247,3 +247,56 @@ export function performanceByHour(trades: Trade[]): HourBucket[] {
     a.hour.localeCompare(b.hour),
   );
 }
+
+
+export interface SetupBucket {
+  setup: string;
+  trades: number;
+  wins: number;
+  losses: number;
+  winRatePct: number;
+  netPoints: number;
+  netResultBRL: number;
+}
+
+export function tradeSetupLabel(trade: Trade): string {
+  const context = trade.entryContext;
+  if (!context) return "Legado / sem classificação";
+
+  const version = context.indicatorVersion?.trim() || "Indicador sem versão";
+  const signalLabel = context.signal?.label?.trim() || trade.side;
+
+  return `${version} · ${signalLabel}`;
+}
+
+export function performanceBySetup(trades: Trade[]): SetupBucket[] {
+  const buckets = new Map<string, SetupBucket>();
+
+  for (const trade of trades) {
+    const setup = tradeSetupLabel(trade);
+    const bucket = buckets.get(setup) ?? {
+      setup,
+      trades: 0,
+      wins: 0,
+      losses: 0,
+      winRatePct: 0,
+      netPoints: 0,
+      netResultBRL: 0,
+    };
+
+    bucket.trades += 1;
+    if (trade.resultPoints > 0) bucket.wins += 1;
+    if (trade.resultPoints < 0) bucket.losses += 1;
+    bucket.netPoints += trade.resultPoints;
+    bucket.netResultBRL += trade.netResultBRL;
+    bucket.winRatePct = (bucket.wins / bucket.trades) * 100;
+    buckets.set(setup, bucket);
+  }
+
+  return [...buckets.values()].sort(
+    (a, b) =>
+      b.trades - a.trades ||
+      b.netPoints - a.netPoints ||
+      a.setup.localeCompare(b.setup),
+  );
+}
