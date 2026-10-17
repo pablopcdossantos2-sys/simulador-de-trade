@@ -119,7 +119,7 @@ Arquitetura definida a partir dos componentes validados no Candle Lab. Ver [Reap
 - [x] Aderência aos sinais utilizados versus ignorados.
 - [ ] Aderência ao stop.
 - [ ] Aderência ao alvo.
-- [ ] Relatório completo por sessão.
+- [x] Relatório completo por sessão com exportação JSON versionada e CSV dos trades.
 - [x] Relatório pós-sessão inicial navegável.
 - [x] Resumo disciplinar da sessão atual.
 - [x] Evolução do aluno ao longo do tempo com série por sessão encerrada.
