@@ -542,8 +542,7 @@ export function SessionHistoryPanel({ refreshKey }: Props) {
                           </div>
                           <small>
                             {trade.contracts} contrato
-                            {trade.contracts === 1 ? "" : "s"} · líquido R 
-                            {trade.netResultBRL.toFixed(2)}
+                            {trade.contracts === 1 ? "" : "s"} · líquido R${" "}\n                            {trade.netResultBRL.toFixed(2)}
                           </small>
                         </div>
 
