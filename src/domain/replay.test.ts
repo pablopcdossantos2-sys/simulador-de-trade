@@ -46,6 +46,14 @@ describe("replay por timeframe", () => {
     });
   });
 
+  it("preserva o relógio do mercado mesmo quando o timestamp contém offset", () => {
+    const candles = buildReplayCandles([
+      trade("2026-10-07T09:00:30-03:00", 130000, 1, 1),
+    ]);
+
+    expect(candles[0].timestamp).toBe("2026-10-07T09:00:00");
+  });
+
   it("abre um novo candle exatamente na fronteira de dois minutos", () => {
     const candles = buildReplayCandles([
       trade("2026-10-07T09:01:59-03:00", 130000, 1, 1),
