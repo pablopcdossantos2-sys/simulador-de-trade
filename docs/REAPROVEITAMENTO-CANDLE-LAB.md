@@ -293,17 +293,19 @@ O simulador guarda apenas metadados da sessão e resultados de treinamento.
 
 Um pregão pode ser convertido para um formato binário/SQLite compacto para replays repetidos, mas isso será uma otimização, não uma exigência.
 
-## Próxima implementação
+## Estado da implementação
 
-A primeira entrega dessa arquitetura deverá conter:
+A arquitetura principal já foi portada para o Simulador de Trade:
 
-1. parser Rust para o layout Profit;
-2. indexador temporal M1;
-3. localização de sessões/M2;
-4. leitor streaming usando seek;
+1. parser Rust para os layouts Profit suportados;
+2. indexador temporal M1 com linhas e offsets em bytes;
+3. localização de janelas por minuto;
+4. leitura por `seek` direto no CSV bruto quando existe índice válido;
 5. modelo `ReplayTrade`;
-6. agregador incremental de candles M2;
+6. agregador incremental de candles M2/M5;
 7. replay play/pause/step/velocidade;
 8. recálculo intrabar do indicador;
-9. OCO avaliada por negócio;
-10. testes portados do Candle Lab para ordem descendente, linhas idênticas, M2 e offsets.
+9. OCO avaliada negócio a negócio;
+10. testes de regressão para replay, ordem descendente, janelas e integridade do índice.
+
+O índice é invalidado automaticamente quando tamanho ou data de modificação da fonte mudam. Sem índice válido, o tratamento antigo por streaming integral continua funcionando como fallback seguro.
