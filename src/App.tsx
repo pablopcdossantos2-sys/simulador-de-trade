@@ -495,7 +495,11 @@ export default function App() {
   }
 
   async function resetReplay() {
-    await replay.reset();
+    const resetOk = await replay.reset();
+    if (!resetOk) {
+      setFeedback("Não foi possível reiniciar o replay.");
+      return;
+    }
     setCandles([]);
     candlesRef.current = [];
     setCurrentReplayTrade(null);
@@ -856,18 +860,37 @@ export default function App() {
       />
 
       <SimulationPlanner
-        onPlanChange={(plan) => {
+        disabled={trainingActive || Boolean(position) || startingTraining}
+        onPlanChange={async (plan) => {
+          if (trainingActive || position || startingTrainingRef.current) {
+            setFeedback(
+              "Encerre a sessão e qualquer posição aberta antes de alterar o plano.",
+            );
+            return;
+          }
+
+          if (replay.session) {
+            await replay.unload();
+          }
+
+          const demoCandles = createDemoCandles(plan.asset);
           setSimulationPlan(plan);
           setAsset(plan.asset);
+          setDataMode("demo");
           setCatalogMatches([]);
           setWarmupCandles([]);
+          setCandles(demoCandles);
+          candlesRef.current = demoCandles;
+          setCurrentReplayTrade(null);
+          positionRef.current = null;
+          setPosition(null);
           setTrainingSession(null);
           setTrainingEvents([]);
           setTrainingMode("FREE");
           activeSignalRef.current = null;
           usedSignalIdsRef.current = new Set();
-      ignoredSignalIdsRef.current = new Set();
-      lastSuggestedSignalIdRef.current = null;
+          ignoredSignalIdsRef.current = new Set();
+          lastSuggestedSignalIdRef.current = null;
           setFeedback(
             `Plano definido: ${plan.targetDate} · ${plan.targetStartTime}–${plan.targetEndTime}. Use os mesmos horários ao tratar o arquivo do pregão-alvo.`,
           );
