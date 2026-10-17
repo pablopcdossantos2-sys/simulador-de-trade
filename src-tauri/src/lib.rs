@@ -1054,6 +1054,55 @@ fn validate_backup_bundle(bundle: &BackupBundle) -> Result<(), String> {
         ));
     }
 
+    let settings = &bundle.execution_settings;
+    if !settings.cost_per_contract_round_trip_brl.is_finite()
+        || settings.cost_per_contract_round_trip_brl < 0.0
+        || settings.slippage_ticks_per_side < 0
+        || !matches!(
+            settings.intrabar_policy.as_str(),
+            "STOP_FIRST" | "TARGET_FIRST"
+        )
+    {
+        return Err("O backup contém configurações de execução inválidas.".to_string());
+    }
+
+    for trade in &bundle.trades {
+        if !matches!(trade.asset.as_str(), "WINFUT" | "WDOFUT")
+            || !matches!(trade.side.as_str(), "BUY" | "SELL")
+            || trade.contracts <= 0
+            || trade.slippage_ticks_per_side < 0
+            || !trade.cost_per_contract_round_trip_brl.is_finite()
+            || trade.cost_per_contract_round_trip_brl < 0.0
+            || !matches!(
+                trade.intrabar_policy.as_str(),
+                "STOP_FIRST" | "TARGET_FIRST"
+            )
+            || !matches!(
+                trade.exit_reason.as_str(),
+                "STOP" | "TARGET" | "SESSION_END"
+            )
+        {
+            return Err(format!(
+                "O backup contém um trade inválido: {}.",
+                trade.id
+            ));
+        }
+    }
+
+    for session in &bundle.training_sessions {
+        if !matches!(session.asset.as_str(), "WINFUT" | "WDOFUT")
+            || !matches!(session.mode.as_str(), "FREE" | "EXAM")
+            || !matches!(session.status.as_str(), "ACTIVE" | "ENDED")
+            || session.timeframe_minutes <= 0
+            || session.warmup_bars < 0
+        {
+            return Err(format!(
+                "O backup contém uma sessão inválida: {}.",
+                session.id
+            ));
+        }
+    }
+
     Ok(())
 }
 
@@ -1065,6 +1114,11 @@ fn export_backup(
     let path = PathBuf::from(destination_path.trim().trim_matches('"'));
     if path.as_os_str().is_empty() {
         return Err("Caminho de destino inválido.".to_string());
+    }
+    if path.extension().and_then(|value| value.to_str()).map(|value| value.to_ascii_lowercase())
+        != Some("json".to_string())
+    {
+        return Err("O backup precisa ser salvo como arquivo .json.".to_string());
     }
 
     let connection = state.0.lock().map_err(|error| error.to_string())?;
@@ -1106,6 +1160,11 @@ fn import_backup(
     if !path.exists() || !path.is_file() {
         return Err("Arquivo de backup não encontrado.".to_string());
     }
+    if path.extension().and_then(|value| value.to_str()).map(|value| value.to_ascii_lowercase())
+        != Some("json".to_string())
+    {
+        return Err("O backup importado precisa possuir extensão .json.".to_string());
+    }
 
     let raw = fs::read_to_string(&path).map_err(|error| error.to_string())?;
     let bundle: BackupBundle =
@@ -1129,17 +1188,7 @@ fn import_backup(
                     timeframe_minutes, warmup_bars, mode, started_at, ended_at, status
                 )
                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)
-                ON CONFLICT(id) DO UPDATE SET
-                    asset = excluded.asset,
-                    trade_date = excluded.trade_date,
-                    start_time = excluded.start_time,
-                    end_time = excluded.end_time,
-                    timeframe_minutes = excluded.timeframe_minutes,
-                    warmup_bars = excluded.warmup_bars,
-                    mode = excluded.mode,
-                    started_at = excluded.started_at,
-                    ended_at = excluded.ended_at,
-                    status = excluded.status
+                ON CONFLICT(id) DO NOTHING
                 "#,
                 params![
                     session.id,
@@ -1178,29 +1227,7 @@ fn import_backup(
                     entry_context_json, intrabar_policy
                 )
                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23)
-                ON CONFLICT(id) DO UPDATE SET
-                    asset = excluded.asset,
-                    side = excluded.side,
-                    signal_id = excluded.signal_id,
-                    requested_entry = excluded.requested_entry,
-                    entry = excluded.entry,
-                    stop_loss = excluded.stop_loss,
-                    target = excluded.target,
-                    contracts = excluded.contracts,
-                    slippage_ticks_per_side = excluded.slippage_ticks_per_side,
-                    cost_per_contract_round_trip_brl = excluded.cost_per_contract_round_trip_brl,
-                    opened_at = excluded.opened_at,
-                    status = excluded.status,
-                    exit_price = excluded.exit_price,
-                    exit_reason = excluded.exit_reason,
-                    closed_at = excluded.closed_at,
-                    result_points = excluded.result_points,
-                    gross_result_brl = excluded.gross_result_brl,
-                    operational_costs_brl = excluded.operational_costs_brl,
-                    net_result_brl = excluded.net_result_brl,
-                    post_trade_note = excluded.post_trade_note,
-                    entry_context_json = excluded.entry_context_json,
-                    intrabar_policy = excluded.intrabar_policy
+                ON CONFLICT(id) DO NOTHING
                 "#,
                 params![
                     trade.id,
@@ -1240,15 +1267,7 @@ fn import_backup(
                     signal_id, side, reason, trade_id
                 )
                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)
-                ON CONFLICT(id) DO UPDATE SET
-                    session_id = excluded.session_id,
-                    type = excluded.type,
-                    timestamp = excluded.timestamp,
-                    market_timestamp = excluded.market_timestamp,
-                    signal_id = excluded.signal_id,
-                    side = excluded.side,
-                    reason = excluded.reason,
-                    trade_id = excluded.trade_id
+                ON CONFLICT(id) DO NOTHING
                 "#,
                 params![
                     event.id,
