@@ -431,16 +431,10 @@ pub fn open_replay_file(
     Ok(info)
 }
 
-#[tauri::command]
-pub fn next_replay_trades(
-    state: tauri::State<'_, ReplayState>,
+fn read_next_replay_batch(
+    session: &mut ReplaySession,
     max_events: usize,
 ) -> Result<Vec<ReplayTradeRecord>, String> {
-    let mut guard = state.0.lock().map_err(|error| error.to_string())?;
-    let session = guard
-        .as_mut()
-        .ok_or_else(|| "Nenhum arquivo de replay está aberto.".to_string())?;
-
     if let Some(error) = session.pending_error.take() {
         return Err(error);
     }
@@ -485,6 +479,19 @@ pub fn next_replay_trades(
     }
 
     Ok(result)
+}
+
+#[tauri::command]
+pub fn next_replay_trades(
+    state: tauri::State<'_, ReplayState>,
+    max_events: usize,
+) -> Result<Vec<ReplayTradeRecord>, String> {
+    let mut guard = state.0.lock().map_err(|error| error.to_string())?;
+    let session = guard
+        .as_mut()
+        .ok_or_else(|| "Nenhum arquivo de replay está aberto.".to_string())?;
+
+    read_next_replay_batch(session, max_events)
 }
 
 #[tauri::command]
@@ -559,6 +566,67 @@ mod tests {
     fn normalize_hhmm_handles_multibyte_input_without_panicking() {
         assert_eq!(normalize_hhmm("09:00:00"), Some("09:00".to_string()));
         assert_eq!(normalize_hhmm("á9:00"), Some("á9:00".to_string()));
+    }
+
+    #[test]
+    fn returns_valid_batch_before_reporting_following_invalid_line() {
+        use std::io::Write;
+        use std::time::{SystemTime, UNIX_EPOCH};
+
+        let unique = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let path = std::env::temp_dir().join(format!(
+            "simulador-trade-replay-{unique}.csv"
+        ));
+
+        {
+            let mut file = File::create(&path).unwrap();
+            writeln!(
+                file,
+                "symbol,timestamp,source_row,price,quantity"
+            )
+            .unwrap();
+            writeln!(
+                file,
+                "WINV26,2026-10-07T09:00:00,1,130000,1"
+            )
+            .unwrap();
+            writeln!(
+                file,
+                "WINV26,2026-10-07T09:00:01,2,130005,1"
+            )
+            .unwrap();
+            writeln!(
+                file,
+                "WINV26,2026-10-07T09:00:02,3,0,1"
+            )
+            .unwrap();
+            writeln!(
+                file,
+                "WINV26,2026-10-07T09:00:03,4,130010,1"
+            )
+            .unwrap();
+        }
+
+        let (mut session, _) = open_session(&path).unwrap();
+
+        let first = read_next_replay_batch(&mut session, 5000).unwrap();
+        assert_eq!(first.len(), 2);
+        assert_eq!(first[0].sequence, 0);
+        assert_eq!(first[1].sequence, 1);
+        assert_eq!(first[1].price, 130005.0);
+
+        let error = read_next_replay_batch(&mut session, 5000).unwrap_err();
+        assert!(error.contains("Preço inválido"));
+
+        let next = read_next_replay_batch(&mut session, 5000).unwrap();
+        assert_eq!(next.len(), 1);
+        assert_eq!(next[0].sequence, 2);
+        assert_eq!(next[0].price, 130010.0);
+
+        let _ = std::fs::remove_file(path);
     }
 
     #[test]
