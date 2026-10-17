@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { open } from "@tauri-apps/plugin-dialog";
 import type { SimulationPlan } from "../domain/simulationPlan";
 import type { RequirementMatch } from "../domain/catalogMatch";
 import {
@@ -102,6 +103,53 @@ export function PlanDataPreparationPanel({
         ...patch,
       },
     }));
+  }
+
+
+  async function chooseSourceFile(key: string) {
+    if (!("__TAURI_INTERNALS__" in window)) {
+      updateRow(key, {
+        status: "error",
+        message: "A seleção de arquivos locais está disponível no aplicativo desktop.",
+      });
+      return;
+    }
+
+    try {
+      const selected = await open({
+        title: "Selecionar CSV bruto do Profit",
+        multiple: false,
+        directory: false,
+        filters: [
+          {
+            name: "Arquivo CSV",
+            extensions: ["csv"],
+          },
+        ],
+      });
+
+      if (!selected || Array.isArray(selected)) return;
+
+      updateRow(key, {
+        sourcePath: selected,
+        status: "idle",
+        message: "",
+        progress: 0,
+      });
+      updateIndexRow(key, {
+        status: "idle",
+        message: "",
+        progress: 0,
+      });
+    } catch (error) {
+      updateRow(key, {
+        status: "error",
+        message:
+          error instanceof Error
+            ? error.message
+            : "Não foi possível abrir o seletor de arquivos.",
+      });
+    }
   }
 
   async function indexMatch(match: RequirementMatch): Promise<boolean> {
@@ -298,6 +346,18 @@ export function PlanDataPreparationPanel({
                     }
                   />
                   <div className="plan-data-actions">
+                    <button
+                      type="button"
+                      className="secondary"
+                      onClick={() => void chooseSourceFile(key)}
+                      disabled={
+                        processing ||
+                        row?.status === "working" ||
+                        indexes[key]?.status === "working"
+                      }
+                    >
+                      Selecionar CSV
+                    </button>
                     <button
                       type="button"
                       className="secondary"
