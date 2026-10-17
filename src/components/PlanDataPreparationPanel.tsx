@@ -284,7 +284,7 @@ export function PlanDataPreparationPanel({
     <section className="plan-data-panel card">
       <div className="section-heading">
         <div>
-          <p className="eyebrow">Coleta orientada pelo plano</p>
+          <p className="eyebrow">Etapa 3 · Preparar dados ausentes</p>
           <h2>Tratar dados necessários</h2>
         </div>
         <span className="history-count">
