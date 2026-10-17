@@ -62,7 +62,7 @@ export function ReplayCatalogPanel({
     <section className="catalog-panel card">
       <div className="section-heading">
         <div>
-          <p className="eyebrow">Biblioteca local</p>
+          <p className="eyebrow">Etapa 2 · Conferir dados disponíveis</p>
           <h2>Dados disponíveis para o plano</h2>
         </div>
         <button type="button" className="catalog-refresh" onClick={() => void refresh(true)}>
