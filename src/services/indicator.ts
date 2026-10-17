@@ -7,6 +7,12 @@ import type {
   IndicatorZone,
   VwapAnchor,
 } from "../types";
+import {
+  marketDateKey,
+  marketIsoWeekKey,
+  marketMonthKey,
+  marketYearKey,
+} from "../domain/marketTime";
 
 export interface MultiMediasConfig {
   wmaLength: number;
@@ -53,27 +59,11 @@ function hlc3(candle: Candle): number {
   return (candle.high + candle.low + candle.close) / 3;
 }
 
-function isoWeekKey(date: Date): string {
-  const utc = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
-  const day = utc.getUTCDay() || 7;
-  utc.setUTCDate(utc.getUTCDate() + 4 - day);
-  const yearStart = new Date(Date.UTC(utc.getUTCFullYear(), 0, 1));
-  const week = Math.ceil((((utc.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
-  return `${utc.getUTCFullYear()}-W${String(week).padStart(2, "0")}`;
-}
-
 function periodKey(timestamp: string, anchor: VwapAnchor): string {
-  const date = new Date(timestamp);
-
-  if (anchor === "Year") return String(date.getUTCFullYear());
-  if (anchor === "Month") {
-    return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}`;
-  }
-  if (anchor === "Week") return isoWeekKey(date);
-
-  return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}-${String(
-    date.getUTCDate(),
-  ).padStart(2, "0")}`;
+  if (anchor === "Year") return marketYearKey(timestamp);
+  if (anchor === "Month") return marketMonthKey(timestamp);
+  if (anchor === "Week") return marketIsoWeekKey(timestamp);
+  return marketDateKey(timestamp);
 }
 
 function zoneAuthorization(
