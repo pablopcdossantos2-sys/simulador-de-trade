@@ -283,7 +283,7 @@ export default function App() {
       examActive
         ? "Operação encerrada. O resultado será revelado ao final da prova."
         : closed.exitReason === "TARGET"
-          ? `Alvo atingido. ${money.format(closed.resultPoints)} pts · líquido R$ ${money.format(closed.netResultBRL)}.`
+          ? `Alvo acionado. ${money.format(closed.resultPoints)} pts · líquido R$ ${money.format(closed.netResultBRL)}.`
           : `Stop atingido. ${money.format(closed.resultPoints)} pts · líquido R$ ${money.format(closed.netResultBRL)}.`,
     );
     void saveTrade(closed).catch((error) => {
