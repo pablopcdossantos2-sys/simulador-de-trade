@@ -86,6 +86,35 @@ O parser Rust foi baseado nas regras validadas no Candle Lab e reconhece inicial
 - horário com ou sem fração de segundo;
 - arquivos em ordem ascendente ou descendente.
 
+## Índice temporal M1 e seek direto
+
+Para CSVs grandes, o aplicativo pode criar um arquivo auxiliar de índice M1 ao lado da fonte bruta.
+
+Exemplo:
+
+```text
+WINV26_TRADES.csv
+WINV26_TRADES.m1-index.json
+```
+
+O índice registra, minuto a minuto:
+
+- primeiro e último timestamp;
+- primeira e última linha física;
+- byte inicial e byte final;
+- quantidade de negócios;
+- ordem física da fonte;
+- layout e delimitador detectados;
+- tamanho e data de modificação da fonte para detectar índice desatualizado.
+
+O CSV bruto continua intacto.
+
+Quando um índice M1 válido existe, **Gerar/Tratar arquivo** não precisa percorrer todo o CSV desde o início. O backend localiza os minutos da janela solicitada, faz `seek` diretamente para o primeiro byte necessário e interrompe a leitura ao final do intervalo.
+
+Se o CSV for alterado depois da indexação, o índice é considerado inválido e o sistema volta ao caminho seguro de varredura integral até que o usuário o reindexe.
+
+Para arquivos em ordem descendente, a janela localizada por seek ainda é convertida para o `.replay.csv` canônico em ordem cronológica ascendente.
+
 ## Processamento streaming
 
 O arquivo não é carregado inteiro na memória.
