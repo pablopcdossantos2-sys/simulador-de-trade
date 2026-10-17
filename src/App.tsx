@@ -133,6 +133,7 @@ export default function App() {
   const positionRef = useRef<Position | null>(null);
   const candlesRef = useRef(candles);
   const persistClosedTradeRef = useRef<(trade: Trade) => void>(() => undefined);
+  const protectNextAutoFeedbackRef = useRef(false);
 
   const replayTimeframeMinutes =
     simulationPlan?.timeframeMinutes ?? 2;
@@ -273,6 +274,7 @@ export default function App() {
   }, [asset, dataMode]);
 
   function persistClosedTrade(closed: Trade) {
+    protectNextAutoFeedbackRef.current = true;
     positionRef.current = null;
     setPosition(null);
     setTrades((current) => [
@@ -325,6 +327,11 @@ export default function App() {
   useEffect(() => {
     if (!signal || position || !lastCandle) return;
 
+    if (protectNextAutoFeedbackRef.current) {
+      protectNextAutoFeedbackRef.current = false;
+      return;
+    }
+
     if (signalAlreadyUsed) {
       setFeedback(
         "O sinal ativo já foi utilizado em uma operação. Aguarde um novo gatilho do indicador antes de reentrar.",
@@ -359,6 +366,12 @@ export default function App() {
 
   useEffect(() => {
     if (signal || position || !lastCandle) return;
+
+    if (protectNextAutoFeedbackRef.current) {
+      protectNextAutoFeedbackRef.current = false;
+      return;
+    }
+
     setFeedback(
       "Sem zona autorizadora ativa. Compra e Venda permanecem bloqueadas.",
     );
