@@ -53,6 +53,7 @@ SQLite local
 - [Custos, slippage e resultado líquido](docs/CUSTOS-SLIPPAGE.md)
 - [Notas pós-trade](docs/NOTAS-POS-TRADE.md)
 - [Modo Prova](docs/MODO-PROVA.md)
+- [Resultado por setup/sinal](docs/RESULTADO-POR-SETUP.md)
 - [Contexto do gráfico na entrada](docs/CONTEXTO-ENTRADA.md)
 - [Evolução do trader](docs/EVOLUCAO-TRADER.md)
 - [Backup e restauração](docs/BACKUP.md)
