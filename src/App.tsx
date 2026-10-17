@@ -452,6 +452,13 @@ export default function App() {
   }
 
   async function loadReplay() {
+    if (position || trainingActive) {
+      setFeedback(
+        "Encerre a posição e a sessão de treino antes de carregar outro replay.",
+      );
+      return;
+    }
+
     if (!simulationPlan) {
       setFeedback("Defina e aplique um plano de simulação antes de carregar o replay.");
       return;
@@ -493,6 +500,7 @@ export default function App() {
       setCandles([]);
       candlesRef.current = [];
       setCurrentReplayTrade(null);
+      positionRef.current = null;
       setPosition(null);
       setStopLoss("");
       setTarget("");
@@ -558,6 +566,7 @@ export default function App() {
     setCandles([]);
     candlesRef.current = [];
     setCurrentReplayTrade(null);
+    positionRef.current = null;
     setPosition(null);
     setStopLoss("");
     setTarget("");
