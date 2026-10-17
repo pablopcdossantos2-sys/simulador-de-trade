@@ -43,13 +43,10 @@ O sistema mostrará quais pregões são necessários para o alvo e para o aqueci
 Na seção **Tratar dados necessários**:
 
 1. localize a linha correspondente à data do CSV;
-2. no campo de caminho, informe o caminho completo do arquivo.
+2. clique em **Selecionar CSV**;
+3. escolha o arquivo bruto exportado pelo Profit.
 
-Exemplo:
-
-```text
-C:\Dados\Profit\WINV26_2026-10-14.csv
-```
+O caminho completo será preenchido automaticamente. Se preferir, ainda é possível colar o caminho manualmente no campo.
 
 O CSV original não será sobrescrito.
 
