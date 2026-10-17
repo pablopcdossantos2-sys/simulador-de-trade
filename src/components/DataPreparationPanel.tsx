@@ -42,6 +42,7 @@ export function DataPreparationPanel({
     setStatus("working");
     setResult(null);
     setProgress({
+      operationId: "",
       percent: 0,
       bytesProcessed: 0,
       bytesTotal: 0,
