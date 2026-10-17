@@ -57,6 +57,7 @@ SQLite local
 - [Evolução do trader](docs/EVOLUCAO-TRADER.md)
 - [Backup e restauração](docs/BACKUP.md)
 - [Instalação no Windows — instalador e portátil](docs/INSTALACAO-WINDOWS.md)
+- [Próximas etapas do usuário — tutorial usando CMD](docs/PROXIMAS-ETAPAS-USUARIO-CMD.md)
 - [Reaproveitamento do Candle Lab](docs/REAPROVEITAMENTO-CANDLE-LAB.md)
 
 ## Estado atual
