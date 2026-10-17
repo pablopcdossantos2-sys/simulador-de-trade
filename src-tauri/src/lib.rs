@@ -1494,11 +1494,27 @@ fn value_at<'a>(fields: &'a [String], idx: Option<usize>) -> &'a str {
 }
 
 fn parse_date(raw: &str) -> Result<NaiveDate, String> {
-    for format in ["%d/%m/%Y", "%d/%m/%y", "%Y-%m-%d"] {
-        if let Ok(value) = NaiveDate::parse_from_str(raw.trim(), format) {
-            return Ok(value);
+    let text = raw.trim();
+
+    if text.contains('/') {
+        let year_len = text.rsplit('/').next().map(str::len).unwrap_or(0);
+        let format = match year_len {
+            2 => Some("%d/%m/%y"),
+            4 => Some("%d/%m/%Y"),
+            _ => None,
+        };
+
+        if let Some(format) = format {
+            if let Ok(value) = NaiveDate::parse_from_str(text, format) {
+                return Ok(value);
+            }
         }
     }
+
+    if let Ok(value) = NaiveDate::parse_from_str(text, "%Y-%m-%d") {
+        return Ok(value);
+    }
+
     Err(format!("Data não reconhecida: {raw}"))
 }
 
@@ -1577,8 +1593,13 @@ fn normalize_profit_number(raw: &str) -> Result<String, String> {
         text = text.replace('.', "");
     }
 
-    text.parse::<f64>()
+    let value = text
+        .parse::<f64>()
         .map_err(|_| format!("Número inválido: {raw}"))?;
+
+    if !value.is_finite() {
+        return Err(format!("Número não finito: {raw}"));
+    }
 
     Ok(text)
 }
@@ -1650,24 +1671,52 @@ fn derived_paths(
     ))
 }
 
+struct TempFileGuard(PathBuf);
+
+impl Drop for TempFileGuard {
+    fn drop(&mut self) {
+        let _ = fs::remove_file(&self.0);
+    }
+}
+
+fn replace_file_safely(new_path: &Path, output_path: &Path) -> Result<(), String> {
+    if !output_path.exists() {
+        return fs::rename(new_path, output_path).map_err(|error| error.to_string());
+    }
+
+    let backup_path = output_path.with_extension("replay.previous");
+    let _ = fs::remove_file(&backup_path);
+
+    fs::rename(output_path, &backup_path).map_err(|error| error.to_string())?;
+
+    match fs::rename(new_path, output_path) {
+        Ok(()) => {
+            let _ = fs::remove_file(&backup_path);
+            Ok(())
+        }
+        Err(error) => {
+            let _ = fs::rename(&backup_path, output_path);
+            Err(error.to_string())
+        }
+    }
+}
+
 fn canonicalize_replay_file(
     temp_path: &Path,
     output_path: &Path,
     record_offsets: &[u64],
     source_order: &str,
 ) -> Result<(), String> {
-    if output_path.exists() {
-        fs::remove_file(output_path).map_err(|error| error.to_string())?;
-    }
-
     match source_order {
-        "ASCENDING" => {
-            fs::rename(temp_path, output_path).map_err(|error| error.to_string())?;
-        }
+        "ASCENDING" => replace_file_safely(temp_path, output_path),
         "DESCENDING" => {
             let input = File::open(temp_path).map_err(|error| error.to_string())?;
-            let mut reader = BufReader::with_capacity(4 * 1024 * 1024, input);
-            let output = File::create(output_path).map_err(|error| error.to_string())?;
+            // Seeks aleatórios invalidam o buffer; um buffer moderado evita reler
+            // megabytes a cada linha em arquivos grandes.
+            let mut reader = BufReader::with_capacity(64 * 1024, input);
+            let new_path = output_path.with_extension("replay.new");
+            let _ = fs::remove_file(&new_path);
+            let output = File::create(&new_path).map_err(|error| error.to_string())?;
             let mut writer = BufWriter::with_capacity(4 * 1024 * 1024, output);
             writer
                 .write_all(REPLAY_HEADER)
@@ -1687,18 +1736,19 @@ fn canonicalize_replay_file(
             }
 
             writer.flush().map_err(|error| error.to_string())?;
-            fs::remove_file(temp_path).map_err(|error| error.to_string())?;
-        }
-        _ => {
-            let _ = fs::remove_file(temp_path);
-            return Err(
-                "A ordem temporal do arquivo do Profit é mista. O replay exige uma fonte cronologicamente ascendente ou descendente."
-                    .to_string(),
-            );
-        }
-    }
+            drop(writer);
 
-    Ok(())
+            let replace_result = replace_file_safely(&new_path, output_path);
+            if replace_result.is_err() {
+                let _ = fs::remove_file(&new_path);
+            }
+            replace_result
+        }
+        _ => Err(
+            "A ordem temporal do arquivo do Profit é mista. O replay exige uma fonte cronologicamente ascendente ou descendente."
+                .to_string(),
+        ),
+    }
 }
 
 fn emit_progress(
@@ -1751,6 +1801,7 @@ fn process_profit_replay_file(
     let (output_path, metadata_path) =
         derived_paths(&source, window_start, window_end)?;
     let temp_path = output_path.with_extension("replay.tmp");
+    let _temp_guard = TempFileGuard(temp_path.clone());
 
     let input = File::open(&source).map_err(|error| error.to_string())?;
     let mut reader = BufReader::with_capacity(8 * 1024 * 1024, input);
@@ -1773,6 +1824,7 @@ fn process_profit_replay_file(
     let mut symbol = String::new();
 
     let mut previous_ts: Option<NaiveDateTime> = None;
+    let mut source_trade_date: Option<NaiveDate> = None;
     let mut ascending_steps = 0_u64;
     let mut descending_steps = 0_u64;
     let mut first_kept: Option<NaiveDateTime> = None;
@@ -1829,6 +1881,18 @@ fn process_profit_replay_file(
         let timestamp = row_timestamp(&fields, current_layout)
             .map_err(|error| format!("Linha {physical_line}: {error}"))?;
 
+        match source_trade_date {
+            Some(date) if date != timestamp.date() => {
+                return Err(format!(
+                    "Linha {physical_line}: o arquivo contém mais de um pregão ({} e {}). Trate um dia por arquivo.",
+                    date,
+                    timestamp.date()
+                ));
+            }
+            None => source_trade_date = Some(timestamp.date()),
+            _ => {}
+        }
+
         if let Some(previous) = previous_ts {
             if timestamp > previous {
                 ascending_steps += 1;
@@ -1839,9 +1903,15 @@ fn process_profit_replay_file(
         previous_ts = Some(timestamp);
 
         let row_symbol = value_at(&fields, current_layout.symbol_idx).to_uppercase();
-        if symbol.is_empty() && !row_symbol.is_empty() {
+        if row_symbol.is_empty() {
+            return Err(format!(
+                "Linha {physical_line}: ativo/símbolo vazio."
+            ));
+        }
+
+        if symbol.is_empty() {
             symbol = row_symbol.clone();
-        } else if !row_symbol.is_empty() && !symbol.is_empty() && row_symbol != symbol {
+        } else if row_symbol != symbol {
             return Err(format!(
                 "Linha {physical_line}: o arquivo contém mais de um ativo ({symbol} e {row_symbol})."
             ));
@@ -1852,6 +1922,25 @@ fn process_profit_replay_file(
                 .map_err(|error| format!("Linha {physical_line}: preço {error}"))?;
             let quantity = normalize_profit_number(&fields[current_layout.quantity_idx])
                 .map_err(|error| format!("Linha {physical_line}: quantidade {error}"))?;
+
+            let price_value = price
+                .parse::<f64>()
+                .map_err(|_| format!("Linha {physical_line}: preço inválido"))?;
+            let quantity_value = quantity
+                .parse::<f64>()
+                .map_err(|_| format!("Linha {physical_line}: quantidade inválida"))?;
+
+            if price_value <= 0.0 {
+                return Err(format!(
+                    "Linha {physical_line}: preço precisa ser maior que zero."
+                ));
+            }
+            if quantity_value <= 0.0 {
+                return Err(format!(
+                    "Linha {physical_line}: quantidade precisa ser maior que zero."
+                ));
+            }
+
             let canonical_timestamp = timestamp.format("%Y-%m-%dT%H:%M:%S%.f").to_string();
 
             let output_line = format!(
@@ -1889,12 +1978,10 @@ fn process_profit_replay_file(
     drop(writer);
 
     if source_rows == 0 {
-        let _ = fs::remove_file(&temp_path);
         return Err("Nenhum negócio foi encontrado no arquivo.".to_string());
     }
 
     if kept_rows == 0 {
-        let _ = fs::remove_file(&temp_path);
         return Err(
             format!(
                 "Nenhum negócio entre {} e {} foi encontrado no arquivo informado.",
