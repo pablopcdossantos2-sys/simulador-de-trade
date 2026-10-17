@@ -359,7 +359,6 @@ export default function App() {
 
   useEffect(() => {
     if (signal || position || !lastCandle) return;
-    lastSuggestedSignalIdRef.current = null;
     setFeedback(
       "Sem zona autorizadora ativa. Compra e Venda permanecem bloqueadas.",
     );
