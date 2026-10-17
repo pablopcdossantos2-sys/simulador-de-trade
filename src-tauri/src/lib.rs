@@ -1,4 +1,5 @@
 mod catalog;
+mod profit_index;
 mod replay;
 
 use chrono::{DateTime, NaiveDate, NaiveDateTime, NaiveTime, Utc};
@@ -2108,6 +2109,16 @@ async fn prepare_profit_replay_file(
     session_end: String,
 ) -> Result<ProfitPreparationResult, String> {
     tauri::async_runtime::spawn_blocking(move || {
+        if let Some(result) = profit_index::try_process_indexed_profit_replay_file(
+            &app,
+            &operation_id,
+            &source_path,
+            &session_start,
+            &session_end,
+        )? {
+            return Ok(result);
+        }
+
         process_profit_replay_file(
             &app,
             &operation_id,
@@ -2673,6 +2684,8 @@ pub fn run() {
             list_all_training_events,
             list_session_trades,
             prepare_profit_replay_file,
+            profit_index::build_profit_time_index,
+            profit_index::locate_profit_time_window,
             replay::open_replay_file,
             replay::next_replay_trades,
             replay::reset_replay_session,
