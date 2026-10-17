@@ -7,6 +7,11 @@ import {
   performanceByHour,
 } from "../domain/sessionReport";
 import {
+  buildCompleteSessionExport,
+  exportSessionCsv,
+  exportSessionJson,
+} from "../services/reportExport";
+import {
   loadSessionTrades,
   loadTrainingEvents,
   loadTrainingSessions,
@@ -48,6 +53,8 @@ export function SessionHistoryPanel({ refreshKey }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [noteDrafts, setNoteDrafts] = useState<Record<string, string>>({});
   const [noteFeedback, setNoteFeedback] = useState<Record<string, string>>({});
+  const [exporting, setExporting] = useState<"json" | "csv" | null>(null);
+  const [exportFeedback, setExportFeedback] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -142,6 +149,50 @@ export function SessionHistoryPanel({ refreshKey }: Props) {
     }
   }
 
+  async function exportSelectedSession(format: "json" | "csv") {
+    if (!selected || !performance) return;
+
+    if (selected.status !== "ENDED") {
+      setExportFeedback(
+        "Finalize a sessão antes de exportar o relatório completo.",
+      );
+      return;
+    }
+
+    setExporting(format);
+    setExportFeedback(null);
+
+    try {
+      const path =
+        format === "json"
+          ? await exportSessionJson(
+              buildCompleteSessionExport({
+                session: selected,
+                performance,
+                events,
+                trades,
+              }),
+            )
+          : await exportSessionCsv(selected, trades);
+
+      if (path) {
+        setExportFeedback(
+          format === "json"
+            ? "Relatório JSON exportado com sucesso."
+            : "CSV de trades exportado com sucesso.",
+        );
+      }
+    } catch (reason) {
+      setExportFeedback(
+        reason instanceof Error
+          ? reason.message
+          : "Não foi possível exportar a sessão.",
+      );
+    } finally {
+      setExporting(null);
+    }
+  }
+
   const disciplineEvents = events.filter(
     (event) => classifyTrainingEvent(event) === "DISCIPLINE",
   );
@@ -210,12 +261,43 @@ export function SessionHistoryPanel({ refreshKey }: Props) {
                     <strong>
                       {brDate(selected.tradeDate)} · {selected.asset}
                     </strong>
+                    <small>
+                      {selected.startTime}–{selected.endTime} ·{" "}
+                      {selected.timeframeMinutes} min
+                    </small>
                   </div>
-                  <small>
-                    {selected.startTime}–{selected.endTime} ·{" "}
-                    {selected.timeframeMinutes} min
-                  </small>
+
+                  <div className="session-export-actions">
+                    <button
+                      type="button"
+                      onClick={() => void exportSelectedSession("json")}
+                      disabled={
+                        selected.status !== "ENDED" ||
+                        exporting !== null
+                      }
+                    >
+                      {exporting === "json"
+                        ? "Exportando..."
+                        : "Exportar relatório JSON"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => void exportSelectedSession("csv")}
+                      disabled={
+                        selected.status !== "ENDED" ||
+                        exporting !== null
+                      }
+                    >
+                      {exporting === "csv"
+                        ? "Exportando..."
+                        : "Exportar trades CSV"}
+                    </button>
+                  </div>
                 </div>
+
+                {exportFeedback && (
+                  <div className="data-status">{exportFeedback}</div>
+                )}
 
                 <div className="report-kpis">
                   <div>
