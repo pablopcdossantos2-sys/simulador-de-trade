@@ -146,3 +146,4 @@ Arquitetura definida a partir dos componentes validados no Candle Lab. Ver [Reap
 - [x] Golden test de regressão do indicador v1.0.0.
 - [x] Fixture de sessão conhecida com métricas esperadas.
 - [x] Política explícita de versionamento do algoritmo do indicador e gravação da versão nos snapshots de entrada.
+- [x] Dependências frontend travadas em `package-lock.json` e pipelines usando `npm ci`.
