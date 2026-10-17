@@ -1661,6 +1661,19 @@ td {
   cursor: not-allowed;
 }
 
+
+.plan-data-actions {
+  display: flex;
+  gap: 7px;
+  align-items: stretch;
+}
+
+.plan-data-actions .secondary {
+  border: 1px solid #35516f;
+  background: #16283c;
+  color: #cfe0ef;
+}
+
 .mini-progress {
   grid-column: 1 / -1;
   height: 7px;
@@ -1748,6 +1761,13 @@ td {
   color: #1c3144;
 }
 
+
+:root[data-theme="light"] .plan-data-actions .secondary {
+  border-color: #b7cadb;
+  background: #edf4fa;
+  color: #35516c;
+}
+
 :root[data-theme="light"] .planner-warning-critical {
   background: #fff0f2;
   color: #8d3d48;
@@ -1765,6 +1785,11 @@ td {
 
   .plan-data-input {
     grid-template-columns: 1fr;
+  }
+
+  .plan-data-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
   }
 }
 
