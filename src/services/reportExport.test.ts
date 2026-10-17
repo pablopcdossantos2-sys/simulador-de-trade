@@ -105,6 +105,17 @@ describe("exportação de relatório por sessão", () => {
     expect(bundle.schemaVersion).toBe(2);
     expect(bundle.session.id).toBe("s1");
     expect(bundle.performance.netResultBRL).toBe(29);
+    expect(bundle.setupPerformance).toEqual([
+      {
+        setup: "Legado / sem classificação",
+        trades: 1,
+        wins: 1,
+        losses: 0,
+        winRatePct: 100,
+        netPoints: 150,
+        netResultBRL: 29,
+      },
+    ]);
     expect(bundle.trades[0].postTradeNote).toContain("hesitação");
   });
 
@@ -115,6 +126,8 @@ describe("exportação de relatório por sessão", () => {
 
     expect(csv.startsWith("\uFEFF")).toBe(true);
     expect(csv).toContain("session_id;trade_date;asset");
+    expect(csv).toContain("setup");
+    expect(csv).toContain("Legado / sem classificação");
     expect(csv).toContain("intrabar_policy");
     expect(csv).toContain("indicator_version");
     expect(csv).toContain("STOP_FIRST");
