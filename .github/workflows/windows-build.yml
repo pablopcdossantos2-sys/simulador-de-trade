@@ -12,6 +12,7 @@ on:
       - "src-tauri/tauri.conf.json"
       - "src-tauri/Cargo.toml"
       - "package.json"
+      - "package-lock.json"
 
 permissions:
   contents: read
@@ -34,7 +35,7 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
 
       - name: Install frontend dependencies
-        run: npm install
+        run: npm ci
 
       - name: Build Tauri and NSIS installer
         run: npm run tauri build
