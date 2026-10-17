@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { ReplayTrade } from "../types";
+import { marketTimestampOrdinalMs } from "../domain/marketTime";
 import {
   closeReplaySession,
   nextReplayTrades,
@@ -10,16 +11,13 @@ import {
 
 const CHUNK_SIZE = 750;
 const BASE_VISUAL_DELAY_MS = 90;
+
 function bucketKey(
   timestamp: string,
   timeframeMinutes: number,
 ): number {
-  const parsed = Date.parse(timestamp);
-  if (!Number.isFinite(parsed)) {
-    throw new Error(`Timestamp inválido no replay: ${timestamp}`);
-  }
   const candleMs = timeframeMinutes * 60 * 1000;
-  return Math.floor(parsed / candleMs);
+  return Math.floor(marketTimestampOrdinalMs(timestamp) / candleMs);
 }
 
 export function useReplayPlayer(
@@ -39,6 +37,7 @@ export function useReplayPlayer(
   const queueRef = useRef<ReplayTrade[]>([]);
   const steppingRef = useRef(false);
   const onTradeRef = useRef(onTrade);
+  const generationRef = useRef(0);
 
   useEffect(() => {
     onTradeRef.current = onTrade;
@@ -57,6 +56,7 @@ export function useReplayPlayer(
       return null;
     }
 
+    const generation = ++generationRef.current;
     setBusy(true);
     setPlaying(false);
     setError(null);
@@ -67,6 +67,8 @@ export function useReplayPlayer(
         expectedStart,
         expectedEnd,
       );
+      if (generation !== generationRef.current) return null;
+
       queueRef.current = [];
       setSession(info);
       setProcessed(0);
@@ -74,18 +76,23 @@ export function useReplayPlayer(
       setFinished(false);
       return info;
     } catch (reason) {
-      setSession(null);
-      setError(reason instanceof Error ? reason.message : String(reason));
+      if (generation === generationRef.current) {
+        setSession(null);
+        setError(reason instanceof Error ? reason.message : String(reason));
+      }
       return null;
     } finally {
-      setBusy(false);
+      if (generation === generationRef.current) setBusy(false);
     }
   }
 
-  async function ensureQueue(): Promise<boolean> {
+  async function ensureQueue(generation: number): Promise<boolean> {
+    if (generation !== generationRef.current) return false;
     if (queueRef.current.length > 0) return true;
 
     const chunk = await nextReplayTrades(CHUNK_SIZE);
+    if (generation !== generationRef.current) return false;
+
     if (chunk.length === 0) {
       setFinished(true);
       setPlaying(false);
@@ -104,11 +111,12 @@ export function useReplayPlayer(
 
   async function pullOne(): Promise<ReplayTrade | null> {
     if (!session || finished || steppingRef.current) return null;
+    const generation = generationRef.current;
     steppingRef.current = true;
 
     try {
-      const available = await ensureQueue();
-      if (!available) return null;
+      const available = await ensureQueue(generation);
+      if (!available || generation !== generationRef.current) return null;
 
       const trade = queueRef.current.shift() ?? null;
       if (!trade) return null;
@@ -116,8 +124,10 @@ export function useReplayPlayer(
       applyTrade(trade);
       return trade;
     } catch (reason) {
-      setPlaying(false);
-      setError(reason instanceof Error ? reason.message : String(reason));
+      if (generation === generationRef.current) {
+        setPlaying(false);
+        setError(reason instanceof Error ? reason.message : String(reason));
+      }
       return null;
     } finally {
       steppingRef.current = false;
@@ -126,6 +136,7 @@ export function useReplayPlayer(
 
   async function pullOneCandle(): Promise<number> {
     if (!session || finished || steppingRef.current) return 0;
+    const generation = generationRef.current;
     steppingRef.current = true;
     setPlaying(false);
 
@@ -136,9 +147,9 @@ export function useReplayPlayer(
           : bucketKey(currentTimestamp, timeframeMinutes);
       let consumed = 0;
 
-      while (true) {
-        const available = await ensureQueue();
-        if (!available) break;
+      while (generation === generationRef.current) {
+        const available = await ensureQueue(generation);
+        if (!available || generation !== generationRef.current) break;
 
         const next = queueRef.current[0];
         if (!next) break;
@@ -165,30 +176,57 @@ export function useReplayPlayer(
 
       return consumed;
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : String(reason));
+      if (generation === generationRef.current) {
+        setError(reason instanceof Error ? reason.message : String(reason));
+      }
       return 0;
     } finally {
       steppingRef.current = false;
     }
   }
 
-  async function reset(): Promise<void> {
-    if (!session) return;
+  async function reset(): Promise<boolean> {
+    if (!session) return false;
+    const generation = ++generationRef.current;
     setBusy(true);
     setPlaying(false);
     setError(null);
 
     try {
       const info = await resetReplaySession();
+      if (generation !== generationRef.current) return false;
+
       queueRef.current = [];
       setSession(info);
       setProcessed(0);
       setCurrentTimestamp(null);
       setFinished(false);
+      return true;
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : String(reason));
+      if (generation === generationRef.current) {
+        setError(reason instanceof Error ? reason.message : String(reason));
+      }
+      return false;
     } finally {
-      setBusy(false);
+      if (generation === generationRef.current) setBusy(false);
+    }
+  }
+
+  async function unload(): Promise<void> {
+    ++generationRef.current;
+    setPlaying(false);
+    setBusy(false);
+    queueRef.current = [];
+    steppingRef.current = false;
+
+    try {
+      await closeReplaySession();
+    } finally {
+      setSession(null);
+      setProcessed(0);
+      setCurrentTimestamp(null);
+      setFinished(false);
+      setError(null);
     }
   }
 
@@ -205,7 +243,8 @@ export function useReplayPlayer(
 
   useEffect(
     () => () => {
-      void closeReplaySession();
+      ++generationRef.current;
+      void closeReplaySession().catch(() => undefined);
     },
     [],
   );
@@ -227,5 +266,6 @@ export function useReplayPlayer(
     step: pullOne,
     stepCandle: pullOneCandle,
     reset,
+    unload,
   };
 }
