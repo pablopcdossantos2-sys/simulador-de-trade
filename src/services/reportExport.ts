@@ -35,14 +35,26 @@ function safeName(value: string): string {
 }
 
 function csvEscape(value: unknown): string {
-  const text =
-    value === null || value === undefined
-      ? ""
-      : typeof value === "object"
+  let text: string;
+
+  if (value === null || value === undefined) {
+    text = "";
+  } else if (typeof value === "number") {
+    const rounded = Number(value.toFixed(8));
+    text = String(rounded).replace(".", ",");
+  } else {
+    text =
+      typeof value === "object"
         ? JSON.stringify(value)
         : String(value);
 
-  if (/[",\n\r;]/.test(text)) {
+    // Evita formula injection ao abrir o CSV em Excel/LibreOffice.
+    if (/^[=+\-@]/.test(text)) {
+      text = `'${text}`;
+    }
+  }
+
+  if (/[";\n\r]/.test(text)) {
     return `"${text.replaceAll('"', '""')}"`;
   }
 
@@ -99,7 +111,9 @@ export function sessionTradesToCsv(
     "slippage_ticks_per_side",
     "intrabar_policy",
     "post_trade_note",
-    "entry_context",
+    "indicator_version",
+    "entry_zone",
+    "context_market_timestamp",
   ];
 
   const rows = trades.map((trade) => [
@@ -128,13 +142,15 @@ export function sessionTradesToCsv(
     trade.slippageTicksPerSide,
     trade.intrabarPolicy ?? "STOP_FIRST",
     trade.postTradeNote,
-    trade.entryContext ?? null,
+    trade.entryContext?.indicatorVersion ?? "",
+    trade.entryContext?.zone ?? "",
+    trade.entryContext?.marketTimestamp ?? "",
   ]);
 
-  return [
-    headers.join(","),
-    ...rows.map((row) => row.map(csvEscape).join(",")),
-  ].join("\n");
+  return "\uFEFF" + [
+    headers.join(";"),
+    ...rows.map((row) => row.map(csvEscape).join(";")),
+  ].join("\r\n");
 }
 
 async function choosePath(
