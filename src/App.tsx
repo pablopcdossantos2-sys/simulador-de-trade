@@ -33,6 +33,7 @@ import {
   createTrainingSession,
   endTrainingSession,
   summarizeTraining,
+  visibleTradesForTrainingState,
 } from "./domain/training";
 import {
   closePositionAtMarket,
@@ -838,16 +839,11 @@ export default function App() {
     !position &&
     signalAllows(signal, asset, "SELL", signalAlreadyUsed);
 
-  const historyTradesForDisplay = examActive
-    ? trades.filter(
-        (trade) =>
-          !trainingEvents.some(
-            (event) =>
-              event.sessionId === trainingSession?.id &&
-              event.tradeId === trade.id,
-          ),
-      )
-    : trades;
+  const historyTradesForDisplay = visibleTradesForTrainingState(
+    trades,
+    trainingSession,
+    trainingEvents,
+  );
 
   return (
     <main className="app-shell">
