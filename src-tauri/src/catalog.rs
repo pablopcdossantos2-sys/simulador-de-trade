@@ -205,7 +205,6 @@ pub fn list_replay_catalog(
             && Path::new(&entry.metadata_path).exists();
     }
 
-    save_catalog(&app, &entries)?;
     Ok(entries)
 }
 
