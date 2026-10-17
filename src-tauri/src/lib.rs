@@ -1297,6 +1297,56 @@ fn import_backup(
     })
 }
 
+fn report_export_path(
+    destination_path: &str,
+    extension: &str,
+) -> Result<PathBuf, String> {
+    let normalized_extension = extension.trim().to_lowercase();
+    if normalized_extension != "json" && normalized_extension != "csv" {
+        return Err("Formato de exportação não suportado.".to_string());
+    }
+
+    let mut path = PathBuf::from(destination_path.trim().trim_matches('"'));
+    if path.as_os_str().is_empty() {
+        return Err("Caminho de exportação inválido.".to_string());
+    }
+
+    match path.extension().and_then(|value| value.to_str()) {
+        Some(existing) if existing.eq_ignore_ascii_case(&normalized_extension) => {}
+        Some(_) => {
+            return Err(format!(
+                "A extensão do arquivo precisa ser .{normalized_extension}."
+            ));
+        }
+        None => {
+            path.set_extension(&normalized_extension);
+        }
+    }
+
+    Ok(path)
+}
+
+#[tauri::command]
+fn write_report_export(
+    destination_path: String,
+    content: String,
+    extension: String,
+) -> Result<String, String> {
+    const MAX_EXPORT_BYTES: usize = 100 * 1024 * 1024;
+
+    if content.len() > MAX_EXPORT_BYTES {
+        return Err(
+            "O relatório excede o limite de 100 MB para exportação."
+                .to_string(),
+        );
+    }
+
+    let path = report_export_path(&destination_path, &extension)?;
+    fs::write(&path, content.as_bytes()).map_err(|error| error.to_string())?;
+
+    Ok(path.to_string_lossy().to_string())
+}
+
 fn decode_line(bytes: &[u8]) -> String {
     let without_lf = bytes.strip_suffix(b"\n").unwrap_or(bytes);
     let trimmed = without_lf.strip_suffix(b"\r").unwrap_or(without_lf);
@@ -2050,6 +2100,49 @@ mod tests {
     }
 
     #[test]
+    fn report_export_path_adds_expected_extension() {
+        let path = report_export_path("relatorio-sessao", "json").unwrap();
+        assert_eq!(
+            path.extension().and_then(|value| value.to_str()),
+            Some("json")
+        );
+
+        assert!(report_export_path("relatorio.csv", "json").is_err());
+        assert!(report_export_path("relatorio.json", "xml").is_err());
+    }
+
+    #[test]
+    fn writes_report_export_to_disk() {
+        use std::time::{SystemTime, UNIX_EPOCH};
+
+        let unique = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let root = std::env::temp_dir().join(format!(
+            "simulador-trade-report-{unique}"
+        ));
+        fs::create_dir_all(&root).unwrap();
+        let destination = root.join("sessao");
+
+        let written = write_report_export(
+            destination.to_string_lossy().to_string(),
+            "{\"ok\":true}".to_string(),
+            "json".to_string(),
+        )
+        .unwrap();
+
+        let written_path = PathBuf::from(written);
+        assert!(written_path.exists());
+        assert_eq!(
+            fs::read_to_string(&written_path).unwrap(),
+            "{\"ok\":true}"
+        );
+
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
     fn configurable_training_window_is_start_inclusive_end_exclusive() {
         let (start, end) = validate_training_window("09:00", "12:00").unwrap();
 
@@ -2384,6 +2477,7 @@ pub fn run() {
             list_all_trades,
             export_backup,
             import_backup,
+            write_report_export,
             load_execution_settings,
             save_execution_settings,
             save_training_session,
