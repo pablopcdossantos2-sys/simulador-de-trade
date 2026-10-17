@@ -290,3 +290,24 @@ que uma validação Rust seja mascarada por um commit posterior.
 Durante esta revisão, um teste Rust detectou corretamente que o caminho
 DESCENDING não removia o temporário após a substituição atômica. A implementação
 foi corrigida para manter o contrato original do teste.
+
+## Complemento após evolução posterior da main
+
+Uma nova comparação com o relatório original foi feita depois das evoluções de
+relatório por setup/sinal.
+
+Foram encontrados e corrigidos três resíduos/regressões:
+
+1. **Teste de setup:** o fixture voltou a ser alinhado à ordenação real
+   (`trades`, depois pontos líquidos e nome como desempate).
+2. **Rótulos em R$:** duas ocorrências de quebra literal no JSX foram removidas.
+3. **Calendário futuro:** datas-alvo de anos sem calendário B3 incorporado agora
+   são rejeitadas explicitamente, evitando tratar silenciosamente um feriado de
+   2027+ como pregão normal.
+
+Também foi concluída a métrica **Resultado por setup/sinal**, usando o snapshot
+da entrada. Trades anteriores à captura estruturada permanecem no grupo
+**Legado / sem classificação**, sem inferência artificial.
+
+O relatório JSON de sessão passou ao schema v2 com `setupPerformance`, e o CSV
+passou a incluir a coluna `setup`.
