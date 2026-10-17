@@ -1126,6 +1126,7 @@ fn export_backup(
     let sessions = query_backup_sessions(&connection)?;
     let events = query_backup_events(&connection)?;
     let settings = query_backup_execution_settings(&connection)?;
+    drop(connection);
 
     let bundle = BackupBundle {
         format: "simulador-de-trade-backup".to_string(),
