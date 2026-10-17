@@ -5,6 +5,7 @@ import {
   calculateSessionPerformance,
   classifyTrainingEvent,
   performanceByHour,
+  performanceBySetup,
 } from "../domain/sessionReport";
 import {
   buildCompleteSessionExport,
@@ -124,6 +125,7 @@ export function SessionHistoryPanel({ refreshKey }: Props) {
     [selected, events, trades],
   );
   const byHour = useMemo(() => performanceByHour(trades), [trades]);
+  const bySetup = useMemo(() => performanceBySetup(trades), [trades]);
 
   async function saveNote(trade: Trade) {
     const note = noteDrafts[trade.id] ?? "";
@@ -464,6 +466,57 @@ export function SessionHistoryPanel({ refreshKey }: Props) {
                       </div>
                     )}
                   </article>
+                </div>
+
+                <div className="setup-report">
+                  <div className="training-timeline-heading">
+                    <strong>Resultado por setup/sinal</strong>
+                    <span>{bySetup.length} grupo{bySetup.length === 1 ? "" : "s"}</span>
+                  </div>
+
+                  {bySetup.length === 0 ? (
+                    <p className="empty-state">Nenhuma operação encerrada.</p>
+                  ) : (
+                    <div className="setup-report-grid">
+                      {bySetup.map((bucket) => (
+                        <article key={bucket.setup}>
+                          <strong>{bucket.setup}</strong>
+                          <dl>
+                            <div>
+                              <dt>Trades</dt>
+                              <dd>{bucket.trades}</dd>
+                            </div>
+                            <div>
+                              <dt>Win rate</dt>
+                              <dd>{formatPct(bucket.winRatePct)}</dd>
+                            </div>
+                            <div>
+                              <dt>Pontos</dt>
+                              <dd
+                                className={
+                                  bucket.netPoints >= 0 ? "positive" : "negative"
+                                }
+                              >
+                                {formatPoints(bucket.netPoints)}
+                              </dd>
+                            </div>
+                            <div>
+                              <dt>Líquido</dt>
+                              <dd
+                                className={
+                                  bucket.netResultBRL >= 0
+                                    ? "positive"
+                                    : "negative"
+                                }
+                              >
+                                R$ {bucket.netResultBRL.toFixed(2)}
+                              </dd>
+                            </div>
+                          </dl>
+                        </article>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
                 <div className="post-trade-notes">
