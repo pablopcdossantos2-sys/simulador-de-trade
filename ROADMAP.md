@@ -115,7 +115,7 @@ Arquitetura definida a partir dos componentes validados no Candle Lab. Ver [Reap
 - [x] Resultado agregado por ativo (WINFUT/WDOFUT).
 - [x] Resultado por horário de entrada.
 - [x] Resultado por direção (Compra/Venda).
-- [ ] Resultado por tipo de sinal/setup.
+- [x] Resultado por tipo de sinal/setup, derivado do snapshot da entrada e separado de trades legados sem classificação.
 - [x] Aderência aos sinais utilizados versus ignorados.
 - [ ] Aderência ao stop.
 - [ ] Aderência ao alvo.
