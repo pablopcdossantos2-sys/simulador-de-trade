@@ -366,8 +366,12 @@ fn process_profit_time_index(
 
         if let Some(last) = minutes.last_mut() {
             if last.minute == minute {
-                last.first_timestamp = last.first_timestamp.min(timestamp_text.clone());
-                last.last_timestamp = last.last_timestamp.max(timestamp_text);
+                if timestamp_text < last.first_timestamp {
+                    last.first_timestamp = timestamp_text.clone();
+                }
+                if timestamp_text > last.last_timestamp {
+                    last.last_timestamp = timestamp_text;
+                }
                 last.last_line = physical_line;
                 last.end_byte_exclusive = bytes_processed;
                 last.trades += 1;
@@ -505,7 +509,7 @@ fn load_fresh_index(source: &Path) -> Result<Option<(PathBuf, ProfitTimeIndex)>,
     if index.schema_version != INDEX_SCHEMA_VERSION
         || index.source_bytes != metadata.len()
         || index.source_modified_unix_ms != modified_unix_ms(&metadata)?
-        || index.source_path != source.to_string_lossy()
+        || index.source_path != source.to_string_lossy().as_ref()
     {
         return Ok(None);
     }
