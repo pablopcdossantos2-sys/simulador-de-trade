@@ -20,6 +20,7 @@ export interface ProfitPreparationResult {
 }
 
 export interface ProfitPreparationProgress {
+  operationId: string;
   percent: number;
   bytesProcessed: number;
   bytesTotal: number;
@@ -43,15 +44,21 @@ export async function prepareProfitReplayFile(
     );
   }
 
+  const operationId = crypto.randomUUID();
   const unlisten = onProgress
     ? await listen<ProfitPreparationProgress>(
         "profit-preparation-progress",
-        (event) => onProgress(event.payload),
+        (event) => {
+          if (event.payload.operationId === operationId) {
+            onProgress(event.payload);
+          }
+        },
       )
     : null;
 
   try {
     return await invoke<ProfitPreparationResult>("prepare_profit_replay_file", {
+      operationId,
       sourcePath,
       sessionStart,
       sessionEnd,
