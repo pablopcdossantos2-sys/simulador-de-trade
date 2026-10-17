@@ -165,13 +165,19 @@ fn open_session(path: &Path) -> Result<(ReplaySession, ReplaySessionInfo), Strin
     validate_header(&header)?;
     let data_start = reader.stream_position().map_err(|error| error.to_string())?;
 
-    let mut first_line = String::new();
-    let read = reader
-        .read_line(&mut first_line)
-        .map_err(|error| error.to_string())?;
-    if read == 0 {
-        return Err("O arquivo de replay não possui negócios.".to_string());
-    }
+    let first_line = loop {
+        let mut candidate = String::new();
+        let read = reader
+            .read_line(&mut candidate)
+            .map_err(|error| error.to_string())?;
+        if read == 0 {
+            return Err("O arquivo de replay não possui negócios.".to_string());
+        }
+        if candidate.trim().is_empty() {
+            continue;
+        }
+        break candidate;
+    };
 
     let first_fields: Vec<&str> = first_line.trim_end_matches(|ch| ch == '\r' || ch == '\n').split(',').collect();
     if first_fields.len() != 5 {
