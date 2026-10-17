@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { CandleChart } from "./components/CandleChart";
 import { DataPreparationPanel } from "./components/DataPreparationPanel";
+import { DataPreparationPanel } from "./components/DataPreparationPanel";
 import { ReplayControls } from "./components/ReplayControls";
 import { ReplayCatalogPanel } from "./components/ReplayCatalogPanel";
 import { PlanDataPreparationPanel } from "./components/PlanDataPreparationPanel";
@@ -63,6 +64,7 @@ import {
   loadExecutionSettings,
 } from "./services/executionSettings";
 import { loadWarmupCandles } from "./services/replayData";
+import { registerReplayFile } from "./services/replayCatalog";
 import type {
   Asset,
   ExecutionSettings,
@@ -898,32 +900,7 @@ export default function App() {
         </div>
       </section>
 
-      <ExecutionSettingsPanel
-        settings={executionSettings}
-        onSaved={(settings) => {
-          setExecutionSettings(settings);
-          setFeedback(
-            "Configurações salvas. Elas serão aplicadas somente às próximas operações.",
-          );
-        }}
-      />
-
-      <BackupPanel
-        disabled={Boolean(position) || Boolean(trainingActive)}
-        onImported={async () => {
-          const [nextTrades, nextSettings] = await Promise.all([
-            loadTrades(),
-            loadExecutionSettings(),
-          ]);
-          setTrades(nextTrades);
-          setExecutionSettings(nextSettings);
-          setSessionHistoryRefreshKey((value) => value + 1);
-          setFeedback(
-            "Backup importado. Histórico, relatórios e configurações foram atualizados.",
-          );
-        }}
-      />
-
+      {/* Fluxo principal: planejar → conferir → preparar → carregar → treinar. */}
       <SimulationPlanner
         disabled={trainingActive || Boolean(position) || startingTraining}
         onPlanChange={async (plan) => {
@@ -981,21 +958,14 @@ export default function App() {
         }
       />
 
-      <TrainingSessionPanel
-        session={trainingSession}
-        summary={trainingSummary}
-        events={trainingEvents}
-        mode={trainingMode}
-        onModeChange={setTrainingMode}
-        canStart={
-          Boolean(simulationPlan) &&
-          planIsReady(catalogMatches) &&
-          Boolean(replay.session) &&
-          !startingTraining
-        }
-        replayLoaded={Boolean(replay.session)}
-        onStart={() => void startTraining()}
-        onEnd={() => void finishTraining()}
+      <ExecutionSettingsPanel
+        settings={executionSettings}
+        onSaved={(settings) => {
+          setExecutionSettings(settings);
+          setFeedback(
+            "Configurações salvas. Elas serão aplicadas somente às próximas operações.",
+          );
+        }}
       />
 
       <ReplayControls
@@ -1016,6 +986,23 @@ export default function App() {
         onStepCandle={() => void replay.stepCandle()}
         onReset={() => void resetReplay()}
         onSpeedChange={replay.setSpeed}
+      />
+
+      <TrainingSessionPanel
+        session={trainingSession}
+        summary={trainingSummary}
+        events={trainingEvents}
+        mode={trainingMode}
+        onModeChange={setTrainingMode}
+        canStart={
+          Boolean(simulationPlan) &&
+          planIsReady(catalogMatches) &&
+          Boolean(replay.session) &&
+          !startingTraining
+        }
+        replayLoaded={Boolean(replay.session)}
+        onStart={() => void startTraining()}
+        onEnd={() => void finishTraining()}
       />
 
       <section className="workspace">
@@ -1178,25 +1165,32 @@ export default function App() {
 
       <SessionHistoryPanel refreshKey={sessionHistoryRefreshKey} />
 
-      <DataPreparationPanel
-        plannedStart={simulationPlan?.targetStartTime}
-        plannedEnd={simulationPlan?.targetEndTime}
-        onPrepared={async (result) => {
-          try {
-            await registerReplayFile(result.outputPath);
-            setCatalogRefreshKey((value) => value + 1);
-            setFeedback(
-              "Arquivo tratado e adicionado ao catálogo local de dados.",
-            );
-          } catch (error) {
-            setFeedback(
-              error instanceof Error
-                ? error.message
-                : "O arquivo foi tratado, mas não pôde ser catalogado.",
-            );
-          }
-        }}
-      />
+      <details className="advanced-tools">
+        <summary>Ferramenta alternativa: preparar um CSV manualmente (avançado)</summary>
+        <p className="data-description">
+          Use esta ferramenta apenas se precisar tratar um arquivo fora do fluxo guiado acima.
+          Para a simulação planejada, prefira “Tratar dados necessários”.
+        </p>
+        <DataPreparationPanel
+          plannedStart={simulationPlan?.targetStartTime}
+          plannedEnd={simulationPlan?.targetEndTime}
+          onPrepared={async (result) => {
+            try {
+              await registerReplayFile(result.outputPath);
+              setCatalogRefreshKey((value) => value + 1);
+              setFeedback(
+                "Arquivo tratado e adicionado ao catálogo local de dados.",
+              );
+            } catch (error) {
+              setFeedback(
+                error instanceof Error
+                  ? error.message
+                  : "O arquivo foi tratado, mas não pôde ser catalogado.",
+              );
+            }
+          }}
+        />
+      </details>
 
       <section className="history card">
         <div className="section-heading">
@@ -1276,6 +1270,22 @@ export default function App() {
           </div>
         )}
       </section>
+
+      <BackupPanel
+        disabled={Boolean(position) || Boolean(trainingActive)}
+        onImported={async () => {
+          const [nextTrades, nextSettings] = await Promise.all([
+            loadTrades(),
+            loadExecutionSettings(),
+          ]);
+          setTrades(nextTrades);
+          setExecutionSettings(nextSettings);
+          setSessionHistoryRefreshKey((value) => value + 1);
+          setFeedback(
+            "Backup importado. Histórico, relatórios e configurações foram atualizados.",
+          );
+        }}
+      />
 
       <RuleViolationModal
         message={ruleViolation}
