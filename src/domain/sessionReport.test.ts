@@ -279,6 +279,38 @@ describe("relatório por sessão", () => {
     ]);
   });
 
+  it("prefere o horário de mercado capturado ao openedAt legado em UTC", () => {
+    const legacyUtc: Trade = {
+      ...trades[0],
+      openedAt: "2026-10-14T12:15:00.000Z",
+      entryContext: {
+        capturedAt: "2026-10-16T12:00:00Z",
+        marketTimestamp: "2026-10-14T09:15:00",
+        asset: "WINFUT",
+        candleIndex: 10,
+        currentPrice: 130000,
+        zone: "GREEN",
+        signal: {
+          id: "sig1",
+          asset: "WINFUT",
+          side: "BUY",
+          candleIndex: 10,
+          timestamp: "2026-10-14T09:14:00",
+          price: 130000,
+          label: "Compra",
+        },
+        indicatorVersion: "multi-medias-nuvem-v1.0.0",
+        candles: [],
+        indicatorSeries: [],
+        signals: [],
+      },
+    };
+
+    expect(performanceByHour([legacyUtc])).toEqual([
+      { hour: "09:00", trades: 1, netPoints: 150 },
+    ]);
+  });
+
   it("agrupa resultado por horário da entrada", () => {
     expect(performanceByHour(trades)).toEqual([
       { hour: "09:00", trades: 1, netPoints: 150 },
