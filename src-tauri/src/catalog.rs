@@ -63,8 +63,34 @@ fn save_catalog(
     entries: &[ReplayCatalogEntry],
 ) -> Result<(), String> {
     let path = catalog_path(app)?;
-    let raw = serde_json::to_string_pretty(entries).map_err(|error| error.to_string())?;
-    fs::write(path, raw).map_err(|error| error.to_string())
+    let temp_path = path.with_extension("json.tmp");
+    let backup_path = path.with_extension("json.previous");
+    let raw =
+        serde_json::to_string_pretty(entries).map_err(|error| error.to_string())?;
+
+    fs::write(&temp_path, raw).map_err(|error| error.to_string())?;
+
+    if !path.exists() {
+        return fs::rename(&temp_path, &path).map_err(|error| error.to_string());
+    }
+
+    let _ = fs::remove_file(&backup_path);
+    fs::rename(&path, &backup_path).map_err(|error| {
+        let _ = fs::remove_file(&temp_path);
+        error.to_string()
+    })?;
+
+    match fs::rename(&temp_path, &path) {
+        Ok(()) => {
+            let _ = fs::remove_file(&backup_path);
+            Ok(())
+        }
+        Err(error) => {
+            let _ = fs::rename(&backup_path, &path);
+            let _ = fs::remove_file(&temp_path);
+            Err(error.to_string())
+        }
+    }
 }
 
 fn read_metadata(output_path: &Path) -> Result<(PathBuf, Value), String> {
