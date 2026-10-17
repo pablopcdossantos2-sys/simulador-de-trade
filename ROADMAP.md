@@ -86,7 +86,7 @@ Arquitetura definida a partir dos componentes validados no Candle Lab. Ver [Reap
 - [x] Resultado financeiro bruto em R$ por ativo/quantidade.
 - [x] Resultado financeiro líquido após custos e slippage.
 - [x] Risco inicial em pontos derivado da OCO e múltiplos de R no relatório.
-- [ ] Política intrabar configurável.
+- [x] Política intrabar configurável para candles OHLC ambíguos, com STOP_FIRST conservador por padrão e TARGET_FIRST opcional; replay negócio a negócio mantém a sequência real.
 - [x] Suporte a dados negócio a negócio tratados do Profit.
 - [x] Validade inicial: autorização permanece enquanto a zona correspondente estiver ativa.
 - [x] Definir política: cada sinal autoriza no máximo uma entrada.
