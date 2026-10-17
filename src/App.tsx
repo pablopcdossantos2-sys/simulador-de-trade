@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { CandleChart } from "./components/CandleChart";
 import { DataPreparationPanel } from "./components/DataPreparationPanel";
 import { ReplayControls } from "./components/ReplayControls";
+import { ReplayLoadPanel } from "./components/ReplayLoadPanel";
 import { ReplayCatalogPanel } from "./components/ReplayCatalogPanel";
 import { PlanDataPreparationPanel } from "./components/PlanDataPreparationPanel";
 import { RuleViolationModal } from "./components/RuleViolationModal";
@@ -966,24 +967,15 @@ export default function App() {
         }}
       />
 
-      <ReplayControls
+      <ReplayLoadPanel
         path={replay.path}
         timeframeMinutes={replayTimeframeMinutes}
         onPathChange={replay.setPath}
         session={replay.session}
         playing={replay.playing}
-        speed={replay.speed}
-        processed={replay.processed}
-        currentTimestamp={replay.currentTimestamp}
-        finished={replay.finished}
         busy={replay.busy}
-        onLoad={() => void loadReplay()}
-        onPlayPause={() => replay.setPlaying(!replay.playing)}
         trainingActive={trainingActive}
-        onStep={() => void replay.step()}
-        onStepCandle={() => void replay.stepCandle()}
-        onReset={() => void resetReplay()}
-        onSpeedChange={replay.setSpeed}
+        onLoad={() => void loadReplay()}
       />
 
       <TrainingSessionPanel
@@ -1001,6 +993,23 @@ export default function App() {
         replayLoaded={Boolean(replay.session)}
         onStart={() => void startTraining()}
         onEnd={() => void finishTraining()}
+      />
+
+      <ReplayControls
+        timeframeMinutes={replayTimeframeMinutes}
+        session={replay.session}
+        playing={replay.playing}
+        speed={replay.speed}
+        processed={replay.processed}
+        currentTimestamp={replay.currentTimestamp}
+        finished={replay.finished}
+        busy={replay.busy}
+        onPlayPause={() => replay.setPlaying(!replay.playing)}
+        trainingActive={trainingActive}
+        onStep={() => void replay.step()}
+        onStepCandle={() => void replay.stepCandle()}
+        onReset={() => void resetReplay()}
+        onSpeedChange={replay.setSpeed}
       />
 
       <section className="workspace">
