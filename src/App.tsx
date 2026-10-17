@@ -35,6 +35,7 @@ import {
   summarizeTraining,
 } from "./domain/training";
 import {
+  closePositionAtMarket,
   openPosition,
   resolveOco,
   resolveOcoTrade,
@@ -647,6 +648,41 @@ export default function App() {
     void finishTraining();
   }, [replay.finished, trainingActive, position]);
 
+  function closeOpenPositionAtReplayEnd() {
+    if (!replay.finished || !position || !currentReplayTrade) {
+      setFeedback(
+        "O encerramento a mercado só fica disponível no fim do replay com uma posição aberta.",
+      );
+      return;
+    }
+
+    try {
+      const closed = closePositionAtMarket(
+        position,
+        currentReplayTrade.price,
+        currentReplayTrade.timestamp,
+      );
+      persistClosedTrade(closed);
+      setFeedback(
+        examActive
+          ? "Posição encerrada a mercado no fim da prova. O resultado permanece oculto até o encerramento."
+          : `Posição encerrada a mercado no último preço do replay: ${money.format(closed.exitPrice)}.`,
+      );
+    } catch (error) {
+      const reason =
+        error instanceof Error
+          ? error.message
+          : "Não foi possível encerrar a posição a mercado.";
+      setFeedback(reason);
+      recordTrainingEvent({
+        type: "TECHNICAL_ISSUE",
+        marketTimestamp: currentReplayTrade.timestamp,
+        reason,
+        tradeId: position.id,
+      });
+    }
+  }
+
   function normalizeOrderPrice(
     raw: string,
     setter: (value: string) => void,
@@ -1091,6 +1127,15 @@ export default function App() {
                   ? "Alvo primeiro"
                   : "Stop primeiro"}
               </small>
+              {dataMode === "replay" && replay.finished && (
+                <button
+                  type="button"
+                  className="market-close-button"
+                  onClick={closeOpenPositionAtReplayEnd}
+                >
+                  Encerrar a mercado no último preço
+                </button>
+              )}
             </div>
           )}
         </aside>
@@ -1167,7 +1212,13 @@ export default function App() {
                     <td>{trade.contracts}</td>
                     <td>{money.format(trade.entry)}</td>
                     <td>{money.format(trade.exitPrice)}</td>
-                    <td>{trade.exitReason === "TARGET" ? "Alvo" : "Stop"}</td>
+                    <td>
+                      {trade.exitReason === "TARGET"
+                        ? "Alvo"
+                        : trade.exitReason === "STOP"
+                          ? "Stop"
+                          : "Fim da sessão"}
+                    </td>
                     <td
                       className={
                         trade.resultPoints >= 0 ? "positive" : "negative"
