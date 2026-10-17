@@ -95,6 +95,7 @@ struct ExecutionSettingsRecord {
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 struct ProfitPreparationProgress {
+    operation_id: String,
     percent: f64,
     bytes_processed: u64,
     bytes_total: u64,
@@ -1771,6 +1772,7 @@ fn canonicalize_replay_file(
 
 fn emit_progress(
     app: &tauri::AppHandle,
+    operation_id: &str,
     bytes_processed: u64,
     bytes_total: u64,
     source_rows: u64,
@@ -1785,6 +1787,7 @@ fn emit_progress(
     let _ = app.emit(
         "profit-preparation-progress",
         ProfitPreparationProgress {
+            operation_id: operation_id.to_string(),
             percent,
             bytes_processed,
             bytes_total,
@@ -1796,6 +1799,7 @@ fn emit_progress(
 
 fn process_profit_replay_file(
     app: &tauri::AppHandle,
+    operation_id: &str,
     source_path: &str,
     session_start: &str,
     session_end: &str,
@@ -1987,7 +1991,14 @@ fn process_profit_replay_file(
         }
 
         if bytes_processed.saturating_sub(last_emitted_bytes) >= 8 * 1024 * 1024 {
-            emit_progress(app, bytes_processed, source_bytes, source_rows, kept_rows);
+            emit_progress(
+                app,
+                operation_id,
+                bytes_processed,
+                source_bytes,
+                source_rows,
+                kept_rows,
+            );
             last_emitted_bytes = bytes_processed;
         }
     }
@@ -2070,19 +2081,33 @@ fn process_profit_replay_file(
     )
     .map_err(|error| error.to_string())?;
 
-    emit_progress(app, source_bytes, source_bytes, source_rows, kept_rows);
+    emit_progress(
+        app,
+        operation_id,
+        source_bytes,
+        source_bytes,
+        source_rows,
+        kept_rows,
+    );
     Ok(result)
 }
 
 #[tauri::command]
 async fn prepare_profit_replay_file(
     app: tauri::AppHandle,
+    operation_id: String,
     source_path: String,
     session_start: String,
     session_end: String,
 ) -> Result<ProfitPreparationResult, String> {
     tauri::async_runtime::spawn_blocking(move || {
-        process_profit_replay_file(&app, &source_path, &session_start, &session_end)
+        process_profit_replay_file(
+            &app,
+            &operation_id,
+            &source_path,
+            &session_start,
+            &session_end,
+        )
     })
     .await
     .map_err(|error| error.to_string())?
