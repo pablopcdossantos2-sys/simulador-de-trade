@@ -1151,7 +1151,7 @@ export default function App() {
                 {money.format(position.target)}
               </small>
               <small>
-                Slippage {position.slippageTicksPerSide} tick/lado · custo R${" "}\n                {money.format(position.costPerContractRoundTripBRL)} por contrato
+                Slippage {position.slippageTicksPerSide} tick/lado · custo R$ {" "}                {money.format(position.costPerContractRoundTripBRL)} por contrato
               </small>
               <small>
                 OHLC ambíguo:{" "}
