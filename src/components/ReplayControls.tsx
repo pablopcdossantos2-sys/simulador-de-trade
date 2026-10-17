@@ -1,9 +1,7 @@
 import type { ReplaySessionInfo } from "../services/replayData";
 
 interface Props {
-  path: string;
   timeframeMinutes: number;
-  onPathChange: (value: string) => void;
   session: ReplaySessionInfo | null;
   playing: boolean;
   speed: number;
@@ -11,7 +9,6 @@ interface Props {
   currentTimestamp: string | null;
   finished: boolean;
   busy: boolean;
-  onLoad: () => void;
   onPlayPause: () => void;
   trainingActive: boolean;
   onStep: () => void;
@@ -32,9 +29,7 @@ function clock(timestamp: string | null): string {
 }
 
 export function ReplayControls({
-  path,
   timeframeMinutes,
-  onPathChange,
   session,
   playing,
   speed,
@@ -42,7 +37,6 @@ export function ReplayControls({
   currentTimestamp,
   finished,
   busy,
-  onLoad,
   onPlayPause,
   trainingActive,
   onStep,
@@ -55,34 +49,13 @@ export function ReplayControls({
       <div className="section-heading replay-heading">
         <div>
           <p className="eyebrow">
-            Etapa 4 · Carregar e reproduzir · M{timeframeMinutes}
+Etapa 6 · Reproduzir o mercado · M{timeframeMinutes}
           </p>
-          <h2>Reprodução negócio a negócio</h2>
+          <h2>Controles de reprodução</h2>
         </div>
         <span className={`replay-status ${finished ? "finished" : session ? "ready" : ""}`}>
           {finished ? "Sessão concluída" : session ? "Arquivo carregado" : "Aguardando arquivo"}
         </span>
-      </div>
-
-      <p className="data-description">
-        Carregue aqui o arquivo tratado. Para começar a reproduzir o mercado,
-        primeiro inicie a sessão na Etapa 5; depois volte a esta seção para
-        clicar em Reproduzir ou avançar negócio a negócio.
-      </p>
-
-      <div className="replay-load-row">
-        <label>
-          Arquivo tratado (.replay.csv)
-          <input
-            value={path}
-            onChange={(event) => onPathChange(event.target.value)}
-            placeholder={'Ex.: C:\\Dados\\WINV26_TRADES_0900-1200.replay.csv'}
-            disabled={playing || trainingActive}
-          />
-        </label>
-        <button type="button" onClick={onLoad} disabled={busy || playing || trainingActive}>
-          {busy ? "Carregando..." : "Carregar replay"}
-        </button>
       </div>
 
       {session && (
