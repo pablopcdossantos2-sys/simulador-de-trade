@@ -21,7 +21,7 @@ export function ReplayLoadPanel({
   trainingActive,
   onLoad,
 }: Props) {
-  const finished = Boolean(session?.endTime);
+  const finished = Boolean(session?.finished);
 
   return (
     <section className="replay-controls card replay-load-panel">
