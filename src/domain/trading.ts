@@ -201,8 +201,14 @@ export function validateTradeIntent(intent: TradeIntent): void {
   }
 }
 
-export function openPosition(intent: TradeIntent, now = new Date()): Position {
+export function openPosition(
+  intent: TradeIntent,
+  openedAt: Date | string = new Date(),
+): Position {
   validateTradeIntent(intent);
+
+  const openedAtText =
+    typeof openedAt === "string" ? openedAt : openedAt.toISOString();
 
   return {
     id: crypto.randomUUID(),
@@ -221,7 +227,7 @@ export function openPosition(intent: TradeIntent, now = new Date()): Position {
       intent.execution.costPerContractRoundTripBRL,
     intrabarPolicy: intent.execution.intrabarPolicy,
     entryContext: intent.entryContext ?? null,
-    openedAt: now.toISOString(),
+    openedAt: openedAtText,
     status: "OPEN",
   };
 }
