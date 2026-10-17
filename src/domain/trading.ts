@@ -284,6 +284,25 @@ function closePosition(
   };
 }
 
+export function closePositionAtMarket(
+  position: Position,
+  marketPrice: number,
+  closedAt: string,
+): Trade {
+  if (!Number.isFinite(marketPrice) || marketPrice <= 0) {
+    throw new TradingRuleError(
+      "Não é possível encerrar a mercado sem um último preço válido.",
+    );
+  }
+
+  return closePosition(
+    position,
+    marketPrice,
+    "SESSION_END",
+    closedAt,
+  );
+}
+
 export function resolveOco(
   position: Position,
   candle: Candle,
