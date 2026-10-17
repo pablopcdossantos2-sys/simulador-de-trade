@@ -123,7 +123,7 @@ O Pine gera o label **COMPRA** ou **VENDA** somente no candle que inicia a nuvem
 
 Pré-requisitos: Node.js 20+ e npm.
 
-O repositório versiona `package-lock.json`; use `npm ci` para instalar exatamente as versões validadas pelo CI.
+O repositório versiona `package-lock.json` e `src-tauri/Cargo.lock`. Use `npm ci` para instalar exatamente as versões frontend validadas; o CI também verifica o Rust com `cargo --locked`.
 
 ```bash
 npm ci
