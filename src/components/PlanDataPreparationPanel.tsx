@@ -2,7 +2,9 @@ import { useEffect, useMemo, useState } from "react";
 import type { SimulationPlan } from "../domain/simulationPlan";
 import type { RequirementMatch } from "../domain/catalogMatch";
 import {
+  buildProfitTimeIndex,
   prepareProfitReplayFile,
+  type ProfitIndexProgress,
   type ProfitPreparationProgress,
 } from "../services/profitData";
 import { registerReplayFile } from "../services/replayCatalog";
@@ -15,6 +17,13 @@ interface Props {
 
 interface RowState {
   sourcePath: string;
+  status: "idle" | "working" | "done" | "error";
+  message: string;
+  progress: number;
+}
+
+
+interface IndexRowState {
   status: "idle" | "working" | "done" | "error";
   message: string;
   progress: number;
@@ -35,11 +44,13 @@ export function PlanDataPreparationPanel({
   onCatalogUpdated,
 }: Props) {
   const [rows, setRows] = useState<Record<string, RowState>>({});
+  const [indexes, setIndexes] = useState<Record<string, IndexRowState>>({});
   const [processing, setProcessing] = useState(false);
 
   useEffect(() => {
     if (!plan) {
       setRows({});
+      setIndexes({});
       return;
     }
 
@@ -76,6 +87,74 @@ export function PlanDataPreparationPanel({
         ...patch,
       },
     }));
+  }
+
+
+  function updateIndexRow(key: string, patch: Partial<IndexRowState>) {
+    setIndexes((current) => ({
+      ...current,
+      [key]: {
+        ...(current[key] ?? {
+          status: "idle",
+          message: "",
+          progress: 0,
+        }),
+        ...patch,
+      },
+    }));
+  }
+
+  async function indexMatch(match: RequirementMatch): Promise<boolean> {
+    const key = keyFor(match.requirement.role, match.requirement.date);
+    const row = rows[key];
+    const sourcePath = row?.sourcePath.trim().replace(/^"(.*)"$/, "$1") ?? "";
+
+    if (!sourcePath) {
+      updateIndexRow(key, {
+        status: "error",
+        message: "Informe primeiro o CSV bruto do Profit para esta data.",
+      });
+      return false;
+    }
+
+    updateIndexRow(key, {
+      status: "working",
+      message: "Criando índice temporal M1...",
+      progress: 0,
+    });
+
+    try {
+      const result = await buildProfitTimeIndex(
+        sourcePath,
+        (progress: ProfitIndexProgress) =>
+          updateIndexRow(key, { progress: progress.percent }),
+      );
+
+      if (result.tradeDate !== match.requirement.date) {
+        updateIndexRow(key, {
+          status: "error",
+          progress: 100,
+          message: `O CSV pertence a ${brDate(result.tradeDate)}, mas o plano exige ${brDate(match.requirement.date)}.`,
+        });
+        return false;
+      }
+
+      updateIndexRow(key, {
+        status: "done",
+        progress: 100,
+        message: `Índice M1 pronto: ${result.minuteBuckets.toLocaleString("pt-BR")} minutos · ${result.sourceRows.toLocaleString("pt-BR")} negócios. Os próximos recortes deste CSV podem usar seek direto.`,
+      });
+      return true;
+    } catch (error) {
+      updateIndexRow(key, {
+        status: "error",
+        message:
+          error instanceof Error
+            ? error.message
+            : "Falha ao criar o índice M1.",
+      });
+      return false;
+    }
   }
 
   async function processMatch(match: RequirementMatch): Promise<boolean> {
@@ -168,7 +247,10 @@ export function PlanDataPreparationPanel({
       <p className="data-description">
         Para cada item ainda ausente, selecione ou cole o caminho do CSV bruto
         exportado pelo Profit Ultra. Cada arquivo será tratado usando exatamente
-        a janela necessária para a função dele no plano.
+        a janela necessária para a função dele no plano. Em arquivos grandes ou
+        reutilizados, use primeiro <strong>Indexar M1</strong>: o índice é criado
+        uma vez e permite que recortes posteriores sejam localizados por seek
+        direto, sem reler todo o trecho anterior do CSV.
       </p>
 
       <div className="plan-data-list">
@@ -209,20 +291,60 @@ export function PlanDataPreparationPanel({
                       updateRow(key, { sourcePath: event.target.value })
                     }
                     placeholder={`CSV bruto de ${brDate(match.requirement.date)}`}
-                    disabled={processing || row?.status === "working"}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => void processMatch(match)}
                     disabled={
                       processing ||
                       row?.status === "working" ||
-                      !(row?.sourcePath ?? "").trim()
+                      indexes[key]?.status === "working"
                     }
-                  >
-                    {row?.status === "working" ? "Tratando..." : "Tratar"}
-                  </button>
+                  />
+                  <div className="plan-data-actions">
+                    <button
+                      type="button"
+                      className="secondary"
+                      onClick={() => void indexMatch(match)}
+                      disabled={
+                        processing ||
+                        row?.status === "working" ||
+                        indexes[key]?.status === "working" ||
+                        !(row?.sourcePath ?? "").trim()
+                      }
+                    >
+                      {indexes[key]?.status === "working"
+                        ? "Indexando..."
+                        : indexes[key]?.status === "done"
+                          ? "Reindexar M1"
+                          : "Indexar M1"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => void processMatch(match)}
+                      disabled={
+                        processing ||
+                        row?.status === "working" ||
+                        indexes[key]?.status === "working" ||
+                        !(row?.sourcePath ?? "").trim()
+                      }
+                    >
+                      {row?.status === "working" ? "Tratando..." : "Tratar"}
+                    </button>
+                  </div>
                 </div>
+              )}
+
+              {!available && indexes[key]?.status === "working" && (
+                <div className="mini-progress">
+                  <span
+                    style={{
+                      width: `${Math.min(100, indexes[key]?.progress ?? 0)}%`,
+                    }}
+                  />
+                </div>
+              )}
+
+              {!available && indexes[key]?.message && (
+                <small className={`plan-data-message ${indexes[key].status}`}>
+                  {indexes[key].message}
+                </small>
               )}
 
               {!available && row?.status === "working" && (
