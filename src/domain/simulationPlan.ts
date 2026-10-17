@@ -6,6 +6,9 @@ export const SUPPORTED_TIMEFRAMES_MINUTES = [2, 5] as const;
 export const STANDARD_WARMUP_MULTIPLIER = 5;
 export const STRICT_WARMUP_MULTIPLIER = 10;
 
+const SUPPORTED_CALENDAR_YEARS = new Set([2025, 2026]);
+export const SUPPORTED_SIMULATION_YEARS = [2026] as const;
+
 const B3_CLOSED_DATES = new Set([
   // 2025: necessário para aquecer simulações do começo de 2026.
   "2025-01-01",
@@ -109,6 +112,7 @@ function dateKey(date: Date): string {
 export function isB3TradingDate2026(value: string): boolean {
   const date = new Date(`${value}T12:00:00Z`);
   if (Number.isNaN(date.getTime())) return false;
+  if (!SUPPORTED_CALENDAR_YEARS.has(date.getUTCFullYear())) return false;
 
   const weekday = date.getUTCDay();
   if (weekday === 0 || weekday === 6) return false;
@@ -127,6 +131,13 @@ export function previousB3Sessions2026(
   const result: string[] = [];
   while (result.length < count) {
     cursor.setUTCDate(cursor.getUTCDate() - 1);
+
+    if (cursor.getUTCFullYear() < 2025) {
+      throw new Error(
+        "O calendário incorporado não possui pregões anteriores a 2025 suficientes para este aquecimento.",
+      );
+    }
+
     const key = dateKey(cursor);
     if (isB3TradingDate2026(key)) result.push(key);
   }
@@ -195,6 +206,17 @@ function winExpiryWarning(dateValue: string, asset: Asset): string | null {
 export function calculateSimulationPlan(
   input: SimulationPlanInput,
 ): SimulationPlan {
+  const targetYear = Number(input.date.slice(0, 4));
+  if (
+    !SUPPORTED_SIMULATION_YEARS.includes(
+      targetYear as (typeof SUPPORTED_SIMULATION_YEARS)[number],
+    )
+  ) {
+    throw new Error(
+      "Calendário de pregões ainda não disponível para esse ano. Esta versão permite simulações-alvo de 2026.",
+    );
+  }
+
   if (
     !SUPPORTED_TIMEFRAMES_MINUTES.includes(
       input.timeframeMinutes as (typeof SUPPORTED_TIMEFRAMES_MINUTES)[number],
