@@ -121,8 +121,10 @@ O Pine gera o label **COMPRA** ou **VENDA** somente no candle que inicia a nuvem
 
 Pré-requisitos: Node.js 20+ e npm.
 
+O repositório versiona `package-lock.json`; use `npm ci` para instalar exatamente as versões validadas pelo CI.
+
 ```bash
-npm install
+npm ci
 npm run dev
 ```
 
@@ -133,7 +135,7 @@ Abra o endereço exibido pelo Vite.
 Além de Node.js/npm, instale os pré-requisitos do Tauri 2 para Windows, incluindo Rust e WebView2.
 
 ```bash
-npm install
+npm ci
 npm run tauri dev
 ```
 
@@ -199,7 +201,7 @@ npm test
 ### Fase 5 — Distribuição desktop
 - [x] Instalador Windows NSIS.
 - [x] Executável portátil Windows.
-- [x] GitHub Actions para build Windows x64.
+- [x] GitHub Actions para build Windows x64 com dependências travadas por `package-lock.json`.
 - [ ] Atualizador assinado do Tauri.
 
 ## Sobre o OpenTraderWorld
