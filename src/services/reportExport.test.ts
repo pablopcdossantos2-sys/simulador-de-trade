@@ -108,12 +108,17 @@ describe("exportação de relatório por sessão", () => {
     expect(bundle.trades[0].postTradeNote).toContain("hesitação");
   });
 
-  it("gera CSV escapando notas com aspas e separadores", () => {
-    const csv = sessionTradesToCsv(session, [trade]);
+  it("gera CSV compatível com Excel pt-BR e protege fórmulas", () => {
+    const csv = sessionTradesToCsv(session, [
+      { ...trade, postTradeNote: '=HYPERLINK("https://example.com")' },
+    ]);
 
-    expect(csv).toContain("session_id,trade_date,asset");
+    expect(csv.startsWith("\uFEFF")).toBe(true);
+    expect(csv).toContain("session_id;trade_date;asset");
     expect(csv).toContain("intrabar_policy");
-    expect(csv).toContain('""hesitação""');
+    expect(csv).toContain("indicator_version");
     expect(csv).toContain("STOP_FIRST");
+    expect(csv).toContain("'=HYPERLINK");
+    expect(csv).not.toContain("entry_context");
   });
 });
