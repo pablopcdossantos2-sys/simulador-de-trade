@@ -59,7 +59,10 @@ function eventDetail(
 
   if (event.type === "TRADE_CLOSED") {
     if (hideOutcome) return "Operação encerrada · resultado oculto até o fim";
-    return event.reason === "TARGET" ? "Alvo atingido" : "Stop atingido";
+    if (event.reason === "TARGET") return "Alvo acionado";
+    if (event.reason === "STOP") return "Stop acionado";
+    if (event.reason === "SESSION_END") return "Encerrada a mercado no fim da sessão";
+    return "Operação encerrada";
   }
 
   if (event.type === "TECHNICAL_ISSUE") {
