@@ -92,7 +92,7 @@ A Fase 1 cria a fundação funcional do simulador:
 - relatório pós-sessão com pontos, win rate, payoff, profit factor, R, drawdown e resultado por horário/direção;
 - quantidade inteira de contratos na boleta;
 - resultado bruto em reais usando os multiplicadores contratuais de WIN/WDO;
-- configuração persistente de custos por contrato e slippage por lado;
+- configuração persistente de custos por contrato, slippage por lado e política intrabar para candles OHLC ambíguos;
 - resultado líquido por trade e por sessão;
 - arredondamento automático de Stop/Alvo ao tick válido;
 - notas pós-trade editáveis no histórico da sessão;
@@ -160,7 +160,7 @@ npm test
 - [x] Formação M2/M5 negócio a negócio.
 - [x] Reprodução, pausa, +1 negócio, reinício e velocidade visual.
 - [x] Ocultação dos candles futuros.
-- [x] Indicador recalculado durante o candle M2 aberto.
+- [x] Indicador recalculado durante o candle M2/M5 aberto.
 - [x] OCO avaliada negócio a negócio.
 - [x] Planejamento explícito de pregão/data/horário.
 - [x] Catálogo local e detecção automática de dados faltantes.
@@ -176,7 +176,7 @@ npm test
 - [x] Resultado líquido em R$.
 - [x] Arredondamento automático ao tick válido.
 - [x] Regras de tick específicas de WIN/WDO.
-- [ ] Saída OCO intrabar com política explícita para candles que tocam stop e alvo.
+- [x] Saída OCO intrabar com política explícita para candles OHLC que tocam stop e alvo; no replay negócio a negócio vale a sequência histórica real.
 
 ### Fase 4 — Treino e avaliação
 - [x] Sessão formal de treinamento.
