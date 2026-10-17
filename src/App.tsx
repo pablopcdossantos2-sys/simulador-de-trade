@@ -119,22 +119,39 @@ export default function App() {
   const [trainingEvents, setTrainingEvents] = useState<TrainingEvent[]>([]);
   const [trainingMode, setTrainingMode] = useState<TrainingMode>("FREE");
   const [sessionHistoryRefreshKey, setSessionHistoryRefreshKey] = useState(0);
+  const [startingTraining, setStartingTraining] = useState(false);
   const activeSignalRef = useRef<{ id: string; side: Side } | null>(null);
   const usedSignalIdsRef = useRef<Set<string>>(new Set());
+  const ignoredSignalIdsRef = useRef<Set<string>>(new Set());
+  const lastSuggestedSignalIdRef = useRef<string | null>(null);
+  const startingTrainingRef = useRef(false);
+  const positionRef = useRef<Position | null>(null);
+  const candlesRef = useRef(candles);
+  const persistClosedTradeRef = useRef<(trade: Trade) => void>(() => undefined);
 
   const replayTimeframeMinutes =
     simulationPlan?.timeframeMinutes ?? 2;
 
   const handleReplayTrade = useCallback(
     (trade: ReplayTrade) => {
-      setCurrentReplayTrade(trade);
-      setCandles((current) =>
-        applyReplayTrade(
-          current,
-          trade,
-          replayTimeframeMinutes * 60,
-        ),
+      const nextCandles = applyReplayTrade(
+        candlesRef.current,
+        trade,
+        replayTimeframeMinutes * 60,
       );
+
+      candlesRef.current = nextCandles;
+      setCandles(nextCandles);
+      setCurrentReplayTrade(trade);
+
+      const openPosition = positionRef.current;
+      if (!openPosition) return;
+
+      const closed = resolveOcoTrade(openPosition, trade);
+      if (!closed) return;
+
+      positionRef.current = null;
+      persistClosedTradeRef.current(closed);
     },
     [replayTimeframeMinutes],
   );
@@ -143,6 +160,14 @@ export default function App() {
     handleReplayTrade,
     replayTimeframeMinutes,
   );
+
+  useEffect(() => {
+    positionRef.current = position;
+  }, [position]);
+
+  useEffect(() => {
+    candlesRef.current = candles;
+  }, [candles]);
 
   const visibleCandles = useMemo(() => {
     if (dataMode !== "replay") return candles;
@@ -239,6 +264,7 @@ export default function App() {
   }, [asset, dataMode]);
 
   function persistClosedTrade(closed: Trade) {
+    positionRef.current = null;
     setPosition(null);
     setTrades((current) => [
       closed,
@@ -278,23 +304,14 @@ export default function App() {
   }
 
   useEffect(() => {
+    persistClosedTradeRef.current = persistClosedTrade;
+  });
+
+  useEffect(() => {
     if (dataMode !== "demo" || !position || !lastCandle) return;
     const closed = resolveOco(position, lastCandle);
     if (closed) persistClosedTrade(closed);
   }, [dataMode, lastCandle, position]);
-
-  useEffect(() => {
-    if (
-      dataMode !== "replay" ||
-      !position ||
-      !currentReplayTrade
-    ) {
-      return;
-    }
-
-    const closed = resolveOcoTrade(position, currentReplayTrade);
-    if (closed) persistClosedTrade(closed);
-  }, [dataMode, currentReplayTrade?.sequence, position]);
 
   useEffect(() => {
     if (!signal || position || !lastCandle) return;
@@ -305,6 +322,9 @@ export default function App() {
       );
       return;
     }
+
+    if (lastSuggestedSignalIdRef.current === signal.id) return;
+    lastSuggestedSignalIdRef.current = signal.id;
 
     const distance = suggestedOcoDistance(asset);
     const entry = lastPrice;
@@ -330,6 +350,7 @@ export default function App() {
 
   useEffect(() => {
     if (signal || position || !lastCandle) return;
+    lastSuggestedSignalIdRef.current = null;
     setFeedback(
       "Sem zona autorizadora ativa. Compra e Venda permanecem bloqueadas.",
     );
@@ -357,7 +378,12 @@ export default function App() {
     const previous = activeSignalRef.current;
 
     if (signal && (!previous || previous.id !== signal.id)) {
-      if (previous && !usedSignalIdsRef.current.has(previous.id)) {
+      if (
+        previous &&
+        !usedSignalIdsRef.current.has(previous.id) &&
+        !ignoredSignalIdsRef.current.has(previous.id)
+      ) {
+        ignoredSignalIdsRef.current.add(previous.id);
         recordTrainingEvent({
           type: "SIGNAL_IGNORED",
           marketTimestamp: currentReplayTrade?.timestamp ?? null,
@@ -374,7 +400,11 @@ export default function App() {
     }
 
     if (!signal && previous) {
-      if (!usedSignalIdsRef.current.has(previous.id)) {
+      if (
+        !usedSignalIdsRef.current.has(previous.id) &&
+        !ignoredSignalIdsRef.current.has(previous.id)
+      ) {
+        ignoredSignalIdsRef.current.add(previous.id);
         recordTrainingEvent({
           type: "SIGNAL_IGNORED",
           marketTimestamp: currentReplayTrade?.timestamp ?? null,
@@ -440,6 +470,7 @@ export default function App() {
       setDataMode("replay");
       setAsset(info.asset);
       setCandles([]);
+      candlesRef.current = [];
       setCurrentReplayTrade(null);
       setPosition(null);
       setStopLoss("");
@@ -449,6 +480,8 @@ export default function App() {
       setTrainingEvents([]);
       activeSignalRef.current = null;
       usedSignalIdsRef.current = new Set();
+      ignoredSignalIdsRef.current = new Set();
+      lastSuggestedSignalIdRef.current = null;
       setFeedback(
         `Replay ${info.symbol} carregado com ${hiddenCandles.length} candles ocultos de aquecimento.`,
       );
@@ -464,7 +497,9 @@ export default function App() {
   async function resetReplay() {
     await replay.reset();
     setCandles([]);
+    candlesRef.current = [];
     setCurrentReplayTrade(null);
+    positionRef.current = null;
     setPosition(null);
     setStopLoss("");
     setTarget("");
@@ -473,6 +508,8 @@ export default function App() {
   }
 
   async function startTraining() {
+    if (startingTrainingRef.current) return;
+
     if (!simulationPlan || !replay.session || !planIsReady(catalogMatches)) {
       setFeedback(
         "Carregue um replay compatível e complete todos os dados do plano antes de iniciar o treino.",
@@ -480,8 +517,21 @@ export default function App() {
       return;
     }
 
-    await replay.reset();
+    startingTrainingRef.current = true;
+    setStartingTraining(true);
+
+    const resetOk = await replay.reset();
+    if (!resetOk) {
+      startingTrainingRef.current = false;
+      setStartingTraining(false);
+      setFeedback(
+        "Não foi possível reiniciar o replay. O treino não foi iniciado.",
+      );
+      return;
+    }
+
     setCandles([]);
+    candlesRef.current = [];
     setCurrentReplayTrade(null);
     setPosition(null);
     setStopLoss("");
@@ -489,6 +539,8 @@ export default function App() {
     setContracts("1");
     activeSignalRef.current = null;
     usedSignalIdsRef.current = new Set();
+    ignoredSignalIdsRef.current = new Set();
+    lastSuggestedSignalIdRef.current = null;
 
     const timeframeMinutes = simulationPlan.timeframeMinutes;
     const session = createTrainingSession({
@@ -520,6 +572,8 @@ export default function App() {
     setFeedback(
       `Treino iniciado para ${session.tradeDate}, das ${session.startTime} às ${session.endTime}.`,
     );
+    startingTrainingRef.current = false;
+    setStartingTraining(false);
   }
 
   async function finishTraining() {
@@ -627,10 +681,10 @@ export default function App() {
         dataMode === "replay" && currentReplayTrade
           ? currentReplayTrade.timestamp
           : lastCandle.timestamp;
-      const marketTime =
+      const openedAt =
         dataMode === "replay" && currentReplayTrade
-          ? new Date(currentReplayTrade.timestamp)
-          : new Date();
+          ? currentReplayTrade.timestamp
+          : new Date().toISOString();
 
       const entryContext = captureEntryContext({
         asset,
@@ -660,9 +714,10 @@ export default function App() {
           signalAlreadyUsed,
           hasOpenPosition: Boolean(position),
         },
-        marketTime,
+        openedAt,
       );
 
+      positionRef.current = nextPosition;
       setPosition(nextPosition);
       if (signal) {
         usedSignalIdsRef.current.add(signal.id);
@@ -811,6 +866,8 @@ export default function App() {
           setTrainingMode("FREE");
           activeSignalRef.current = null;
           usedSignalIdsRef.current = new Set();
+      ignoredSignalIdsRef.current = new Set();
+      lastSuggestedSignalIdRef.current = null;
           setFeedback(
             `Plano definido: ${plan.targetDate} · ${plan.targetStartTime}–${plan.targetEndTime}. Use os mesmos horários ao tratar o arquivo do pregão-alvo.`,
           );
@@ -845,7 +902,8 @@ export default function App() {
         canStart={
           Boolean(simulationPlan) &&
           planIsReady(catalogMatches) &&
-          Boolean(replay.session)
+          Boolean(replay.session) &&
+          !startingTraining
         }
         replayLoaded={Boolean(replay.session)}
         onStart={() => void startTraining()}
@@ -1079,7 +1137,7 @@ export default function App() {
                 </tr>
               </thead>
               <tbody>
-                {trades.slice(0, 10).map((trade) => (
+                {historyTradesForDisplay.slice(0, 10).map((trade) => (
                   <tr key={trade.id}>
                     <td>{trade.asset}</td>
                     <td>{sideLabel(trade.side)}</td>
