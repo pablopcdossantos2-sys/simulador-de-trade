@@ -11,6 +11,7 @@ on:
       - ".github/workflows/windows-build.yml"
       - "src-tauri/tauri.conf.json"
       - "src-tauri/Cargo.toml"
+      - "src-tauri/Cargo.lock"
       - "package.json"
       - "package-lock.json"
 
