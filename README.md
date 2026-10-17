@@ -44,6 +44,7 @@ SQLite local
 - [Arquitetura](docs/ARQUITETURA.md)
 - [ROADMAP detalhado](ROADMAP.md)
 - [Tratamento dos dados do Profit Ultra](docs/TRATAMENTO-DADOS-PROFIT.md)
+- [Validação do índice M1 e seek direto](docs/VALIDACAO-INDICE-M1.md)
 - [Planejamento da simulação e aquecimento](docs/PLANEJAMENTO-SIMULACAO.md)
 - [Catálogo local de dados preparados](docs/CATALOGO-DADOS.md)
 - [Sessão formal de treinamento](docs/SESSAO-TREINO.md)
