@@ -83,8 +83,12 @@ const money = new Intl.NumberFormat("pt-BR", {
 });
 
 function initialTheme(): ThemeMode {
-  const stored = localStorage.getItem(THEME_KEY);
-  if (stored === "light" || stored === "dark") return stored;
+  try {
+    const stored = localStorage.getItem(THEME_KEY);
+    if (stored === "light" || stored === "dark") return stored;
+  } catch {
+    // O app continua funcional mesmo se o armazenamento local estiver indisponível.
+  }
 
   return window.matchMedia?.("(prefers-color-scheme: light)").matches
     ? "light"
@@ -239,7 +243,11 @@ export default function App() {
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
-    localStorage.setItem(THEME_KEY, theme);
+    try {
+      localStorage.setItem(THEME_KEY, theme);
+    } catch {
+      // Preferência visual não é crítica para a execução do simulador.
+    }
   }, [theme]);
 
   useEffect(() => {
@@ -607,7 +615,11 @@ export default function App() {
         side: pendingSignal.side,
       });
       finalEvents.push(ignored);
-      void saveTrainingEvent(ignored);
+      void saveTrainingEvent(ignored).catch(() =>
+        setFeedback(
+          "O sinal ignorado foi registrado na sessão, mas não pôde ser persistido.",
+        ),
+      );
     }
     activeSignalRef.current = null;
 
