@@ -4,6 +4,7 @@ import {
   blockedAttemptBreakdown,
   performanceByHour,
   performanceBySetup,
+  tradeSetupLabel,
 } from "../domain/sessionReport";
 import type {
   SessionPerformance,
@@ -81,6 +82,7 @@ export function sessionTradesToCsv(
     "trade_id",
     "side",
     "signal_id",
+    "setup",
     "requested_entry",
     "executed_entry",
     "stop_loss",
@@ -109,6 +111,7 @@ export function sessionTradesToCsv(
     trade.id,
     trade.side,
     trade.signalId,
+    tradeSetupLabel(trade),
     trade.requestedEntry,
     trade.entry,
     trade.stopLoss,
