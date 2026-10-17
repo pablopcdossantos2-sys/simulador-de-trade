@@ -61,7 +61,7 @@ export function SimulationPlanner({
     <section className="simulation-planner card">
       <div className="section-heading">
         <div>
-          <p className="eyebrow">Antes de coletar os dados</p>
+          <p className="eyebrow">Etapa 1 · Defina o pregão</p>
           <h2>Planejar simulação</h2>
         </div>
         <span className="session-window">
