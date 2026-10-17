@@ -44,6 +44,8 @@ export function ReplayControls({
   onReset,
   onSpeedChange,
 }: Props) {
+  if (!session) return null;
+
   return (
     <section className="replay-controls card">
       <div className="section-heading replay-heading">
