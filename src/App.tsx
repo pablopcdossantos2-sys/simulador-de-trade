@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { CandleChart } from "./components/CandleChart";
 import { DataPreparationPanel } from "./components/DataPreparationPanel";
-import { DataPreparationPanel } from "./components/DataPreparationPanel";
 import { ReplayControls } from "./components/ReplayControls";
 import { ReplayCatalogPanel } from "./components/ReplayCatalogPanel";
 import { PlanDataPreparationPanel } from "./components/PlanDataPreparationPanel";
@@ -64,7 +63,6 @@ import {
   loadExecutionSettings,
 } from "./services/executionSettings";
 import { loadWarmupCandles } from "./services/replayData";
-import { registerReplayFile } from "./services/replayCatalog";
 import type {
   Asset,
   ExecutionSettings,
