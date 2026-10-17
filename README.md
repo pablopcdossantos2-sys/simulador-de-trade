@@ -54,6 +54,7 @@ SQLite local
 - [Notas pós-trade](docs/NOTAS-POS-TRADE.md)
 - [Modo Prova](docs/MODO-PROVA.md)
 - [Resultado por setup/sinal](docs/RESULTADO-POR-SETUP.md)
+- [Revisão do relatório de erros — 17/10/2026](docs/REVISAO-RELATORIO-ERROS-2026-10-17.md)
 - [Contexto do gráfico na entrada](docs/CONTEXTO-ENTRADA.md)
 - [Evolução do trader](docs/EVOLUCAO-TRADER.md)
 - [Backup e restauração](docs/BACKUP.md)
