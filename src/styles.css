@@ -3102,3 +3102,67 @@ td {
     flex-direction: column;
   }
 }
+
+
+/* Exportação do relatório de sessão */
+.session-export-actions {
+  display: flex !important;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px !important;
+}
+
+.session-export-actions button {
+  min-height: 38px;
+  padding: 8px 11px;
+  border: 1px solid #31506d;
+  border-radius: 9px;
+  background: #10263b;
+  color: #d8e8f5;
+  cursor: pointer;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.session-export-actions button:first-child {
+  background: #dcecff;
+  color: #0d3355;
+}
+
+.session-export-actions button:disabled {
+  opacity: 0.48;
+  cursor: not-allowed;
+}
+
+:root[data-theme="light"] .session-export-actions button {
+  border-color: #aec5d8;
+  background: #edf4f9;
+  color: #35536b;
+}
+
+:root[data-theme="light"] .session-export-actions button:first-child {
+  background: #dbeeff;
+  color: #123d61;
+}
+
+@media (max-width: 860px) {
+  .report-title {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .session-export-actions {
+    justify-content: flex-start;
+    flex-wrap: wrap;
+  }
+}
+
+@media (max-width: 560px) {
+  .session-export-actions {
+    flex-direction: column;
+  }
+
+  .session-export-actions button {
+    width: 100%;
+  }
+}
