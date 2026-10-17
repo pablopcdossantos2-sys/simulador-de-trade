@@ -96,7 +96,7 @@ export interface Position {
   status: "OPEN";
 }
 
-export type ExitReason = "STOP" | "TARGET";
+export type ExitReason = "STOP" | "TARGET" | "SESSION_END";
 
 export interface Trade {
   id: string;
