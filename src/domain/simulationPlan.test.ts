@@ -23,6 +23,19 @@ describe("planejamento de simulação", () => {
     ]);
   });
 
+  it("rejeita ano-alvo sem calendário B3 incorporado", () => {
+    expect(() =>
+      calculateSimulationPlan({
+        asset: "WINFUT",
+        date: "2027-01-04",
+        timeframeMinutes: 2,
+        startTime: "09:00",
+        endTime: "12:00",
+        warmupPolicy: "STANDARD",
+      }),
+    ).toThrow(/calendário de pregões ainda não disponível/i);
+  });
+
   it("rejeita timeframe fora de M2/M5", () => {
     expect(() =>
       calculateSimulationPlan({
