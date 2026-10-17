@@ -611,7 +611,7 @@ fn list_training_sessions(
                 id, asset, trade_date, start_time, end_time,
                 timeframe_minutes, warmup_bars, mode, started_at, ended_at, status
             FROM training_sessions
-            ORDER BY started_at DESC
+            ORDER BY started_at DESC, id ASC
             LIMIT 500
             "#,
         )
@@ -660,7 +660,7 @@ fn list_session_trades(
                 ON e.trade_id = t.id
             WHERE e.session_id = ?1
               AND e.type = 'TRADE_CLOSED'
-            ORDER BY t.closed_at ASC
+            ORDER BY t.closed_at ASC, t.id ASC
             "#,
         )
         .map_err(|error| error.to_string())?;
@@ -715,7 +715,7 @@ fn list_training_events(
                 signal_id, side, reason, trade_id
             FROM training_events
             WHERE session_id = ?1
-            ORDER BY timestamp ASC
+            ORDER BY timestamp ASC, id ASC
             "#,
         )
         .map_err(|error| error.to_string())?;
@@ -752,7 +752,7 @@ fn list_all_training_events(
                 id, session_id, type, timestamp, market_timestamp,
                 signal_id, side, reason, trade_id
             FROM training_events
-            ORDER BY timestamp ASC
+            ORDER BY timestamp ASC, id ASC
             "#,
         )
         .map_err(|error| error.to_string())?;
@@ -791,7 +791,7 @@ fn list_trades(state: tauri::State<'_, DbState>) -> Result<Vec<TradeRecord>, Str
                 operational_costs_brl, net_result_brl, post_trade_note,
                 entry_context_json, intrabar_policy
             FROM trades
-            ORDER BY closed_at DESC
+            ORDER BY closed_at DESC, id ASC
             LIMIT 500
             "#,
         )
@@ -954,7 +954,7 @@ fn query_backup_sessions(
                 id, asset, trade_date, start_time, end_time,
                 timeframe_minutes, warmup_bars, mode, started_at, ended_at, status
             FROM training_sessions
-            ORDER BY started_at ASC
+            ORDER BY started_at ASC, id ASC
             "#,
         )
         .map_err(|error| error.to_string())?;
@@ -991,7 +991,7 @@ fn query_backup_events(
                 id, session_id, type, timestamp, market_timestamp,
                 signal_id, side, reason, trade_id
             FROM training_events
-            ORDER BY timestamp ASC
+            ORDER BY timestamp ASC, id ASC
             "#,
         )
         .map_err(|error| error.to_string())?;
