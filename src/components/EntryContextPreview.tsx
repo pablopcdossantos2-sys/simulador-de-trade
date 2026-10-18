@@ -69,6 +69,7 @@ export function EntryContextPreview({ trade }: Props) {
         candles={context.candles}
         evaluation={evaluation}
         position={position}
+        asset={context.asset}
       />
 
       <div className="entry-context-meta">
