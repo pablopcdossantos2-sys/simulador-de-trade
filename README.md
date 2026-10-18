@@ -65,18 +65,19 @@ SQLite local
 
 ## Estado atual
 
-A Fase 1 cria a fundação funcional do simulador:
+O aplicativo já reúne as seguintes funcionalidades:
 
 - seleção entre WINFUT e WDOFUT;
 - gráfico didático com o indicador **Multi Médias - Nuvem e Sinais**;
 - port do Pine Script para TypeScript por meio do `IndicatorAdapter`;
 - MMP/WMA 20, VWAP, MME/EMA 8 e MME/EMA 52 plotadas no gráfico;
 - nuvens verde/vermelha e labels COMPRA/VENDA;
-- compra/venda condicionadas exclusivamente pelo sinal ativo;
+- compra/venda condicionadas por sinal ativo; reentrada pela MME 52 permitida somente na mesma direção, após toque em candle fechado e por até três candles;
 - tentativa fora das regras bloqueada com pop-up de **Fora do operacional**;
 - modo claro e modo escuro com preferência persistente;
 - formulário OCO obrigatório;
 - validação de stop e alvo;
+- risco/retorno mínimo nominal de 1:2, revalidado com slippage e custos estimados;
 - validação do incremento mínimo de preço de WIN/WDO;
 - posição única;
 - encerramento automático quando stop ou alvo é atingido;
@@ -111,7 +112,7 @@ A Fase 1 cria a fundação funcional do simulador:
 - painel de evolução histórica por sessão com aderência, R e resultado líquido;
 - diagnóstico dos erros evitados pelo bloqueio, agrupado por regra;
 - golden test do indicador v1.1.0 (EMA inicializada por SMA) e fixture de sessão conhecida;
-- backup JSON versionado com exportação/importação nativa e restauração transacional;
+- backup JSON versionado com importação por mesclagem ou substituição total, restauração transacional e exportação protegida contra arquivo truncado;
 - instalador NSIS e executável portátil Windows gerados pelo GitHub Actions;
 - catálogo local que informa automaticamente datas disponíveis, faltantes e contratos incompatíveis;
 - tratamento em lote orientado pelos requisitos do plano;
@@ -121,11 +122,11 @@ A Fase 1 cria a fundação funcional do simulador:
 
 ### Regra de autorização do simulador
 
-O Pine gera o label **COMPRA** ou **VENDA** somente no candle que inicia a nuvem. No simulador, esse gatilho cria uma autorização direcional que permanece válida apenas enquanto a própria zona correspondente continuar ativa. Quando o alinhamento que sustenta a nuvem é perdido, a autorização é cancelada e os dois botões voltam a ficar bloqueados.
+O Pine gera o label **COMPRA** ou **VENDA** somente no candle que inicia a nuvem. No replay histórico, os sinais são avaliados apenas em candles fechados; quando um novo sinal válido surge, a reprodução pausa para que a decisão não dependa da velocidade escolhida. A autorização direcional permanece válida enquanto a zona correspondente continuar ativa. Quando o alinhamento é perdido, os botões voltam a ficar bloqueados. Após encerrar uma operação, a reentrada na mesma direção só é autorizada por toque em candle fechado na MME 52, zona ainda alinhada e expiração de três candles.
 
 ## Executar em modo web de desenvolvimento
 
-Pré-requisitos: Node.js 20+ e npm.
+Pré-requisitos: Node.js 20.19+ (linha 20) ou 22.12+ e npm.
 
 O repositório versiona `package-lock.json` e `src-tauri/Cargo.lock`. Use `npm ci` para instalar exatamente as versões frontend validadas; o CI também verifica o Rust com `cargo --locked`.
 
@@ -151,64 +152,9 @@ npm run tauri dev
 npm test
 ```
 
-## ROADMAP resumido
+## Roadmap
 
-### Fase 1 — Fundação disciplinar
-- [x] Arquitetura React + TypeScript + Tauri 2 + Rust.
-- [x] Motor de permissões por sinal.
-- [x] OCO obrigatório.
-- [x] WINFUT e WDOFUT.
-- [x] Persistência local inicial.
-- [x] Testes das regras críticas.
-- [x] Integrar o indicador inicial Multi Médias - Nuvem e Sinais.
-
-### Fase 2 — Replay histórico
-- [x] Tratamento do CSV bruto do Profit para a faixa horária definida no plano.
-- [x] Arquivo de replay canônico em ordem cronológica.
-- [x] Formação M2/M5 negócio a negócio.
-- [x] Reprodução, pausa, +1 negócio, reinício e velocidade visual.
-- [x] Ocultação dos candles futuros.
-- [x] Indicador de replay autorizado em candles fechados; o replay pausa ao confirmar novo sinal.
-- [x] OCO avaliada negócio a negócio.
-- [x] Planejamento explícito de pregão/data/horário.
-- [x] Catálogo local e detecção automática de dados faltantes.
-- [x] Tratamento em lote dos arquivos exigidos pelo plano.
-- [x] Verificação de contrato entre aquecimento e pregão-alvo.
-- [x] Aquecimento histórico invisível a partir dos arquivos preparados.
-
-### Fase 3 — Fidelidade de execução
-- [x] Quantidade de contratos.
-- [x] Resultado bruto em R$.
-- [x] Slippage configurável.
-- [x] Custos operacionais configuráveis.
-- [x] Resultado líquido em R$.
-- [x] Arredondamento automático ao tick válido.
-- [x] Regras de tick específicas de WIN/WDO.
-- [x] Saída OCO intrabar com política explícita para candles OHLC que tocam stop e alvo; no replay negócio a negócio vale a sequência histórica real.
-
-### Fase 4 — Treino e avaliação
-- [x] Sessão formal de treinamento.
-- [x] Registro de tentativas bloqueadas.
-- [x] Registro de sinais ignorados.
-- [x] Resumo inicial de aderência e linha do tempo.
-- [x] Métricas iniciais por sessão: win rate, payoff, profit factor, R, drawdown, horário e direção.
-- [x] Métricas completas por sinal/setup.
-- [x] Aderência aos sinais utilizados versus ignorados.
-- [x] Evolução histórica do trader por sessão.
-- [ ] Aderência ao stop e ao alvo quando houver edição dinâmica dessas ordens.
-- [x] Erros evitados pelo bloqueio, agrupados por regra e direção.
-- [x] R-múltiplos.
-- [x] Relatório pós-sessão inicial.
-- [x] Notas pós-trade.
-- [x] Modo prova com resultados ocultos até o encerramento.
-- [x] Cronômetro opcional.
-- [x] Uma entrada por sinal do indicador.
-
-### Fase 5 — Distribuição desktop
-- [x] Instalador Windows NSIS.
-- [x] Executável portátil Windows.
-- [x] GitHub Actions para build Windows x64 com dependências travadas por `package-lock.json`.
-- [ ] Atualizador assinado do Tauri.
+O plano completo e o estado de cada etapa ficam centralizados em [`ROADMAP.md`](ROADMAP.md), evitando manter duas listas de fases que possam divergir.
 
 ## Sobre o OpenTraderWorld
 
