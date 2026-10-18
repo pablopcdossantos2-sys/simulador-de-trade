@@ -100,7 +100,7 @@ export interface Position {
   status: "OPEN";
 }
 
-export type ExitReason = "STOP" | "TARGET" | "SESSION_END";
+export type ExitReason = "STOP" | "TARGET" | "SESSION_END" | "MANUAL_STOP";
 
 export interface Trade {
   id: string;
@@ -141,6 +141,10 @@ export interface TradeIntent {
   entryContext?: TradeEntryContext | null;
   signalAlreadyUsed: boolean;
   hasOpenPosition: boolean;
+  /** Re-entry after a later candle touches EMA 52, without a new indicator signal. */
+  reentryAuthorized?: boolean;
+  reentrySide?: Side;
+  reentryAuthorizationId?: string;
 }
 
 
