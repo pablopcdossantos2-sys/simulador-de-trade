@@ -240,6 +240,7 @@ export function CandleChart({
       }
       dragRef.current = null;
       setDraggingOco(null);
+      window.setTimeout(() => { didDragRef.current = false; }, 0);
       return;
     }
     axisDragRef.current = null;
