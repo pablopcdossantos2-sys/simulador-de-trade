@@ -65,6 +65,6 @@ export function suggestedOcoDistance(asset: Asset): {
   target: number;
 } {
   return asset === "WINFUT"
-    ? { stop: 100, target: 150 }
-    : { stop: 10, target: 15 };
+    ? { stop: 100, target: 200 }
+    : { stop: 10, target: 20 };
 }
