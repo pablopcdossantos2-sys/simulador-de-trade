@@ -218,7 +218,7 @@ export function validateTradeIntent(intent: TradeIntent): void {
     );
   }
 
-  validateOcoOrder(asset, side, executedEntry, oco.stopLoss, oco.target);
+  validateOcoOrder(asset, side, entry, oco.stopLoss, oco.target);
 }
 
 export function openPosition(
