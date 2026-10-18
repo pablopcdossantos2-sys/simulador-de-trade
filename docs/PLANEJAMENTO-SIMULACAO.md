@@ -278,3 +278,19 @@ Ainda permanecem como evoluções importantes:
 1. ampliar o calendário para outros anos;
 2. aprofundar a política de rolagem/série contínua em vencimentos;
 3. ampliar os testes de paridade do indicador contra referências externas conhecidas.
+
+
+## Relógio da reprodução e ritmo visual
+
+A velocidade do replay é calculada a partir dos timestamps dos negócios, e não do número de linhas processadas por segundo. O relógio de mercado virtual avança proporcionalmente ao tempo real decorrido:
+
+| Ritmo | Tempo real para 2 minutos de mercado |
+|---|---:|
+| 1× | 120 segundos |
+| 2× | 60 segundos |
+| 5× | 24 segundos |
+| 10× | 12 segundos |
+
+O player processa os negócios em ordem histórica e agrupa as atualizações da interface por frame. Isso reduz o custo de renderização sem descartar negócios da fila. A precisão observada ainda depende da resolução dos timestamps presentes no arquivo e da capacidade do computador; se o processamento não acompanhar o relógio, o player pode acumular atraso.
+
+Pausar congela o relógio virtual. Retomar continua a partir do ponto de mercado alcançado, e mudar a velocidade recalibra a âncora sem saltar o tempo de mercado.

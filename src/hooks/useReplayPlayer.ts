@@ -2,6 +2,11 @@ import { useEffect, useRef, useState } from "react";
 import type { ReplayTrade } from "../types";
 import { marketTimestampOrdinalMs } from "../domain/marketTime";
 import {
+  replayMarketTimeAt,
+  reanchorReplayClock,
+  type ReplayClockAnchor,
+} from "../domain/replayClock";
+import {
   closeReplaySession,
   nextReplayTrades,
   openReplayFile,
@@ -9,8 +14,11 @@ import {
   type ReplaySessionInfo,
 } from "../services/replayData";
 
-const CHUNK_SIZE = 750;
-const BASE_VISUAL_DELAY_MS = 90;
+// O backend aceita até 5.000 negócios por chamada IPC.
+const CHUNK_SIZE = 5000;
+// Limita o trabalho de um único frame para a interface continuar responsiva.
+// Se houver backlog, o relógio continua acumulando tempo e o próximo frame recupera.
+const MAX_TRADES_PER_FRAME = 20_000;
 
 function bucketKey(
   timestamp: string,
@@ -26,8 +34,8 @@ export function useReplayPlayer(
 ) {
   const [path, setPath] = useState("");
   const [session, setSession] = useState<ReplaySessionInfo | null>(null);
-  const [playing, setPlaying] = useState(false);
-  const [speed, setSpeed] = useState(1);
+  const [playing, setPlayingState] = useState(false);
+  const [speed, setSpeedState] = useState(1);
   const [processed, setProcessed] = useState(0);
   const [currentTimestamp, setCurrentTimestamp] = useState<string | null>(null);
   const [finished, setFinished] = useState(false);
@@ -38,10 +46,39 @@ export function useReplayPlayer(
   const steppingRef = useRef(false);
   const onTradeRef = useRef(onTrade);
   const generationRef = useRef(0);
+  const playingRef = useRef(false);
+  const speedRef = useRef(1);
+  const clockRef = useRef<ReplayClockAnchor | null>(null);
 
   useEffect(() => {
     onTradeRef.current = onTrade;
   }, [onTrade]);
+
+  function setPlaying(next: boolean) {
+    if (next && !playingRef.current && clockRef.current) {
+      // Pausas não consomem tempo de mercado.
+      clockRef.current = {
+        ...clockRef.current,
+        wallTimeMs: performance.now(),
+        speed: speedRef.current,
+      };
+    }
+    playingRef.current = next;
+    setPlayingState(next);
+  }
+
+  function setSpeed(next: number) {
+    if (!Number.isFinite(next) || next <= 0) return;
+    const now = performance.now();
+    const clock = clockRef.current;
+    if (clock) {
+      clockRef.current = playingRef.current
+        ? reanchorReplayClock(clock, now, next)
+        : { ...clock, wallTimeMs: now, speed: next };
+    }
+    speedRef.current = next;
+    setSpeedState(next);
+  }
 
   async function loadReplay(
     expectedStart?: string,
@@ -57,6 +94,8 @@ export function useReplayPlayer(
     }
 
     const generation = ++generationRef.current;
+    clockRef.current = null;
+    queueRef.current = [];
     setBusy(true);
     setPlaying(false);
     setError(null);
@@ -107,6 +146,16 @@ export function useReplayPlayer(
     onTradeRef.current(trade);
     setProcessed((value) => value + 1);
     setCurrentTimestamp(trade.timestamp);
+
+    // Avanços manuais devem servir de ponto de partida para a próxima reprodução.
+    if (!playingRef.current) {
+      const now = performance.now();
+      clockRef.current = {
+        marketTimeMs: marketTimestampOrdinalMs(trade.timestamp),
+        wallTimeMs: now,
+        speed: speedRef.current,
+      };
+    }
   }
 
   async function pullOne(): Promise<ReplayTrade | null> {
@@ -188,6 +237,8 @@ export function useReplayPlayer(
   async function reset(): Promise<boolean> {
     if (!session) return false;
     const generation = ++generationRef.current;
+    clockRef.current = null;
+    queueRef.current = [];
     setBusy(true);
     setPlaying(false);
     setError(null);
@@ -214,6 +265,7 @@ export function useReplayPlayer(
 
   async function unload(): Promise<void> {
     ++generationRef.current;
+    clockRef.current = null;
     setPlaying(false);
     setBusy(false);
     queueRef.current = [];
@@ -233,13 +285,135 @@ export function useReplayPlayer(
   useEffect(() => {
     if (!playing || !session || finished) return;
 
-    const delay = Math.max(10, Math.round(BASE_VISUAL_DELAY_MS / speed));
-    const timer = window.setInterval(() => {
-      void pullOne();
-    }, delay);
+    const generation = generationRef.current;
+    let cancelled = false;
+    let frameId = 0;
 
-    return () => window.clearInterval(timer);
-  }, [playing, speed, session, finished]);
+    async function runFrame(): Promise<void> {
+      if (cancelled || generation !== generationRef.current || !playingRef.current) {
+        return;
+      }
+
+      let processedThisFrame = 0;
+      let lastProcessed: ReplayTrade | null = null;
+      let hitFrameLimit = false;
+
+      try {
+        if (!clockRef.current) {
+          const available = await ensureQueue(generation);
+          if (
+            !available ||
+            cancelled ||
+            generation !== generationRef.current ||
+            !playingRef.current
+          ) {
+            return;
+          }
+
+          const first = queueRef.current[0];
+          if (!first) return;
+          const anchorTimestamp = currentTimestamp ?? first.timestamp;
+          const now = performance.now();
+          clockRef.current = {
+            marketTimeMs: marketTimestampOrdinalMs(anchorTimestamp),
+            wallTimeMs: now,
+            speed: speedRef.current,
+          };
+        }
+
+        while (
+          !cancelled &&
+          generation === generationRef.current &&
+          playingRef.current
+        ) {
+          if (queueRef.current.length === 0) {
+            const available = await ensureQueue(generation);
+            if (
+              !available ||
+              cancelled ||
+              generation !== generationRef.current ||
+              !playingRef.current
+            ) {
+              break;
+            }
+          }
+
+          const next = queueRef.current[0];
+          if (!next || !clockRef.current) break;
+
+          const targetMarketTime = replayMarketTimeAt(
+            clockRef.current,
+            performance.now(),
+          );
+          if (marketTimestampOrdinalMs(next.timestamp) > targetMarketTime) {
+            break;
+          }
+
+          const trade = queueRef.current.shift();
+          if (!trade) break;
+
+          // Processa cada negócio na ordem histórica, mas agrupa a atualização
+          // visual por frame para que a velocidade não dependa de 1 timer por negócio.
+          onTradeRef.current(trade);
+          processedThisFrame += 1;
+          lastProcessed = trade;
+
+          if (processedThisFrame >= MAX_TRADES_PER_FRAME) {
+            hitFrameLimit = true;
+            break;
+          }
+        }
+
+        if (generation === generationRef.current && processedThisFrame > 0 && lastProcessed) {
+          setProcessed((value) => value + processedThisFrame);
+          setCurrentTimestamp(lastProcessed.timestamp);
+        }
+
+        if (
+          !cancelled &&
+          generation === generationRef.current &&
+          playingRef.current
+        ) {
+          if (!hitFrameLimit && clockRef.current) {
+            const now = performance.now();
+            clockRef.current = {
+              marketTimeMs: replayMarketTimeAt(clockRef.current, now),
+              wallTimeMs: now,
+              speed: speedRef.current,
+            };
+          }
+
+          frameId = window.requestAnimationFrame(() => {
+            void runFrame();
+          });
+        }
+      } catch (reason) {
+        if (generation === generationRef.current) {
+          setPlaying(false);
+          setError(reason instanceof Error ? reason.message : String(reason));
+        }
+      }
+    }
+
+    frameId = window.requestAnimationFrame(() => {
+      void runFrame();
+    });
+
+    return () => {
+      cancelled = true;
+      window.cancelAnimationFrame(frameId);
+
+      // Congela o relógio no momento da pausa. O tempo parado não avança o replay.
+      if (clockRef.current) {
+        const now = performance.now();
+        clockRef.current = reanchorReplayClock(
+          clockRef.current,
+          now,
+          speedRef.current,
+        );
+      }
+    };
+  }, [playing, session, finished]);
 
   useEffect(
     () => () => {
