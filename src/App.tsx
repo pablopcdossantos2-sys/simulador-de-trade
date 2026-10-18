@@ -1026,15 +1026,17 @@ export default function App() {
             <SignalBadge evaluation={indicatorEvaluation} />
           </div>
 
-          {visibleCandles.length ? (
+          {visibleCandles.length || warmupCandles.length ? (
             <CandleChart
               candles={visibleCandles}
+              contextCandles={warmupCandles}
               evaluation={indicatorEvaluation}
               position={position}
+              asset={asset}
             />
           ) : (
             <div className="chart-placeholder">
-              Carregue o replay e avance o primeiro negócio para iniciar o gráfico M{replayTimeframeMinutes}.
+              Carregue o replay para visualizar o contexto do pregão anterior e avance o primeiro negócio para iniciar o gráfico M{replayTimeframeMinutes}.
             </div>
           )}
 
