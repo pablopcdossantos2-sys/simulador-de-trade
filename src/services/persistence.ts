@@ -82,6 +82,12 @@ export async function deleteAllTrades(): Promise<void> {
   }
 
   localStorage.removeItem(STORAGE_KEY);
+  const rawEvents = localStorage.getItem(EVENT_STORAGE_KEY);
+  const events = rawEvents ? (JSON.parse(rawEvents) as TrainingEvent[]) : [];
+  localStorage.setItem(
+    EVENT_STORAGE_KEY,
+    JSON.stringify(events.filter((event) => event.type !== "TRADE_OPENED" && event.type !== "TRADE_CLOSED")),
+  );
 }
 
 export async function saveTrade(trade: Trade): Promise<void> {
