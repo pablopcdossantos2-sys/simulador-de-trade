@@ -949,7 +949,7 @@ export default function App() {
       if (mode === "position" && position) {
         const nextStop = kind === "stop" ? rounded : position.stopLoss;
         const nextTarget = kind === "target" ? rounded : position.target;
-        validateOcoOrder(asset, position.side, position.entry, nextStop, nextTarget);
+        validateOcoOrder(asset, position.side, position.requestedEntry, nextStop, nextTarget);
         const updated = { ...position, stopLoss: nextStop, target: nextTarget };
         positionRef.current = updated;
         setPosition(updated);
