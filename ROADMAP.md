@@ -2,9 +2,10 @@
 
 ## Princípios permanentes
 
-- [x] Sem sinal válido, não há entrada.
-- [x] Compra só é autorizada por sinal de Compra.
-- [x] Venda só é autorizada por sinal de Venda.
+- [x] Entrada autorizada por sinal válido ou reentrada após candle posterior tocar a MME 52.
+- [x] Compra só é autorizada por sinal de Compra ou reentrada válida na mesma direção.
+- [x] Venda só é autorizada por sinal de Venda ou reentrada válida na mesma direção.
+- [x] Risco/retorno mínimo obrigatório de 1:2.
 - [x] Toda entrada exige stop loss e alvo.
 - [x] As restrições existem no motor de domínio, não apenas na interface.
 - [ ] O simulador nunca enviará ordens reais para uma corretora sem um projeto separado e uma decisão explícita de escopo.
@@ -27,6 +28,8 @@
 - [x] Bloqueio da direção contrária.
 - [x] OCO obrigatória.
 - [x] Validação geométrica do stop/alvo.
+- [x] Validação de risco/retorno mínimo 1:2 no motor de domínio.
+- [x] Stop manual a mercado antes do stop OCO.
 - [x] Posição única no MVP.
 - [x] Resolução automática do OCO.
 - [x] Persistência do histórico.
@@ -129,6 +132,10 @@ Arquitetura definida a partir dos componentes validados no Candle Lab. Ver [Reap
 - [x] Tela inicial de configurações de execução (custos/slippage).
 - [x] Custos de referência separados por WINFUT/WDOFUT, com valores editáveis e fontes consultadas.
 - [x] Gráfico com eixo de preços e horários, zoom in/out, leitura OHLC/volume, crosshair e contexto dos candles finais do pregão anterior.
+- [x] Posicionamento da entrada por clique no preço e ajuste por arraste de stop/alvo.
+- [x] Zoom horizontal e vertical arrastando os eixos do gráfico.
+- [x] Área Configurações com Segurança dos dados e área Resultados com evolução histórica, histórico persistente e evolução agregada.
+- [x] Exclusão explícita de todo o histórico de operações.
 - [ ] Ampliar tela de configurações para demais preferências.
 - [x] Banco SQLite com backup JSON versionado e restauração transacional.
 - [x] Exportação/importação do histórico por diálogos nativos, com mesclagem por ID.
