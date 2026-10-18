@@ -56,7 +56,7 @@ describe("regras de entrada", () => {
         ...baseIntent,
         oco: { stopLoss: 130050, target: 130150 },
       }),
-    ).toThrow(/stop loss precisa ficar abaixo/i);
+    ).toThrow(/stop deve ficar abaixo/i);
   });
 
   it("bloqueia preços fora do tick do ativo", () => {
@@ -377,7 +377,7 @@ describe("resolução OCO negócio a negócio", () => {
     expect(result?.netResultBRL).toBe(58);
   });
 
-  it("encerra no stop sem depender do OHLC do candle", () => {
+  it("considera o preço do negócio que atravessa o stop", () => {
     const result = resolveOcoTrade(position, {
       asset: "WINFUT",
       timestamp: "2026-01-01T09:30:01.000-03:00",
@@ -388,7 +388,7 @@ describe("resolução OCO negócio a negócio", () => {
     });
 
     expect(result?.exitReason).toBe("STOP");
-    expect(result?.resultPoints).toBe(-100);
+    expect(result?.resultPoints).toBe(-105);
   });
 });
 
@@ -478,7 +478,7 @@ describe("regras e execução SELL", () => {
         ...sellIntent,
         oco: { stopLoss: 129950, target: 129850 },
       }),
-    ).toThrow(/stop loss precisa ficar acima/i);
+    ).toThrow(/stop deve ficar acima/i);
   });
 
   it("aplica slippage na entrada, mas não ao alvo limite da venda", () => {

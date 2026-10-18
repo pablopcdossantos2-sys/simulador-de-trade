@@ -110,7 +110,7 @@ A Fase 1 cria a fundação funcional do simulador:
 - aderência aos sinais utilizados versus ignorados;
 - painel de evolução histórica por sessão com aderência, R e resultado líquido;
 - diagnóstico dos erros evitados pelo bloqueio, agrupado por regra;
-- golden test do indicador v1.0.0 e fixture de sessão conhecida;
+- golden test do indicador v1.1.0 (EMA inicializada por SMA) e fixture de sessão conhecida;
 - backup JSON versionado com exportação/importação nativa e restauração transacional;
 - instalador NSIS e executável portátil Windows gerados pelo GitHub Actions;
 - catálogo local que informa automaticamente datas disponíveis, faltantes e contratos incompatíveis;

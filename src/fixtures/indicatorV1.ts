@@ -24,17 +24,16 @@ export const INDICATOR_V1_REGRESSION_CANDLES: Candle[] = Array.from(
 );
 
 export const INDICATOR_V1_EXPECTED = {
-  version: "multi-medias-nuvem-v1.0.0",
+  version: "multi-medias-nuvem-v1.1.0",
   signals: [
-    { side: "BUY", candleIndex: 19 },
     { side: "SELL", candleIndex: 54 },
   ],
   last: {
     candleIndex: 69,
     wma20: 994.3333333333334,
     vwap: 1042.7534076827758,
-    ema8: 982.9952332107055,
-    ema52: 1028.115938062153,
+    ema8: 982.9952329015186,
+    ema52: 1028.5641639570208,
     zone: "RED",
   },
 } as const;

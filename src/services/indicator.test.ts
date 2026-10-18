@@ -26,7 +26,7 @@ function trendCandles(step: number, count = 80): Candle[] {
 describe("Multi Médias - Nuvem e Sinais", () => {
   it("mantém os parâmetros padrão e a versão do algoritmo", () => {
     const adapter = new MultiMediasNuvemAdapter();
-    expect(adapter.version).toBe("multi-medias-nuvem-v1.0.0");
+    expect(adapter.version).toBe("multi-medias-nuvem-v1.1.0");
     expect(DEFAULT_MULTI_MEDIAS_CONFIG).toEqual({
       wmaLength: 20,
       emaFastLength: 8,

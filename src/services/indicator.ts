@@ -98,7 +98,7 @@ function zoneAuthorization(
  */
 export class MultiMediasNuvemAdapter implements IndicatorAdapter {
   readonly name = "Multi Médias - Nuvem e Sinais";
-  readonly version = "multi-medias-nuvem-v1.0.0";
+  readonly version = "multi-medias-nuvem-v1.1.0";
   readonly config: MultiMediasConfig;
 
   constructor(config: MultiMediasConfig = DEFAULT_MULTI_MEDIAS_CONFIG) {
