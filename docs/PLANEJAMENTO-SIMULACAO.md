@@ -294,3 +294,16 @@ A velocidade do replay é calculada a partir dos timestamps dos negócios, e nã
 O player processa os negócios em ordem histórica e agrupa as atualizações da interface por frame. Isso reduz o custo de renderização sem descartar negócios da fila. A precisão observada ainda depende da resolução dos timestamps presentes no arquivo e da capacidade do computador; se o processamento não acompanhar o relógio, o player pode acumular atraso.
 
 Pausar congela o relógio virtual. Retomar continua a partir do ponto de mercado alcançado, e mudar a velocidade recalibra a âncora sem saltar o tempo de mercado.
+
+
+## Regras de entrada, OCO e manipulação do gráfico
+
+- Uma entrada normal exige um sinal válido de Compra ou Venda, e a direção da ordem precisa coincidir com o sinal.
+- Depois que uma operação é encerrada, uma nova entrada na mesma direção pode ser autorizada sem novo sinal se pelo menos um candle formado posteriormente ao encerramento tocar a MME 52. Um sinal contrário impede essa reentrada.
+- Toda operação usa OCO com stop e alvo. A relação risco/retorno precisa ser de, no mínimo, **1:2**: a distância entre entrada e alvo deve ser pelo menos o dobro da distância entre entrada e stop. Uma tentativa fora dessa regra é bloqueada.
+- O stop e o alvo podem ser ajustados arrastando as respectivas linhas no gráfico. O sistema valida novamente a geometria e a relação risco/retorno; ajustes inválidos são recusados.
+- Para preparar uma ordem pelo gráfico, clique no nível de preço desejado quando houver uma direção autorizada. A entrada proposta e as linhas de stop/alvo aparecem para ajuste antes do envio.
+- Arrastar o eixo de preços à direita altera o zoom vertical; arrastar o eixo de horários na parte inferior altera o zoom horizontal.
+- Uma posição aberta pode ser encerrada antecipadamente pelo botão **Estopar manualmente a mercado**. O resultado usa o preço de mercado disponível no simulador e é registrado com motivo distinto do stop OCO.
+- A área **Configurações** reúne os ajustes de execução e **Segurança dos dados**. A área **Resultados** reúne **Evolução histórica**, **Histórico persistente**, **Evolução agregada** e o histórico das operações.
+- A ação de apagar o histórico remove os registros das operações e os eventos de abertura/fechamento associados. As sessões de treino, configurações e eventos disciplinares/técnicos permanecem.
