@@ -978,8 +978,9 @@ export default function App() {
     try {
       await deleteAllTrades();
       setTrades([]);
+      setTrainingEvents((current) => current.filter((event) => event.type !== "TRADE_OPENED" && event.type !== "TRADE_CLOSED"));
       setSessionHistoryRefreshKey((value) => value + 1);
-      setFeedback("Histórico de operações apagado. Sessões de treino, eventos e configurações foram preservados.");
+      setFeedback("Histórico de operações apagado. Sessões e eventos disciplinares/técnicos foram preservados.");
     } catch (error) {
       setFeedback(error instanceof Error ? error.message : "Não foi possível apagar o histórico de operações.");
     } finally {
