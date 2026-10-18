@@ -826,7 +826,12 @@ fn list_all_training_events(
 fn delete_all_trades(state: tauri::State<'_, DbState>) -> Result<(), String> {
     let connection = state.0.lock().map_err(|error| error.to_string())?;
     connection
-        .execute("DELETE FROM trades", [])
+        .execute_batch(
+            "BEGIN IMMEDIATE;
+             DELETE FROM trades;
+             DELETE FROM training_events WHERE type IN ('TRADE_OPENED', 'TRADE_CLOSED');
+             COMMIT;",
+        )
         .map_err(|error| error.to_string())?;
     Ok(())
 }
