@@ -75,6 +75,15 @@ export async function loadTrades(): Promise<Trade[]> {
   return trades.map(normalizeTrade);
 }
 
+export async function deleteAllTrades(): Promise<void> {
+  if (isTauriRuntime()) {
+    await invoke("delete_all_trades");
+    return;
+  }
+
+  localStorage.removeItem(STORAGE_KEY);
+}
+
 export async function saveTrade(trade: Trade): Promise<void> {
   if (isTauriRuntime()) {
     await invoke("save_trade", { trade });
