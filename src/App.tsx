@@ -1109,7 +1109,7 @@ export default function App() {
       </nav>
 
       <section className="app-area simulator-area" hidden={activeArea !== "SIMULADOR"}>
-      {/* Fluxo principal: planejar → conferir → preparar → carregar → treinar. */
+      {/* Fluxo principal: planejar → conferir → preparar → carregar → treinar. */}
       <SimulationPlanner
         disabled={trainingActive || Boolean(position) || startingTraining}
         onPlanChange={async (plan) => {
