@@ -22,38 +22,24 @@ export class TradingRuleError extends Error {
 
 const isFinitePrice = (value: number) => Number.isFinite(value) && value > 0;
 
+function costForAsset(intent: TradeIntent): number {
+  const assetCost = intent.asset === "WINFUT"
+    ? intent.execution.costWinRoundTripBRL
+    : intent.execution.costWdoRoundTripBRL;
+  return assetCost ?? intent.execution.costPerContractRoundTripBRL;
+}
+
 function validateExecutionSettings(intent: TradeIntent): void {
-  const {
-    costPerContractRoundTripBRL,
-    slippageTicksPerSide,
-    intrabarPolicy,
-  } = intent.execution;
-
-  if (
-    !Number.isFinite(costPerContractRoundTripBRL) ||
-    costPerContractRoundTripBRL < 0
-  ) {
-    throw new TradingRuleError(
-      "O custo operacional por contrato precisa ser maior ou igual a zero.",
-    );
+  const costPerContractRoundTripBRL = costForAsset(intent);
+  const { slippageTicksPerSide, intrabarPolicy } = intent.execution;
+  if (!Number.isFinite(costPerContractRoundTripBRL) || costPerContractRoundTripBRL < 0) {
+    throw new TradingRuleError("O custo operacional por contrato precisa ser maior ou igual a zero.");
   }
-
-  if (
-    !Number.isInteger(slippageTicksPerSide) ||
-    slippageTicksPerSide < 0
-  ) {
-    throw new TradingRuleError(
-      "O slippage precisa ser informado como uma quantidade inteira de ticks maior ou igual a zero.",
-    );
+  if (!Number.isInteger(slippageTicksPerSide) || slippageTicksPerSide < 0) {
+    throw new TradingRuleError("O slippage precisa ser informado como uma quantidade inteira de ticks maior ou igual a zero.");
   }
-
-  if (
-    intrabarPolicy !== "STOP_FIRST" &&
-    intrabarPolicy !== "TARGET_FIRST"
-  ) {
-    throw new TradingRuleError(
-      "A política intrabar configurada é inválida.",
-    );
+  if (intrabarPolicy !== "STOP_FIRST" && intrabarPolicy !== "TARGET_FIRST") {
+    throw new TradingRuleError("A política intrabar configurada é inválida.");
   }
 }
 
@@ -223,8 +209,7 @@ export function openPosition(
     target: intent.oco.target,
     contracts: intent.contracts,
     slippageTicksPerSide: intent.execution.slippageTicksPerSide,
-    costPerContractRoundTripBRL:
-      intent.execution.costPerContractRoundTripBRL,
+    costPerContractRoundTripBRL: costForAsset(intent),
     intrabarPolicy: intent.execution.intrabarPolicy,
     entryContext: intent.entryContext ?? null,
     openedAt: openedAtText,

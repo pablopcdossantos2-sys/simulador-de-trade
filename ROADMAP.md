@@ -127,6 +127,8 @@ Arquitetura definida a partir dos componentes validados no Candle Lab. Ver [Reap
 ## Fase 6 — Experiência desktop
 
 - [x] Tela inicial de configurações de execução (custos/slippage).
+- [x] Custos de referência separados por WINFUT/WDOFUT, com valores editáveis e fontes consultadas.
+- [x] Gráfico com eixo de preços e horários, zoom in/out, leitura OHLC/volume, crosshair e contexto dos candles finais do pregão anterior.
 - [ ] Ampliar tela de configurações para demais preferências.
 - [x] Banco SQLite com backup JSON versionado e restauração transacional.
 - [x] Exportação/importação do histórico por diálogos nativos, com mesclagem por ID.

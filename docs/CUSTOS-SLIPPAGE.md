@@ -55,19 +55,26 @@ O slippage não é descontado novamente como custo financeiro.
 
 ## Custos operacionais
 
-A configuração **Custo por contrato · round trip (R$)** representa o custo financeiro total da operação completa por contrato.
+A configuração é separada por ativo e representa o custo financeiro estimado da operação completa (entrada e saída) por contrato:
+
+- **WINFUT:** R$ 0,50 por contrato, como valor inicial de referência;
+- **WDOFUT:** R$ 2,12 por contrato, como valor inicial de referência.
+
+Os valores foram baseados na tabela educacional publicada pelo portal Bora Investir, da B3, em 22/10/2025, que informa custos máximos de emolumentos e tarifas B3 para mini-índice e minidólar. São estimativas de referência, não tarifas garantidas. O custo efetivo depende da tabela vigente, do perfil/volume negociado e da corretora; corretagem e outros encargos podem não estar incluídos. Confirme sua nota de corretagem e edite os campos no aplicativo.
+
+Fontes consultadas:
+
+- [B3 — Conheça as características dos principais produtos de day trade](https://borainvestir.b3.com.br/tipos-de-investimentos/renda-variavel/day-trade/conheca-as-caracteristicas-dos-principais-produtos-de-day-trade/)
+- [B3 — Tarifas de Ibovespa e Índice Brasil 50](https://www.b3.com.br/pt_br/produtos-e-servicos/tarifas/listados-a-vista-e-derivativos/renda-variavel/tarifas-de-ibovespa-e-indice-brasil-50/futuros-e-estruturadas/)
+- [B3 — Tarifas de Dólar dos Estados Unidos](https://b3.com.br/main.jsp?doui_processActionId=setLocaleProcessAction&locale=pt_BR&lumA=1&lumII=8A80CB816340383D4F50DA&lumPageId=8A68812D556EB21301556F5951D27D3C)
 
 Exemplo:
 
 ~~~text
-Custo configurado: R$ 1,00
-Quantidade: 10 contratos
-Custos totais: R$ 10,00
+Custo configurado: R$ 0,50 por contrato
+Quantidade: 10 contratos WIN
+Custos totais: R$ 5,00
 ~~~
-
-O padrão é zero.
-
-O projeto não pressupõe automaticamente corretagem, emolumentos ou qualquer outro valor.
 
 ## Resultado
 

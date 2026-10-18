@@ -107,6 +107,24 @@ describe("regras de entrada", () => {
     expect(() => validateTradeIntent(baseIntent)).not.toThrow();
   });
 
+  it("aplica o custo de round trip específico do ativo", () => {
+    const wdoIntent: TradeIntent = {
+      ...baseIntent,
+      asset: "WDOFUT",
+      entry: 5200,
+      signal: { ...buySignal, id: "signal-wdo", asset: "WDOFUT", price: 5200 },
+      oco: { stopLoss: 5190, target: 5210 },
+      execution: {
+        costPerContractRoundTripBRL: 0.5,
+        costWinRoundTripBRL: 0.5,
+        costWdoRoundTripBRL: 2.12,
+        slippageTicksPerSide: 0,
+        intrabarPolicy: "STOP_FIRST",
+      },
+    };
+    expect(openPosition(wdoIntent).costPerContractRoundTripBRL).toBe(2.12);
+  });
+
   it("preserva o timestamp de mercado do replay sem converter para UTC", () => {
     const position = openPosition(
       baseIntent,

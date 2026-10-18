@@ -20,6 +20,9 @@ fn default_intrabar_policy() -> String {
     "STOP_FIRST".to_string()
 }
 
+fn default_win_cost() -> f64 { 0.50 }
+fn default_wdo_cost() -> f64 { 2.12 }
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct TradeRecord {
@@ -88,6 +91,10 @@ struct TrainingEventRecord {
 struct ExecutionSettingsRecord {
     #[serde(rename = "costPerContractRoundTripBRL")]
     cost_per_contract_round_trip_brl: f64,
+    #[serde(default, rename = "costWinRoundTripBRL")]
+    cost_win_round_trip_brl: Option<f64>,
+    #[serde(default, rename = "costWdoRoundTripBRL")]
+    cost_wdo_round_trip_brl: Option<f64>,
     slippage_ticks_per_side: i64,
     #[serde(default = "default_intrabar_policy")]
     intrabar_policy: String,
@@ -246,6 +253,8 @@ fn initialize_database(connection: &Connection) -> rusqlite::Result<()> {
             CREATE TABLE IF NOT EXISTS execution_settings (
                 id INTEGER PRIMARY KEY NOT NULL CHECK(id = 1),
                 cost_per_contract_round_trip_brl REAL NOT NULL DEFAULT 0,
+                cost_win_round_trip_brl REAL NOT NULL DEFAULT 0.50,
+                cost_wdo_round_trip_brl REAL NOT NULL DEFAULT 2.12,
                 slippage_ticks_per_side INTEGER NOT NULL DEFAULT 0,
                 intrabar_policy TEXT NOT NULL DEFAULT 'STOP_FIRST'
             );
@@ -355,6 +364,27 @@ fn initialize_database(connection: &Connection) -> rusqlite::Result<()> {
         )?;
     }
 
+    if !column_exists(connection, "execution_settings", "cost_win_round_trip_brl")? {
+        connection.execute(
+            "ALTER TABLE execution_settings ADD COLUMN cost_win_round_trip_brl REAL NOT NULL DEFAULT 0.50",
+            [],
+        )?;
+        connection.execute(
+            "UPDATE execution_settings SET cost_win_round_trip_brl = CASE WHEN cost_per_contract_round_trip_brl > 0 THEN cost_per_contract_round_trip_brl ELSE 0.50 END",
+            [],
+        )?;
+    }
+    if !column_exists(connection, "execution_settings", "cost_wdo_round_trip_brl")? {
+        connection.execute(
+            "ALTER TABLE execution_settings ADD COLUMN cost_wdo_round_trip_brl REAL NOT NULL DEFAULT 2.12",
+            [],
+        )?;
+        connection.execute(
+            "UPDATE execution_settings SET cost_wdo_round_trip_brl = CASE WHEN cost_per_contract_round_trip_brl > 0 THEN cost_per_contract_round_trip_brl ELSE 2.12 END",
+            [],
+        )?;
+    }
+
     if !column_exists(connection, "training_sessions", "mode")? {
         connection.execute(
             "ALTER TABLE training_sessions ADD COLUMN mode TEXT NOT NULL DEFAULT 'FREE'",
@@ -362,7 +392,7 @@ fn initialize_database(connection: &Connection) -> rusqlite::Result<()> {
         )?;
     }
 
-    connection.execute_batch("PRAGMA user_version = 5;")?;
+    connection.execute_batch("PRAGMA user_version = 6;")?;
     Ok(())
 }
 
@@ -451,7 +481,8 @@ fn load_execution_settings(
     connection
         .query_row(
             r#"
-            SELECT cost_per_contract_round_trip_brl, slippage_ticks_per_side, intrabar_policy
+            SELECT cost_per_contract_round_trip_brl, cost_win_round_trip_brl,
+                   cost_wdo_round_trip_brl, slippage_ticks_per_side, intrabar_policy
             FROM execution_settings
             WHERE id = 1
             "#,
@@ -459,8 +490,10 @@ fn load_execution_settings(
             |row| {
                 Ok(ExecutionSettingsRecord {
                     cost_per_contract_round_trip_brl: row.get(0)?,
-                    slippage_ticks_per_side: row.get(1)?,
-                    intrabar_policy: row.get(2)?,
+                    cost_win_round_trip_brl: Some(row.get(1)?),
+                    cost_wdo_round_trip_brl: Some(row.get(2)?),
+                    slippage_ticks_per_side: row.get(3)?,
+                    intrabar_policy: row.get(4)?,
                 })
             },
         )
@@ -477,42 +510,52 @@ fn save_execution_settings(
     {
         return Err("O custo operacional precisa ser maior ou igual a zero.".to_string());
     }
-
+    let win_cost = settings.cost_win_round_trip_brl.unwrap_or_else(|| {
+        if settings.cost_per_contract_round_trip_brl > 0.0 {
+            settings.cost_per_contract_round_trip_brl
+        } else { default_win_cost() }
+    });
+    let wdo_cost = settings.cost_wdo_round_trip_brl.unwrap_or_else(|| {
+        if settings.cost_per_contract_round_trip_brl > 0.0 {
+            settings.cost_per_contract_round_trip_brl
+        } else { default_wdo_cost() }
+    });
+    if !win_cost.is_finite() || win_cost < 0.0 || !wdo_cost.is_finite() || wdo_cost < 0.0 {
+        return Err("Os custos por ativo precisam ser valores maiores ou iguais a zero.".to_string());
+    }
     if settings.slippage_ticks_per_side < 0 {
         return Err("O slippage precisa ser maior ou igual a zero.".to_string());
     }
-
-    if settings.intrabar_policy != "STOP_FIRST"
-        && settings.intrabar_policy != "TARGET_FIRST"
-    {
+    if settings.intrabar_policy != "STOP_FIRST" && settings.intrabar_policy != "TARGET_FIRST" {
         return Err("Política intrabar inválida.".to_string());
     }
 
     let connection = state.0.lock().map_err(|error| error.to_string())?;
-    connection
-        .execute(
-            r#"
-            INSERT INTO execution_settings (
-                id, cost_per_contract_round_trip_brl, slippage_ticks_per_side,
-                intrabar_policy
-            )
-            VALUES (1, ?1, ?2, ?3)
-            ON CONFLICT(id) DO UPDATE SET
-                cost_per_contract_round_trip_brl = excluded.cost_per_contract_round_trip_brl,
-                slippage_ticks_per_side = excluded.slippage_ticks_per_side,
-                intrabar_policy = excluded.intrabar_policy
-            "#,
-            params![
-                settings.cost_per_contract_round_trip_brl,
-                settings.slippage_ticks_per_side,
-                settings.intrabar_policy,
-            ],
+    connection.execute(
+        r#"
+        INSERT INTO execution_settings (
+            id, cost_per_contract_round_trip_brl, cost_win_round_trip_brl,
+            cost_wdo_round_trip_brl, slippage_ticks_per_side, intrabar_policy
         )
-        .map_err(|error| error.to_string())?;
+        VALUES (1, ?1, ?2, ?3, ?4, ?5)
+        ON CONFLICT(id) DO UPDATE SET
+            cost_per_contract_round_trip_brl = excluded.cost_per_contract_round_trip_brl,
+            cost_win_round_trip_brl = excluded.cost_win_round_trip_brl,
+            cost_wdo_round_trip_brl = excluded.cost_wdo_round_trip_brl,
+            slippage_ticks_per_side = excluded.slippage_ticks_per_side,
+            intrabar_policy = excluded.intrabar_policy
+        "#,
+        params![
+            settings.cost_per_contract_round_trip_brl,
+            win_cost,
+            wdo_cost,
+            settings.slippage_ticks_per_side,
+            settings.intrabar_policy,
+        ],
+    ).map_err(|error| error.to_string())?;
 
     Ok(())
 }
-
 #[tauri::command]
 fn save_training_session(
     state: tauri::State<'_, DbState>,
@@ -1024,7 +1067,8 @@ fn query_backup_execution_settings(
     connection
         .query_row(
             r#"
-            SELECT cost_per_contract_round_trip_brl, slippage_ticks_per_side, intrabar_policy
+            SELECT cost_per_contract_round_trip_brl, cost_win_round_trip_brl,
+                   cost_wdo_round_trip_brl, slippage_ticks_per_side, intrabar_policy
             FROM execution_settings
             WHERE id = 1
             "#,
@@ -1032,8 +1076,10 @@ fn query_backup_execution_settings(
             |row| {
                 Ok(ExecutionSettingsRecord {
                     cost_per_contract_round_trip_brl: row.get(0)?,
-                    slippage_ticks_per_side: row.get(1)?,
-                    intrabar_policy: row.get(2)?,
+                    cost_win_round_trip_brl: Some(row.get(1)?),
+                    cost_wdo_round_trip_brl: Some(row.get(2)?),
+                    slippage_ticks_per_side: row.get(3)?,
+                    intrabar_policy: row.get(4)?,
                 })
             },
         )
@@ -1058,6 +1104,10 @@ fn validate_backup_bundle(bundle: &BackupBundle) -> Result<(), String> {
     let settings = &bundle.execution_settings;
     if !settings.cost_per_contract_round_trip_brl.is_finite()
         || settings.cost_per_contract_round_trip_brl < 0.0
+        || [settings.cost_win_round_trip_brl, settings.cost_wdo_round_trip_brl]
+            .into_iter()
+            .flatten()
+            .any(|cost| !cost.is_finite() || cost < 0.0)
         || settings.slippage_ticks_per_side < 0
         || !matches!(
             settings.intrabar_policy.as_str(),
@@ -1286,25 +1336,35 @@ fn import_backup(
             .map_err(|error| error.to_string())?;
     }
 
-    transaction
-        .execute(
-            r#"
-            INSERT INTO execution_settings (
-                id, cost_per_contract_round_trip_brl, slippage_ticks_per_side,
-                intrabar_policy
-            )
-            VALUES (1, ?1, ?2, ?3)
-            ON CONFLICT(id) DO UPDATE SET
-                cost_per_contract_round_trip_brl = excluded.cost_per_contract_round_trip_brl,
-                slippage_ticks_per_side = excluded.slippage_ticks_per_side,
-                intrabar_policy = excluded.intrabar_policy
-            "#,
-            params![
-                bundle.execution_settings.cost_per_contract_round_trip_brl,
-                bundle.execution_settings.slippage_ticks_per_side,
-                bundle.execution_settings.intrabar_policy,
-            ],
+    let legacy_cost = bundle.execution_settings.cost_per_contract_round_trip_brl;
+    let win_cost = bundle.execution_settings.cost_win_round_trip_brl.unwrap_or_else(|| {
+        if legacy_cost > 0.0 { legacy_cost } else { default_win_cost() }
+    });
+    let wdo_cost = bundle.execution_settings.cost_wdo_round_trip_brl.unwrap_or_else(|| {
+        if legacy_cost > 0.0 { legacy_cost } else { default_wdo_cost() }
+    });
+    transaction.execute(
+        r#"
+        INSERT INTO execution_settings (
+            id, cost_per_contract_round_trip_brl, cost_win_round_trip_brl,
+            cost_wdo_round_trip_brl, slippage_ticks_per_side, intrabar_policy
         )
+        VALUES (1, ?1, ?2, ?3, ?4, ?5)
+        ON CONFLICT(id) DO UPDATE SET
+            cost_per_contract_round_trip_brl = excluded.cost_per_contract_round_trip_brl,
+            cost_win_round_trip_brl = excluded.cost_win_round_trip_brl,
+            cost_wdo_round_trip_brl = excluded.cost_wdo_round_trip_brl,
+            slippage_ticks_per_side = excluded.slippage_ticks_per_side,
+            intrabar_policy = excluded.intrabar_policy
+        "#,
+        params![
+            legacy_cost,
+            win_cost,
+            wdo_cost,
+            bundle.execution_settings.slippage_ticks_per_side,
+            bundle.execution_settings.intrabar_policy,
+        ],
+    )
         .map_err(|error| error.to_string())?;
 
     transaction.commit().map_err(|error| error.to_string())?;
@@ -2138,10 +2198,12 @@ mod tests {
     #[test]
     fn backup_schema_validation_rejects_wrong_format_and_version() {
         let settings = ExecutionSettingsRecord {
-            cost_per_contract_round_trip_brl: 0.0,
-            slippage_ticks_per_side: 0,
-            intrabar_policy: "STOP_FIRST".to_string(),
-        };
+                cost_per_contract_round_trip_brl: 0.0,
+                cost_win_round_trip_brl: None,
+                cost_wdo_round_trip_brl: None,
+                slippage_ticks_per_side: 0,
+                intrabar_policy: "STOP_FIRST".to_string(),
+            };
 
         let mut bundle = BackupBundle {
             format: "simulador-de-trade-backup".to_string(),
@@ -2228,6 +2290,8 @@ mod tests {
             training_events: Vec::new(),
             execution_settings: ExecutionSettingsRecord {
                 cost_per_contract_round_trip_brl: 0.0,
+                cost_win_round_trip_brl: None,
+                cost_wdo_round_trip_brl: None,
                 slippage_ticks_per_side: 0,
                 intrabar_policy: "STOP_FIRST".to_string(),
             },
@@ -2360,6 +2424,8 @@ mod tests {
             training_events: Vec::new(),
             execution_settings: ExecutionSettingsRecord {
                 cost_per_contract_round_trip_brl: -1.0,
+                cost_win_round_trip_brl: None,
+                cost_wdo_round_trip_brl: None,
                 slippage_ticks_per_side: 0,
                 intrabar_policy: "STOP_FIRST".to_string(),
             },
@@ -2566,19 +2632,21 @@ mod tests {
     }
 
     #[test]
-    fn execution_settings_default_to_zero() {
+    fn execution_settings_use_reference_costs_per_asset() {
         let connection = Connection::open_in_memory().unwrap();
         initialize_database(&connection).unwrap();
 
-        let (cost, slippage, policy): (f64, i64, String) = connection
+        let (legacy_cost, win_cost, wdo_cost, slippage, policy): (f64, f64, f64, i64, String) = connection
             .query_row(
-                "SELECT cost_per_contract_round_trip_brl, slippage_ticks_per_side, intrabar_policy FROM execution_settings WHERE id = 1",
+                "SELECT cost_per_contract_round_trip_brl, cost_win_round_trip_brl, cost_wdo_round_trip_brl, slippage_ticks_per_side, intrabar_policy FROM execution_settings WHERE id = 1",
                 [],
-                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?, row.get(4)?)),
             )
             .unwrap();
 
-        assert_eq!(cost, 0.0);
+        assert_eq!(legacy_cost, 0.0);
+        assert_eq!(win_cost, 0.50);
+        assert_eq!(wdo_cost, 2.12);
         assert_eq!(slippage, 0);
         assert_eq!(policy, "STOP_FIRST");
     }

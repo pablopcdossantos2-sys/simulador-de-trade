@@ -71,7 +71,11 @@ export interface OcoOrder {
 }
 
 export interface ExecutionSettings {
+  /** Campo legado para compatibilidade com versões e backups anteriores. */
   costPerContractRoundTripBRL: number;
+  /** Custos aproximados por contrato, round trip, editáveis pelo usuário. */
+  costWinRoundTripBRL?: number;
+  costWdoRoundTripBRL?: number;
   slippageTicksPerSide: number;
   intrabarPolicy: IntrabarPolicy;
 }
