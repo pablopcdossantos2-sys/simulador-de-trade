@@ -220,7 +220,7 @@ export default function App() {
     if (signal && !signalAlreadyUsed) return null;
     if (signal && signal.side !== side) return null;
 
-    const candleByIndex = new Map(visibleCandles.map((candle) => [candle.index, candle]));
+    const candleByIndex = new Map(visibleCandles.map((candle) => [candle.index, candle] as const));
     const touchedPoint = indicatorEvaluation.series.find((point) => {
       if (point.candleIndex <= lastClosedTradeMarker.candleIndex || !Number.isFinite(point.ema52)) return false;
       const candle = candleByIndex.get(point.candleIndex);
