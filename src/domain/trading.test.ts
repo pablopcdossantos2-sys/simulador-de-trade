@@ -3,6 +3,7 @@ import type { IndicatorSignal, TradeIntent } from "../types";
 import {
   TradingRuleError,
   closePositionAtMarket,
+  closePositionManually,
   openPosition,
   resolveOco,
   resolveOcoTrade,
@@ -30,7 +31,7 @@ const baseIntent: TradeIntent = {
     intrabarPolicy: "STOP_FIRST" as const,
   },
   candleIndex: 10,
-  oco: { stopLoss: 129900, target: 130150 },
+  oco: { stopLoss: 129900, target: 130200 },
   signal: buySignal,
   signalAlreadyUsed: false,
   hasOpenPosition: false,
@@ -107,13 +108,25 @@ describe("regras de entrada", () => {
     expect(() => validateTradeIntent(baseIntent)).not.toThrow();
   });
 
+  it("bloqueia risco/retorno inferior a 1:2", () => {
+    expect(() => validateTradeIntent({ ...baseIntent, oco: { stopLoss: 129900, target: 130100 } })).toThrow(/mínimo 1:2/i);
+  });
+
+  it("permite reentrada autorizada pela MME 52 sem novo sinal", () => {
+    expect(() => validateTradeIntent({ ...baseIntent, signal: null, reentryAuthorized: true, reentrySide: "BUY", reentryAuthorizationId: "ma52-touch-11" })).not.toThrow();
+  });
+
+  it("bloqueia reentrada pela MME 52 na direção contrária", () => {
+    expect(() => validateTradeIntent({ ...baseIntent, signal: null, side: "SELL", reentryAuthorized: true, reentrySide: "BUY", reentryAuthorizationId: "ma52-touch-11" })).toThrow(/mesma direção/i);
+  });
+
   it("aplica o custo de round trip específico do ativo", () => {
     const wdoIntent: TradeIntent = {
       ...baseIntent,
       asset: "WDOFUT",
       entry: 5200,
       signal: { ...buySignal, id: "signal-wdo", asset: "WDOFUT", price: 5200 },
-      oco: { stopLoss: 5190, target: 5210 },
+      oco: { stopLoss: 5190, target: 5220 },
       execution: {
         costPerContractRoundTripBRL: 0.5,
         costWinRoundTripBRL: 0.5,
@@ -156,15 +169,15 @@ describe("regras de entrada", () => {
       timestamp: "2026-01-01T09:31:00Z",
       sourceRow: 1,
       sequence: 1,
-      price: 130150,
+      price: 130200,
       quantity: 1,
     });
 
-    expect(closed?.exitPrice).toBe(130145);
-    expect(closed?.resultPoints).toBe(140);
-    expect(closed?.grossResultBRL).toBe(28);
+    expect(closed?.exitPrice).toBe(130195);
+    expect(closed?.resultPoints).toBe(190);
+    expect(closed?.grossResultBRL).toBe(38);
     expect(closed?.operationalCostsBRL).toBe(1);
-    expect(closed?.netResultBRL).toBe(27);
+    expect(closed?.netResultBRL).toBe(37);
     expect(closed?.entryContext).toBeNull();
   });
 });
@@ -358,6 +371,16 @@ describe("encerramento explícito no fim do replay", () => {
   });
 });
 
+describe("stop manual", () => {
+  it("encerra imediatamente pelo preço atual com motivo distinto", () => {
+    const position = openPosition(baseIntent, "2026-10-18T09:30:00");
+    const result = closePositionManually(position, 129950, "2026-10-18T09:31:00");
+    expect(result.exitReason).toBe("MANUAL_STOP");
+    expect(result.exitPrice).toBe(129950);
+    expect(result.resultPoints).toBe(-50);
+  });
+});
+
 describe("regras e execução SELL", () => {
   const sellSignal: IndicatorSignal = {
     id: "signal-sell-1",
@@ -382,7 +405,7 @@ describe("regras e execução SELL", () => {
     candleIndex: 20,
     oco: {
       stopLoss: 130100,
-      target: 129850,
+      target: 129800,
     },
     signal: sellSignal,
     signalAlreadyUsed: false,
@@ -416,16 +439,16 @@ describe("regras e execução SELL", () => {
       timestamp: "2026-01-01T13:01:00Z",
       sourceRow: 1,
       sequence: 1,
-      price: 129850,
+      price: 129800,
       quantity: 1,
     });
 
     expect(result?.exitReason).toBe("TARGET");
-    expect(result?.exitPrice).toBe(129855);
-    expect(result?.resultPoints).toBe(140);
-    expect(result?.grossResultBRL).toBe(56);
+    expect(result?.exitPrice).toBe(129805);
+    expect(result?.resultPoints).toBe(190);
+    expect(result?.grossResultBRL).toBe(76);
     expect(result?.operationalCostsBRL).toBe(2);
-    expect(result?.netResultBRL).toBe(54);
+    expect(result?.netResultBRL).toBe(74);
   });
 
   it("piora também a execução do stop da venda", () => {
