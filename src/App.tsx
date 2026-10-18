@@ -385,7 +385,9 @@ export default function App() {
 
     if (signalAlreadyUsed) {
       setFeedback(
-        "O sinal ativo já foi utilizado em uma operação. Aguarde um novo gatilho do indicador antes de reentrar.",
+        reentryAuthorization
+          ? "O sinal ativo já foi utilizado, mas um candle posterior tocou na MME 52. A reentrada na mesma direção está autorizada."
+          : "O sinal ativo já foi utilizado. Aguarde um novo gatilho ou um candle posterior ao encerramento que toque na MME 52.",
       );
       return;
     }
@@ -410,6 +412,7 @@ export default function App() {
   }, [
     signal?.id,
     signalAlreadyUsed,
+    reentryAuthorization?.id,
     asset,
     position,
     lastCandle?.index,
@@ -424,9 +427,11 @@ export default function App() {
     }
 
     setFeedback(
-      "Sem zona autorizadora ativa. Compra e Venda permanecem bloqueadas.",
+      reentryAuthorization
+        ? `Candle posterior tocou na MME 52. Reentrada de ${sideLabel(reentryAuthorization.side).toLowerCase()} autorizada.`
+        : "Sem zona autorizadora ativa ou toque posterior na MME 52. Compra e Venda permanecem bloqueadas.",
     );
-  }, [indicatorEvaluation.zone, signal, position, lastCandle?.index]);
+  }, [indicatorEvaluation.zone, signal, position, lastCandle?.index, reentryAuthorization?.id]);
 
   useEffect(() => {
     if (!replay.error) return;
@@ -973,7 +978,7 @@ export default function App() {
       setFeedback("Encerre a posição e a sessão de treino antes de apagar o histórico.");
       return;
     }
-    if (!window.confirm("Apagar permanentemente todo o histórico de operações? Esta ação não pode ser desfeita. As sessões de treino, eventos e configurações serão preservados.")) return;
+    if (!window.confirm("Apagar permanentemente todo o histórico de operações? Esta ação não pode ser desfeita. As sessões, configurações e eventos disciplinares/técnicos serão preservados; os eventos de abertura/fechamento de operações também serão apagados.")) return;
     setDeletingHistory(true);
     try {
       await deleteAllTrades();
@@ -1172,7 +1177,7 @@ export default function App() {
               </p>
               <h2>{asset}</h2>
             </div>
-            <SignalBadge evaluation={indicatorEvaluation} />
+            <SignalBadge evaluation={indicatorEvaluation} signalAlreadyUsed={signalAlreadyUsed} reentrySide={reentryAuthorization?.side ?? null} />
           </div>
 
           {visibleCandles.length || warmupCandles.length ? (
@@ -1480,13 +1485,29 @@ export default function App() {
 
 function SignalBadge({
   evaluation,
+  signalAlreadyUsed = false,
+  reentrySide = null,
 }: {
   evaluation: IndicatorEvaluation;
+  signalAlreadyUsed?: boolean;
+  reentrySide?: Side | null;
 }) {
   const signal = evaluation.authorization;
 
+  if (reentrySide && (!signal || signalAlreadyUsed)) {
+    return (
+      <div className={`signal-badge ${reentrySide === "BUY" ? "buy" : "sell"}`}>
+        Reentrada MME 52 · {sideLabel(reentrySide)} autorizada
+      </div>
+    );
+  }
+
   if (!signal) {
     return <div className="signal-badge neutral">Sem zona ativa</div>;
+  }
+
+  if (signalAlreadyUsed) {
+    return <div className="signal-badge neutral">Sinal utilizado · aguardando novo gatilho ou toque na MME 52</div>;
   }
 
   return (
