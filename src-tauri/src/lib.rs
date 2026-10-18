@@ -823,6 +823,15 @@ fn list_all_training_events(
 }
 
 #[tauri::command]
+fn delete_all_trades(state: tauri::State<'_, DbState>) -> Result<(), String> {
+    let connection = state.0.lock().map_err(|error| error.to_string())?;
+    connection
+        .execute("DELETE FROM trades", [])
+        .map_err(|error| error.to_string())?;
+    Ok(())
+}
+
+#[tauri::command]
 fn list_trades(state: tauri::State<'_, DbState>) -> Result<Vec<TradeRecord>, String> {
     let connection = state.0.lock().map_err(|error| error.to_string())?;
     let mut statement = connection
@@ -2740,6 +2749,7 @@ pub fn run() {
             save_trade,
             list_trades,
             list_all_trades,
+            delete_all_trades,
             export_backup,
             import_backup,
             write_report_export,
