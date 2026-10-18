@@ -1235,7 +1235,7 @@ fn export_backup(
         let mut file = File::create(&temp_path).map_err(|error| error.to_string())?;
         file.write_all(text.as_bytes()).map_err(|error| error.to_string())?;
         file.sync_all().map_err(|error| error.to_string())?;
-        fs::rename(&temp_path, &path).map_err(|error| error.to_string())?;
+        replace_file_safely(&temp_path, &path)?;
         Ok(())
     })();
     if write_result.is_err() {
