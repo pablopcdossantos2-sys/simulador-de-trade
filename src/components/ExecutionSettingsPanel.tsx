@@ -84,7 +84,7 @@ export function ExecutionSettingsPanel({ settings, onSaved }: Props) {
         <label>
           Slippage por lado (ticks)
           <input type="number" min="0" step="1" value={slippage} onChange={(event) => setSlippage(event.target.value)} />
-          <small>Aplicado adversamente na entrada e na saída. Padrão: 0 tick.</small>
+          <small>Aplicado na entrada e em saídas a mercado/stop; o alvo limite não recebe slippage adverso. Padrão: 0 tick.</small>
         </label>
         <label>
           Ambiguidade intrabar (OHLC)
@@ -110,7 +110,7 @@ export function ExecutionSettingsPanel({ settings, onSaved }: Props) {
 
       <div className="execution-settings-actions">
         <button type="button" onClick={() => void save()} disabled={saving}>{saving ? "Salvando..." : "Salvar configurações"}</button>
-        <span>O custo é aplicado por contrato na operação completa (entrada e saída). O slippage altera os preços executados; a política intrabar só resolve candles agregados ambíguos.</span>
+        <span>O custo é aplicado por contrato na operação completa. O slippage afeta a entrada e saídas a mercado/stop; o alvo limite executa no nível definido. A política intrabar só resolve candles agregados ambíguos.</span>
       </div>
       {feedback && <div className="data-status">{feedback}</div>}
     </section>

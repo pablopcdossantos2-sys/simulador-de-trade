@@ -33,23 +33,18 @@ Preço de entrada simulado:
 130.005
 ~~~
 
-Se o alvo for acionado em:
+Se o alvo (ordem limite) for acionado em:
 
 ~~~text
 130.150
 ~~~
-
-a venda de encerramento é simulada em:
-
-~~~text
-130.145
-~~~
-
-Assim, o resultado realizado em pontos já contém a perda provocada pelo slippage:
+a saída é simulada no próprio nível do alvo, sem slippage adverso adicional:
 
 ~~~text
-130.145 - 130.005 = 140 pontos
+130.150 - 130.005 = 145 pontos
 ~~~
+
+Em uma saída por stop ou encerramento a mercado, aplica-se slippage adverso. Se o preço atravessar o stop com um gap, o replay usa o primeiro preço de mercado observado além do nível (e depois aplica o slippage configurado), em vez de presumir execução perfeita no preço do stop.
 
 O slippage não é descontado novamente como custo financeiro.
 

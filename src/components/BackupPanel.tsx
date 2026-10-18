@@ -12,7 +12,7 @@ interface Props {
 }
 
 function summaryText(action: string, summary: BackupSummary): string {
-  return `${action}: ${summary.trades} trades, ${summary.sessions} sessões e ${summary.events} eventos · schema v${summary.schemaVersion}.`;
+  return `${action}. Arquivo contém ${summary.trades} trades, ${summary.sessions} sessões e ${summary.events} eventos · schema v${summary.schemaVersion}.`;
 }
 
 export function BackupPanel({ disabled, onImported }: Props) {
