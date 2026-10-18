@@ -65,6 +65,32 @@ function exitExecutionPrice(
     : triggerPrice + slip;
 }
 
+export function validateOcoOrder(
+  asset: TradeIntent["asset"],
+  side: Side,
+  entry: number,
+  stopLoss: number,
+  target: number,
+): void {
+  if (!isFinitePrice(entry) || !isFinitePrice(stopLoss) || !isFinitePrice(target)) {
+    throw new TradingRuleError("Entrada, stop loss e alvo devem possuir preços válidos.");
+  }
+  if (!isPriceOnTick(asset, entry) || !isPriceOnTick(asset, stopLoss) || !isPriceOnTick(asset, target)) {
+    throw new TradingRuleError(`Entrada, stop loss e alvo precisam respeitar o incremento mínimo de ${tickSizeFor(asset)} do ativo.`);
+  }
+  if (side === "BUY" && (stopLoss >= entry || target <= entry)) {
+    throw new TradingRuleError("Em uma compra, o stop deve ficar abaixo da entrada e o alvo acima dela.");
+  }
+  if (side === "SELL" && (stopLoss <= entry || target >= entry)) {
+    throw new TradingRuleError("Em uma venda, o stop deve ficar acima da entrada e o alvo abaixo dela.");
+  }
+  const risk = side === "BUY" ? entry - stopLoss : stopLoss - entry;
+  const reward = side === "BUY" ? target - entry : entry - target;
+  if (reward + 1e-9 < risk * 2) {
+    throw new TradingRuleError(`Risco/retorno fora das regras: o alvo precisa oferecer pelo menos 2 vezes o risco (mínimo 1:2). Risco: ${risk.toFixed(2)} pontos; alvo: ${reward.toFixed(2)} pontos.`);
+  }
+}
+
 export function validateTradeIntent(intent: TradeIntent): void {
   const {
     signal,
@@ -89,28 +115,34 @@ export function validateTradeIntent(intent: TradeIntent): void {
 
   validateExecutionSettings(intent);
 
-  if (!signal) {
+  if (!signal && !intent.reentryAuthorized) {
     throw new TradingRuleError(
-      "Nenhuma operação pode ser aberta sem um sinal ativo do indicador.",
+      "Nenhuma operação pode ser aberta sem sinal ativo ou autorização válida de reentrada pela MME 52.",
     );
   }
 
-  if (signalAlreadyUsed) {
-    throw new TradingRuleError(
-      "Este sinal já foi utilizado em uma operação. Aguarde um novo gatilho do indicador.",
-    );
-  }
+  if (signal) {
+    if (signalAlreadyUsed) {
+      throw new TradingRuleError(
+        "Este sinal já foi utilizado em uma operação. Aguarde um novo gatilho do indicador ou uma reentrada autorizada pela MME 52.",
+      );
+    }
 
-  if (signal.asset !== asset) {
-    throw new TradingRuleError(
-      "O sinal ativo pertence a outro ativo e não pode autorizar esta operação.",
-    );
-  }
+    if (signal.asset !== asset) {
+      throw new TradingRuleError(
+        "O sinal ativo pertence a outro ativo e não pode autorizar esta operação.",
+      );
+    }
 
-  if (signal.side !== side) {
-    const expected = signal.side === "BUY" ? "compra" : "venda";
+    if (signal.side !== side) {
+      const expected = signal.side === "BUY" ? "compra" : "venda";
+      throw new TradingRuleError(
+        `O sinal ativo autoriza apenas uma operação de ${expected}.`,
+      );
+    }
+  } else if (!intent.reentryAuthorized || intent.reentrySide !== side) {
     throw new TradingRuleError(
-      `O sinal ativo autoriza apenas uma operação de ${expected}.`,
+      "A reentrada pela MME 52 só autoriza a mesma direção da última operação encerrada.",
     );
   }
 
@@ -185,6 +217,8 @@ export function validateTradeIntent(intent: TradeIntent): void {
       "O slippage configurado torna a entrada da venda incompatível com o stop.",
     );
   }
+
+  validateOcoOrder(asset, side, executedEntry, oco.stopLoss, oco.target);
 }
 
 export function openPosition(
@@ -200,7 +234,7 @@ export function openPosition(
     id: crypto.randomUUID(),
     asset: intent.asset,
     side: intent.side,
-    signalId: intent.signal!.id,
+    signalId: intent.signal?.id ?? intent.reentryAuthorizationId ?? `MA52_REENTRY_${intent.asset}_${intent.candleIndex}_${intent.side}`,
     openedCandleIndex: intent.candleIndex,
     openedReplaySequence: intent.replaySequence,
     requestedEntry: intent.entry,
@@ -286,6 +320,17 @@ export function closePositionAtMarket(
     "SESSION_END",
     closedAt,
   );
+}
+
+export function closePositionManually(
+  position: Position,
+  marketPrice: number,
+  closedAt: string,
+): Trade {
+  if (!Number.isFinite(marketPrice) || marketPrice <= 0) {
+    throw new TradingRuleError("Não é possível acionar o stop manual sem um último preço válido.");
+  }
+  return closePosition(position, marketPrice, "MANUAL_STOP", closedAt);
 }
 
 export function resolveOco(
