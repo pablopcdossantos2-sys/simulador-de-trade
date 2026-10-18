@@ -3495,3 +3495,14 @@ td {
 @media (max-width: 620px) {
   .main-navigation button { flex: 1 1 30%; padding-inline: 8px; }
 }
+
+.history-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 9px;
+}
+@media (max-width: 700px) {
+  .history-actions { align-items: stretch; flex-direction: column; }
+}
