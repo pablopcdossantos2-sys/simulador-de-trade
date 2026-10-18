@@ -38,7 +38,9 @@ import {
 } from "./domain/training";
 import {
   closePositionAtMarket,
+  closePositionManually,
   openPosition,
+  validateOcoOrder,
   resolveOco,
   resolveOcoTrade,
   sideLabel,
@@ -53,6 +55,7 @@ import {
 import { useReplayPlayer } from "./hooks/useReplayPlayer";
 import { indicator } from "./services/indicator";
 import {
+  deleteAllTrades,
   loadTrades,
   saveTrade,
   saveTrainingEvent,
@@ -68,6 +71,7 @@ import type {
   Asset,
   ExecutionSettings,
   IndicatorEvaluation,
+  IndicatorSignal,
   Position,
   ReplayTrade,
   Side,
@@ -100,6 +104,7 @@ function initialTheme(): ThemeMode {
 type DataMode = "demo" | "replay";
 
 export default function App() {
+  const [activeArea, setActiveArea] = useState<"SIMULADOR" | "CONFIGURACOES" | "RESULTADOS">("SIMULADOR");
   const [asset, setAsset] = useState<Asset>("WINFUT");
   const [dataMode, setDataMode] = useState<DataMode>("demo");
   const [candles, setCandles] = useState(() => createDemoCandles("WINFUT"));
@@ -109,6 +114,10 @@ export default function App() {
   const [trades, setTrades] = useState<Trade[]>([]);
   const [stopLoss, setStopLoss] = useState("");
   const [target, setTarget] = useState("");
+  const [draftEntryPrice, setDraftEntryPrice] = useState<number | null>(null);
+  const [draftSide, setDraftSide] = useState<Side | null>(null);
+  const [lastClosedTradeMarker, setLastClosedTradeMarker] = useState<{ trade: Trade; candleIndex: number } | null>(null);
+  const [deletingHistory, setDeletingHistory] = useState(false);
   const [contracts, setContracts] = useState("1");
   const [executionSettings, setExecutionSettings] =
     useState<ExecutionSettings>(DEFAULT_EXECUTION_SETTINGS);
@@ -205,6 +214,32 @@ export default function App() {
   const signalAlreadyUsed = Boolean(
     signal && usedSignalIdsRef.current.has(signal.id),
   );
+  const reentryAuthorization = useMemo(() => {
+    if (!lastClosedTradeMarker) return null;
+    const side = lastClosedTradeMarker.trade.side;
+    if (signal && !signalAlreadyUsed) return null;
+    if (signal && signal.side !== side) return null;
+
+    const candleByIndex = new Map(visibleCandles.map((candle) => [candle.index, candle]));
+    const touchedPoint = indicatorEvaluation.series.find((point) => {
+      if (point.candleIndex <= lastClosedTradeMarker.candleIndex || !Number.isFinite(point.ema52)) return false;
+      const candle = candleByIndex.get(point.candleIndex);
+      return Boolean(candle && candle.low <= point.ema52 && candle.high >= point.ema52);
+    });
+    if (!touchedPoint) return null;
+    const candle = candleByIndex.get(touchedPoint.candleIndex);
+    if (!candle) return null;
+    return {
+      id: `ma52-reentry:${lastClosedTradeMarker.trade.id}:${candle.index}`,
+      side,
+      candleIndex: candle.index,
+      timestamp: candle.timestamp,
+      price: candle.close,
+    };
+  }, [lastClosedTradeMarker, signal?.id, signalAlreadyUsed, indicatorEvaluation.series, visibleCandles]);
+  const authorizedSideForChart = signal && !signalAlreadyUsed
+    ? signal.side
+    : reentryAuthorization?.side ?? null;
   const lastCandle = visibleCandles[visibleCandles.length - 1];
   const lastPrice = lastCandle?.close ?? 0;
   const trainingActive = trainingSession?.status === "ACTIVE";
@@ -218,6 +253,13 @@ export default function App() {
         : null,
     [trainingSession, trainingEvents],
   );
+  const draftOrder = useMemo(() => {
+    if (position || draftEntryPrice === null || !draftSide) return null;
+    const parsedStop = Number(stopLoss);
+    const parsedTarget = Number(target);
+    if (!Number.isFinite(parsedStop) || !Number.isFinite(parsedTarget) || parsedStop <= 0 || parsedTarget <= 0) return null;
+    return { side: draftSide, entry: draftEntryPrice, stopLoss: parsedStop, target: parsedTarget };
+  }, [position, draftEntryPrice, draftSide, stopLoss, target]);
 
   function appendTrainingEvent(event: TrainingEvent) {
     setTrainingEvents((current) => [...current, event]);
@@ -277,6 +319,13 @@ export default function App() {
 
   function persistClosedTrade(closed: Trade) {
     protectNextAutoFeedbackRef.current = true;
+    const currentCandle = candlesRef.current[candlesRef.current.length - 1];
+    setLastClosedTradeMarker({
+      trade: closed,
+      candleIndex: currentCandle?.index ?? closed.entryContext?.candleIndex ?? -1,
+    });
+    setDraftEntryPrice(null);
+    setDraftSide(null);
     positionRef.current = null;
     setPosition(null);
     setTrades((current) => [
@@ -442,6 +491,9 @@ export default function App() {
 
   function changeAsset(next: Asset) {
     if (dataMode === "replay") return;
+    setLastClosedTradeMarker(null);
+    setDraftEntryPrice(null);
+    setDraftSide(null);
     setAsset(next);
     setCandles(createDemoCandles(next));
     setPosition(null);
@@ -504,6 +556,9 @@ export default function App() {
       setCurrentReplayTrade(null);
       positionRef.current = null;
       setPosition(null);
+      setLastClosedTradeMarker(null);
+      setDraftEntryPrice(null);
+      setDraftSide(null);
       setStopLoss("");
       setTarget("");
       setContracts("1");
@@ -718,6 +773,21 @@ export default function App() {
     }
   }
 
+  function stopPositionManually() {
+    if (!position) return;
+    const marketPrice = dataMode === "replay" ? currentReplayTrade?.price : lastPrice;
+    const timestamp = dataMode === "replay" ? currentReplayTrade?.timestamp : new Date().toISOString();
+    try {
+      const closed = closePositionManually(position, marketPrice ?? 0, timestamp ?? new Date().toISOString());
+      persistClosedTrade(closed);
+      setFeedback(`Stop manual acionado a ${money.format(closed.exitPrice)}. Resultado: ${money.format(closed.resultPoints)} pontos.`);
+    } catch (error) {
+      const reason = error instanceof Error ? error.message : "Não foi possível estopar manualmente a operação.";
+      setFeedback(reason);
+      setRuleViolation(reason);
+    }
+  }
+
   function normalizeOrderPrice(
     raw: string,
     setter: (value: string) => void,
@@ -741,31 +811,43 @@ export default function App() {
   function submit(side: Side) {
     try {
       if (dataMode === "replay" && !trainingActive) {
-        throw new TradingRuleError(
-          "Inicie a sessão formal de treino antes de enviar uma operação.",
-        );
+        throw new TradingRuleError("Inicie a sessão formal de treino antes de enviar uma operação.");
       }
-
       if (!lastCandle) {
-        throw new TradingRuleError(
-          "Não há candle disponível para executar a entrada.",
-        );
+        throw new TradingRuleError("Não há candle disponível para executar a entrada.");
       }
+      const useFreshSignal = Boolean(signal && !signalAlreadyUsed);
+      const useReentry = !useFreshSignal && Boolean(reentryAuthorization && reentryAuthorization.side === side);
+      if (!useFreshSignal && !useReentry) {
+        throw new TradingRuleError("Entrada fora do operacional: aguarde um sinal válido ou um candle posterior ao fim da última operação que toque na MME 52.");
+      }
+      const entrySignal = useFreshSignal ? signal : null;
+      const orderEntry = draftEntryPrice !== null && draftSide === side ? draftEntryPrice : lastPrice;
+      const marketTimestamp = dataMode === "replay" && currentReplayTrade
+        ? currentReplayTrade.timestamp
+        : lastCandle.timestamp;
+      const openedAt = dataMode === "replay" && currentReplayTrade
+        ? currentReplayTrade.timestamp
+        : new Date().toISOString();
 
-      const marketTimestamp =
-        dataMode === "replay" && currentReplayTrade
-          ? currentReplayTrade.timestamp
-          : lastCandle.timestamp;
-      const openedAt =
-        dataMode === "replay" && currentReplayTrade
-          ? currentReplayTrade.timestamp
-          : new Date().toISOString();
-
+      const contextSignal: IndicatorSignal | null = entrySignal ?? (
+        useReentry && reentryAuthorization
+          ? {
+              id: reentryAuthorization.id,
+              asset,
+              side,
+              candleIndex: reentryAuthorization.candleIndex,
+              timestamp: reentryAuthorization.timestamp,
+              price: orderEntry,
+              label: side === "BUY" ? "Compra" : "Venda",
+            }
+          : null
+      );
       const entryContext = captureEntryContext({
         asset,
         candles: visibleCandles,
         evaluation: indicatorEvaluation,
-        signal,
+        signal: contextSignal,
         marketTimestamp,
         indicatorVersion: indicator.version,
       });
@@ -774,38 +856,37 @@ export default function App() {
         {
           asset,
           side,
-          entry: lastPrice,
+          entry: orderEntry,
           contracts: Number(contracts),
           execution: executionSettings,
           candleIndex: lastCandle.index,
-          replaySequence:
-            dataMode === "replay" ? currentReplayTrade?.sequence : undefined,
-          oco: {
-            stopLoss: Number(stopLoss),
-            target: Number(target),
-          },
-          signal,
+          replaySequence: dataMode === "replay" ? currentReplayTrade?.sequence : undefined,
+          oco: { stopLoss: Number(stopLoss), target: Number(target) },
+          signal: entrySignal,
           entryContext,
-          signalAlreadyUsed,
+          signalAlreadyUsed: entrySignal ? signalAlreadyUsed : false,
           hasOpenPosition: Boolean(position),
+          reentryAuthorized: useReentry,
+          reentrySide: useReentry ? reentryAuthorization?.side : undefined,
+          reentryAuthorizationId: useReentry ? reentryAuthorization?.id : undefined,
         },
         openedAt,
       );
 
       positionRef.current = nextPosition;
       setPosition(nextPosition);
-      if (signal) {
-        usedSignalIdsRef.current.add(signal.id);
-      }
+      if (entrySignal) usedSignalIdsRef.current.add(entrySignal.id);
+      setDraftEntryPrice(null);
+      setDraftSide(null);
       recordTrainingEvent({
         type: "TRADE_OPENED",
         marketTimestamp: currentReplayTrade?.timestamp ?? null,
-        signalId: signal?.id ?? null,
+        signalId: entrySignal?.id ?? (useReentry ? reentryAuthorization?.id ?? null : null),
         side,
         tradeId: nextPosition.id,
       });
       setFeedback(
-        `${sideLabel(side)} aberta em ${money.format(lastPrice)} com OCO obrigatório ativo.`,
+        `${sideLabel(side)} aberta em ${money.format(orderEntry)} com OCO obrigatório ativo.${useReentry ? " Reentrada autorizada pelo toque posterior na MME 52." : ""}`,
       );
     } catch (error) {
       const isDisciplineError = error instanceof TradingRuleError;
@@ -814,15 +895,13 @@ export default function App() {
         : error instanceof Error
           ? error.message
           : "Não foi possível abrir a operação.";
-
       setFeedback(reason);
       setRuleViolation(reason);
-
       if (trainingActive) {
         recordTrainingEvent({
           type: isDisciplineError ? "BLOCKED_ATTEMPT" : "TECHNICAL_ISSUE",
           marketTimestamp: currentReplayTrade?.timestamp ?? null,
-          signalId: signal?.id ?? null,
+          signalId: signal?.id ?? reentryAuthorization?.id ?? null,
           side: isDisciplineError ? side : null,
           reason,
         });
@@ -834,11 +913,79 @@ export default function App() {
   const buyAllowed =
     tradingEnabled &&
     !position &&
-    signalAllows(signal, asset, "BUY", signalAlreadyUsed);
+    (signalAllows(signal, asset, "BUY", signalAlreadyUsed) || reentryAuthorization?.side === "BUY");
   const sellAllowed =
     tradingEnabled &&
     !position &&
-    signalAllows(signal, asset, "SELL", signalAlreadyUsed);
+    (signalAllows(signal, asset, "SELL", signalAlreadyUsed) || reentryAuthorization?.side === "SELL");
+
+  function placeOrderFromChart(rawPrice: number) {
+    if (!tradingEnabled || position || !authorizedSideForChart) {
+      setFeedback("O posicionamento pelo gráfico exige uma direção atualmente autorizada pelo operacional.");
+      return;
+    }
+    const entry = roundPriceToTick(asset, rawPrice);
+    const distance = suggestedOcoDistance(asset);
+    setDraftSide(authorizedSideForChart);
+    setDraftEntryPrice(entry);
+    if (authorizedSideForChart === "BUY") {
+      setStopLoss(String(roundPriceToTick(asset, entry - distance.stop)));
+      setTarget(String(roundPriceToTick(asset, entry + distance.target)));
+    } else {
+      setStopLoss(String(roundPriceToTick(asset, entry + distance.stop)));
+      setTarget(String(roundPriceToTick(asset, entry - distance.target)));
+    }
+    setFeedback(`Entrada ${sideLabel(authorizedSideForChart)} posicionada em ${money.format(entry)}. Arraste as linhas de Stop e Alvo no gráfico; o mínimo 1:2 será validado antes de aceitar a ordem.`);
+  }
+
+  function adjustOcoFromChart(kind: "stop" | "target", rawPrice: number, mode: "position" | "draft") {
+    const rounded = roundPriceToTick(asset, rawPrice);
+    try {
+      if (mode === "position" && position) {
+        const nextStop = kind === "stop" ? rounded : position.stopLoss;
+        const nextTarget = kind === "target" ? rounded : position.target;
+        validateOcoOrder(asset, position.side, position.entry, nextStop, nextTarget);
+        const updated = { ...position, stopLoss: nextStop, target: nextTarget };
+        positionRef.current = updated;
+        setPosition(updated);
+        setFeedback(`${kind === "stop" ? "Stop" : "Alvo"} ajustado para ${money.format(rounded)}.`);
+        return;
+      }
+      if (mode === "draft" && draftEntryPrice !== null && draftSide) {
+        const currentStop = Number(stopLoss);
+        const currentTarget = Number(target);
+        const nextStop = kind === "stop" ? rounded : currentStop;
+        const nextTarget = kind === "target" ? rounded : currentTarget;
+        validateOcoOrder(asset, draftSide, draftEntryPrice, nextStop, nextTarget);
+        setStopLoss(String(nextStop));
+        setTarget(String(nextTarget));
+        setFeedback(`${kind === "stop" ? "Stop" : "Alvo"} do rascunho ajustado. A relação risco/retorno continua em pelo menos 1:2.`);
+      }
+    } catch (error) {
+      const reason = error instanceof Error ? error.message : "Ajuste OCO inválido.";
+      setFeedback(reason);
+      setRuleViolation(reason);
+    }
+  }
+
+  async function deleteOperationHistory() {
+    if (position || trainingActive) {
+      setFeedback("Encerre a posição e a sessão de treino antes de apagar o histórico.");
+      return;
+    }
+    if (!window.confirm("Apagar permanentemente todo o histórico de operações? Esta ação não pode ser desfeita. As sessões de treino, eventos e configurações serão preservados.")) return;
+    setDeletingHistory(true);
+    try {
+      await deleteAllTrades();
+      setTrades([]);
+      setSessionHistoryRefreshKey((value) => value + 1);
+      setFeedback("Histórico de operações apagado. Sessões de treino, eventos e configurações foram preservados.");
+    } catch (error) {
+      setFeedback(error instanceof Error ? error.message : "Não foi possível apagar o histórico de operações.");
+    } finally {
+      setDeletingHistory(false);
+    }
+  }
 
   const historyTradesForDisplay = visibleTradesForTrainingState(
     trades,
@@ -899,7 +1046,14 @@ export default function App() {
         </div>
       </section>
 
-      {/* Fluxo principal: planejar → conferir → preparar → carregar → treinar. */}
+      <nav className="main-navigation" aria-label="Áreas principais">
+        <button type="button" className={activeArea === "SIMULADOR" ? "active" : ""} aria-current={activeArea === "SIMULADOR" ? "page" : undefined} onClick={() => setActiveArea("SIMULADOR")}>Simulador</button>
+        <button type="button" className={activeArea === "CONFIGURACOES" ? "active" : ""} aria-current={activeArea === "CONFIGURACOES" ? "page" : undefined} onClick={() => setActiveArea("CONFIGURACOES")}>Configurações</button>
+        <button type="button" className={activeArea === "RESULTADOS" ? "active" : ""} aria-current={activeArea === "RESULTADOS" ? "page" : undefined} onClick={() => setActiveArea("RESULTADOS")}>Resultados</button>
+      </nav>
+
+      <section className="app-area simulator-area" hidden={activeArea !== "SIMULADOR"}>
+      {/* Fluxo principal: planejar → conferir → preparar → carregar → treinar. */
       <SimulationPlanner
         disabled={trainingActive || Boolean(position) || startingTraining}
         onPlanChange={async (plan) => {
@@ -925,6 +1079,9 @@ export default function App() {
           setCurrentReplayTrade(null);
           positionRef.current = null;
           setPosition(null);
+          setLastClosedTradeMarker(null);
+          setDraftEntryPrice(null);
+          setDraftSide(null);
           setTrainingSession(null);
           setTrainingEvents([]);
           setTrainingMode("FREE");
@@ -957,15 +1114,6 @@ export default function App() {
         }
       />
 
-      <ExecutionSettingsPanel
-        settings={executionSettings}
-        onSaved={(settings) => {
-          setExecutionSettings(settings);
-          setFeedback(
-            "Configurações salvas. Elas serão aplicadas somente às próximas operações.",
-          );
-        }}
-      />
 
       <ReplayLoadPanel
         path={replay.path}
@@ -1033,6 +1181,10 @@ export default function App() {
               evaluation={indicatorEvaluation}
               position={position}
               asset={asset}
+              draftOrder={draftOrder}
+              entryPlacementEnabled={Boolean(tradingEnabled && !position && authorizedSideForChart)}
+              onEntryPlacement={placeOrderFromChart}
+              onAdjustOco={adjustOcoFromChart}
             />
           ) : (
             <div className="chart-placeholder">
@@ -1054,16 +1206,13 @@ export default function App() {
           <div className="rule-box">
             <strong>Regra de treino</strong>
             <span>
-              A zona precisa ter sido iniciada pelo gatilho original do indicador.
-              Zona verde autoriza apenas Compra; zona vermelha, apenas Venda.
-              Fora das zonas, qualquer tentativa será bloqueada e registrada como
-              fora do operacional.
+              Zona verde autoriza Compra; zona vermelha autoriza Venda. Depois que uma operação termina, um candle posterior que toque na MME 52 pode autorizar uma reentrada na mesma direção, desde que não haja sinal contrário. Toda OCO deve manter risco/retorno mínimo de 1:2; tentativas fora dessas regras são bloqueadas.
             </span>
           </div>
 
           <label>
-            Preço de entrada
-            <input value={lastCandle ? money.format(lastPrice) : ""} readOnly />
+            Preço de entrada (ou clique no gráfico)
+            <input value={lastCandle ? money.format(draftEntryPrice ?? lastPrice) : ""} readOnly />
           </label>
 
           <label>
@@ -1151,12 +1300,11 @@ export default function App() {
                   ? "Alvo primeiro"
                   : "Stop primeiro"}
               </small>
+              <button type="button" className="market-close-button" onClick={stopPositionManually}>
+                Estopar manualmente a mercado
+              </button>
               {dataMode === "replay" && replay.finished && (
-                <button
-                  type="button"
-                  className="market-close-button"
-                  onClick={closeOpenPositionAtReplayEnd}
-                >
+                <button type="button" className="market-close-button" onClick={closeOpenPositionAtReplayEnd}>
                   Encerrar a mercado no último preço
                 </button>
               )}
@@ -1165,14 +1313,9 @@ export default function App() {
         </aside>
       </section>
 
-      <StudentProgressPanel
-        refreshKey={sessionHistoryRefreshKey}
-        hidden={examActive}
-      />
 
-      <ProgressOverviewPanel trades={trades} hidden={examActive} />
 
-      <SessionHistoryPanel refreshKey={sessionHistoryRefreshKey} />
+
 
       <details className="advanced-tools">
         <summary>Ferramenta alternativa: preparar um CSV manualmente (avançado)</summary>
@@ -1200,16 +1343,31 @@ export default function App() {
           }}
         />
       </details>
+      </section>
+
+      <section className="app-area results-area" hidden={activeArea !== "RESULTADOS"}>
+        <h2 className="area-title">Resultados</h2>
+      <StudentProgressPanel
+        refreshKey={sessionHistoryRefreshKey}
+        hidden={examActive}
+      />
+
+      <ProgressOverviewPanel trades={trades} hidden={examActive} />
+
+      <SessionHistoryPanel refreshKey={sessionHistoryRefreshKey} />
 
       <section className="history card">
         <div className="section-heading">
           <div>
             <p className="eyebrow">Persistência local</p>
-            <h2>Últimas operações</h2>
+            <h2>Histórico de operações</h2>
           </div>
-          <span className="history-count">
-            {historyTradesForDisplay.length} visíveis
-          </span>
+          <div className="history-actions">
+            <span className="history-count">{historyTradesForDisplay.length} visíveis</span>
+            <button type="button" className="danger-button" onClick={() => void deleteOperationHistory()} disabled={deletingHistory || Boolean(position) || Boolean(trainingActive)}>
+              {deletingHistory ? "Apagando..." : "Apagar todo o histórico"}
+            </button>
+          </div>
         </div>
 
         {historyTradesForDisplay.length === 0 ? (
@@ -1247,8 +1405,10 @@ export default function App() {
                       {trade.exitReason === "TARGET"
                         ? "Alvo"
                         : trade.exitReason === "STOP"
-                          ? "Stop"
-                          : "Fim da sessão"}
+                          ? "Stop OCO"
+                          : trade.exitReason === "MANUAL_STOP"
+                            ? "Stop manual"
+                            : "Fim da sessão"}
                     </td>
                     <td
                       className={
@@ -1279,7 +1439,19 @@ export default function App() {
           </div>
         )}
       </section>
+      </section>
 
+      <section className="app-area settings-area" hidden={activeArea !== "CONFIGURACOES"}>
+        <h2 className="area-title">Configurações</h2>
+      <ExecutionSettingsPanel
+        settings={executionSettings}
+        onSaved={(settings) => {
+          setExecutionSettings(settings);
+          setFeedback(
+            "Configurações salvas. Elas serão aplicadas somente às próximas operações.",
+          );
+        }}
+      />
       <BackupPanel
         disabled={Boolean(position) || Boolean(trainingActive)}
         onImported={async () => {
@@ -1295,6 +1467,7 @@ export default function App() {
           );
         }}
       />
+      </section>
 
       <RuleViolationModal
         message={ruleViolation}
