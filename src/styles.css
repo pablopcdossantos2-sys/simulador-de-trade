@@ -3427,3 +3427,71 @@ td {
 :root[data-theme="light"] .advanced-tools > summary {
   color: #31516e;
 }
+
+
+/* Navegação das áreas principais */
+.main-navigation {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 0 18px;
+  padding: 7px;
+  border: 1px solid #263b54;
+  border-radius: 13px;
+  background: #0b1726;
+}
+.main-navigation button {
+  min-height: 42px;
+  padding: 9px 16px;
+  border-radius: 9px;
+  background: transparent;
+  color: #91a8bf;
+  cursor: pointer;
+  font-weight: 800;
+}
+.main-navigation button.active {
+  background: #dcecff;
+  color: #0d3355;
+}
+.app-area[hidden] { display: none !important; }
+.area-title {
+  margin: 4px 0 16px;
+  font-size: clamp(1.35rem, 2vw, 1.8rem);
+}
+.danger-button {
+  min-height: 38px;
+  padding: 8px 12px;
+  border: 1px solid #8d4149;
+  border-radius: 9px;
+  background: #341921;
+  color: #ffd9dd;
+  cursor: pointer;
+  font-weight: 800;
+}
+.danger-button:disabled { opacity: .45; cursor: not-allowed; }
+:root[data-theme="light"] .main-navigation {
+  border-color: #cbd9e5;
+  background: #f3f7fa;
+}
+:root[data-theme="light"] .main-navigation button { color: #526b80; }
+:root[data-theme="light"] .main-navigation button.active {
+  background: #dbeeff;
+  color: #123d61;
+}
+:root[data-theme="light"] .danger-button {
+  border-color: #d5a0a5;
+  background: #fff0f1;
+  color: #8c2f39;
+}
+.chart { touch-action: none; }
+.chart .oco-drag-hitbox { cursor: ns-resize; }
+.chart-shell .chart-axis-hint {
+  margin: 8px 0 0;
+  color: #8197ad;
+  font-size: .76rem;
+  line-height: 1.45;
+}
+:root[data-theme="light"] .chart-shell .chart-axis-hint { color: #687f94; }
+@media (max-width: 620px) {
+  .main-navigation button { flex: 1 1 30%; padding-inline: 8px; }
+}
