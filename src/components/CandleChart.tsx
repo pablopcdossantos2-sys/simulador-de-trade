@@ -1,5 +1,5 @@
-import { useState, type MouseEvent as ReactMouseEvent } from "react";
-import type { Asset, Candle, IndicatorEvaluation, IndicatorPoint, Position } from "../types";
+import { useRef, useState, type MouseEvent as ReactMouseEvent } from "react";
+import type { Asset, Candle, IndicatorEvaluation, IndicatorPoint, Position, Side } from "../types";
 
 interface Props {
   candles: Candle[];
@@ -7,9 +7,15 @@ interface Props {
   evaluation: IndicatorEvaluation;
   position: Position | null;
   asset: Asset;
+  draftOrder?: { side: Side; entry: number; stopLoss: number; target: number } | null;
+  entryPlacementEnabled?: boolean;
+  onEntryPlacement?: (price: number) => void;
+  onAdjustOco?: (kind: "stop" | "target", price: number, mode: "position" | "draft") => void;
 }
 interface ChartCandle extends Candle { source: "context" | "target"; }
 interface Crosshair { candleIndex: number; y: number; }
+interface OcoDrag { kind: "stop" | "target"; mode: "position" | "draft"; min: number; max: number; }
+interface AxisDrag { axis: "x" | "y"; startX: number; startY: number; visibleBars: number; priceZoom: number; }
 
 const WIDTH = 1120;
 const HEIGHT = 510;
@@ -67,9 +73,24 @@ function buildLinePath(
   return path.trim();
 }
 
-export function CandleChart({ candles, contextCandles = [], evaluation, position, asset }: Props) {
+export function CandleChart({
+  candles,
+  contextCandles = [],
+  evaluation,
+  position,
+  asset,
+  draftOrder = null,
+  entryPlacementEnabled = false,
+  onEntryPlacement,
+  onAdjustOco,
+}: Props) {
   const [visibleBars, setVisibleBars] = useState(DEFAULT_VISIBLE_BARS);
+  const [priceZoom, setPriceZoom] = useState(1);
   const [crosshair, setCrosshair] = useState<Crosshair | null>(null);
+  const [draggingOco, setDraggingOco] = useState<{ kind: "stop" | "target"; mode: "position" | "draft"; price: number } | null>(null);
+  const dragRef = useRef<OcoDrag | null>(null);
+  const axisDragRef = useRef<AxisDrag | null>(null);
+  const didDragRef = useRef(false);
 
   // O aquecimento completo continua alimentando o indicador; só os candles finais
   // do pregão anterior são exibidos como contexto visual.
@@ -86,7 +107,11 @@ export function CandleChart({ candles, contextCandles = [], evaluation, position
     evaluation.series.filter((point) => visibleIndices.has(point.candleIndex))
       .map((point) => [point.candleIndex, point]),
   );
-  const extraPrices = position ? [position.stopLoss, position.target, position.entry] : [];
+  const extraPrices = position
+    ? [position.stopLoss, position.target, position.entry]
+    : draftOrder
+      ? [draftOrder.stopLoss, draftOrder.target, draftOrder.entry]
+      : [];
   const indicatorPrices = Array.from(pointMap.values()).flatMap((point) =>
     [point.wma20, point.vwap, point.ema8, point.ema52].filter(
       (value): value is number => value !== null && Number.isFinite(value),
@@ -95,9 +120,13 @@ export function CandleChart({ candles, contextCandles = [], evaluation, position
   const rawMin = Math.min(...visible.map((candle) => candle.low), ...indicatorPrices, ...extraPrices);
   const rawMax = Math.max(...visible.map((candle) => candle.high), ...indicatorPrices, ...extraPrices);
   const padding = Math.max((rawMax - rawMin) * 0.07, asset === "WINFUT" ? 10 : 1);
-  const min = rawMin - padding;
-  const max = rawMax + padding;
-  const range = Math.max(max - min, asset === "WINFUT" ? 5 : 0.5);
+  const baseMin = rawMin - padding;
+  const baseMax = rawMax + padding;
+  const centerPrice = (baseMin + baseMax) / 2;
+  const baseRange = Math.max(baseMax - baseMin, asset === "WINFUT" ? 5 : 0.5);
+  const range = Math.max(baseRange / priceZoom, asset === "WINFUT" ? 5 : 0.5);
+  const min = centerPrice - range / 2;
+  const max = centerPrice + range / 2;
   const xStep = (PLOT_RIGHT - PLOT_LEFT) / visibleBars;
   const emptySlots = visibleBars - visible.length;
   const xForIndex = (idx: number) => PLOT_LEFT + (emptySlots + idx + 0.5) * xStep;
@@ -128,9 +157,32 @@ export function CandleChart({ candles, contextCandles = [], evaluation, position
 
   function handleMouseMove(event: ReactMouseEvent<SVGSVGElement>) {
     const rect = event.currentTarget.getBoundingClientRect();
-    if (!rect.width) return;
+    if (!rect.width || !rect.height) return;
     const x = (event.clientX - rect.left) * WIDTH / rect.width;
     const yValue = (event.clientY - rect.top) * HEIGHT / rect.height;
+
+    const drag = dragRef.current;
+    if (drag) {
+      const boundedY = Math.max(PLOT_TOP, Math.min(PLOT_BOTTOM, yValue));
+      const price = drag.max - ((boundedY - PLOT_TOP) / (PLOT_BOTTOM - PLOT_TOP)) * (drag.max - drag.min);
+      setDraggingOco({ kind: drag.kind, mode: drag.mode, price });
+      didDragRef.current = true;
+      return;
+    }
+
+    const axisDrag = axisDragRef.current;
+    if (axisDrag) {
+      if (axisDrag.axis === "x") {
+        const nextBars = Math.round(axisDrag.visibleBars * Math.exp((axisDrag.startX - x) * 0.006));
+        setVisibleBars(Math.max(MIN_VISIBLE_BARS, Math.min(MAX_VISIBLE_BARS, nextBars)));
+      } else {
+        const nextZoom = axisDrag.priceZoom * Math.exp((axisDrag.startY - yValue) * 0.01);
+        setPriceZoom(Math.max(0.5, Math.min(4, nextZoom)));
+      }
+      didDragRef.current = true;
+      return;
+    }
+
     if (x < PLOT_LEFT || x > PLOT_RIGHT || yValue < PLOT_TOP || yValue > VOLUME_BOTTOM) {
       setCrosshair(null);
       return;
@@ -145,6 +197,67 @@ export function CandleChart({ candles, contextCandles = [], evaluation, position
       candleIndex: visible[visibleIndex].index,
       y: Math.max(PLOT_TOP, Math.min(PLOT_BOTTOM, yValue)),
     });
+  }
+
+  function beginOcoDrag(
+    event: ReactMouseEvent<SVGLineElement>,
+    kind: "stop" | "target",
+    mode: "position" | "draft",
+    currentPrice: number,
+  ) {
+    event.preventDefault();
+    event.stopPropagation();
+    dragRef.current = { kind, mode, min, max };
+    setDraggingOco({ kind, mode, price: currentPrice });
+    didDragRef.current = true;
+  }
+
+  function handleAxisMouseDown(event: ReactMouseEvent<SVGSVGElement>) {
+    const rect = event.currentTarget.getBoundingClientRect();
+    if (!rect.width || !rect.height) return;
+    const x = (event.clientX - rect.left) * WIDTH / rect.width;
+    const yValue = (event.clientY - rect.top) * HEIGHT / rect.height;
+    if (x >= PLOT_RIGHT && x <= WIDTH && yValue >= PLOT_TOP && yValue <= PLOT_BOTTOM) {
+      axisDragRef.current = { axis: "y", startX: x, startY: yValue, visibleBars, priceZoom };
+      didDragRef.current = true;
+      event.preventDefault();
+    } else if (x >= PLOT_LEFT && x <= PLOT_RIGHT && yValue >= VOLUME_BOTTOM + 8 && yValue <= HEIGHT) {
+      axisDragRef.current = { axis: "x", startX: x, startY: yValue, visibleBars, priceZoom };
+      didDragRef.current = true;
+      event.preventDefault();
+    }
+  }
+
+  function handleMouseUp(event: ReactMouseEvent<SVGSVGElement>) {
+    const drag = dragRef.current;
+    if (drag) {
+      const rect = event.currentTarget.getBoundingClientRect();
+      if (rect.width && rect.height) {
+        const yValue = (event.clientY - rect.top) * HEIGHT / rect.height;
+        const boundedY = Math.max(PLOT_TOP, Math.min(PLOT_BOTTOM, yValue));
+        const price = drag.max - ((boundedY - PLOT_TOP) / (PLOT_BOTTOM - PLOT_TOP)) * (drag.max - drag.min);
+        onAdjustOco?.(drag.kind, price, drag.mode);
+      }
+      dragRef.current = null;
+      setDraggingOco(null);
+      return;
+    }
+    axisDragRef.current = null;
+  }
+
+  function handleChartClick(event: ReactMouseEvent<SVGSVGElement>) {
+    if (didDragRef.current) {
+      didDragRef.current = false;
+      return;
+    }
+    if (!entryPlacementEnabled || !onEntryPlacement) return;
+    const rect = event.currentTarget.getBoundingClientRect();
+    if (!rect.width || !rect.height) return;
+    const x = (event.clientX - rect.left) * WIDTH / rect.width;
+    const yValue = (event.clientY - rect.top) * HEIGHT / rect.height;
+    if (x < PLOT_LEFT || x > PLOT_RIGHT || yValue < PLOT_TOP || yValue > PLOT_BOTTOM) return;
+    const price = max - ((yValue - PLOT_TOP) / (PLOT_BOTTOM - PLOT_TOP)) * (max - min);
+    onEntryPlacement(price);
   }
 
   return (
@@ -167,7 +280,8 @@ export function CandleChart({ candles, contextCandles = [], evaluation, position
           <button type="button" aria-label="Zoom in: mostrar menos candles" title="Mostrar menos candles"
             disabled={visibleBars <= MIN_VISIBLE_BARS}
             onClick={() => { setVisibleBars((value) => Math.max(MIN_VISIBLE_BARS, value - 12)); setCrosshair(null); }}>+</button>
-          <button type="button" onClick={() => { setVisibleBars(DEFAULT_VISIBLE_BARS); setCrosshair(null); }}>Padrão</button>
+          <span title="Arraste o eixo de preços para alterar a escala vertical">{priceZoom.toFixed(1)}× Y</span>
+          <button type="button" onClick={() => { setVisibleBars(DEFAULT_VISIBLE_BARS); setPriceZoom(1); setCrosshair(null); }}>Padrão</button>
         </div>
       </div>
 
@@ -179,7 +293,11 @@ export function CandleChart({ candles, contextCandles = [], evaluation, position
 
       <svg className="chart" viewBox={"0 0 " + WIDTH + " " + HEIGHT} role="img"
         aria-label="Gráfico de candles com eixo de preços e horários, volume, médias, VWAP, sinais e controles de zoom"
-        onMouseMove={handleMouseMove} onMouseLeave={() => setCrosshair(null)}>
+        onMouseDown={handleAxisMouseDown}
+        onMouseMove={handleMouseMove}
+        onMouseUp={handleMouseUp}
+        onClick={handleChartClick}
+        onMouseLeave={() => { setCrosshair(null); if (!dragRef.current && !axisDragRef.current) didDragRef.current = false; }}>
         <rect width={WIDTH} height={HEIGHT} className="chart-bg" />
         {[0, 0.25, 0.5, 0.75, 1].map((ratio) => {
           const value = max - range * ratio;
@@ -241,8 +359,33 @@ export function CandleChart({ candles, contextCandles = [], evaluation, position
 
         {position && <>
           <PriceLine y={y(position.entry)} label={"Entrada " + formatPrice(position.entry, asset)} className="entry-line" />
-          <PriceLine y={y(position.stopLoss)} label={"Stop " + formatPrice(position.stopLoss, asset)} className="stop-line" />
-          <PriceLine y={y(position.target)} label={"Alvo " + formatPrice(position.target, asset)} className="target-line" />
+          <PriceLine
+            y={y(draggingOco?.mode === "position" && draggingOco.kind === "stop" ? draggingOco.price : position.stopLoss)}
+            label={"Stop " + formatPrice(draggingOco?.mode === "position" && draggingOco.kind === "stop" ? draggingOco.price : position.stopLoss, asset)}
+            className="stop-line" interactive
+            onMouseDown={(event) => beginOcoDrag(event, "stop", "position", position.stopLoss)}
+          />
+          <PriceLine
+            y={y(draggingOco?.mode === "position" && draggingOco.kind === "target" ? draggingOco.price : position.target)}
+            label={"Alvo " + formatPrice(draggingOco?.mode === "position" && draggingOco.kind === "target" ? draggingOco.price : position.target, asset)}
+            className="target-line" interactive
+            onMouseDown={(event) => beginOcoDrag(event, "target", "position", position.target)}
+          />
+        </>}
+        {!position && draftOrder && <>
+          <PriceLine y={y(draftOrder.entry)} label={"Entrada proposta " + formatPrice(draftOrder.entry, asset)} className="entry-line" />
+          <PriceLine
+            y={y(draggingOco?.mode === "draft" && draggingOco.kind === "stop" ? draggingOco.price : draftOrder.stopLoss)}
+            label={"Stop " + formatPrice(draggingOco?.mode === "draft" && draggingOco.kind === "stop" ? draggingOco.price : draftOrder.stopLoss, asset)}
+            className="stop-line" interactive
+            onMouseDown={(event) => beginOcoDrag(event, "stop", "draft", draftOrder.stopLoss)}
+          />
+          <PriceLine
+            y={y(draggingOco?.mode === "draft" && draggingOco.kind === "target" ? draggingOco.price : draftOrder.target)}
+            label={"Alvo " + formatPrice(draggingOco?.mode === "draft" && draggingOco.kind === "target" ? draggingOco.price : draftOrder.target, asset)}
+            className="target-line" interactive
+            onMouseDown={(event) => beginOcoDrag(event, "target", "draft", draftOrder.target)}
+          />
         </>}
 
         {visibleSignals.map((signal) => {
@@ -283,6 +426,9 @@ export function CandleChart({ candles, contextCandles = [], evaluation, position
         <text x={PLOT_LEFT} y={VOLUME_BOTTOM + 17} className="volume-label">VOL</text>
       </svg>
 
+      <p className="chart-axis-hint">
+        {entryPlacementEnabled ? "Clique em um preço do gráfico para posicionar a entrada. Arraste as linhas de Stop e Alvo para ajustar a OCO; a regra 1:2 é obrigatória." : "Arraste o eixo de preços (à direita) para ampliar/reduzir os candles verticalmente e o eixo de horários (embaixo) para alterar o zoom horizontal."}
+      </p>
       {contextCandles.length > 0 && <p className="chart-context-note">
         {candles.length === 0
           ? "Contexto do pregão anterior: os últimos candles disponíveis e seu fechamento permanecem visíveis antes do primeiro negócio do treino."
@@ -292,9 +438,26 @@ export function CandleChart({ candles, contextCandles = [], evaluation, position
   );
 }
 
-function PriceLine({ y, label, className }: { y: number; label: string; className: string }) {
+function PriceLine({
+  y,
+  label,
+  className,
+  interactive = false,
+  onMouseDown,
+}: {
+  y: number;
+  label: string;
+  className: string;
+  interactive?: boolean;
+  onMouseDown?: (event: ReactMouseEvent<SVGLineElement>) => void;
+}) {
   return <g>
-    <line x1={PLOT_LEFT} x2={PLOT_RIGHT} y1={y} y2={y} className={className} />
-    <text x={PLOT_RIGHT - 8} y={y - 5} textAnchor="end" className="price-label">{label}</text>
+    {interactive && <line
+      x1={PLOT_LEFT} x2={PLOT_RIGHT} y1={y} y2={y}
+      stroke="transparent" strokeWidth="16" pointerEvents="stroke"
+      className="oco-drag-hitbox" onMouseDown={onMouseDown}
+    />}
+    <line x1={PLOT_LEFT} x2={PLOT_RIGHT} y1={y} y2={y} className={className} pointerEvents="none" />
+    <text x={PLOT_RIGHT - 8} y={y - 5} textAnchor="end" className="price-label" pointerEvents="none">{label}</text>
   </g>;
 }
