@@ -46,7 +46,9 @@ export async function exportBackup(): Promise<BackupSummary | null> {
   return invoke<BackupSummary>("export_backup", { destinationPath });
 }
 
-export async function importBackup(): Promise<BackupSummary | null> {
+export async function importBackup(
+  mode: "merge" | "replace_all" = "merge",
+): Promise<BackupSummary | null> {
   if (!backupAvailable()) {
     throw new Error(
       "Importação de backup está disponível no aplicativo desktop Tauri.",
@@ -67,5 +69,5 @@ export async function importBackup(): Promise<BackupSummary | null> {
 
   if (!sourcePath || Array.isArray(sourcePath)) return null;
 
-  return invoke<BackupSummary>("import_backup", { sourcePath });
+  return invoke<BackupSummary>("import_backup", { sourcePath, mode });
 }

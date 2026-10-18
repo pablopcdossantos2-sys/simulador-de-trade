@@ -184,6 +184,17 @@ fn column_exists(
 }
 
 fn initialize_database(connection: &Connection) -> rusqlite::Result<()> {
+    let current_schema_version: i64 =
+        connection.query_row("PRAGMA user_version", [], |row| row.get(0))?;
+    if current_schema_version > 6 {
+        return Err(rusqlite::Error::SqliteFailure(
+            rusqlite::ffi::Error::new(rusqlite::ffi::SQLITE_SCHEMA),
+            Some(format!(
+                "O banco está na versão {current_schema_version}, mais nova que esta versão do aplicativo (6). Atualize o Simulador de Trade."
+            )),
+        ));
+    }
+
     connection.execute_batch(
             r#"
             PRAGMA journal_mode = WAL;
@@ -824,15 +835,20 @@ fn list_all_training_events(
 
 #[tauri::command]
 fn delete_all_trades(state: tauri::State<'_, DbState>) -> Result<(), String> {
-    let connection = state.0.lock().map_err(|error| error.to_string())?;
-    connection
-        .execute_batch(
-            "BEGIN IMMEDIATE;
-             DELETE FROM trades;
-             DELETE FROM training_events WHERE type IN ('TRADE_OPENED', 'TRADE_CLOSED');
-             COMMIT;",
+    let mut connection = state.0.lock().map_err(|error| error.to_string())?;
+    let transaction = connection
+        .transaction()
+        .map_err(|error| error.to_string())?;
+    transaction
+        .execute("DELETE FROM trades", [])
+        .map_err(|error| error.to_string())?;
+    transaction
+        .execute(
+            "DELETE FROM training_events WHERE type IN ('TRADE_OPENED', 'TRADE_CLOSED')",
+            [],
         )
         .map_err(|error| error.to_string())?;
+    transaction.commit().map_err(|error| error.to_string())?;
     Ok(())
 }
 
@@ -1206,7 +1222,26 @@ fn export_backup(
 
     let text = serde_json::to_string_pretty(&bundle)
         .map_err(|error| error.to_string())?;
-    fs::write(&path, text).map_err(|error| error.to_string())?;
+    let file_name = path
+        .file_name()
+        .and_then(|name| name.to_str())
+        .ok_or_else(|| "Nome de arquivo de backup inválido.".to_string())?;
+    let nonce = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_nanos();
+    let temp_path = path.with_file_name(format!(".{file_name}.{}.{}.tmp", std::process::id(), nonce));
+    let write_result = (|| -> Result<(), String> {
+        let mut file = File::create(&temp_path).map_err(|error| error.to_string())?;
+        file.write_all(text.as_bytes()).map_err(|error| error.to_string())?;
+        file.sync_all().map_err(|error| error.to_string())?;
+        fs::rename(&temp_path, &path).map_err(|error| error.to_string())?;
+        Ok(())
+    })();
+    if write_result.is_err() {
+        let _ = fs::remove_file(&temp_path);
+    }
+    write_result?;
 
     Ok(BackupSummary {
         path: path.to_string_lossy().to_string(),
@@ -1221,7 +1256,11 @@ fn export_backup(
 fn import_backup(
     state: tauri::State<'_, DbState>,
     source_path: String,
+    mode: String,
 ) -> Result<BackupSummary, String> {
+    if !matches!(mode.as_str(), "merge" | "replace_all") {
+        return Err("Modo de importação inválido. Escolha mesclar ou substituir tudo.".to_string());
+    }
     let path = PathBuf::from(source_path.trim().trim_matches('"'));
     if !path.exists() || !path.is_file() {
         return Err("Arquivo de backup não encontrado.".to_string());
@@ -1230,6 +1269,14 @@ fn import_backup(
         != Some("json".to_string())
     {
         return Err("O backup importado precisa possuir extensão .json.".to_string());
+    }
+
+    const MAX_BACKUP_BYTES: u64 = 50 * 1024 * 1024;
+    let file_size = fs::metadata(&path)
+        .map_err(|error| error.to_string())?
+        .len();
+    if file_size > MAX_BACKUP_BYTES {
+        return Err("O backup excede o limite de 50 MB.".to_string());
     }
 
     let raw = fs::read_to_string(&path).map_err(|error| error.to_string())?;
@@ -1244,6 +1291,15 @@ fn import_backup(
     let transaction = connection
         .transaction()
         .map_err(|error| error.to_string())?;
+
+    if mode == "replace_all" {
+        transaction.execute("DELETE FROM training_events", [])
+            .map_err(|error| error.to_string())?;
+        transaction.execute("DELETE FROM trades", [])
+            .map_err(|error| error.to_string())?;
+        transaction.execute("DELETE FROM training_sessions", [])
+            .map_err(|error| error.to_string())?;
+    }
 
     for session in &bundle.training_sessions {
         transaction
@@ -1350,36 +1406,38 @@ fn import_backup(
             .map_err(|error| error.to_string())?;
     }
 
-    let legacy_cost = bundle.execution_settings.cost_per_contract_round_trip_brl;
-    let win_cost = bundle.execution_settings.cost_win_round_trip_brl.unwrap_or_else(|| {
-        if legacy_cost > 0.0 { legacy_cost } else { default_win_cost() }
-    });
-    let wdo_cost = bundle.execution_settings.cost_wdo_round_trip_brl.unwrap_or_else(|| {
-        if legacy_cost > 0.0 { legacy_cost } else { default_wdo_cost() }
-    });
-    transaction.execute(
-        r#"
-        INSERT INTO execution_settings (
-            id, cost_per_contract_round_trip_brl, cost_win_round_trip_brl,
-            cost_wdo_round_trip_brl, slippage_ticks_per_side, intrabar_policy
+    if mode == "replace_all" {
+        let legacy_cost = bundle.execution_settings.cost_per_contract_round_trip_brl;
+        let win_cost = bundle.execution_settings.cost_win_round_trip_brl.unwrap_or_else(|| {
+            if legacy_cost > 0.0 { legacy_cost } else { default_win_cost() }
+        });
+        let wdo_cost = bundle.execution_settings.cost_wdo_round_trip_brl.unwrap_or_else(|| {
+            if legacy_cost > 0.0 { legacy_cost } else { default_wdo_cost() }
+        });
+        transaction.execute(
+            r#"
+            INSERT INTO execution_settings (
+                id, cost_per_contract_round_trip_brl, cost_win_round_trip_brl,
+                cost_wdo_round_trip_brl, slippage_ticks_per_side, intrabar_policy
+            )
+            VALUES (1, ?1, ?2, ?3, ?4, ?5)
+            ON CONFLICT(id) DO UPDATE SET
+                cost_per_contract_round_trip_brl = excluded.cost_per_contract_round_trip_brl,
+                cost_win_round_trip_brl = excluded.cost_win_round_trip_brl,
+                cost_wdo_round_trip_brl = excluded.cost_wdo_round_trip_brl,
+                slippage_ticks_per_side = excluded.slippage_ticks_per_side,
+                intrabar_policy = excluded.intrabar_policy
+            "#,
+            params![
+                legacy_cost,
+                win_cost,
+                wdo_cost,
+                bundle.execution_settings.slippage_ticks_per_side,
+                bundle.execution_settings.intrabar_policy,
+            ],
         )
-        VALUES (1, ?1, ?2, ?3, ?4, ?5)
-        ON CONFLICT(id) DO UPDATE SET
-            cost_per_contract_round_trip_brl = excluded.cost_per_contract_round_trip_brl,
-            cost_win_round_trip_brl = excluded.cost_win_round_trip_brl,
-            cost_wdo_round_trip_brl = excluded.cost_wdo_round_trip_brl,
-            slippage_ticks_per_side = excluded.slippage_ticks_per_side,
-            intrabar_policy = excluded.intrabar_policy
-        "#,
-        params![
-            legacy_cost,
-            win_cost,
-            wdo_cost,
-            bundle.execution_settings.slippage_ticks_per_side,
-            bundle.execution_settings.intrabar_policy,
-        ],
-    )
         .map_err(|error| error.to_string())?;
+    }
 
     transaction.commit().map_err(|error| error.to_string())?;
 

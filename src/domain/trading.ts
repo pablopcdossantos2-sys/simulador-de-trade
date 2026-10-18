@@ -54,12 +54,14 @@ function entryExecutionPrice(intent: TradeIntent): number {
 function exitExecutionPrice(
   position: Position,
   triggerPrice: number,
+  exitReason: Trade["exitReason"],
 ): number {
+  // O alvo é uma ordem limite: não aplicamos slippage adverso de saída.
+  if (exitReason === "TARGET") return triggerPrice;
+
   const slip =
     position.slippageTicksPerSide * tickSizeFor(position.asset);
-
-  // Encerrar BUY significa vender: pior execução = preço menor.
-  // Encerrar SELL significa comprar: pior execução = preço maior.
+  // Encerrar BUY significa vender; encerrar SELL significa comprar.
   return position.side === "BUY"
     ? triggerPrice - slip
     : triggerPrice + slip;
@@ -88,6 +90,27 @@ export function validateOcoOrder(
   const reward = side === "BUY" ? target - entry : entry - target;
   if (reward + 1e-9 < risk * 2) {
     throw new TradingRuleError(`Risco/retorno fora das regras: o alvo precisa oferecer pelo menos 2 vezes o risco (mínimo 1:2). Risco: ${risk.toFixed(2)} pontos; alvo: ${reward.toFixed(2)} pontos.`);
+  }
+}
+
+function validateEffectiveRiskReward(intent: TradeIntent, executedEntry: number): void {
+  const slip = intent.execution.slippageTicksPerSide * tickSizeFor(intent.asset);
+  const stopExecution = intent.side === "BUY"
+    ? intent.oco.stopLoss - slip
+    : intent.oco.stopLoss + slip;
+  const riskPoints = intent.side === "BUY"
+    ? executedEntry - stopExecution
+    : stopExecution - executedEntry;
+  const rewardPoints = intent.side === "BUY"
+    ? intent.oco.target - executedEntry
+    : executedEntry - intent.oco.target;
+  const cost = costForAsset(intent);
+  const riskBRL = grossResultBRL(intent.asset, riskPoints, 1) + cost;
+  const rewardBRL = grossResultBRL(intent.asset, rewardPoints, 1) - cost;
+  if (riskPoints <= 0 || rewardPoints <= 0 || rewardBRL + 1e-9 < riskBRL * 2) {
+    throw new TradingRuleError(
+      "Risco/retorno efetivo inferior a 1:2 após slippage e custos. Ajuste a entrada, o stop, o alvo ou as configurações de execução.",
+    );
   }
 }
 
@@ -146,51 +169,8 @@ export function validateTradeIntent(intent: TradeIntent): void {
     );
   }
 
-  if (
-    !isFinitePrice(entry) ||
-    !isFinitePrice(oco.stopLoss) ||
-    !isFinitePrice(oco.target)
-  ) {
-    throw new TradingRuleError(
-      "Entrada, stop loss e alvo devem possuir preços válidos.",
-    );
-  }
-
-  if (
-    !isPriceOnTick(asset, entry) ||
-    !isPriceOnTick(asset, oco.stopLoss) ||
-    !isPriceOnTick(asset, oco.target)
-  ) {
-    throw new TradingRuleError(
-      `Entrada, stop loss e alvo precisam respeitar o incremento mínimo de ${tickSizeFor(asset)} do ativo.`,
-    );
-  }
-
-  if (side === "BUY") {
-    if (oco.stopLoss >= entry) {
-      throw new TradingRuleError(
-        "Em uma compra, o stop loss precisa ficar abaixo do preço de entrada.",
-      );
-    }
-    if (oco.target <= entry) {
-      throw new TradingRuleError(
-        "Em uma compra, o alvo precisa ficar acima do preço de entrada.",
-      );
-    }
-  }
-
-  if (side === "SELL") {
-    if (oco.stopLoss <= entry) {
-      throw new TradingRuleError(
-        "Em uma venda, o stop loss precisa ficar acima do preço de entrada.",
-      );
-    }
-    if (oco.target >= entry) {
-      throw new TradingRuleError(
-        "Em uma venda, o alvo precisa ficar abaixo do preço de entrada.",
-      );
-    }
-  }
+  // Centraliza tick, geometria e razão nominal em uma única validação.
+  validateOcoOrder(asset, side, entry, oco.stopLoss, oco.target);
 
   const executedEntry = entryExecutionPrice(intent);
 
@@ -218,7 +198,7 @@ export function validateTradeIntent(intent: TradeIntent): void {
     );
   }
 
-  validateOcoOrder(asset, side, entry, oco.stopLoss, oco.target);
+  validateEffectiveRiskReward(intent, executedEntry);
 }
 
 export function openPosition(
@@ -261,7 +241,7 @@ function closePosition(
   exitReason: Trade["exitReason"],
   closedAt: string,
 ): Trade {
-  const exitPrice = exitExecutionPrice(position, triggerPrice);
+  const exitPrice = exitExecutionPrice(position, triggerPrice, exitReason);
   const resultPoints = pointsFor(
     position.side,
     position.entry,
@@ -369,8 +349,11 @@ export function resolveOco(
     : stopTouched
       ? "STOP"
       : "TARGET";
-  const triggerPrice =
-    exitReason === "STOP" ? position.stopLoss : position.target;
+  const triggerPrice = exitReason === "TARGET"
+    ? position.target
+    : position.side === "BUY"
+      ? Math.min(candle.open, position.stopLoss)
+      : Math.max(candle.open, position.stopLoss);
 
   return closePosition(
     position,
@@ -408,8 +391,11 @@ export function resolveOcoTrade(
   // Com dados negócio a negócio não precisamos supor qual nível veio primeiro:
   // cada evento chega em sequência histórica canônica.
   const exitReason = stopTouched ? "STOP" : "TARGET";
-  const triggerPrice =
-    exitReason === "STOP" ? position.stopLoss : position.target;
+  const triggerPrice = exitReason === "TARGET"
+    ? position.target
+    : position.side === "BUY"
+      ? Math.min(trade.price, position.stopLoss)
+      : Math.max(trade.price, position.stopLoss);
 
   return closePosition(
     position,

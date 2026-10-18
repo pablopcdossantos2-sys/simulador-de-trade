@@ -42,7 +42,7 @@ describe("Multi Médias - Nuvem e Sinais", () => {
     const buySignals = result.signals.filter((signal) => signal.side === "BUY");
 
     expect(buySignals).toHaveLength(1);
-    expect(buySignals[0].candleIndex).toBe(19);
+    expect(buySignals[0].candleIndex).toBe(51);
     expect(result.zone).toBe("GREEN");
     expect(result.authorization?.side).toBe("BUY");
   });
@@ -54,9 +54,16 @@ describe("Multi Médias - Nuvem e Sinais", () => {
     const sellSignals = result.signals.filter((signal) => signal.side === "SELL");
 
     expect(sellSignals).toHaveLength(1);
-    expect(sellSignals[0].candleIndex).toBe(19);
+    expect(sellSignals[0].candleIndex).toBe(51);
     expect(result.zone).toBe("RED");
     expect(result.authorization?.side).toBe("SELL");
+  });
+
+  it("não autoriza sinais antes da inicialização da MME 52", () => {
+    const adapter = new MultiMediasNuvemAdapter();
+    const result = adapter.calculate("WINFUT", trendCandles(5, 40));
+    expect(result.signals).toHaveLength(0);
+    expect(result.authorization).toBeNull();
   });
 
   it("calcula a MMP 20 ponderando mais os candles recentes", () => {

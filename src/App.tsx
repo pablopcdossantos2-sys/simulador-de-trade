@@ -140,6 +140,8 @@ export default function App() {
   const usedSignalIdsRef = useRef<Set<string>>(new Set());
   const ignoredSignalIdsRef = useRef<Set<string>>(new Set());
   const lastSuggestedSignalIdRef = useRef<string | null>(null);
+  const lastSeenReplaySignalRef = useRef<string | null>(null);
+  const pauseReplayRef = useRef<(() => void) | null>(null);
   const startingTrainingRef = useRef(false);
   const positionRef = useRef<Position | null>(null);
   const candlesRef = useRef(candles);
@@ -151,32 +153,68 @@ export default function App() {
 
   const handleReplayTrade = useCallback(
     (trade: ReplayTrade) => {
+      const previousCandles = candlesRef.current;
       const nextCandles = applyReplayTrade(
-        candlesRef.current,
+        previousCandles,
         trade,
         replayTimeframeMinutes * 60,
       );
+      const candleJustClosed = nextCandles.length > previousCandles.length;
 
       candlesRef.current = nextCandles;
       setCandles(nextCandles);
       setCurrentReplayTrade(trade);
 
       const openPosition = positionRef.current;
-      if (!openPosition) return;
+      if (openPosition) {
+        const closed = resolveOcoTrade(openPosition, trade);
+        if (!closed) return;
 
-      const closed = resolveOcoTrade(openPosition, trade);
-      if (!closed) return;
+        positionRef.current = null;
+        persistClosedTradeRef.current(closed);
+      }
 
-      positionRef.current = null;
-      persistClosedTradeRef.current(closed);
+      // No replay histórico, sinais são avaliados no fechamento do candle.
+      // Pausar no primeiro sinal confirmado evita que a oportunidade de decisão
+      // dependa da velocidade escolhida ou do tamanho do lote processado por frame.
+      if (
+        dataMode !== "replay" ||
+        trainingSession?.status !== "ACTIVE" ||
+        !candleJustClosed ||
+        positionRef.current
+      ) return;
+
+      const offset = warmupCandles.length;
+      const hidden = warmupCandles.map((candle, index) => ({ ...candle, index }));
+      const closedVisible = nextCandles.slice(0, -1).map((candle, index) => ({
+        ...candle,
+        index: offset + index,
+      }));
+      const closedEvaluation = indicator.calculate(asset, [...hidden, ...closedVisible]);
+      const authorization = closedEvaluation.authorization;
+      const previousSignalId = lastSeenReplaySignalRef.current;
+      lastSeenReplaySignalRef.current = authorization?.id ?? null;
+
+      if (
+        authorization &&
+        authorization.candleIndex >= offset &&
+        authorization.id !== previousSignalId &&
+        !usedSignalIdsRef.current.has(authorization.id)
+      ) {
+        pauseReplayRef.current?.();
+        setFeedback(
+          `Novo sinal de ${sideLabel(authorization.side)} confirmado no fechamento do candle. Replay pausado para você avaliar a entrada.`,
+        );
+      }
     },
-    [replayTimeframeMinutes],
+    [asset, dataMode, replayTimeframeMinutes, trainingSession?.status, warmupCandles],
   );
 
   const replay = useReplayPlayer(
     handleReplayTrade,
     replayTimeframeMinutes,
   );
+  pauseReplayRef.current = () => replay.setPlaying(false);
 
   useEffect(() => {
     positionRef.current = position;
@@ -203,7 +241,8 @@ export default function App() {
       index,
     }));
 
-    return [...hidden, ...visibleCandles];
+    // O último candle do replay ainda está em formação: não deve autorizar sinal.
+    return [...hidden, ...visibleCandles.slice(0, -1)];
   }, [candles, dataMode, visibleCandles, warmupCandles]);
 
   const indicatorEvaluation = useMemo(
@@ -217,16 +256,27 @@ export default function App() {
   const reentryAuthorization = useMemo(() => {
     if (!lastClosedTradeMarker) return null;
     const side = lastClosedTradeMarker.trade.side;
+    const requiredZone = side === "BUY" ? "GREEN" : "RED";
+    if (indicatorEvaluation.zone !== requiredZone) return null;
     if (signal && !signalAlreadyUsed) return null;
     if (signal && signal.side !== side) return null;
 
-    const candleByIndex = new Map(visibleCandles.map((candle) => [candle.index, candle] as const));
-    const touchedPoint = indicatorEvaluation.series.find((point) => {
-      if (point.candleIndex <= lastClosedTradeMarker.candleIndex || !Number.isFinite(point.ema52)) return false;
+    const candleByIndex = new Map(indicatorCandles.map((candle) => [candle.index, candle] as const));
+    const latestClosedIndex = indicatorCandles.at(-1)?.index;
+    if (latestClosedIndex === undefined) return null;
+
+    // Usa o toque fechado mais recente; a autorização expira após 3 candles
+    // e deixa de valer assim que a zona direcional é perdida.
+    const touchedPoint = [...indicatorEvaluation.series].reverse().find((point) => {
+      if (
+        point.candleIndex <= lastClosedTradeMarker.candleIndex ||
+        point.zone !== requiredZone ||
+        !Number.isFinite(point.ema52)
+      ) return false;
       const candle = candleByIndex.get(point.candleIndex);
       return Boolean(candle && candle.low <= point.ema52 && candle.high >= point.ema52);
     });
-    if (!touchedPoint) return null;
+    if (!touchedPoint || latestClosedIndex - touchedPoint.candleIndex > 3) return null;
     const candle = candleByIndex.get(touchedPoint.candleIndex);
     if (!candle) return null;
     return {
@@ -236,7 +286,7 @@ export default function App() {
       timestamp: candle.timestamp,
       price: candle.close,
     };
-  }, [lastClosedTradeMarker, signal?.id, signalAlreadyUsed, indicatorEvaluation.series, visibleCandles]);
+  }, [lastClosedTradeMarker, signal?.id, signalAlreadyUsed, indicatorEvaluation.series, indicatorEvaluation.zone, indicatorCandles]);
   const authorizedSideForChart = signal && !signalAlreadyUsed
     ? signal.side
     : reentryAuthorization?.side ?? null;

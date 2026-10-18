@@ -31,7 +31,7 @@ const baseIntent: TradeIntent = {
     intrabarPolicy: "STOP_FIRST" as const,
   },
   candleIndex: 10,
-  oco: { stopLoss: 129900, target: 130200 },
+  oco: { stopLoss: 129900, target: 130250 },
   signal: buySignal,
   signalAlreadyUsed: false,
   hasOpenPosition: false,
@@ -108,8 +108,16 @@ describe("regras de entrada", () => {
     expect(() => validateTradeIntent(baseIntent)).not.toThrow();
   });
 
-  it("bloqueia risco/retorno inferior a 1:2", () => {
+  it("bloqueia risco/retorno nominal inferior a 1:2", () => {
     expect(() => validateTradeIntent({ ...baseIntent, oco: { stopLoss: 129900, target: 130100 } })).toThrow(/mínimo 1:2/i);
+  });
+
+  it("bloqueia razão efetiva abaixo de 1:2 após slippage e custos", () => {
+    expect(() => validateTradeIntent({
+      ...baseIntent,
+      execution: { ...baseIntent.execution, slippageTicksPerSide: 2 },
+      oco: { stopLoss: 129900, target: 130200 },
+    })).toThrow(/risco\/retorno efetivo inferior a 1:2/i);
   });
 
   it("permite reentrada autorizada pela MME 52 sem novo sinal", () => {
@@ -126,7 +134,7 @@ describe("regras de entrada", () => {
       asset: "WDOFUT",
       entry: 5200,
       signal: { ...buySignal, id: "signal-wdo", asset: "WDOFUT", price: 5200 },
-      oco: { stopLoss: 5190, target: 5220 },
+      oco: { stopLoss: 5190, target: 5225 },
       execution: {
         costPerContractRoundTripBRL: 0.5,
         costWinRoundTripBRL: 0.5,
@@ -147,7 +155,7 @@ describe("regras de entrada", () => {
     expect(position.openedAt).toBe("2026-10-14T09:20:00");
   });
 
-  it("aplica slippage adverso na entrada e saída", () => {
+  it("aplica slippage na entrada e executa o alvo limite no nível", () => {
     const position = openPosition(
       {
         ...baseIntent,
@@ -169,15 +177,15 @@ describe("regras de entrada", () => {
       timestamp: "2026-01-01T09:31:00Z",
       sourceRow: 1,
       sequence: 1,
-      price: 130200,
+      price: 130250,
       quantity: 1,
     });
 
-    expect(closed?.exitPrice).toBe(130195);
-    expect(closed?.resultPoints).toBe(190);
-    expect(closed?.grossResultBRL).toBe(38);
+    expect(closed?.exitPrice).toBe(130250);
+    expect(closed?.resultPoints).toBe(245);
+    expect(closed?.grossResultBRL).toBe(49);
     expect(closed?.operationalCostsBRL).toBe(1);
-    expect(closed?.netResultBRL).toBe(37);
+    expect(closed?.netResultBRL).toBe(48);
     expect(closed?.entryContext).toBeNull();
   });
 });
@@ -250,6 +258,21 @@ describe("resolução OCO", () => {
     expect(trade?.resultPoints).toBe(-100);
   });
 
+  it("usa a abertura do candle quando há gap além do stop", () => {
+    const result = resolveOco(position, {
+      index: 11,
+      timestamp: "2026-01-01T12:01:00.000Z",
+      open: 129800,
+      high: 129950,
+      low: 129700,
+      close: 129750,
+      volume: 100,
+    });
+    expect(result?.exitReason).toBe("STOP");
+    expect(result?.exitPrice).toBe(129800);
+    expect(result?.resultPoints).toBe(-200);
+  });
+
   it("pode priorizar o alvo em candle OHLC ambíguo", () => {
     const trade = resolveOco(
       { ...position, intrabarPolicy: "TARGET_FIRST" as const },
@@ -302,6 +325,39 @@ describe("resolução OCO negócio a negócio", () => {
         quantity: 1,
       }),
     ).toBeNull();
+  });
+
+  it("executa alvo como ordem limite sem slippage adverso de saída", () => {
+    const result = resolveOcoTrade(
+      { ...position, slippageTicksPerSide: 2 },
+      {
+        asset: "WINFUT",
+        timestamp: "2026-01-01T09:30:01.000-03:00",
+        sourceRow: 499,
+        sequence: 101,
+        price: 130155,
+        quantity: 2,
+      },
+    );
+    expect(result?.exitReason).toBe("TARGET");
+    expect(result?.exitPrice).toBe(130150);
+  });
+
+  it("considera gap além do stop no replay negócio a negócio", () => {
+    const result = resolveOcoTrade(
+      { ...position, slippageTicksPerSide: 1 },
+      {
+        asset: "WINFUT",
+        timestamp: "2026-01-01T09:30:01.000-03:00",
+        sourceRow: 499,
+        sequence: 101,
+        price: 129850,
+        quantity: 2,
+      },
+    );
+    expect(result?.exitReason).toBe("STOP");
+    expect(result?.exitPrice).toBe(129845);
+    expect(result?.resultPoints).toBe(-155);
   });
 
   it("encerra no primeiro negócio posterior que toca o alvo", () => {
@@ -405,7 +461,7 @@ describe("regras e execução SELL", () => {
     candleIndex: 20,
     oco: {
       stopLoss: 130100,
-      target: 129800,
+      target: 129750,
     },
     signal: sellSignal,
     signalAlreadyUsed: false,
@@ -425,7 +481,7 @@ describe("regras e execução SELL", () => {
     ).toThrow(/stop loss precisa ficar acima/i);
   });
 
-  it("aplica slippage adverso na entrada e no alvo da venda", () => {
+  it("aplica slippage na entrada, mas não ao alvo limite da venda", () => {
     const position = openPosition(
       sellIntent,
       new Date("2026-01-01T13:00:00Z"),
@@ -439,16 +495,16 @@ describe("regras e execução SELL", () => {
       timestamp: "2026-01-01T13:01:00Z",
       sourceRow: 1,
       sequence: 1,
-      price: 129800,
+      price: 129750,
       quantity: 1,
     });
 
     expect(result?.exitReason).toBe("TARGET");
-    expect(result?.exitPrice).toBe(129805);
-    expect(result?.resultPoints).toBe(190);
-    expect(result?.grossResultBRL).toBe(76);
+    expect(result?.exitPrice).toBe(129750);
+    expect(result?.resultPoints).toBe(245);
+    expect(result?.grossResultBRL).toBe(98);
     expect(result?.operationalCostsBRL).toBe(2);
-    expect(result?.netResultBRL).toBe(74);
+    expect(result?.netResultBRL).toBe(96);
   });
 
   it("piora também a execução do stop da venda", () => {

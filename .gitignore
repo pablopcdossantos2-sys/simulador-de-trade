@@ -7,3 +7,10 @@ src-tauri/target/
 .env
 .env.*
 !.env.example
+
+# Dados locais de mercado e bancos do aplicativo: não versionar.
+*.csv
+*.replay.csv
+*.db
+*.sqlite
+*.sqlite3

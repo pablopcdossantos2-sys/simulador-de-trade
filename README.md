@@ -168,7 +168,7 @@ npm test
 - [x] Formação M2/M5 negócio a negócio.
 - [x] Reprodução, pausa, +1 negócio, reinício e velocidade visual.
 - [x] Ocultação dos candles futuros.
-- [x] Indicador recalculado durante o candle M2/M5 aberto.
+- [x] Indicador de replay autorizado em candles fechados; o replay pausa ao confirmar novo sinal.
 - [x] OCO avaliada negócio a negócio.
 - [x] Planejamento explícito de pregão/data/horário.
 - [x] Catálogo local e detecção automática de dados faltantes.

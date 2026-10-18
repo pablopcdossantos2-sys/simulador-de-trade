@@ -17,6 +17,7 @@ function summaryText(action: string, summary: BackupSummary): string {
 
 export function BackupPanel({ disabled, onImported }: Props) {
   const [busy, setBusy] = useState<"export" | "import" | null>(null);
+  const [importMode, setImportMode] = useState<"merge" | "replace_all">("merge");
   const [feedback, setFeedback] = useState<string | null>(null);
   const available = backupAvailable();
 
@@ -41,14 +42,24 @@ export function BackupPanel({ disabled, onImported }: Props) {
   }
 
   async function handleImport() {
+    if (
+      importMode === "replace_all" &&
+      !window.confirm("Substituir todos os trades, sessões, eventos e configurações locais pelos dados do backup? Esta ação não pode ser desfeita.")
+    ) return;
+
     setBusy("import");
     setFeedback(null);
 
     try {
-      const result = await importBackup();
+      const result = await importBackup(importMode);
       if (result) {
         await onImported();
-        setFeedback(summaryText("Backup importado e mesclado", result));
+        setFeedback(summaryText(
+          importMode === "merge"
+            ? "Backup mesclado; registros locais e configurações preservados"
+            : "Backup restaurado; dados locais substituídos",
+          result,
+        ));
       }
     } catch (error) {
       setFeedback(
@@ -73,9 +84,22 @@ export function BackupPanel({ disabled, onImported }: Props) {
 
       <p className="data-description">
         Exporte sessões, trades, notas, snapshots de entrada, eventos e
-        configurações. A importação mescla o arquivo ao banco atual por ID:
-        registros correspondentes são atualizados e os demais são adicionados.
+        configurações. Em “Mesclar”, registros locais e configurações atuais são
+        preservados. Em “Substituir tudo”, os dados locais são apagados em uma
+        transação e o backup passa a ser a fonte.
       </p>
+
+      <label className="backup-import-mode">
+        Modo de importação
+        <select
+          value={importMode}
+          onChange={(event) => setImportMode(event.target.value as "merge" | "replace_all")}
+          disabled={disabled || busy !== null || !available}
+        >
+          <option value="merge">Mesclar — preservar registros locais e configurações atuais</option>
+          <option value="replace_all">Substituir tudo — restaurar também as configurações do backup</option>
+        </select>
+      </label>
 
       <div className="backup-actions">
         <button
