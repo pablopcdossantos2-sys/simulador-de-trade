@@ -243,6 +243,7 @@ export function CandleChart({
       return;
     }
     axisDragRef.current = null;
+    window.setTimeout(() => { didDragRef.current = false; }, 0);
   }
 
   function handleChartClick(event: ReactMouseEvent<SVGSVGElement>) {
