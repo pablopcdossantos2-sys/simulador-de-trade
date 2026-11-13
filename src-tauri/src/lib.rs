@@ -2880,7 +2880,7 @@ mod tests {
 
         assert_eq!(layout.symbol_idx, Some(0));
         assert_eq!(layout.timestamp_idx, Some(1));
-        assert_eq!(layout.volume_idx, Some(7));
+        assert_eq!(layout.volume_idx, 7);
 
         let row = "WINV26;14/10/2026 09:00;130000;130050;129950;130010;168365965;11117500";
         let row_fields = parse_delimited_line(row, ';');
