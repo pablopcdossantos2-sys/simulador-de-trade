@@ -380,6 +380,10 @@ export function TraderEvolutionPanel({ refreshKey }: Props) {
                   </span>
                 </div>
                 <p>{pattern.description}</p>
+                <div className="review-insight-recommendation">
+                  <strong>O que experimentar na próxima sessão</strong>
+                  <span>{pattern.recommendation}</span>
+                </div>
                 <div className="review-insight-metrics">
                   <strong>{pattern.count} de {pattern.sampleSize}</strong>
                   <span>{pattern.percentage.toFixed(0)}% das avaliações aplicáveis</span>
