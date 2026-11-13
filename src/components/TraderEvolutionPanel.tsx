@@ -181,7 +181,7 @@ export function TraderEvolutionPanel({ refreshKey }: Props) {
       [tradeId]: {
         ...(current[tradeId] ?? createTradeReviewDraft()),
         [key]: value,
-      },
+      } as TradeReviewDraft,
     }));
   }
 
