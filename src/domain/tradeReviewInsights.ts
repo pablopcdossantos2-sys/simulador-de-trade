@@ -7,6 +7,7 @@ export interface TradeReviewPattern {
   key: string;
   title: string;
   description: string;
+  recommendation: string;
   count: number;
   sampleSize: number;
   percentage: number;
@@ -32,6 +33,7 @@ interface PatternDefinition {
   key: string;
   title: string;
   description: string;
+  recommendation: string;
   matches: (trade: Trade, review: TradeReview) => boolean;
   applies?: (trade: Trade, review: TradeReview) => boolean;
 }
@@ -50,18 +52,21 @@ const definitions: PatternDefinition[] = [
     key: "ENTRY_OUTSIDE_PLAN",
     title: "Entradas fora do plano",
     description: "Operações em que a entrada foi registrada como fora do plano definido.",
+    recommendation: "Antes de abrir uma posição, confirme sinal, contexto e ponto de entrada com o checklist do operacional."
     matches: (_trade, review) => review.entryExecution === "OUTSIDE_PLAN",
   },
   {
     key: "STOP_MOVED_AGAINST_PLAN",
     title: "Afastamento do stop",
     description: "O stop foi afastado para evitar a saída, contrariando o plano.",
+    recommendation: "Defina previamente quais ajustes de stop são permitidos. Não o afaste apenas para evitar realizar o prejuízo."
     matches: (_trade, review) => review.stopDiscipline === "MOVED_AGAINST_PLAN",
   },
   {
     key: "PROFIT_CLOSED_EARLY",
     title: "Operações lucrativas encerradas antes do alvo",
     description: "Trades com resultado positivo em que o alvo foi abandonado por encerramento antecipado.",
+    recommendation: "Revise se a saída antecipada teve um motivo técnico previsto ou foi uma reação ao medo de devolver o lucro."
     applies: (trade) => trade.netResultBRL > 0,
     matches: (_trade, review) => review.targetDiscipline === "CLOSED_EARLY",
   },
@@ -69,18 +74,21 @@ const definitions: PatternDefinition[] = [
     key: "TARGET_EXTENDED_WITHOUT_PLAN",
     title: "Extensão do alvo sem previsão",
     description: "O alvo foi estendido sem que essa possibilidade estivesse prevista no plano.",
+    recommendation: "Estabeleça antes da entrada as condições objetivas para estender o alvo; sem elas, mantenha o plano original."
     matches: (_trade, review) => review.targetDiscipline === "EXTENDED_WITHOUT_PLAN",
   },
   {
     key: "RULES_BROKEN",
     title: "Quebra de regras do operacional",
     description: "A avaliação registrou que uma ou mais regras foram quebradas.",
+    recommendation: "Identifique qual regra foi quebrada e transforme a correção em uma condição verificável para a próxima sessão."
     matches: (_trade, review) => review.ruleAdherence === "BROKE",
   },
   ...(["FEAR", "GREED", "REVENGE", "FOMO", "HESITATION", "OTHER"] as const).map((emotion) => ({
     key: `EMOTION_${emotion}`,
     title: `Interferência emocional: ${emotionLabels[emotion]}`,
     description: `A avaliação registrou repetição de interferência associada a: ${emotionLabels[emotion].toLowerCase()}.`,
+    recommendation: "Registre o alvo e as condições de extensão antes da entrada; não altere o plano apenas para buscar mais pontos.",
     matches: (_trade: Trade, review: TradeReview) => review.emotionalInterference === emotion,
   })),
 ];
@@ -177,6 +185,7 @@ export function buildTradeReviewInsights(
         key: definition.key,
         title: definition.title,
         description: definition.description,
+        recommendation: definition.recommendation,
         count: current.count,
         sampleSize: current.sampleSize,
         percentage: current.percentage,
