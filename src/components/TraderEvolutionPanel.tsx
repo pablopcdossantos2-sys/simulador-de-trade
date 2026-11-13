@@ -31,8 +31,8 @@ function formatDuration(seconds: number): string {
   const totalMinutes = Math.floor(Math.max(0, seconds) / 60);
   const hours = Math.floor(totalMinutes / 60);
   const minutes = totalMinutes % 60;
-  if (hours > 0) return \`\${hours}h \${String(minutes).padStart(2, "0")}min\`;
-  return \`\${minutes} min\`;
+  if (hours > 0) return `${hours}h ${String(minutes).padStart(2, "0")}min`;
+  return `${minutes} min`;
 }
 
 function formatDate(value: string): string {
@@ -246,7 +246,7 @@ export function TraderEvolutionPanel({ refreshKey }: Props) {
 
       {error && <div className="evolution-error">Não foi possível carregar todo o histórico: {error}</div>}
 
-      <article className={\`evolution-diagnosis \${metrics.diagnosticLevel.toLowerCase()}\`}>
+      <article className={`evolution-diagnosis ${metrics.diagnosticLevel.toLowerCase()}`}>
         <div>
           <p className="eyebrow">Diagnóstico da rotina</p>
           <h3>{metrics.diagnosticTitle}</h3>
@@ -281,12 +281,12 @@ export function TraderEvolutionPanel({ refreshKey }: Props) {
                 day.isToday ? "is-today" : "",
                 day.isFuture ? "is-future" : "",
               ].filter(Boolean).join(" ")}
-              title={day.sessionCount > 0 ? \`\${day.sessionCount} sessão(ões) de treino\` : "Sem sessão de treino"}
+              title={day.sessionCount > 0 ? `${day.sessionCount} sessão(ões) de treino` : "Sem sessão de treino"}
             >
               <span>{day.day}</span>
               {day.sessionCount > 0 && <small>{day.sessionCount}×</small>}
             </div>
-          ) : <div className="practice-day empty" key={\`empty-\${index}\`} />)}
+          ) : <div className="practice-day empty" key={`empty-${index}`} />)}
         </div>
         <div className="practice-calendar-legend">
           <span><i className="practice-legend-dot" /> Dia com treino</span>
@@ -370,7 +370,7 @@ export function TraderEvolutionPanel({ refreshKey }: Props) {
                     <strong>{trade.asset} · {trade.side === "BUY" ? "Compra" : "Venda"}</strong>
                     <small>{formatDate(trade.closedAt)} · {trade.contracts} contrato(s)</small>
                   </div>
-                  <span className={\`trade-review-status \${assessment ?? "PENDING"}\`}>
+                  <span className={`trade-review-status ${assessment ?? "PENDING"}`}>
                     {trade.review ? reviewLabel(trade.review) : "Avaliação pendente"}
                   </span>
                   <strong className={trade.netResultBRL >= 0 ? "positive" : "negative"}>
@@ -454,7 +454,7 @@ export function TraderEvolutionPanel({ refreshKey }: Props) {
       <div className="evolution-rule-grid">
         <article><span>Entradas aprovadas pelo operacional</span><strong>{metrics.approvedTrainingEntries}</strong></article>
         <article><span>Tentativas bloqueadas pelas regras</span><strong>{metrics.blockedTrainingAttempts}</strong></article>
-        <article><span>Aderência nas tentativas registradas</span><strong>{metrics.trainingAttemptAdherencePct === null ? "—" : \`\${metrics.trainingAttemptAdherencePct.toFixed(1)}%\`}</strong></article>
+        <article><span>Aderência nas tentativas registradas</span><strong>{metrics.trainingAttemptAdherencePct === null ? "—" : `${metrics.trainingAttemptAdherencePct.toFixed(1)}%`}</strong></article>
         <article><span>Sinais não utilizados</span><strong>{metrics.ignoredSignals}</strong></article>
       </div>
       <p className="evolution-footnote">
