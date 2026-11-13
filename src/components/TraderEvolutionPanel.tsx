@@ -135,6 +135,9 @@ export function TraderEvolutionPanel({ refreshKey }: Props) {
         não uma avaliação isolada da qualidade da decisão.
       </p>
       <p className="evolution-footnote">
+        Critérios iniciais: o diagnóstico de rotina consistente exige ao menos 5 sessões e prática em 3 dias dos últimos 14; o alerta de execução exige ao menos 5 tentativas e aprovação inferior a 75%. Esses limites são referências ajustáveis, não padrões científicos.
+      </p>
+      <p className="evolution-footnote">
         Este diagnóstico avalia hábitos e dados observáveis do simulador. Ele não certifica que alguém se tornou um bom trader nem prevê rentabilidade futura.
       </p>
     </section>
