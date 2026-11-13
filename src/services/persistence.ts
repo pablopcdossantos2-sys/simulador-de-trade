@@ -2,6 +2,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { grossResultBRL } from "../domain/marketSpecs";
 import type {
   Trade,
+  TradeReview,
   TrainingEvent,
   TrainingSession,
 } from "../types";
@@ -9,6 +10,38 @@ import type {
 const STORAGE_KEY = "simulador-de-trade:trades";
 const SESSION_STORAGE_KEY = "simulador-de-trade:training-sessions";
 const EVENT_STORAGE_KEY = "simulador-de-trade:training-events";
+const REVIEW_STORAGE_MARKER = "simulador-de-trade:trade-review:v1:";
+
+function decodePostTradeNote(value: string): { note: string; review?: TradeReview } {
+  if (!value.startsWith(REVIEW_STORAGE_MARKER)) return { note: value };
+  try {
+    const parsed = JSON.parse(value.slice(REVIEW_STORAGE_MARKER.length)) as {
+      note?: unknown;
+      review?: TradeReview;
+    };
+    if (!parsed.review || typeof parsed.review.tradeId !== "string") {
+      return { note: value };
+    }
+    return {
+      note: typeof parsed.note === "string" ? parsed.note : "",
+      review: parsed.review,
+    };
+  } catch {
+    return { note: value };
+  }
+}
+
+function serializeTrade(trade: Trade): Omit<Trade, "review"> {
+  const { review, ...stored } = trade;
+  if (!review) return stored;
+  return {
+    ...stored,
+    postTradeNote: REVIEW_STORAGE_MARKER + JSON.stringify({
+      note: trade.postTradeNote ?? "",
+      review,
+    }),
+  };
+}
 
 function isTauriRuntime(): boolean {
   return "__TAURI_INTERNALS__" in window;
@@ -40,6 +73,10 @@ function normalizeTrade(raw: Trade): Trade {
       ? raw.costPerContractRoundTripBRL
       : 0;
 
+  const notePayload = decodePostTradeNote(
+    typeof raw.postTradeNote === "string" ? raw.postTradeNote : "",
+  );
+
   return {
     ...raw,
     requestedEntry,
@@ -55,8 +92,8 @@ function normalizeTrade(raw: Trade): Trade {
     netResultBRL: Number.isFinite(raw.netResultBRL)
       ? raw.netResultBRL
       : gross - operationalCostsBRL,
-    postTradeNote:
-      typeof raw.postTradeNote === "string" ? raw.postTradeNote : "",
+    postTradeNote: notePayload.note,
+    review: notePayload.review ?? raw.review,
     entryContext:
       raw.entryContext && typeof raw.entryContext === "object"
         ? raw.entryContext
@@ -92,13 +129,13 @@ export async function deleteAllTrades(): Promise<void> {
 
 export async function saveTrade(trade: Trade): Promise<void> {
   if (isTauriRuntime()) {
-    await invoke("save_trade", { trade });
+    await invoke("save_trade", { trade: serializeTrade(trade) });
     return;
   }
 
   const trades = await loadTrades();
   const next = [trade, ...trades.filter((item) => item.id !== trade.id)];
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(next.map(serializeTrade)));
 }
 
 
