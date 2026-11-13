@@ -86,7 +86,7 @@ export function calculatePracticeStreaks(
   for (const key of keys) {
     const [year, month, day] = key.split("-").map(Number);
     const current = new Date(year, month - 1, day);
-    const expected = previous ? new Date(previous) : null;
+    const expected = previous ? new Date(previous.getTime()) : null;
     if (expected) expected.setDate(expected.getDate() + 1);
     running = expected && dateKey(expected) === key ? running + 1 : 1;
     longestStreak = Math.max(longestStreak, running);
