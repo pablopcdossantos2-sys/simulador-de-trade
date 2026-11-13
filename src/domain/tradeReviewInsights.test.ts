@@ -98,6 +98,18 @@ describe("buildTradeReviewInsights", () => {
     expect(entryPattern?.previousPercentage).toBe(50);
   });
 
+  it("flags a behavior becoming more frequent and provides targeted guidance", () => {
+    const trades = Array.from({ length: 20 }, (_, i) => makeTrade(
+      `t${i}`,
+      i,
+      i >= 15 ? { emotionalInterference: "REVENGE" } : {},
+    ));
+    const result = buildTradeReviewInsights(trades);
+    const pattern = result.patterns.find((item) => item.key === "EMOTION_REVENGE");
+    expect(pattern?.trend).toBe("WORSENING");
+    expect(pattern?.recommendation).toContain("pausa");
+  });
+
   it("returns an empty analysis when no behavior deviations were recorded", () => {
     const trades = [makeTrade("t1", 0), makeTrade("t2", 1)];
     const result = buildTradeReviewInsights(trades);
