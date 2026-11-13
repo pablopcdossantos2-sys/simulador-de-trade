@@ -11,6 +11,7 @@ import { TrainingSessionPanel } from "./components/TrainingSessionPanel";
 import { SessionHistoryPanel } from "./components/SessionHistoryPanel";
 import { ProgressOverviewPanel } from "./components/ProgressOverviewPanel";
 import { StudentProgressPanel } from "./components/StudentProgressPanel";
+import { TraderEvolutionPanel } from "./components/TraderEvolutionPanel";
 import { ExecutionSettingsPanel } from "./components/ExecutionSettingsPanel";
 import { BackupPanel } from "./components/BackupPanel";
 import {
@@ -67,6 +68,7 @@ import {
   loadExecutionSettings,
 } from "./services/executionSettings";
 import { loadWarmupCandles } from "./services/replayData";
+import { startUsageTracking } from "./services/usageTracking";
 import type {
   Asset,
   ExecutionSettings,
@@ -104,7 +106,7 @@ function initialTheme(): ThemeMode {
 type DataMode = "demo" | "replay";
 
 export default function App() {
-  const [activeArea, setActiveArea] = useState<"SIMULADOR" | "CONFIGURACOES" | "RESULTADOS">("SIMULADOR");
+  const [activeArea, setActiveArea] = useState<"SIMULADOR" | "CONFIGURACOES" | "RESULTADOS" | "EVOLUCAO">("SIMULADOR");
   const [asset, setAsset] = useState<Asset>("WINFUT");
   const [dataMode, setDataMode] = useState<DataMode>("demo");
   const [candles, setCandles] = useState(() => createDemoCandles("WINFUT"));
@@ -335,6 +337,10 @@ export default function App() {
       }),
     );
   }
+
+  useEffect(() => {
+    startUsageTracking();
+  }, []);
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
@@ -1108,6 +1114,7 @@ export default function App() {
         <button type="button" className={activeArea === "SIMULADOR" ? "active" : ""} aria-current={activeArea === "SIMULADOR" ? "page" : undefined} onClick={() => setActiveArea("SIMULADOR")}>Simulador</button>
         <button type="button" className={activeArea === "CONFIGURACOES" ? "active" : ""} aria-current={activeArea === "CONFIGURACOES" ? "page" : undefined} onClick={() => setActiveArea("CONFIGURACOES")}>Configurações</button>
         <button type="button" className={activeArea === "RESULTADOS" ? "active" : ""} aria-current={activeArea === "RESULTADOS" ? "page" : undefined} onClick={() => setActiveArea("RESULTADOS")}>Resultados</button>
+        <button type="button" className={activeArea === "EVOLUCAO" ? "active" : ""} aria-current={activeArea === "EVOLUCAO" ? "page" : undefined} onClick={() => setActiveArea("EVOLUCAO")}>Evolução do Trader</button>
       </nav>
 
       <section className="app-area simulator-area" hidden={activeArea !== "SIMULADOR"}>
@@ -1497,6 +1504,11 @@ export default function App() {
           </div>
         )}
       </section>
+      </section>
+
+      <section className="app-area evolution-area" hidden={activeArea !== "EVOLUCAO"}>
+        <h2 className="area-title">Evolução do Trader</h2>
+        <TraderEvolutionPanel refreshKey={sessionHistoryRefreshKey + trades.length + trainingEvents.length} />
       </section>
 
       <section className="app-area settings-area" hidden={activeArea !== "CONFIGURACOES"}>
