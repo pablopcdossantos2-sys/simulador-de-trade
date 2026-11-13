@@ -372,10 +372,10 @@ export function TraderEvolutionPanel({ refreshKey }: Props) {
         ) : (
           <div className="review-insights-list">
             {reviewInsights.patterns.map((pattern) => (
-              <article className={\`review-insight-card \${pattern.strength.toLowerCase()}\`} key={pattern.key}>
+              <article className={`review-insight-card ${pattern.strength.toLowerCase()}`} key={pattern.key}>
                 <div className="review-insight-heading">
                   <strong>{pattern.title}</strong>
-                  <span className={\`review-insight-strength \${pattern.strength.toLowerCase()}\`}>
+                  <span className={`review-insight-strength ${pattern.strength.toLowerCase()}`}>
                     {pattern.strength === "RECURRENT" ? "Padrão recorrente" : "Sinal inicial"}
                   </span>
                 </div>
@@ -384,8 +384,8 @@ export function TraderEvolutionPanel({ refreshKey }: Props) {
                   <strong>{pattern.count} de {pattern.sampleSize}</strong>
                   <span>{pattern.percentage.toFixed(0)}% das avaliações aplicáveis</span>
                 </div>
-                <div className="review-insight-bar" role="img" aria-label={\`\${pattern.percentage.toFixed(0)} por cento\`}>
-                  <span style={{ width: \`\${Math.min(100, pattern.percentage)}%\` }} />
+                <div className="review-insight-bar" role="img" aria-label={`${pattern.percentage.toFixed(0)} por cento`}>
+                  <span style={{ width: `${Math.min(100, pattern.percentage)}%` }} />
                 </div>
                 <div className="review-insight-trend">
                   {pattern.trend === "IMPROVING" && <span className="improving">Menos frequente nas avaliações recentes</span>}
