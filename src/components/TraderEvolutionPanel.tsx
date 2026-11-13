@@ -204,7 +204,11 @@ export function TraderEvolutionPanel({ refreshKey }: Props) {
     const review: TradeReview = {
       tradeId: trade.id,
       reviewedAt: new Date().toISOString(),
-      ...draft,
+      entryExecution: draft.entryExecution as TradeReview["entryExecution"],
+      stopDiscipline: draft.stopDiscipline as TradeReview["stopDiscipline"],
+      targetDiscipline: draft.targetDiscipline as TradeReview["targetDiscipline"],
+      ruleAdherence: draft.ruleAdherence as TradeReview["ruleAdherence"],
+      emotionalInterference: draft.emotionalInterference as TradeReview["emotionalInterference"],
       lesson: draft.lesson.trim(),
     };
 
@@ -382,35 +386,35 @@ export function TraderEvolutionPanel({ refreshKey }: Props) {
                 </div>
                 <div className="trade-review-form">
                   <label>
-                    **A entrada respeitou o plano?**
+                    <strong>A entrada respeitou o plano?</strong>
                     <select value={draft.entryExecution} onChange={(event) => updateDraft(trade.id, "entryExecution", event.target.value as TradeReviewDraft["entryExecution"])}>
                       <option value="">Selecione...</option>
                       {entryOptions.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
                     </select>
                   </label>
                   <label>
-                    **Como você lidou com o stop?**
+                    <strong>Como você lidou com o stop?</strong>
                     <select value={draft.stopDiscipline} onChange={(event) => updateDraft(trade.id, "stopDiscipline", event.target.value as TradeReviewDraft["stopDiscipline"])}>
                       <option value="">Selecione...</option>
                       {stopOptions.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
                     </select>
                   </label>
                   <label>
-                    **Como você lidou com o alvo?**
+                    <strong>Como você lidou com o alvo?</strong>
                     <select value={draft.targetDiscipline} onChange={(event) => updateDraft(trade.id, "targetDiscipline", event.target.value as TradeReviewDraft["targetDiscipline"])}>
                       <option value="">Selecione...</option>
                       {targetOptions.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
                     </select>
                   </label>
                   <label>
-                    **As regras do operacional foram cumpridas?**
+                    <strong>As regras do operacional foram cumpridas?</strong>
                     <select value={draft.ruleAdherence} onChange={(event) => updateDraft(trade.id, "ruleAdherence", event.target.value as TradeReviewDraft["ruleAdherence"])}>
                       <option value="">Selecione...</option>
                       {ruleOptions.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
                     </select>
                   </label>
                   <label>
-                    **Houve interferência emocional?**
+                    <strong>Houve interferência emocional?</strong>
                     <select value={draft.emotionalInterference} onChange={(event) => updateDraft(trade.id, "emotionalInterference", event.target.value as TradeReviewDraft["emotionalInterference"])}>
                       <option value="">Selecione...</option>
                       {emotionOptions.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
