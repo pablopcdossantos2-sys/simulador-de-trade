@@ -216,7 +216,8 @@ export async function loadSessionTrades(
   sessionId: string,
 ): Promise<Trade[]> {
   if (isTauriRuntime()) {
-    return invoke<Trade[]>("list_session_trades", { sessionId });
+    const trades = await invoke<Trade[]>("list_session_trades", { sessionId });
+    return trades.map(normalizeTrade);
   }
 
   const events = await loadTrainingEvents(sessionId);
