@@ -126,7 +126,7 @@ Etapa 6 · Reproduzir o mercado · M{timeframeMinutes}
           <p className="replay-note">
             O ritmo controla o relógio do mercado: em 10×, dois minutos simulados correspondem
             a aproximadamente 12 segundos reais. {session.synthetic
-              ? "Cada candle M2 usa os OHLCV históricos como limites e produz uma trajetória pseudoaleatória determinística, com até 120 preços por segundo simulado. Esses preços não são negócios históricos nem reconstruções do fluxo real; o caminho é apenas uma hipótese visual e de execução para treinamento."
+              ? "Cada candle M2 usa os OHLCV históricos como limites e produz uma trajetória pseudoaleatória determinística, com até 120 preços por candle M2, um preço por segundo simulado. Esses preços não são negócios históricos nem reconstruções do fluxo real; o caminho é apenas uma hipótese visual e de execução para treinamento."
               : "Este arquivo legado contém eventos de negócios individuais e preserva sua sequência histórica."}
             {" "}O botão +1 candle avança até a próxima fronteira M2, sem revelar o candle seguinte.
           </p>

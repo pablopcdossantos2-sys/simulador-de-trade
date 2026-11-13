@@ -1,526 +1,298 @@
-# Próximas etapas do usuário — Windows usando CMD
+# Guia de validação no Windows — Simulador de Trade
 
-Este tutorial separa as etapas que dependem do usuário das etapas que podem continuar sendo desenvolvidas diretamente no repositório.
+Este guia reúne as etapas que dependem do usuário para validar o aplicativo no Windows, com prioridade para a primeira importação de candles M2 do Profit.
 
-## Regra para este tutorial
+## O que precisa ser validado na prática
 
-Os comandos abaixo foram escritos para o **Prompt de Comando do Windows (CMD)**.
+As principais validações são:
 
-Não é necessário alterar a política de execução do PowerShell.
+1. abrir o instalador e a versão portátil no Windows;
+2. importar CSVs M2 reais do Profit para WINFUT e WDOFUT;
+3. confirmar se a data/hora exportada pelo Profit representa a abertura de cada candle M2;
+4. comparar o indicador com o TradingView usando o mesmo contrato, pregão e parâmetros.
 
-Se o PowerShell do computador bloquear scripts, simplesmente feche-o e use:
+A validação do timestamp de origem é especialmente importante: o simulador interpreta o timestamp como a **abertura** do candle de dois minutos. Uma amostra real de CSV do Profit permite confirmar essa convenção e ajustar o parser, se necessário.
 
-~~~text
-Prompt de Comando
-cmd.exe
-~~~
+Assinatura digital, atualizador Tauri e publicação automatizada de releases podem ficar para uma etapa posterior.
 
-Sempre que houver um caminho com espaços, coloque o caminho entre aspas.
+## 1. Testar o aplicativo no Windows
 
-Exemplo:
+### Instalador
 
-~~~bat
-cd /d "C:\Users\SEU_USUARIO\Documents\simulador-de-trade"
-~~~
+Use o instalador Windows disponibilizado nos artefatos do GitHub Actions. Baixe o pacote do workflow mais recente, extraia o conteúdo e execute o arquivo `Simulador-de-Trade-setup.exe`.
 
----
+Conclua a instalação e confirme se a janela principal abre normalmente. Nenhum terminal é necessário.
 
-# O que depende do usuário agora
+### Versão portátil
 
-As duas validações mais importantes que dependem do usuário são:
+Use `Simulador-de-Trade-portable.exe`.
 
-1. testar o executável no próprio Windows;
-2. fornecer dados reais do Profit Ultra para validar o replay de WINFUT e WDOFUT.
+1. Crie uma pasta para o aplicativo, por exemplo `C:\Programas Portateis\Simulador de Trade`.
+2. Copie o executável portátil para essa pasta.
+3. Dê dois cliques no arquivo.
+4. Confirme se o programa abre normalmente.
 
-Uma terceira validação, muito importante para a qualidade, é comparar o indicador do simulador com o TradingView usando o mesmo pregão.
+Se a versão portátil indicar ausência do WebView2, teste o instalador.
 
-Assinatura digital, atualizador Tauri e publicação automática de releases podem ser deixados para uma etapa posterior.
+## 2. Fazer um teste funcional inicial
 
----
+Antes de importar dados reais:
 
-# ETAPA 1 — Testar o aplicativo no Windows
+1. Abra o aplicativo e confirme que a tela de planejamento aparece.
+2. Alterne entre WINFUT e WDOFUT.
+3. Confira se o timeframe apresentado é M2.
+4. Ajuste a data, o horário inicial e o horário final.
+5. Abra Configurações e confira custos, slippage e política intrabar.
+6. Abra Segurança dos dados e teste a exportação de backup JSON.
+7. Confirme se o arquivo de backup foi criado na pasta escolhida.
 
-## Opção A — Instalador
+Se alguma etapa falhar, registre o que foi clicado, o resultado esperado, o que aconteceu e a mensagem de erro. Uma captura de tela ajuda na análise.
 
-Use:
+## 3. Planejar a primeira simulação
 
-~~~text
-Simulador-de-Trade-setup.exe
-~~~
-
-Passos:
-
-1. baixe/extrate o pacote Windows gerado pelo projeto;
-2. dê dois cliques em `Simulador-de-Trade-setup.exe`;
-3. conclua a instalação;
-4. abra o aplicativo pelo Windows;
-5. confirme se a janela principal abre normalmente.
-
-Nenhum terminal é necessário.
-
-## Opção B — Portátil
-
-Use:
-
-~~~text
-Simulador-de-Trade-portable.exe
-~~~
-
-Passos:
-
-1. crie uma pasta, por exemplo:
-
-~~~text
-C:\Programas Portateis\Simulador de Trade
-~~~
-
-2. copie o executável portátil para essa pasta;
-3. dê dois cliques no arquivo;
-4. confirme se o programa abre normalmente.
-
-Se o portátil reclamar de WebView2, use o instalador.
-
----
-
-# ETAPA 2 — Fazer um teste funcional simples
-
-Antes de importar dados reais, confirme a interface.
-
-1. abra o aplicativo;
-2. verifique se a tela de planejamento aparece;
-3. teste alternar entre WINFUT e WDOFUT;
-4. altere entre M2 e M5;
-5. confira o horário inicial e final;
-6. abra a tela de configurações;
-7. confirme se custos, slippage e política intrabar podem ser alterados;
-8. abra Backup e restauração;
-9. teste Exportar backup;
-10. escolha uma pasta temporária;
-11. confirme se um arquivo JSON foi criado.
-
-Se alguma tela não aparecer, anote:
-
-- o que você clicou;
-- o que esperava que acontecesse;
-- o que aconteceu;
-- mensagem de erro, se houver.
-
-Uma captura de tela ajuda muito.
-
----
-
-# ETAPA 3 — Planejar a primeira simulação real
-
-Não comece exportando arquivos aleatoriamente do Profit.
-
-Primeiro configure a simulação dentro do aplicativo.
+Não comece exportando arquivos aleatoriamente do Profit. Primeiro, configure a simulação no aplicativo.
 
 Exemplo:
 
-~~~text
+```text
 Ativo: WINFUT
 Pregão: 14/10/2026
 Timeframe: M2
 Início visível: 09:00
 Final visível: 12:00
 Aquecimento: Padrão
-~~~
+```
 
-O sistema deve informar os pregões anteriores necessários para aquecer o indicador.
+A janela 09:00–12:00 contém 90 candles M2. O aquecimento padrão considera 260 candles anteriores para inicializar adequadamente a MME 52; o modo estrito considera 520.
 
-## Exemplo M2
+O planejador informa quais pregões anteriores são necessários. Use essa lista como referência principal, pois ela considera o calendário de pregões incorporado.
 
-Para 14/10/2026, M2, 09:00–12:00, aquecimento padrão:
+## 4. Conferir os contratos
 
-Se você possuir o pregão anterior completo 09:00–18:00:
-
-~~~text
-13/10/2026 — aquecimento
-14/10/2026 — simulação visível
-~~~
-
-Se você possuir apenas 09:00–12:00 dos pregões anteriores:
-
-~~~text
-08/10/2026
-09/10/2026
-13/10/2026
-14/10/2026 — simulação visível
-~~~
-
-O sistema pula automaticamente 12/10/2026 por não ter sido pregão normal.
-
-## Exemplo M5
-
-Em M5, a mesma janela 09:00–12:00 possui somente 36 candles.
-
-Por isso o aquecimento padrão pode exigir mais dias.
-
-Com pregões completos de WIN 09:00–18:00, o exemplo utiliza:
-
-~~~text
-08/10/2026
-09/10/2026
-13/10/2026
-14/10/2026 — simulação visível
-~~~
-
-Use sempre a lista mostrada pelo próprio planejador como referência principal.
-
----
-
-# ETAPA 4 — Atenção especial ao contrato em 14/10/2026
-
-O planejamento já avisa que 14/10/2026 está próximo/na regra de vencimento do WIN utilizada pelo projeto.
-
-Para o primeiro teste real, existem duas opções.
-
-## Opção mais simples
-
-Escolher inicialmente um pregão que não esteja em região de vencimento/rolagem.
-
-Isso reduz a chance de misturar contratos diferentes durante a validação inicial.
-
-## Se quiser usar 14/10/2026
-
-Confirme exatamente qual contrato aparece no arquivo exportado do Profit.
+Confira o contrato efetivamente exibido no Profit e mantenha o mesmo contrato nos arquivos usados para aquecimento e no pregão-alvo.
 
 Exemplo:
 
-~~~text
+```text
 WINV26
-~~~
+```
 
-Os dados usados para o aquecimento e para o pregão-alvo não devem ser misturados entre contratos diferentes sem uma regra explícita de rolagem.
+Não misture séries diferentes sem uma regra explícita de rolagem. Uma combinação de contratos distintos pode alterar as médias e os sinais.
 
----
+## 5. Exportar candles M2 no Profit Ultra
 
-# ETAPA 5 — Exportar os dados do Profit Ultra
+O fluxo recomendado não exige negócios tick a tick. Exporte o histórico do gráfico de **2 minutos (M2)**.
 
-O Simulador de Trade precisa do arquivo histórico de negócios/tick a tick.
+O CSV deve conter um cabeçalho que permita identificar:
 
-A ferramenta de tratamento reconhece inicialmente arquivos do Profit contendo, entre outros layouts compatíveis:
+- Ativo ou Contrato;
+- Data/Hora (ou Data e Hora em colunas separadas);
+- Abertura;
+- Máxima;
+- Mínima;
+- Fechamento;
+- Volume.
 
-~~~text
-Ativo
-Data
-Hora
-Agente Comprador
-Preço
-Quantidade
-Agente Vendedor
-Agressor
-~~~
+Exemplo de cabeçalho aceito:
 
-ou variantes compatíveis já documentadas no projeto.
+```text
+Ativo;Data/Hora;Abertura;Máxima;Mínima;Fechamento;Volume
+```
 
-Não é necessário editar o CSV manualmente.
+O sistema também reconhece aliases em inglês, como `Symbol`, `Timestamp`, `Open`, `High`, `Low`, `Close` e `Volume`, além de delimitadores vírgula, ponto e vírgula ou tabulação.
 
-## Procedimento recomendado
+### Atenção ao horário do candle
 
-Para cada pregão solicitado pelo planejador:
+O programa espera que o timestamp identifique o início do candle. Por exemplo, o candle que cobre 09:00–09:02 deve ser identificado por 09:00:00. O timestamp precisa estar alinhado à grade M2: minuto par e segundo zero.
 
-1. abra o Profit Ultra;
-2. exporte o histórico de Trades/Tick-by-Tick do contrato correto;
-3. salve o CSV bruto em uma pasta organizada;
-4. não altere o arquivo original;
-5. repita para cada dia necessário.
+Ainda precisamos confirmar essa convenção com um CSV real exportado do Profit na instalação do usuário. Não altere manualmente os horários antes de fazer essa verificação.
 
-Sugestão de organização:
+### Organização sugerida
 
-~~~text
+Salve um arquivo por pregão e contrato, sem editar o CSV original.
+
+```text
 C:\Dados Profit\WIN\2026\
-~~~
+    WINV26_2026-10-13_M2.csv
+    WINV26_2026-10-14_M2.csv
+```
 
-Exemplo:
+Os nomes podem ser diferentes; o conteúdo é que determina a data e o contrato.
 
-~~~text
-C:\Dados Profit\WIN\2026\WINV26_2026-10-13.csv
-C:\Dados Profit\WIN\2026\WINV26_2026-10-14.csv
-~~~
+## 6. Tratar os arquivos dentro do Simulador
 
-Os nomes podem ser diferentes. O importante é conseguir identificar o dia e o contrato.
+Não é necessário usar CMD para importar os arquivos.
 
----
+1. Abra o Simulador de Trade.
+2. Configure o plano.
+3. Na área de dados necessários, selecione o CSV M2 da data solicitada.
+4. Confirme que o intervalo horário corresponde ao requisito indicado pelo planejador.
+5. Clique em Preparar M2 e acompanhe o progresso.
+6. Repita para todas as datas exigidas pelo aquecimento e pelo pregão-alvo.
 
-# ETAPA 6 — Tratar os arquivos dentro do Simulador
+O arquivo bruto do Profit permanece intacto. O simulador cria um replay derivado compacto com uma linha OHLCV por candle.
 
-Não é necessário usar CMD para isso.
+Exemplo de arquivo preparado:
 
-1. abra o Simulador de Trade;
-2. configure primeiro o plano;
-3. vá à ferramenta de preparação dos dados do Profit;
-4. selecione o CSV bruto;
-5. confirme o intervalo horário sugerido pelo plano;
-6. inicie o tratamento;
-7. acompanhe o percentual de progresso;
-8. aguarde a confirmação de conclusão.
-
-O arquivo bruto original não é sobrescrito.
-
-O sistema cria arquivos derivados semelhantes a:
-
-~~~text
+```text
 WINV26_20261014_0900-1200.replay.csv
 WINV26_20261014_0900-1200.replay.meta.json
-~~~
+```
 
-Para aquecimento, uma janela maior pode ser utilizada, por exemplo:
+Para aquecimento, pode ser necessária uma janela maior, por exemplo 09:00–18:00, conforme o que o planejador solicitar.
 
-~~~text
-09:00–18:00
-~~~
+## 7. Conferir o catálogo de dados
 
----
+Depois de preparar os arquivos:
 
-# ETAPA 7 — Conferir o catálogo
+1. Atualize o catálogo.
+2. Confira as datas disponíveis.
+3. Confira se o contrato é compatível.
+4. Verifique se ainda existem dados ausentes.
+5. Prossiga somente quando o plano estiver completo.
 
-Depois de tratar os arquivos:
+O arquivo de aquecimento é usado para calcular o estado inicial do indicador, mas seus candles não são desenhados no gráfico. A simulação visível começa apenas na janela do pregão-alvo.
 
-1. abra/atualize o catálogo de dados preparados;
-2. confira as datas disponíveis;
-3. confira se o contrato é compatível;
-4. confira se ainda existe alguma data marcada como ausente;
-5. só prossiga quando o plano informar que os dados necessários estão disponíveis.
+## 8. Executar a simulação
 
----
+1. Carregue o plano desejado.
+2. Selecione o replay compatível no catálogo.
+3. Confirme ativo, data, timeframe M2 e horário.
+4. Inicie a sessão de treino.
+5. Use Reprodução, Pausa, +1 segundo ou +1 candle.
+6. Confirme que o gráfico começa apenas no período visível e não mostra os candles de aquecimento.
+7. Observe os sinais COMPRA/VENDA.
+8. Teste uma tentativa de operação sem sinal e confirme que o sistema bloqueia a entrada.
+9. Faça uma operação autorizada com OCO e confirme a lógica de stop/alvo.
+10. Ao terminar, confira o relatório, as notas pós-trade e as exportações JSON/CSV.
 
-# ETAPA 8 — Executar a simulação real
+### Como interpretar o movimento do gráfico
 
-1. carregue o plano desejado;
-2. deixe o sistema selecionar o replay compatível no catálogo;
-3. confirme ativo, data, timeframe e horário;
-4. inicie a sessão;
-5. use Reprodução, Pausa, +1 negócio ou +1 candle;
-6. confira se o gráfico começa somente na janela visível;
-7. confirme que os candles de aquecimento não aparecem;
-8. observe os sinais COMPRA/VENDA;
-9. tente propositalmente uma operação sem sinal;
-10. confirme que o sistema bloqueia a tentativa;
-11. execute pelo menos uma operação válida com OCO;
-12. confirme o fechamento automático por Stop ou Alvo;
-13. finalize a sessão;
-14. abra o relatório;
-15. teste as notas pós-trade;
-16. teste Exportar relatório JSON;
-17. teste Exportar trades CSV.
+Cada candle M2 histórico é expandido em até 120 preços sintéticos, um por segundo simulado. O percurso começa na abertura, termina no fechamento, permanece entre a mínima e a máxima e é repetível quando a sessão é reiniciada.
 
----
+**Esses preços não são negócios históricos.** O OHLCV não informa a sequência verdadeira entre abertura, máxima, mínima e fechamento. Portanto, o caminho intrabar é uma hipótese de treinamento; não deve ser usado para afirmar o instante real de um toque de preço.
 
-# ETAPA 9 — Validar o indicador contra o TradingView
+O volume do candle também é distribuído uniformemente entre os segundos. Assim, a VWAP enquanto o candle está em formação é aproximada e não reproduz a distribuição real de negócios.
 
-Esta etapa depende do usuário porque o objetivo é comparar o simulador com uma referência externa conhecida.
+Quando stop e alvo estão dentro da faixa do mesmo candle M2, a ordem em que os níveis são tocados depende da trajetória sintética. Interprete esses resultados como cenário de simulação, não como reprodução histórica tick a tick.
 
-Use exatamente:
+## 9. Comparar o indicador com o TradingView
 
-- mesmo ativo/contrato;
-- mesma data;
-- mesmo timeframe;
-- mesma janela;
-- mesmos parâmetros do indicador.
+Esta validação depende de uma referência externa conhecida. Use o mesmo ativo/contrato, data, timeframe M2, janela e parâmetros do indicador.
 
-Para cada ponto importante, compare:
+Compare, de preferência em candles fechados:
 
 - MME 8;
 - MMP 20;
 - MME 52;
 - VWAP;
-- início/fim da nuvem;
-- candle em que apareceu COMPRA;
-- candle em que apareceu VENDA.
+- início e fim das zonas/nuvens;
+- candles em que aparecem COMPRA e VENDA.
 
-Se houver divergência, registre:
+Se encontrar divergência, registre:
 
-~~~text
+```text
 Ativo:
 Contrato:
 Data:
-Timeframe:
 Horário:
 Valor no TradingView:
 Valor no Simulador:
 Sinal esperado:
 Sinal exibido:
-~~~
+```
 
-Se possível, tire uma captura de tela do TradingView e outra do Simulador no mesmo momento.
+Se possível, envie capturas dos dois gráficos no mesmo ponto. A comparação poderá gerar fixtures de regressão para o indicador.
 
-Essa comparação será usada para criar/ajustar fixtures de regressão.
+## 10. Repetir o teste para WDOFUT
 
----
+Depois de validar WINFUT:
 
-# ETAPA 10 — Repetir para WDOFUT
+1. repita o planejamento com WDOFUT;
+2. exporte os candles M2 das datas indicadas;
+3. use o mesmo contrato nos arquivos de aquecimento e no pregão-alvo;
+4. prepare os replays;
+5. execute a simulação;
+6. compare o indicador com o TradingView.
 
-Depois que WINFUT estiver validado:
+A importação real de WIN e WDO só deve ser considerada plenamente validada depois desses testes com CSVs da instalação do usuário.
 
-1. repita o mesmo processo com WDOFUT;
-2. escolha uma data conhecida;
-3. deixe o planejador informar o aquecimento;
-4. exporte os CSVs necessários;
-5. trate os arquivos;
-6. execute a sessão;
-7. compare com o TradingView.
+## 11. CMD — somente para executar o código-fonte
 
-Somente depois dessa validação prática faz sentido considerar os itens do ROADMAP:
+Para usar o instalador ou o executável portátil, não é necessário terminal. Se precisar executar o código localmente, use o Prompt de Comando (CMD), não é necessário alterar a política do PowerShell.
 
-~~~text
-Importar histórico de WIN
-Importar histórico de WDO
-~~~
+### Abrir o CMD
 
-como plenamente validados com dados reais do usuário.
+Pressione `Win + R`, digite `cmd` e pressione Enter.
 
----
+### Entrar na pasta do projeto
 
-# CMD — somente se for necessário executar o projeto pelo código
-
-Para usar o aplicativo já compilado, não é necessário terminal.
-
-Se você precisar rodar o código-fonte localmente, use CMD.
-
-## 1. Abrir o CMD
-
-Pressione:
-
-~~~text
-Win + R
-~~~
-
-Digite:
-
-~~~text
-cmd
-~~~
-
-Pressione Enter.
-
-## 2. Entrar na pasta do projeto
-
-Exemplo:
-
-~~~bat
+```bat
 cd /d "C:\Users\SEU_USUARIO\Documents\simulador-de-trade"
-~~~
+```
 
-O parâmetro `/d` também permite trocar de unidade.
+### Conferir Node e npm
 
-## 3. Conferir Node e npm
-
-~~~bat
+```bat
 node --version
 npm --version
-~~~
+```
 
-Se o comando `npm` não funcionar, tente:
+Se `npm` não funcionar:
 
-~~~bat
+```bat
 npm.cmd --version
-~~~
+```
 
-## 4. Instalar exatamente as dependências validadas
+### Instalar dependências e executar em desenvolvimento
 
-~~~bat
+```bat
 npm ci
-~~~
-
-Se houver alguma associação estranha do Windows com o comando npm:
-
-~~~bat
-npm.cmd ci
-~~~
-
-## 5. Executar no navegador para desenvolvimento
-
-~~~bat
 npm run dev
-~~~
+```
 
-ou:
+Para abrir a versão desktop pelo Tauri, com os pré-requisitos Rust, WebView2 e Tauri instalados:
 
-~~~bat
-npm.cmd run dev
-~~~
-
-## 6. Executar em Tauri
-
-~~~bat
+```bat
 npm run tauri dev
-~~~
+```
 
-ou:
+### Compilar localmente
 
-~~~bat
-npm.cmd run tauri dev
-~~~
-
-## 7. Compilar
-
-~~~bat
+```bat
 npm run tauri build
-~~~
+```
 
-ou:
+Se o CMD exigir explicitamente os arquivos `.cmd`, use `npm.cmd ci`, `npm.cmd run dev`, `npm.cmd run tauri dev` ou `npm.cmd run tauri build`.
 
-~~~bat
-npm.cmd run tauri build
-~~~
+## 12. O que não precisa ser feito agora
 
-Não execute esses comandos no PowerShell se a política local estiver bloqueando scripts.
-
----
-
-# O que NÃO precisa ser feito agora
-
-Não é necessário, neste momento:
+Não é necessário:
 
 - alterar ExecutionPolicy do PowerShell;
 - instalar Git apenas para testar o executável;
-- gerar uma tag;
-- configurar assinatura digital;
-- criar chaves do atualizador;
-- publicar uma release oficial;
+- criar tags ou releases manualmente;
+- configurar assinatura digital ou chaves do atualizador;
 - compilar localmente se o instalador/portátil já abrir.
 
-Esses itens pertencem à etapa de distribuição oficial.
+## 13. Checklist de validação prática
 
----
-
-# O que o desenvolvimento pode continuar sem o usuário
-
-Enquanto os testes práticos são realizados, o desenvolvimento pode continuar no repositório em itens como:
-
-- resultado por tipo de sinal/setup;
-- expansão das preferências do aplicativo;
-- calendário B3 para outros anos;
-- refinamento da política de rolagem/contratos;
-- indexador temporal M1;
-- seek direto no CSV bruto;
-- preparação da arquitetura de release/updater;
-- mais testes automatizados.
-
----
-
-# Checklist mínimo que o usuário deve devolver
-
-Após os testes, basta informar:
-
-~~~text
+```text
 [ ] Instalador abriu
 [ ] Portátil abriu
-[ ] Backup exportou
-[ ] Plano real foi criado
-[ ] CSV WIN foi tratado
+[ ] Backup JSON foi exportado
+[ ] Plano M2 foi criado
+[ ] CSV M2 WIN foi preparado
 [ ] Replay WIN abriu
 [ ] Aquecimento ficou oculto
-[ ] M2 funcionou
-[ ] M5 funcionou
+[ ] Movimento segundo a segundo funcionou
 [ ] Bloqueio sem sinal funcionou
 [ ] OCO funcionou
 [ ] Relatório abriu
-[ ] JSON foi exportado
-[ ] CSV foi exportado
+[ ] JSON e CSV foram exportados
 [ ] Comparação com TradingView foi feita
-[ ] Teste WDO foi feito
-~~~
+[ ] Teste M2 de WDO foi feito
+[ ] Timestamp do CSV do Profit foi confirmado como abertura do candle
+```
 
-Se algum item falhar, envie a mensagem de erro e, se possível, uma captura de tela.
+Se algum item falhar, envie a mensagem de erro e, se possível, uma captura de tela. Para validar o parser do Profit, envie também uma amostra curta do CSV M2 com o cabeçalho e algumas linhas, ocultando qualquer dado pessoal que não seja necessário.

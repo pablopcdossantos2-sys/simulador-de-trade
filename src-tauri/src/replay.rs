@@ -805,6 +805,42 @@ mod tests {
     }
 
     #[test]
+    fn opens_m2_session_and_streams_120_synthetic_seconds() {
+        use std::io::Write;
+        use std::time::{SystemTime, UNIX_EPOCH};
+
+        let unique = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let path = std::env::temp_dir().join(format!("simulador-trade-m2-{unique}.csv"));
+        {
+            let mut file = File::create(&path).unwrap();
+            writeln!(file, "symbol,timestamp,source_row,open,high,low,close,volume").unwrap();
+            writeln!(file, "WINV26,2026-10-07T09:00:00,1,130000,130050,129950,130010,1200").unwrap();
+        }
+
+        let (mut session, info) = open_session(&path).unwrap();
+        assert!(info.synthetic);
+        assert_eq!(info.mode, "CANDLES_M2_SYNTHETIC");
+        assert_eq!(info.source_timeframe_minutes, Some(2));
+
+        let events = read_next_replay_batch(&mut session, 500).unwrap();
+        assert_eq!(events.len(), 120);
+        assert_eq!(events.first().unwrap().timestamp, "2026-10-07T09:00:00");
+        assert_eq!(events.last().unwrap().timestamp, "2026-10-07T09:01:59");
+        assert_eq!(events.first().unwrap().price, 130000.0);
+        assert_eq!(events.last().unwrap().price, 130010.0);
+        assert!(events.iter().all(|event| event.price >= 129950.0 && event.price <= 130050.0));
+        assert!((events.iter().map(|event| event.quantity).sum::<f64>() - 1200.0).abs() < 1e-8);
+
+        let end = read_next_replay_batch(&mut session, 500).unwrap();
+        assert!(end.is_empty());
+        assert!(session.finished);
+        let _ = std::fs::remove_file(path);
+    }
+
+    #[test]
     fn synthetic_m2_path_is_repeatable_and_stays_inside_source_ohlc() {
         let candle = ReplayCandleRecord {
             timestamp: "2026-10-07T09:00:00".to_string(),
