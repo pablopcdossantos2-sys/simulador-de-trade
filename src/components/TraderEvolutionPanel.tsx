@@ -393,7 +393,7 @@ export function TraderEvolutionPanel({ refreshKey }: Props) {
                   {pattern.trend === "STABLE" && <span>Frequência semelhante nas duas amostras</span>}
                   {pattern.trend === "INSUFFICIENT" && <span>Comparação temporal ainda sem amostra suficiente</span>}
                   {pattern.trend !== "INSUFFICIENT" && pattern.recentPercentage !== null && pattern.previousPercentage !== null && (
-                    <small>Recentes: {pattern.recentPercentage.toFixed(0)}% · anteriores: {pattern.previousPercentage.toFixed(0)}%</small>
+                    <small>Recentes ({pattern.recentSampleSize}): {pattern.recentPercentage.toFixed(0)}% · anteriores ({pattern.previousSampleSize}): {pattern.previousPercentage.toFixed(0)}%</small>
                   )}
                 </div>
               </article>
