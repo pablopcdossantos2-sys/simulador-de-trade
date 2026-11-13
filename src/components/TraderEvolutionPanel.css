@@ -134,3 +134,10 @@
 :root[data-theme="light"] .review-insight-card.recurrent { border-color: #d9bd8d; }
 :root[data-theme="light"] .review-insight-card p { color: #62798e; }
 :root[data-theme="light"] .review-insight-bar { background: #dce5ed; }
+
+.review-insight-recommendation { display: grid; gap: 4px; padding: 10px 12px; border-left: 3px solid #527da5; border-radius: 0 8px 8px 0; background: rgba(47, 87, 125, .16); }
+.review-insight-recommendation strong { color: #b9d4ed; font-size: .72rem; }
+.review-insight-recommendation span { color: #b5c6d8; font-size: .76rem; line-height: 1.45; }
+:root[data-theme="light"] .review-insight-recommendation { background: #edf4fa; border-left-color: #6d98bd; }
+:root[data-theme="light"] .review-insight-recommendation strong { color: #355a7a; }
+:root[data-theme="light"] .review-insight-recommendation span { color: #536b81; }
