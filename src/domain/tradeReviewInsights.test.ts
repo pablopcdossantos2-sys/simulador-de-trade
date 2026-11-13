@@ -23,7 +23,7 @@ function makeTrade(
     id,
     asset: "WINFUT",
     side: "BUY",
-    signalId: \`signal-\${id}\`,
+    signalId: `signal-${id}`,
     requestedEntry: 130000,
     entry: 130000,
     stopLoss: 129900,
@@ -48,7 +48,7 @@ function makeTrade(
 describe("buildTradeReviewInsights", () => {
   it("does not call a single occurrence a recurring pattern", () => {
     const trades = Array.from({ length: 6 }, (_, i) => makeTrade(
-      \`t\${i}\`,
+      `t${i}`,
       i,
       i === 0 ? { stopDiscipline: "MOVED_AGAINST_PLAN" } : {},
     ));
@@ -60,7 +60,7 @@ describe("buildTradeReviewInsights", () => {
 
   it("identifies repeated behaviors only after a minimum sample", () => {
     const trades = Array.from({ length: 10 }, (_, i) => makeTrade(
-      \`t\${i}\`,
+      `t${i}`,
       i,
       i < 3 ? { stopDiscipline: "MOVED_AGAINST_PLAN" } : {},
     ));
@@ -73,7 +73,7 @@ describe("buildTradeReviewInsights", () => {
 
   it("detects profitable trades closed early before the target", () => {
     const trades = [
-      ...Array.from({ length: 4 }, (_, i) => makeTrade(\`win\${i}\`, i, {}, 20)),
+      ...Array.from({ length: 4 }, (_, i) => makeTrade(`win${i}`, i, {}, 20)),
       makeTrade("early-win", 5, { targetDiscipline: "CLOSED_EARLY" }, 5),
       makeTrade("early-loss", 6, { targetDiscipline: "CLOSED_EARLY" }, -5),
     ];
@@ -86,7 +86,7 @@ describe("buildTradeReviewInsights", () => {
 
   it("compares the latest ten reviews with the previous ten", () => {
     const trades = Array.from({ length: 20 }, (_, i) => makeTrade(
-      \`t\${i}\`,
+      `t${i}`,
       i,
       i < 5 ? { entryExecution: "OUTSIDE_PLAN" } : {},
     ));
