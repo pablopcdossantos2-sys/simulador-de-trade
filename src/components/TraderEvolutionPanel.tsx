@@ -31,7 +31,11 @@ export function TraderEvolutionPanel({ refreshKey }: Props) {
   const [trades, setTrades] = useState<Awaited<ReturnType<typeof loadAllTrades>>>([]);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => subscribeUsageSessions(() => setUsageSessions(loadUsageSessions())), []);
+  useEffect(() => {
+    const unsubscribe = subscribeUsageSessions(() => setUsageSessions(loadUsageSessions()));
+    setUsageSessions(loadUsageSessions());
+    return unsubscribe;
+  }, []);
 
   useEffect(() => {
     let active = true;
