@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { buildTraderEvolutionMetrics } from "../domain/traderEvolution";
+import { buildTradeReviewInsights } from "../domain/tradeReviewInsights";
 import {
   assessTradeReview,
   createTradeReviewDraft,
@@ -152,6 +153,8 @@ export function TraderEvolutionPanel({ refreshKey }: Props) {
     (total, day) => total + (day?.sessionCount ?? 0),
     0,
   );
+
+  const reviewInsights = useMemo(() => buildTradeReviewInsights(trades), [trades]);
 
   const reviewSummary = useMemo(() => {
     const reviewed = trades.filter((trade) => trade.review);
@@ -337,6 +340,71 @@ export function TraderEvolutionPanel({ refreshKey }: Props) {
         A classificação resume as respostas registradas: não é uma nota automática nem uma conclusão sobre habilidade.
         O simulador não consegue inferir emoções ou todas as decisões discricionárias; a avaliação é preenchida pelo próprio trader.
       </p>
+      <div className="evolution-section-heading">
+        <h3>Padrões de comportamento identificados</h3>
+        <span>Análise das avaliações individuais, separada do resultado financeiro</span>
+      </div>
+      <section className="review-insights">
+        <div className="review-insights-overview">
+          <article>
+            <span>Operações avaliadas</span>
+            <strong>{reviewInsights.reviewedTrades}</strong>
+          </article>
+          <article>
+            <span>Padrões recorrentes</span>
+            <strong>{reviewInsights.recurrentPatterns}</strong>
+          </article>
+          <article>
+            <span>Sinais iniciais</span>
+            <strong>{reviewInsights.earlySignals}</strong>
+          </article>
+        </div>
+        <p className="evolution-footnote">
+          Um padrão só é classificado como recorrente com pelo menos 5 avaliações aplicáveis, 2 ocorrências e frequência mínima de 20%.
+          Antes disso, aparece como sinal inicial para observação — não como diagnóstico.
+        </p>
+        {reviewInsights.patterns.length === 0 ? (
+          <div className="review-insights-empty">
+            {reviewInsights.reviewedTrades === 0
+              ? "As análises aparecerão depois que você avaliar operações encerradas."
+              : "Nenhum desvio foi registrado nas avaliações disponíveis. Continue revisando as operações para ampliar a amostra."}
+          </div>
+        ) : (
+          <div className="review-insights-list">
+            {reviewInsights.patterns.map((pattern) => (
+              <article className={\`review-insight-card \${pattern.strength.toLowerCase()}\`} key={pattern.key}>
+                <div className="review-insight-heading">
+                  <strong>{pattern.title}</strong>
+                  <span className={\`review-insight-strength \${pattern.strength.toLowerCase()}\`}>
+                    {pattern.strength === "RECURRENT" ? "Padrão recorrente" : "Sinal inicial"}
+                  </span>
+                </div>
+                <p>{pattern.description}</p>
+                <div className="review-insight-metrics">
+                  <strong>{pattern.count} de {pattern.sampleSize}</strong>
+                  <span>{pattern.percentage.toFixed(0)}% das avaliações aplicáveis</span>
+                </div>
+                <div className="review-insight-bar" role="img" aria-label={\`\${pattern.percentage.toFixed(0)} por cento\`}>
+                  <span style={{ width: \`\${Math.min(100, pattern.percentage)}%\` }} />
+                </div>
+                <div className="review-insight-trend">
+                  {pattern.trend === "IMPROVING" && <span className="improving">Menos frequente nas avaliações recentes</span>}
+                  {pattern.trend === "WORSENING" && <span className="worsening">Mais frequente nas avaliações recentes</span>}
+                  {pattern.trend === "STABLE" && <span>Frequência semelhante nas duas amostras</span>}
+                  {pattern.trend === "INSUFFICIENT" && <span>Comparação temporal ainda sem amostra suficiente</span>}
+                  {pattern.trend !== "INSUFFICIENT" && pattern.recentPercentage !== null && pattern.previousPercentage !== null && (
+                    <small>Recentes: {pattern.recentPercentage.toFixed(0)}% · anteriores: {pattern.previousPercentage.toFixed(0)}%</small>
+                  )}
+                </div>
+              </article>
+            ))}
+          </div>
+        )}
+        <p className="evolution-footnote">
+          A comparação usa até 10 avaliações recentes contra até 10 anteriores e só é exibida quando cada grupo tem pelo menos 5 registros.
+          Os dados vêm da autoavaliação do trader; o simulador não observa emoções nem infere intenções.
+        </p>
+      </section>
       <div className="trade-review-toolbar">
         <label>
           Exibir operações
