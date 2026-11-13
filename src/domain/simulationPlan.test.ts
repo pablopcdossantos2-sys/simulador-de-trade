@@ -49,7 +49,7 @@ describe("planejamento de simulação", () => {
     ).toThrow(/alinhados a minutos pares/i);
   });
 
-  it("rejeita timeframe fora de M2/M5", () => {
+  it("rejeita timeframe diferente de M2", () => {
     expect(() =>
       calculateSimulationPlan({
         asset: "WINFUT",
@@ -59,7 +59,7 @@ describe("planejamento de simulação", () => {
         endTime: "12:00",
         warmupPolicy: "STANDARD",
       }),
-    ).toThrow(/M2 ou M5/i);
+    ).toThrow(/fonte do replay é o histórico de candles M2/i);
   });
 
   it("exige 260 candles de aquecimento no modo padrão", () => {
@@ -98,40 +98,6 @@ describe("planejamento de simulação", () => {
       },
     ]);
     expect(plan.contractWarning).toMatch(/vencimento mensal do WIN/i);
-  });
-
-  it("planeja M5 de ponta a ponta", () => {
-    const plan = calculateSimulationPlan({
-      asset: "WINFUT",
-      date: "2026-10-14",
-      timeframeMinutes: 5,
-      startTime: "09:00",
-      endTime: "12:00",
-      warmupPolicy: "STANDARD",
-    });
-
-    expect(plan.timeframeMinutes).toBe(5);
-    expect(plan.visibleBars).toBe(36);
-    expect(plan.warmupBars).toBe(260);
-    expect(plan.warmupMinutes).toBe(1300);
-    expect(plan.sameWindowSessionsNeeded).toBe(8);
-    expect(plan.sameWindowPreviousDates).toEqual([
-      "2026-10-13",
-      "2026-10-09",
-      "2026-10-08",
-      "2026-10-07",
-      "2026-10-06",
-      "2026-10-05",
-      "2026-10-02",
-      "2026-10-01",
-    ]);
-    expect(plan.fullSessionsNeeded).toBe(3);
-    expect(plan.fullSessionPreviousDates).toEqual([
-      "2026-10-13",
-      "2026-10-09",
-      "2026-10-08",
-    ]);
-    expect(plan.fullSessionBars).toBe(324);
   });
 
   it("usa 520 candles no modo estrito", () => {
