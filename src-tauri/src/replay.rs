@@ -771,7 +771,7 @@ mod tests {
     #[test]
     fn parses_valid_m2_ohlcv_row() {
         let candle = parse_replay_candle_line(
-            "WINV26,2026-10-07T09:00:00,17,130000,130050,129950,130010,1200\\n",
+            "WINV26,2026-10-07T09:00:00,17,130000,130050,129950,130010,1200\n",
             "WINFUT",
         ).unwrap();
         assert_eq!(candle.timestamp, "2026-10-07T09:00:00");
@@ -786,7 +786,7 @@ mod tests {
     #[test]
     fn rejects_m2_row_with_timestamp_off_two_minute_grid() {
         let result = parse_replay_candle_line(
-            "WINV26,2026-10-07T09:01:00,17,130000,130050,129950,130010,1200\\n",
+            "WINV26,2026-10-07T09:01:00,17,130000,130050,129950,130010,1200\n",
             "WINFUT",
         );
         assert!(result.unwrap_err().contains("abertura de um candle M2"));
@@ -795,7 +795,7 @@ mod tests {
     #[test]
     fn rejects_m2_row_with_inconsistent_high_low() {
         let result = parse_replay_candle_line(
-            "WINV26,2026-10-07T09:00:00,17,130000,129900,130050,130010,1200\\n",
+            "WINV26,2026-10-07T09:00:00,17,130000,129900,130050,130010,1200\n",
             "WINFUT",
         );
         assert!(result.unwrap_err().contains("máxima/mínima incompatíveis"));
