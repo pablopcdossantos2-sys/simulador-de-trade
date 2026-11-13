@@ -83,8 +83,8 @@ export function BackupPanel({ disabled, onImported }: Props) {
       </div>
 
       <p className="data-description">
-        Exporte sessões, trades, notas, snapshots de entrada, eventos e
-        configurações. Em “Mesclar”, registros locais e configurações atuais são
+        Exporte sessões, trades, notas, avaliações individuais, snapshots de
+        entrada, eventos e configurações. Em “Mesclar”, registros locais e configurações atuais são
         preservados. Em “Substituir tudo”, os dados locais são apagados em uma
         transação e o backup passa a ser a fonte.
       </p>
