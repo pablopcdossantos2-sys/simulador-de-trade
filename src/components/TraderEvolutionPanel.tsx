@@ -367,7 +367,7 @@ export function TraderEvolutionPanel({ refreshKey }: Props) {
           <div className="review-insights-empty">
             {reviewInsights.reviewedTrades === 0
               ? "As análises aparecerão depois que você avaliar operações encerradas."
-              : "Nenhum desvio foi registrado nas avaliações disponíveis. Continue revisando as operações para ampliar a amostra."}
+              : "Nenhum desvio foi registrado até aqui. Continue avaliando operações; recorrências só serão apontadas quando houver amostra suficiente."}
           </div>
         ) : (
           <div className="review-insights-list">
