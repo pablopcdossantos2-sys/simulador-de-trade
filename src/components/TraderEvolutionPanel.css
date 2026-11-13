@@ -95,3 +95,42 @@
 :root[data-theme="light"] .trade-review-toolbar select, :root[data-theme="light"] .trade-review-form select, :root[data-theme="light"] .trade-review-form textarea { border-color: #c3d4e3; color: #21384e; background: #fff; }
 :root[data-theme="light"] .trade-review-form label strong { color: #21384e; }
 :root[data-theme="light"] .trade-review-actions span { color: #62798e; }
+
+
+/* Análise de padrões nas avaliações */
+.review-insights { display: grid; gap: 12px; }
+.review-insights-overview { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.review-insights-overview article { display: grid; gap: 7px; padding: 13px 15px; border: 1px solid #263b54; border-radius: 11px; background: #0d1929; }
+.review-insights-overview article span { color: #8fa4ba; font-size: .74rem; }
+.review-insights-overview article strong { color: #e0ebf6; font-size: 1.35rem; font-variant-numeric: tabular-nums; }
+.review-insights-empty { padding: 16px; border: 1px dashed #344c67; border-radius: 11px; color: #9bb0c5; background: #0d1929; font-size: .82rem; line-height: 1.5; }
+.review-insights-list { display: grid; gap: 10px; }
+.review-insight-card { display: grid; gap: 8px; padding: 14px; border: 1px solid #344c67; border-radius: 12px; background: #101e30; }
+.review-insight-card.recurrent { border-color: #8a6334; }
+.review-insight-heading { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
+.review-insight-heading > strong { color: #e0ebf6; font-size: .9rem; }
+.review-insight-strength { border-radius: 999px; padding: 4px 8px; color: #e8cf9e; background: #49391c; font-size: .68rem; font-weight: 700; }
+.review-insight-strength.early_signal { color: #a9c8e8; background: #203a55; }
+.review-insight-card p { margin: 0; color: #9bb0c5; font-size: .78rem; line-height: 1.45; }
+.review-insight-metrics { display: flex; align-items: baseline; gap: 9px; flex-wrap: wrap; }
+.review-insight-metrics strong { color: #e0ebf6; font-size: .95rem; }
+.review-insight-metrics span, .review-insight-trend small { color: #8fa4ba; font-size: .72rem; }
+.review-insight-bar { height: 7px; border-radius: 99px; background: #24364b; overflow: hidden; }
+.review-insight-bar span { display: block; height: 100%; border-radius: inherit; background: #c18a42; }
+.review-insight-trend { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 6px 12px; color: #8fa4ba; font-size: .73rem; }
+.review-insight-trend .improving { color: #8ed4a9; }
+.review-insight-trend .worsening { color: #efaa9f; }
+@media (max-width: 640px) {
+  .review-insights-overview { grid-template-columns: 1fr 1fr 1fr; gap: 6px; }
+  .review-insights-overview article { padding: 10px 8px; }
+  .review-insights-overview article span { font-size: .66rem; }
+  .review-insights-overview article strong { font-size: 1.08rem; }
+  .review-insight-heading { align-items: flex-start; flex-direction: column; }
+}
+:root[data-theme="light"] .review-insights-overview article, :root[data-theme="light"] .review-insights-empty { border-color: #d1dde8; background: #f7fafc; }
+:root[data-theme="light"] .review-insights-overview article span, :root[data-theme="light"] .review-insight-trend small { color: #62798e; }
+:root[data-theme="light"] .review-insights-overview article strong, :root[data-theme="light"] .review-insight-heading > strong, :root[data-theme="light"] .review-insight-metrics strong { color: #21384e; }
+:root[data-theme="light"] .review-insight-card { border-color: #d1dde8; background: #f7fafc; }
+:root[data-theme="light"] .review-insight-card.recurrent { border-color: #d9bd8d; }
+:root[data-theme="light"] .review-insight-card p { color: #62798e; }
+:root[data-theme="light"] .review-insight-bar { background: #dce5ed; }
