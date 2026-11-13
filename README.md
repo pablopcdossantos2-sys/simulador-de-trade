@@ -59,7 +59,7 @@ Para executar o desktop durante o desenvolvimento, instale também Rust, WebView
 npm run tauri dev
 ```
 
-No Windows, o instalador e a versão portátil são produzidos pelo GitHub Actions. Consulte o [guia de instalação](docs/INSTALACAO-WINDOWS.md).
+No Windows, o instalador e a versão portátil são produzidos pelo GitHub Actions. Consulte o [guia de instalação](docs/INSTALACAO-WINDOWS.md) e o [guia de validação prática](docs/GUIA-VALIDACAO-WINDOWS.md), que orienta a primeira importação dos CSVs M2 do Profit e a conferência do replay.
 
 ## Dados e privacidade
 

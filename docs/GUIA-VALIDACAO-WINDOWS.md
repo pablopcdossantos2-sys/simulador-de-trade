@@ -1,4 +1,4 @@
-# Guia de validação no Windows — Simulador de Trade
+# Guia de validação prática no Windows — Simulador de Trade
 
 Este guia reúne as etapas que dependem do usuário para validar o aplicativo no Windows, com prioridade para a primeira importação de candles M2 do Profit.
 
