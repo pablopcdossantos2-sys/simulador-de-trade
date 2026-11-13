@@ -129,6 +129,8 @@ struct ProfitPreparationResult {
     last_timestamp: Option<String>,
     session_start: String,
     session_end: String,
+    data_mode: String,
+    source_timeframe_minutes: Option<u32>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -2287,11 +2289,15 @@ fn process_profit_replay_file(
         last_timestamp: last_kept.map(|value| value.format("%Y-%m-%dT%H:%M:%S%.f").to_string()),
         session_start: window_start.format("%H:%M:%S").to_string(),
         session_end: window_end.format("%H:%M:%S").to_string(),
+        data_mode: "TICK_LEGACY".to_string(),
+        source_timeframe_minutes: None,
     };
 
     let metadata = json!({
         "schemaVersion": 1,
         "purpose": "Simulador de Trade — replay WINFUT/WDOFUT",
+        "dataMode": &result.data_mode,
+        "sourceTimeframeMinutes": result.source_timeframe_minutes,
         "timezone": "America/Sao_Paulo",
         "window": {
             "startInclusive": result.session_start.clone(),
@@ -2513,6 +2519,8 @@ fn process_profit_m2_candle_file(
         last_timestamp,
         session_start: window_start.format("%H:%M:%S").to_string(),
         session_end: window_end.format("%H:%M:%S").to_string(),
+        data_mode: "CANDLES_M2_SYNTHETIC".to_string(),
+        source_timeframe_minutes: Some(2),
     };
     let metadata = json!({
         "schemaVersion": 2,

@@ -50,7 +50,7 @@ export function DataPreparationPanel({
       keptRows: 0,
     });
     setMessage(
-      `Tratando o arquivo e preservando somente os negócios entre ${sessionStart} e ${sessionEnd}...`,
+      `Tratando o arquivo e preservando os dados entre ${sessionStart} e ${sessionEnd}...`,
     );
 
     try {
@@ -86,9 +86,11 @@ export function DataPreparationPanel({
       </div>
 
       <p className="data-description">
-        O tratamento descarta as colunas de instituições/agressão e os negócios
-        fora da janela de treino. Permanecem apenas os dados necessários para
-        reconstruir o preço, o volume e a sequência do mercado.
+        Prefira exportar o gráfico M2 do Profit com Ativo/Contrato, Data/Hora,
+        Abertura, Máxima, Mínima, Fechamento e Volume. O sistema cria um arquivo
+        compacto OHLCV e gera movimento sintético segundo a segundo durante o
+        replay. CSVs antigos de negócios individuais continuam aceitos apenas
+        para compatibilidade.
       </p>
 
       <div className="data-window-grid">
@@ -152,11 +154,11 @@ export function DataPreparationPanel({
             <strong>{result.symbol || "Não identificado"}</strong>
           </div>
           <div>
-            <span>Negócios preservados</span>
+            <span>{result.dataMode === "CANDLES_M2_SYNTHETIC" ? "Candles M2 preservados" : "Negócios preservados"}</span>
             <strong>{result.keptRows.toLocaleString("pt-BR")}</strong>
           </div>
           <div>
-            <span>Negócios descartados</span>
+            <span>{result.dataMode === "CANDLES_M2_SYNTHETIC" ? "Candles M2 fora da janela" : "Negócios descartados"}</span>
             <strong>{result.discardedRows.toLocaleString("pt-BR")}</strong>
           </div>
           <div>
@@ -164,8 +166,8 @@ export function DataPreparationPanel({
             <strong>{result.reductionPct.toFixed(1)}%</strong>
           </div>
           <div>
-            <span>Ordem da fonte</span>
-            <strong>{result.sourceOrder}</strong>
+            <span>Formato de replay</span>
+            <strong>{result.dataMode === "CANDLES_M2_SYNTHETIC" ? "OHLCV M2 · movimento sintético" : "Negócios tick a tick · legado"}</strong>
           </div>
           <div className="result-path">
             <span>Arquivo gerado</span>

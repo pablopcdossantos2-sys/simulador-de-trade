@@ -53,7 +53,7 @@ Durante a reprodução, o backend gera até 120 preços para cada candle M2. O p
 2. alcança máxima e mínima em uma ordem e em segundos escolhidos pelo gerador;
 3. mantém todos os preços dentro da faixa OHLC;
 4. termina no fechamento;
-5. distribui o volume total ao longo dos 120 segundos.
+5. distribui uniformemente o volume total ao longo dos 120 segundos; a VWAP calculada durante a formação do candle é, portanto, uma aproximação sintética, pois o OHLCV não informa em que segundo cada parte do volume foi negociada.
 
 O algoritmo usa o ativo, timestamp e OHLCV como semente. Reiniciar a mesma sessão, portanto, não muda aleatoriamente o caminho.
 

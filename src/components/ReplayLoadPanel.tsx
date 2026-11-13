@@ -36,9 +36,10 @@ export function ReplayLoadPanel({
       </div>
 
       <p className="data-description">
-        Selecione o arquivo tratado (.replay.csv) preparado na Etapa 3.
-        Depois de carregá-lo, inicie a sessão na Etapa 5; os controles para
-        reproduzir e avançar o mercado estarão logo abaixo dela.
+        Selecione o replay compacto (.replay.csv) preparado na Etapa 3.
+        O formato recomendado contém candles OHLCV M2; arquivos antigos de
+        negócios tick a tick continuam disponíveis apenas para compatibilidade.
+        Depois de carregá-lo, inicie a sessão na Etapa 5.
       </p>
 
       <div className="replay-load-row">

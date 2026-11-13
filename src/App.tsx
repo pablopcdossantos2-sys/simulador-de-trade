@@ -1376,7 +1376,7 @@ export default function App() {
 
 
       <details className="advanced-tools">
-        <summary>Ferramenta alternativa: preparar um CSV manualmente (avançado)</summary>
+        <summary>Importação alternativa fora do plano (avançado)</summary>
         <p className="data-description">
           Use esta ferramenta apenas se precisar tratar um arquivo fora do fluxo guiado acima.
           Para a simulação planejada, prefira “Tratar dados necessários”.

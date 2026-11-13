@@ -12,9 +12,9 @@ Durante a reprodução, um algoritmo cria uma trajetória de preço para os 120 
 - permanece entre a mínima e a máxima do candle de origem;
 - visita a máxima e a mínima em instantes variáveis;
 - usa uma semente determinística por candle, portanto o mesmo arquivo gera o mesmo percurso sempre que a sessão é reiniciada;
-- distribui o volume do candle ao longo dos segundos para animar a visualização.
+- distribui uniformemente o volume do candle ao longo dos segundos para animar a visualização.
 
-**Importante:** os preços segundo a segundo são sintéticos. Eles não são negócios históricos, não reconstituem a ordem real dos negócios e não devem ser interpretados como evidência de quando o mercado realmente tocou um preço. Quando Stop e Alvo poderiam ter sido atingidos dentro do mesmo candle M2, o resultado depende do percurso simulado. Os relatórios representam um cenário de treinamento, não uma reprodução tick a tick do mercado.
+**Importante:** os preços e a distribuição de volume segundo a segundo são sintéticos. Eles não são negócios históricos, não reconstituem a ordem real dos negócios nem o perfil intrabar de volume. Por isso, a VWAP enquanto o candle M2 está em formação também é uma aproximação de treinamento. Quando Stop e Alvo poderiam ter sido atingidos dentro do mesmo candle M2, o resultado depende do percurso simulado. Os relatórios representam um cenário de treinamento, não uma reprodução tick a tick do mercado.
 
 Arquivos legados de negócios individuais continuam aceitos para compatibilidade, mas o fluxo recomendado é o CSV M2.
 

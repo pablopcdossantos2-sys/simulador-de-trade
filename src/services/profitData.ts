@@ -17,6 +17,8 @@ export interface ProfitPreparationResult {
   lastTimestamp: string | null;
   sessionStart: string;
   sessionEnd: string;
+  dataMode: "CANDLES_M2_SYNTHETIC" | "TICK_LEGACY";
+  sourceTimeframeMinutes: number | null;
 }
 
 export interface ProfitPreparationProgress {

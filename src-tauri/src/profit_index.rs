@@ -787,11 +787,15 @@ pub(super) fn try_process_indexed_profit_replay_file(
             .map(|value| value.format("%Y-%m-%dT%H:%M:%S%.f").to_string()),
         session_start: window_start.format("%H:%M:%S").to_string(),
         session_end: window_end.format("%H:%M:%S").to_string(),
+        data_mode: "TICK_LEGACY".to_string(),
+        source_timeframe_minutes: None,
     };
 
     let metadata = json!({
         "schemaVersion": 1,
         "purpose": "Simulador de Trade — replay WINFUT/WDOFUT",
+        "dataMode": &result.data_mode,
+        "sourceTimeframeMinutes": result.source_timeframe_minutes,
         "timezone": "America/Sao_Paulo",
         "window": {
             "startInclusive": result.session_start.clone(),
