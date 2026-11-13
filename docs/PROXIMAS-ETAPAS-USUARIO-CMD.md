@@ -86,20 +86,20 @@ O fluxo recomendado não exige negócios tick a tick. Exporte o histórico do gr
 O CSV deve conter um cabeçalho que permita identificar:
 
 - Ativo ou Contrato;
-- Data/Hora (ou Data e Hora em colunas separadas);
+- Data/Hora, Timestamp, uma coluna Data que já inclua data e hora, ou Data e Hora em colunas separadas;
 - Abertura;
 - Máxima;
 - Mínima;
 - Fechamento;
-- Volume.
+- Volume Quantidade/Quantidade (contratos).
 
 Exemplo de cabeçalho aceito:
 
 ```text
-Ativo;Data/Hora;Abertura;Máxima;Mínima;Fechamento;Volume
+Ativo;Data;Abertura;Máxima;Mínima;Fechamento;Volume Financeiro;Volume Quantidade
 ```
 
-O sistema também reconhece aliases em inglês, como `Symbol`, `Timestamp`, `Open`, `High`, `Low`, `Close` e `Volume`, além de delimitadores vírgula, ponto e vírgula ou tabulação.
+O sistema também reconhece aliases em inglês, como `Symbol`, `Timestamp`, `Open`, `High`, `Low`, `Close`, `Volume Quantity` e `Quantity`, além de delimitadores vírgula, ponto e vírgula ou tabulação. Quando o arquivo trouxer `Volume Financeiro` e `Volume Quantidade`, o parser escolhe `Volume Quantidade` para alimentar a VWAP.
 
 ### Atenção ao horário do candle
 

@@ -7,14 +7,14 @@ O fluxo principal usa um CSV exportado do gráfico de **2 minutos (M2)** do Prof
 O CSV precisa ter um cabeçalho que identifique:
 
 - ativo/contrato;
-- data e hora do candle (ou uma coluna única de timestamp);
+- data e hora do candle em `Data/Hora`, `Timestamp`, em uma coluna `Data` com data e hora juntas, ou em colunas separadas `Data` e `Hora`;
 - abertura;
 - máxima;
 - mínima;
 - fechamento;
 - volume.
 
-São reconhecidos nomes comuns em português e inglês, como `Ativo`, `Contrato`, `Data`, `Hora`, `Timestamp`, `Abertura/Open`, `Máxima/High`, `Mínima/Low`, `Fechamento/Close` e `Volume`. São aceitos delimitadores vírgula, ponto e vírgula ou tabulação e codificações UTF-8/Windows-1252.
+São reconhecidos nomes comuns em português e inglês, como `Ativo`, `Contrato`, `Data`, `Data/Hora`, `Hora`, `Timestamp`, `Abertura/Open`, `Máxima/High`, `Mínima/Low`, `Fechamento/Close` e `Volume Quantidade/Quantidade`. Quando houver `Volume Financeiro` e `Volume Quantidade`, o sistema prioriza `Volume Quantidade`, pois a VWAP requer o volume de contratos/quantidade, não o financeiro. São aceitos delimitadores vírgula, ponto e vírgula ou tabulação e codificações UTF-8/Windows-1252.
 
 O timestamp deve marcar a **abertura** do candle e respeitar a grade M2 (minuto par, segundo zero). Use um arquivo por pregão. Não misture contratos.
 

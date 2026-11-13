@@ -158,7 +158,7 @@ export function PlanDataPreparationPanel({ plan, matches, onCatalogUpdated }: Pr
 
       <p className="data-description">
         No Profit, exporte o histórico em período gráfico de 2 minutos (M2). O CSV deve conter
-        Ativo, Data/Hora, Abertura, Máxima, Mínima, Fechamento e Volume. Não é necessário
+        Ativo/Contrato, Data/Hora (ou Data com data e hora juntas), Abertura, Máxima, Mínima, Fechamento e Volume Quantidade/Quantidade. Se o Profit exportar Volume Financeiro e Volume Quantidade, o simulador utiliza a quantidade. Não é necessário
         exportar negócios tick a tick. O sistema guarda somente os candles M2 e gera uma
         trajetória sintética segundo a segundo durante a reprodução. Arquivos antigos de
         negócios individuais continuam aceitos, mas não são a fonte recomendada.

@@ -23,12 +23,12 @@ Arquivos legados de negócios individuais continuam aceitos para compatibilidade
 Exporte um arquivo CSV do ativo e do pregão desejados, usando o gráfico de 2 minutos. O arquivo deve conter:
 
 - Ativo ou contrato;
-- Data/Hora do candle;
+- Data/Hora do candle (ou Data com data e hora juntas, ou Data e Hora separadas);
 - Abertura;
 - Máxima;
 - Mínima;
 - Fechamento;
-- Volume.
+- Volume Quantidade/Quantidade (contratos). Quando o Profit exportar Volume Financeiro e Volume Quantidade, o simulador utiliza Volume Quantidade.
 
 O timestamp deve identificar a abertura do candle M2. Use um arquivo por pregão e mantenha o contrato do aquecimento compatível com o contrato do pregão-alvo.
 

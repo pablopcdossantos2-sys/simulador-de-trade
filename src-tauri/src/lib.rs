@@ -1623,10 +1623,26 @@ fn detect_candle_layout(fields: &[String]) -> Option<ProfitCandleLayout> {
     let high_idx = find_alias(fields, &["maxima", "máxima", "high", "preco maximo", "preço máximo"])?;
     let low_idx = find_alias(fields, &["minima", "mínima", "low", "preco minimo", "preço mínimo"])?;
     let close_idx = find_alias(fields, &["fechamento", "close", "preco fechamento", "preço fechamento"])?;
-    let volume_idx = find_alias(fields, &["volume", "vol", "quantidade", "qtd", "quantity", "qty"])?;
-    let timestamp_idx = find_alias(fields, &["timestamp", "data hora", "data/hora", "data e hora", "datahora", "datetime"]);
-    let date_idx = find_alias(fields, &["data", "date"]);
+    // Para VWAP, prefira sempre volume negociado em quantidade/contratos.
+    // Não use "Volume Financeiro" quando a exportação também trouxer "Volume Quantidade".
+    let volume_idx = find_alias(
+        fields,
+        &["volume quantidade", "vol quantidade", "vol. quantidade", "quantidade", "qtd", "quantity", "qty"],
+    )
+    .or_else(|| find_alias(fields, &["volume", "vol"]))?;
+    let mut timestamp_idx = find_alias(
+        fields,
+        &["timestamp", "data hora", "data/hora", "data e hora", "datahora", "datetime"],
+    );
+    let mut date_idx = find_alias(fields, &["data", "date"]);
     let time_idx = find_alias(fields, &["hora", "tempo", "time", "horario", "horário"]);
+
+    // Em algumas exportações OHLC intraday do Profit, a coluna "Data" já
+    // contém data e horário juntos (por exemplo, 14/10/2026 09:00).
+    if timestamp_idx.is_none() && time_idx.is_none() {
+        timestamp_idx = date_idx;
+        date_idx = None;
+    }
     if timestamp_idx.is_none() && (date_idx.is_none() || time_idx.is_none()) {
         return None;
     }
@@ -2854,6 +2870,23 @@ mod tests {
         assert_eq!(layout.low_idx, 4);
         assert_eq!(layout.close_idx, 5);
         assert_eq!(layout.volume_idx, 6);
+    }
+
+    #[test]
+    fn profit_intraday_header_prefers_volume_quantity_over_financial_volume() {
+        let header = "Ativo;Data;Abertura;Máxima;Mínima;Fechamento;Volume Financeiro;Volume Quantidade";
+        let header_fields = parse_delimited_line(header, detect_delimiter(header));
+        let layout = detect_candle_layout(&header_fields).expect("layout OHLCV deveria ser reconhecido");
+
+        assert_eq!(layout.symbol_idx, Some(0));
+        assert_eq!(layout.timestamp_idx, Some(1));
+        assert_eq!(layout.volume_idx, Some(7));
+
+        let row = "WINV26;14/10/2026 09:00;130000;130050;129950;130010;168365965;11117500";
+        let row_fields = parse_delimited_line(row, ';');
+        let timestamp = row_candle_timestamp(&row_fields, &layout).unwrap();
+        assert_eq!(timestamp.format("%Y-%m-%dT%H:%M:%S").to_string(), "2026-10-14T09:00:00");
+        assert_eq!(parse_candle_price(&row_fields, layout.volume_idx, 2, "volume").unwrap(), 11117500.0);
     }
 
     #[test]

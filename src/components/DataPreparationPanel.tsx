@@ -86,8 +86,9 @@ export function DataPreparationPanel({
       </div>
 
       <p className="data-description">
-        Prefira exportar o gráfico M2 do Profit com Ativo/Contrato, Data/Hora,
-        Abertura, Máxima, Mínima, Fechamento e Volume. O sistema cria um arquivo
+        Prefira exportar o gráfico M2 do Profit com Ativo/Contrato, Data/Hora (ou Data com data e hora juntas),
+        Abertura, Máxima, Mínima, Fechamento e Volume Quantidade/Quantidade. Quando houver Volume Financeiro e Volume Quantidade,
+        o sistema utiliza a quantidade. O sistema cria um arquivo
         compacto OHLCV e gera movimento sintético segundo a segundo durante o
         replay. CSVs antigos de negócios individuais continuam aceitos apenas
         para compatibilidade.
