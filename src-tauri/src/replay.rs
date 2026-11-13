@@ -215,7 +215,10 @@ fn open_session(path: &Path) -> Result<(ReplaySession, ReplaySessionInfo), Strin
     reader.read_line(&mut header).map_err(|error| error.to_string())?;
     let normalized_header = header.trim_end_matches(|ch| ch == '\r' || ch == '\n');
     let format = match normalized_header {
-        "symbol,timestamp,source_row,price,quantity" => ReplayFormat::Ticks,
+        "symbol,timestamp,source_row,price,quantity" => {
+            validate_header(&header)?;
+            ReplayFormat::Ticks
+        }
         "symbol,timestamp,source_row,open,high,low,close,volume" => ReplayFormat::CandlesM2,
         _ => return Err("Formato de replay inválido. São aceitos negócios legados ou OHLCV M2.".to_string()),
     };
