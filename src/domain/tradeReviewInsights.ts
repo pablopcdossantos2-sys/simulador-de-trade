@@ -76,9 +76,9 @@ const definitions: PatternDefinition[] = [
     matches: (_trade, review) => review.ruleAdherence === "BROKE",
   },
   ...(["FEAR", "GREED", "REVENGE", "FOMO", "HESITATION", "OTHER"] as const).map((emotion) => ({
-    key: \`EMOTION_\${emotion}\`,
-    title: \`Interferência emocional: \${emotionLabels[emotion]}\`,
-    description: \`A avaliação registrou repetição de interferência associada a: \${emotionLabels[emotion].toLowerCase()}.\`,
+    key: `EMOTION_${emotion}`,
+    title: `Interferência emocional: ${emotionLabels[emotion]}`,
+    description: `A avaliação registrou repetição de interferência associada a: ${emotionLabels[emotion].toLowerCase()}.`,
     matches: (_trade: Trade, review: TradeReview) => review.emotionalInterference === emotion,
   })),
 ];
