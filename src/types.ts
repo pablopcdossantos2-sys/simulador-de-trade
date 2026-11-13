@@ -102,6 +102,23 @@ export interface Position {
 
 export type ExitReason = "STOP" | "TARGET" | "SESSION_END" | "MANUAL_STOP";
 
+export type TradeEntryExecution = "PLANNED" | "PARTIAL" | "OUTSIDE_PLAN";
+export type TradeStopDiscipline = "RESPECTED" | "MOVED_WITH_PLAN" | "MOVED_AGAINST_PLAN" | "NOT_APPLICABLE";
+export type TradeTargetDiscipline = "RESPECTED" | "CLOSED_EARLY" | "EXTENDED_WITH_PLAN" | "EXTENDED_WITHOUT_PLAN" | "NOT_APPLICABLE";
+export type TradeRuleAdherence = "ALL" | "PARTIAL" | "BROKE";
+export type TradeEmotionalInterference = "NONE" | "FEAR" | "GREED" | "REVENGE" | "FOMO" | "HESITATION" | "OTHER";
+
+export interface TradeReview {
+  tradeId: string;
+  reviewedAt: string;
+  entryExecution: TradeEntryExecution;
+  stopDiscipline: TradeStopDiscipline;
+  targetDiscipline: TradeTargetDiscipline;
+  ruleAdherence: TradeRuleAdherence;
+  emotionalInterference: TradeEmotionalInterference;
+  lesson: string;
+}
+
 export interface Trade {
   id: string;
   asset: Asset;
@@ -126,6 +143,7 @@ export interface Trade {
   netResultBRL: number;
   postTradeNote: string;
   entryContext?: TradeEntryContext | null;
+  review?: TradeReview;
 }
 
 export interface TradeIntent {
