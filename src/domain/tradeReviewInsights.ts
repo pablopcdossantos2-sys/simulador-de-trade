@@ -47,26 +47,35 @@ const emotionLabels: Record<Exclude<TradeReview["emotionalInterference"], "NONE"
   OTHER: "Outra interferência emocional",
 };
 
+const emotionRecommendations: Record<Exclude<TradeReview["emotionalInterference"], "NONE">, string> = {
+  FEAR: "Defina antes da sessão os critérios de entrada, stop e saída. Durante o trade, evite antecipar decisões sem um sinal previsto.",
+  GREED: "Registre o alvo e as condições de extensão antes da entrada; não altere o plano apenas para buscar mais pontos.",
+  REVENGE: "Após um prejuízo, faça a pausa prevista no seu operacional e só retome quando cumprir novamente o checklist.",
+  FOMO: "Não persiga movimentos já iniciados. Aguarde um novo sinal válido que atenda integralmente ao seu operacional.",
+  HESITATION: "Revise os critérios objetivos antes da sessão e identifique o que invalida a entrada para reduzir decisões improvisadas.",
+  OTHER: "Descreva o gatilho da interferência e estabeleça uma regra observável para lidar com ele na próxima sessão.",
+};
+
 const definitions: PatternDefinition[] = [
   {
     key: "ENTRY_OUTSIDE_PLAN",
     title: "Entradas fora do plano",
     description: "Operações em que a entrada foi registrada como fora do plano definido.",
-    recommendation: "Antes de abrir uma posição, confirme sinal, contexto e ponto de entrada com o checklist do operacional."
+    recommendation: "Antes de abrir uma posição, confirme sinal, contexto e ponto de entrada com o checklist do operacional.",
     matches: (_trade, review) => review.entryExecution === "OUTSIDE_PLAN",
   },
   {
     key: "STOP_MOVED_AGAINST_PLAN",
     title: "Afastamento do stop",
     description: "O stop foi afastado para evitar a saída, contrariando o plano.",
-    recommendation: "Defina previamente quais ajustes de stop são permitidos. Não o afaste apenas para evitar realizar o prejuízo."
+    recommendation: "Defina previamente quais ajustes de stop são permitidos. Não o afaste apenas para evitar realizar o prejuízo.",
     matches: (_trade, review) => review.stopDiscipline === "MOVED_AGAINST_PLAN",
   },
   {
     key: "PROFIT_CLOSED_EARLY",
     title: "Operações lucrativas encerradas antes do alvo",
     description: "Trades com resultado positivo em que o alvo foi abandonado por encerramento antecipado.",
-    recommendation: "Revise se a saída antecipada teve um motivo técnico previsto ou foi uma reação ao medo de devolver o lucro."
+    recommendation: "Revise se a saída antecipada teve um motivo técnico previsto ou foi uma reação ao medo de devolver o lucro.",
     applies: (trade) => trade.netResultBRL > 0,
     matches: (_trade, review) => review.targetDiscipline === "CLOSED_EARLY",
   },
@@ -74,21 +83,21 @@ const definitions: PatternDefinition[] = [
     key: "TARGET_EXTENDED_WITHOUT_PLAN",
     title: "Extensão do alvo sem previsão",
     description: "O alvo foi estendido sem que essa possibilidade estivesse prevista no plano.",
-    recommendation: "Estabeleça antes da entrada as condições objetivas para estender o alvo; sem elas, mantenha o plano original."
+    recommendation: "Estabeleça antes da entrada as condições objetivas para estender o alvo; sem elas, mantenha o plano original.",
     matches: (_trade, review) => review.targetDiscipline === "EXTENDED_WITHOUT_PLAN",
   },
   {
     key: "RULES_BROKEN",
     title: "Quebra de regras do operacional",
     description: "A avaliação registrou que uma ou mais regras foram quebradas.",
-    recommendation: "Identifique qual regra foi quebrada e transforme a correção em uma condição verificável para a próxima sessão."
+    recommendation: "Identifique qual regra foi quebrada e transforme a correção em uma condição verificável para a próxima sessão.",
     matches: (_trade, review) => review.ruleAdherence === "BROKE",
   },
   ...(["FEAR", "GREED", "REVENGE", "FOMO", "HESITATION", "OTHER"] as const).map((emotion) => ({
-    key: `EMOTION_${emotion}`,
-    title: `Interferência emocional: ${emotionLabels[emotion]}`,
-    description: `A avaliação registrou repetição de interferência associada a: ${emotionLabels[emotion].toLowerCase()}.`,
-    recommendation: "Registre o alvo e as condições de extensão antes da entrada; não altere o plano apenas para buscar mais pontos.",
+    key: "EMOTION_" + emotion,
+    title: "Interferência emocional: " + emotionLabels[emotion],
+    description: "A avaliação registrou repetição de interferência associada a: " + emotionLabels[emotion].toLowerCase() + ".",
+    recommendation: emotionRecommendations[emotion],
     matches: (_trade: Trade, review: TradeReview) => review.emotionalInterference === emotion,
   })),
 ];
@@ -146,13 +155,17 @@ function trendFor(
   }
 
   const delta = recentMeasure.percentage - previousMeasure.percentage;
-  if (delta <= -10) {
-    return { trend: "IMPROVING", recentPercentage: recentMeasure.percentage, previousPercentage: previousMeasure.percentage, recentSampleSize: recentMeasure.sampleSize, previousSampleSize: previousMeasure.sampleSize };
-  }
-  if (delta >= 10) {
-    return { trend: "WORSENING", recentPercentage: recentMeasure.percentage, previousPercentage: previousMeasure.percentage, recentSampleSize: recentMeasure.sampleSize, previousSampleSize: previousMeasure.sampleSize };
-  }
-  return { trend: "STABLE", recentPercentage: recentMeasure.percentage, previousPercentage: previousMeasure.percentage, recentSampleSize: recentMeasure.sampleSize, previousSampleSize: previousMeasure.sampleSize };
+  let trend: ReviewPatternTrend = "STABLE";
+  if (delta <= -10) trend = "IMPROVING";
+  if (delta >= 10) trend = "WORSENING";
+
+  return {
+    trend,
+    recentPercentage: recentMeasure.percentage,
+    previousPercentage: previousMeasure.percentage,
+    recentSampleSize: recentMeasure.sampleSize,
+    previousSampleSize: previousMeasure.sampleSize,
+  };
 }
 
 export function buildTradeReviewInsights(
@@ -179,7 +192,13 @@ export function buildTradeReviewInsights(
 
       const trend = comparisonAvailable
         ? trendFor(definition, recent, previous)
-        : { trend: "INSUFFICIENT" as const, recentPercentage: null, previousPercentage: null, recentSampleSize: null, previousSampleSize: null };
+        : {
+            trend: "INSUFFICIENT" as const,
+            recentPercentage: null,
+            previousPercentage: null,
+            recentSampleSize: null,
+            previousSampleSize: null,
+          };
 
       return {
         key: definition.key,
