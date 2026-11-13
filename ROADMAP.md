@@ -2,159 +2,106 @@
 
 ## Princípios permanentes
 
-- [x] Entrada autorizada por sinal válido ou reentrada após candle posterior tocar a MME 52.
-- [x] Compra só é autorizada por sinal de Compra ou reentrada válida na mesma direção.
-- [x] Venda só é autorizada por sinal de Venda ou reentrada válida na mesma direção.
-- [x] Risco/retorno mínimo obrigatório de 1:2.
-- [x] Toda entrada exige stop loss e alvo.
-- [x] As restrições existem no motor de domínio, não apenas na interface.
-- [ ] O simulador nunca enviará ordens reais para uma corretora sem um projeto separado e uma decisão explícita de escopo.
+- [x] O simulador é educacional e não envia ordens reais.
+- [x] Compra e venda dependem de sinal válido ou reentrada autorizada na mesma direção.
+- [x] Toda entrada exige uma OCO válida e risco/retorno mínimo de 1:2.
+- [x] As regras são aplicadas no motor de domínio, não apenas na interface.
+- [x] Dados e histórico do usuário são mantidos localmente.
 
-## Fase 1 — Fundação disciplinar
+## Fase 1 — Indicador e motor operacional
 
-- [x] React + TypeScript + Vite.
-- [x] Tauri 2 + Rust.
-- [x] SQLite local.
+- [x] React + TypeScript + Vite, Tauri 2 + Rust e SQLite local.
 - [x] WINFUT e WDOFUT.
-- [x] Interface inicial com gráfico e boleta.
-- [x] `IndicatorAdapter`.
-- [x] Indicador sintético temporário usado apenas na fundação inicial.
-- [x] Port do indicador Multi Médias - Nuvem e Sinais.
-- [x] MMP 20, VWAP, MME 8 e MME 52 no gráfico.
-- [x] Estados persistentes de nuvem verde/vermelha.
-- [x] Labels COMPRA/VENDA no candle de gatilho.
-- [x] Autorização operacional cancelada ao fim da zona.
-- [x] Bloqueio de operações sem sinal.
-- [x] Bloqueio da direção contrária.
-- [x] OCO obrigatória.
-- [x] Validação geométrica do stop/alvo.
-- [x] Validação de risco/retorno mínimo 1:2 no motor de domínio.
-- [x] Stop manual a mercado antes do stop OCO.
-- [x] Posição única no MVP.
-- [x] Resolução automática do OCO.
-- [x] Persistência do histórico.
-- [x] Testes unitários das invariantes centrais.
-- [x] CI para teste/build/check.
-- [x] Integrar o indicador Pine Script inicial.
+- [x] Indicador Multi Médias - Nuvem e Sinais: MME 8, MMP 20, MME 52 e VWAP.
+- [x] Zonas direcionais e sinais Compra/Venda.
+- [x] OCO obrigatória, validação de tick, stop/alvo e risco/retorno mínimo 1:2.
+- [x] Custos, slippage, encerramento manual e histórico de operações.
+- [x] Backup JSON, restauração transacional e catálogo local de dados.
+- [x] CI e geração de instalador NSIS e executável portátil Windows.
 
-## Fase 2 — Dados e replay histórico
+## Fase 2 — Fonte OHLCV M2 e replay
 
-Arquitetura definida a partir dos componentes validados no Candle Lab. Ver [Reaproveitamento do Candle Lab](docs/REAPROVEITAMENTO-CANDLE-LAB.md).
+A fonte recomendada passa a ser o histórico de candles de 2 minutos exportado do Profit. O CSV bruto é mantido intacto; o aplicativo cria um arquivo derivado compacto com uma linha por candle.
 
-- [x] Definir estratégia de fonte bruta externa + índice local leve.
-- [x] Definir índice-base M1 capaz de localizar M2 por linhas/bytes.
-- [x] Definir modelo mínimo de evento: timestamp + sequência + preço + quantidade.
-- [x] Portar parser Profit inicial do Candle Lab para Rust.
-- [x] Portar indexador temporal M1 para Rust.
-- [x] Implementar seek direto no CSV original por pregão.
-- [x] Implementar ReplayTrade em streaming a partir do `.replay.csv`.
-- [x] Implementar agregador incremental de candles M2.
-- [x] Avaliar OCO em cada negócio, não apenas no OHLC fechado.
-- [x] Recalcular o indicador no candle M2 aberto a cada negócio.
-- [x] Definir formato canônico de candle M2 incremental.
-- [x] Criar ferramenta desktop para tratar CSV bruto do Profit.
-- [x] Permitir escolher horário inicial/final no tratamento.
-- [x] Validar layout, colunas e timestamps no tratamento inicial.
-- [x] Interromper o tratamento com diagnóstico da linha inválida.
-- [x] Tratamento em lote dos pregões exigidos pelo plano.
-- [x] Catálogo local de arquivos preparados e detecção de datas faltantes.
-- [x] Aquecimento automático e invisível antes da janela visível.
-- [ ] Importar histórico de WIN.
-- [ ] Importar histórico de WDO.
-- [x] Não revelar candles futuros.
-- [x] Play / pause.
-- [x] Avanço de um candle sem revelar o primeiro negócio do candle seguinte.
-- [x] Avanço manual de um negócio.
-- [x] Velocidades de reprodução visual 1× / 2× / 5× / 10×.
-- [x] Seleção de timeframe M2/M5 integrada ao planejamento, aquecimento, replay e avanço por candle.
-- [x] Planejamento prévio por ativo, data, timeframe e janela horária.
-- [x] Cálculo automático de aquecimento do indicador.
-- [x] Aviso dos pregões anteriores necessários no calendário B3 2026.
-- [x] Aviso inicial de vencimento do WIN para evitar mistura indevida de contratos.
-- [x] Sincronizar a janela do plano com o tratamento dos dados.
-- [x] Validar a janela do arquivo carregado contra o plano ativo.
-- [x] Seleção automática do pregão-alvo compatível no catálogo local.
-- [x] Reiniciar sessão sem apagar histórico.
-- [x] Indicador calculado apenas com dados já revelados.
+- [x] Definir formato canônico OHLCV M2.
+- [x] Detectar cabeçalhos OHLCV, delimitadores e formatos de data/preço do Profit.
+- [x] Validar ativo/contrato, janela horária, grade M2, OHLC, volume e tick do instrumento.
+- [x] Preparar um replay compacto por pregão, sem manter negócios tick a tick.
+- [x] Aquecer o indicador diretamente com candles M2 anteriores, sem desenhá-los.
+- [x] Manter compatibilidade de leitura com arquivos legados de negócios individuais.
+- [ ] Validar a importação contra amostras reais de CSV M2 exportadas pelo Profit para WIN e WDO.
+- [ ] Confirmar o comportamento do timestamp do CSV do Profit (abertura do candle) com amostras reais.
+- [ ] Validar o ganho de tamanho dos arquivos derivados em relação aos CSVs de origem.
+- [ ] Testar o replay de pregão completo, inclusive pausas, reinício, avanço de segundo e avanço de candle.
 
-## Fase 3 — Motor de execução
+### Movimento intrabar sintético
 
-- [x] Quantidade inteira de contratos.
-- [x] Tick size por ativo.
-- [x] Rejeição de preços fora do incremento mínimo permitido.
-- [x] Arredondamento automático para o tick válido mais próximo, mantendo validação no domínio.
-- [x] Custos operacionais configuráveis por contrato/round trip.
-- [x] Slippage configurável em ticks por lado.
-- [x] Resultado em pontos.
-- [x] Resultado financeiro bruto em R$ por ativo/quantidade.
-- [x] Resultado financeiro líquido após custos e slippage.
-- [x] Risco inicial em pontos derivado da OCO e múltiplos de R no relatório.
-- [x] Política intrabar configurável para candles OHLC ambíguos, com STOP_FIRST conservador por padrão e TARGET_FIRST opcional; replay negócio a negócio mantém a sequência real.
-- [x] Suporte a dados negócio a negócio tratados do Profit.
-- [x] Validade inicial: autorização permanece enquanto a zona correspondente estiver ativa.
-- [x] Definir política: cada sinal autoriza no máximo uma entrada.
-- [x] Impedir reutilização do mesmo sinal após a primeira entrada.
+- [x] Gerar até 120 preços por candle M2.
+- [x] Começar na abertura, terminar no fechamento e respeitar máxima/mínima.
+- [x] Respeitar o tick do WIN e do WDO.
+- [x] Usar semente determinística por candle para que o replay seja repetível.
+- [x] Distribuir o volume OHLCV ao longo dos segundos simulados.
+- [ ] Comparar a sensação visual do percurso com o movimento esperado no gráfico e ajustar a intensidade da aleatoriedade sem extrapolar o OHLC.
+- [ ] Validar o efeito da trajetória sintética sobre acionamentos de stop/alvo e relatórios.
 
-## Fase 4 — Treino
+**Limite da fonte:** OHLCV M2 não contém a sequência real de preços intrabar. O percurso segundo a segundo é uma hipótese sintética e não representa negócios históricos ou tape reading. Resultados que dependem da ordem de toque de stop e alvo dentro do mesmo candle devem ser interpretados como cenários simulados.
 
-- [x] Modo treino livre dentro das regras com sessão formal.
-- [x] Modo prova persistido por sessão.
+## Fase 3 — Fidelidade e transparência de execução
+
+- [x] Quantidade inteira de contratos e tick por ativo.
+- [x] Custos por contrato, slippage e resultado líquido.
+- [x] Risco/retorno mínimo obrigatório 1:2.
+- [x] Saídas por stop/alvo e stop manual.
+- [x] Diferenciar replay OHLCV M2 com movimento sintético de replay legado tick a tick.
+- [ ] Revisar e documentar com clareza como a trajetória sintética determina o instante de acionamento de OCO.
+- [ ] Separar visualmente resultado de execução sintética de resultado baseado em negócios históricos legados.
+
+## Fase 4 — Treinamento específico de stops
+
+A estrutura e os critérios de avaliação serão definidos com o usuário antes da implementação.
+
+- [ ] Definir os objetivos pedagógicos e os tipos de cenário.
+- [ ] Definir o que caracteriza um stop correto, atrasado, antecipado ou movido indevidamente.
+- [ ] Definir como a avaliação considera risco inicial, nível de invalidação, volatilidade e gaps.
+- [ ] Criar exercícios isolados, sem misturar a nota de disciplina de stop com win rate ou resultado financeiro.
+- [ ] Criar relatório específico de aderência ao stop e evolução do aluno.
+
+## Fase 5 — Treinamento geral e prova
+
+- [x] Sessões formais de treino e Modo Prova.
 - [x] Ocultar resultados da prova atual até o encerramento.
-- [x] Cronômetro real opcional da sessão.
-- [x] Feedback disciplinar inicial com linha do tempo e aderência.
-- [x] Registrar sinais ignorados sem classificá-los automaticamente como erro.
-- [x] Registrar tentativas bloqueadas.
-- [x] Distinguir problema técnico de erro disciplinar/execução.
-- [x] Notas pós-trade persistidas por operação.
-- [x] Captura estruturada e reconstruível do contexto gráfico no momento da entrada, sem candles futuros.
+- [x] Cronômetro opcional, eventos disciplinares e registro de sinais ignorados.
+- [x] Notas pós-trade e snapshots do contexto gráfico.
+- [x] Distinguir problemas técnicos de erros disciplinares.
+- [ ] Integrar os exercícios específicos de stops ao histórico geral sem misturar suas métricas.
 
-## Fase 5 — Métricas
+## Fase 6 — Métricas e relatórios
 
-- [x] Win rate por sessão.
-- [x] Payoff por sessão.
-- [x] Expectativa realizada em R por sessão.
-- [x] Profit factor por sessão.
-- [x] Drawdown máximo em pontos por sessão.
-- [x] Resultado agregado por ativo (WINFUT/WDOFUT).
-- [x] Resultado por horário de entrada.
-- [x] Resultado por direção (Compra/Venda).
-- [x] Resultado por tipo de sinal/setup, derivado do snapshot da entrada e separado de trades legados sem classificação.
-- [x] Aderência aos sinais utilizados versus ignorados.
-- [ ] Aderência ao stop.
-- [ ] Aderência ao alvo.
-- [x] Relatório completo por sessão com exportação JSON versionada e CSV dos trades.
-- [x] Relatório pós-sessão inicial navegável.
-- [x] Resumo disciplinar da sessão atual.
-- [x] Evolução do aluno ao longo do tempo com série por sessão encerrada.
+- [x] Win rate, payoff, expectativa em R, profit factor e drawdown.
+- [x] Resultados por ativo, horário, direção e setup.
+- [x] Aderência a sinais utilizados versus ignorados.
+- [x] Relatórios por sessão e evolução histórica do aluno.
+- [ ] Métricas detalhadas de aderência ao stop.
+- [ ] Métricas detalhadas de aderência ao alvo.
+- [ ] Relatório separado para o novo treinamento específico de stops.
 
-## Fase 6 — Experiência desktop
+## Fase 7 — Experiência desktop e distribuição
 
-- [x] Tela inicial de configurações de execução (custos/slippage).
-- [x] Custos de referência separados por WINFUT/WDOFUT, com valores editáveis e fontes consultadas.
-- [x] Gráfico com eixo de preços e horários, zoom in/out, leitura OHLC/volume, crosshair e contexto dos candles finais do pregão anterior.
-- [x] Posicionamento da entrada por clique no preço e ajuste por arraste de stop/alvo.
-- [x] Zoom horizontal e vertical arrastando os eixos do gráfico.
-- [x] Área Configurações com Segurança dos dados e área Resultados com evolução histórica, histórico persistente e evolução agregada.
-- [x] Exclusão explícita de todo o histórico de operações.
-- [ ] Ampliar tela de configurações para demais preferências.
-- [x] Banco SQLite com backup JSON versionado e restauração transacional.
-- [x] Exportação/importação do histórico por diálogos nativos, com mesclagem por ID.
-- [x] Instalador Windows NSIS gerado e validado no GitHub Actions.
-- [x] Build portátil Windows gerado e validado como executável independente do instalador.
-- [x] Pipeline de build Windows x64 com instalador + portátil como artefato.
+- [x] Gráfico com leitura OHLC/volume, crosshair e zoom.
+- [x] Entrada por clique no gráfico e ajuste de stop/alvo por arraste.
+- [x] Áreas Simulador, Configurações e Resultados.
+- [x] Backup/restauração local.
+- [x] Pipeline Windows x64 com instalador e versão portátil.
 - [ ] Assinatura de releases.
 - [ ] Atualizador Tauri.
-- [ ] Pipeline de release no GitHub Actions.
+- [ ] Ampliar preferências de configuração.
 
-## Fase 7 — Qualidade
+## Fase 8 — Qualidade e validação contínua
 
-- [x] Testes adicionais para SELL, incluindo slippage, stop e alvo.
-- [x] Testes iniciais de importação/tratamento.
-- [x] Testes iniciais de replay, catálogo e aquecimento.
-- [x] Reprodução sincronizada pelo relógio de mercado: velocidade 10× equivale a aproximadamente 12 segundos reais por dois minutos simulados, com processamento agrupado por frame.
-- [x] Teste inicial do esquema de persistência SQLite.
-- [x] Golden test de regressão do indicador v1.0.0.
-- [x] Fixture de sessão conhecida com métricas esperadas.
-- [x] Política explícita de versionamento do algoritmo do indicador e gravação da versão nos snapshots de entrada.
-- [x] Dependências frontend travadas em `package-lock.json` e pipelines usando `npm ci`.
-- [x] Dependências Rust/Tauri travadas em `src-tauri/Cargo.lock` e CI validando com `--locked`.
+- [x] Testes de regras de execução, replay, calendário e indicador.
+- [x] Dependências frontend e Rust travadas no repositório.
+- [x] CI para testes, build frontend e verificações Rust.
+- [ ] Testes automatizados de importação OHLCV M2 com fixtures WIN e WDO.
+- [ ] Testes de replay sintético de uma sessão completa.
+- [ ] Testes de repetibilidade após fechar, reiniciar e reabrir a mesma sessão.
+- [ ] Validar a performance de memória e CPU com um pregão completo.

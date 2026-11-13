@@ -72,7 +72,7 @@ Etapa 6 · Reproduzir o mercado · M{timeframeMinutes}
               <strong>{session.asset}</strong>
             </div>
             <div>
-              <span>Negócios processados</span>
+              <span>{session.synthetic ? "Segundos simulados" : "Negócios processados"}</span>
               <strong>{processed.toLocaleString("pt-BR")}</strong>
             </div>
             <div>
@@ -95,7 +95,7 @@ Etapa 6 · Reproduzir o mercado · M{timeframeMinutes}
               onClick={onStep}
               disabled={playing || finished || busy || !trainingActive}
             >
-              +1 negócio
+              {session.synthetic ? "+1 segundo" : "+1 negócio"}
             </button>
             <button
               type="button"
@@ -124,13 +124,11 @@ Etapa 6 · Reproduzir o mercado · M{timeframeMinutes}
           </div>
 
           <p className="replay-note">
-            O ritmo controla o relógio do mercado, não um temporizador por negócio: em 10×,
-            dois minutos de timestamps correspondem a aproximadamente 12 segundos reais.
-            Todos os negócios continuam sendo processados na ordem histórica; a interface agrupa
-            atualizações por frame para evitar que o número de negócios determine a velocidade.
-            Se o volume de dados exceder a capacidade de processamento do computador, a reprodução
-            poderá ficar momentaneamente atrasada. O botão +1 candle para exatamente na fronteira
-            M{timeframeMinutes}, sem revelar o primeiro negócio do candle seguinte.
+            O ritmo controla o relógio do mercado: em 10×, dois minutos simulados correspondem
+            a aproximadamente 12 segundos reais. {session.synthetic
+              ? "Cada candle M2 usa os OHLCV históricos como limites e produz uma trajetória pseudoaleatória determinística, com até 120 preços por segundo simulado. Esses preços não são negócios históricos nem reconstruções do fluxo real; o caminho é apenas uma hipótese visual e de execução para treinamento."
+              : "Este arquivo legado contém eventos de negócios individuais e preserva sua sequência histórica."}
+            {" "}O botão +1 candle avança até a próxima fronteira M2, sem revelar o candle seguinte.
           </p>
         </>
       )}

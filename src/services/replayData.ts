@@ -8,6 +8,9 @@ export interface ReplaySessionInfo {
   finished: boolean;
   sessionStart: string | null;
   sessionEnd: string | null;
+  mode: "CANDLES_M2_SYNTHETIC" | "TICK_LEGACY";
+  synthetic: boolean;
+  sourceTimeframeMinutes: number | null;
 }
 
 function ensureDesktop(): void {

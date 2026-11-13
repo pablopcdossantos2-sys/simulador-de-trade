@@ -27,7 +27,8 @@ export function applyReplayTrade(
   if (!Number.isFinite(trade.price) || trade.price <= 0) {
     throw new Error("Preço de replay inválido.");
   }
-  if (!Number.isFinite(trade.quantity) || trade.quantity <= 0) {
+  // Candles sem negócios em determinado segundo podem ter volume zero na trilha sintética.
+  if (!Number.isFinite(trade.quantity) || trade.quantity < 0) {
     throw new Error("Quantidade de replay inválida.");
   }
 

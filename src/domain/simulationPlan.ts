@@ -2,7 +2,7 @@ import type { Asset } from "../types";
 import { DEFAULT_MULTI_MEDIAS_CONFIG } from "../services/indicator";
 
 export const DEFAULT_TIMEFRAME_MINUTES = 2;
-export const SUPPORTED_TIMEFRAMES_MINUTES = [2, 5] as const;
+export const SUPPORTED_TIMEFRAMES_MINUTES = [2] as const;
 export const STANDARD_WARMUP_MULTIPLIER = 5;
 export const STRICT_WARMUP_MULTIPLIER = 10;
 
@@ -154,6 +154,9 @@ function barsForWindow(
   if (end <= start) {
     throw new Error("O horário final precisa ser posterior ao horário inicial.");
   }
+  if (timeframeMinutes === 2 && (start % 2 !== 0 || end % 2 !== 0)) {
+    throw new Error("Como a fonte do replay é M2, os horários inicial e final precisam estar alinhados a minutos pares (por exemplo, 09:00–12:00).");
+  }
   if (!Number.isFinite(timeframeMinutes) || timeframeMinutes <= 0) {
     throw new Error("Timeframe inválido.");
   }
@@ -223,7 +226,7 @@ export function calculateSimulationPlan(
     )
   ) {
     throw new Error(
-      "Timeframe não suportado. Selecione M2 ou M5.",
+      "Timeframe não suportado. Nesta versão, a fonte do replay é o histórico de candles M2.",
     );
   }
 

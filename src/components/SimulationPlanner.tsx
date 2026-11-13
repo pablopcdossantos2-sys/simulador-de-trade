@@ -72,7 +72,7 @@ export function SimulationPlanner({
       <p className="data-description">
         {disabled
           ? "O plano fica bloqueado enquanto há uma sessão ou posição ativa. Encerre o treino antes de alterá-lo."
-          : "Defina primeiro o pregão que deseja treinar. O sistema calcula a janela visível e o histórico anterior necessário para aquecer o indicador sem revelar esses dados ao trader durante a simulação."}
+          : "Defina o pregão que deseja treinar. A fonte é um arquivo compacto de candles M2; o sistema calcula a janela visível e o histórico anterior necessário para aquecer o indicador sem revelar esses dados durante a simulação."}
       </p>
 
 

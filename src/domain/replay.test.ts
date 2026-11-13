@@ -120,3 +120,14 @@ describe("replay por timeframe", () => {
     expect(candles[0].volume).toBe(350);
   });
 });
+
+
+describe("volume no movimento intrabar", () => {
+  it("aceita volume zero em um segundo sintético", () => {
+    const candles = buildReplayCandles([
+      trade("2026-10-07T09:00:00", 130000, 0),
+    ]);
+    expect(candles[0].volume).toBe(0);
+    expect(candles[0].close).toBe(130000);
+  });
+});

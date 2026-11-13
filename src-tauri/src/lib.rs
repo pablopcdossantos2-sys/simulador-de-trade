@@ -165,6 +165,30 @@ struct ProfitLayout {
     quantity_idx: usize,
 }
 
+#[derive(Debug, Clone)]
+struct ProfitCandleLayout {
+    symbol_idx: Option<usize>,
+    date_idx: Option<usize>,
+    time_idx: Option<usize>,
+    timestamp_idx: Option<usize>,
+    open_idx: usize,
+    high_idx: usize,
+    low_idx: usize,
+    close_idx: usize,
+    volume_idx: usize,
+}
+
+#[derive(Debug, Clone)]
+struct ProfitCandleRow {
+    timestamp: NaiveDateTime,
+    source_row: u64,
+    open: f64,
+    high: f64,
+    low: f64,
+    close: f64,
+    volume: f64,
+}
+
 fn column_exists(
     connection: &Connection,
     table: &str,
@@ -1592,6 +1616,67 @@ fn find_alias(fields: &[String], aliases: &[&str]) -> Option<usize> {
     })
 }
 
+fn detect_candle_layout(fields: &[String]) -> Option<ProfitCandleLayout> {
+    let open_idx = find_alias(fields, &["abertura", "open", "preco abertura", "preço abertura"])?;
+    let high_idx = find_alias(fields, &["maxima", "máxima", "high", "preco maximo", "preço máximo"])?;
+    let low_idx = find_alias(fields, &["minima", "mínima", "low", "preco minimo", "preço mínimo"])?;
+    let close_idx = find_alias(fields, &["fechamento", "close", "preco fechamento", "preço fechamento"])?;
+    let volume_idx = find_alias(fields, &["volume", "vol", "quantidade", "qtd", "quantity", "qty"])?;
+    let timestamp_idx = find_alias(fields, &["timestamp", "data hora", "datahora", "datetime"]);
+    let date_idx = find_alias(fields, &["data", "date"]);
+    let time_idx = find_alias(fields, &["hora", "tempo", "time", "horario", "horário"]);
+    if timestamp_idx.is_none() && (date_idx.is_none() || time_idx.is_none()) {
+        return None;
+    }
+    Some(ProfitCandleLayout {
+        symbol_idx: find_alias(fields, &["ativo", "ticker", "symbol", "contrato"]),
+        date_idx, time_idx, timestamp_idx,
+        open_idx, high_idx, low_idx, close_idx, volume_idx,
+    })
+}
+
+fn row_candle_timestamp(fields: &[String], layout: &ProfitCandleLayout) -> Result<NaiveDateTime, String> {
+    if let Some(timestamp_idx) = layout.timestamp_idx {
+        return parse_combined_timestamp(
+            fields.get(timestamp_idx).map(String::as_str).unwrap_or_default(),
+        );
+    }
+    let date = parse_date(value_at(fields, layout.date_idx))?;
+    let time = parse_time(value_at(fields, layout.time_idx))?;
+    Ok(NaiveDateTime::new(date, time))
+}
+
+fn parse_candle_price(fields: &[String], index: usize, physical_line: u64, label: &str) -> Result<f64, String> {
+    let normalized = normalize_profit_number(&fields[index])
+        .map_err(|error| format!("Linha {physical_line}: {label} {error}"))?;
+    normalized.parse::<f64>()
+        .map_err(|_| format!("Linha {physical_line}: {label} inválido"))
+}
+
+fn expected_candle_tick(asset: &str) -> Result<f64, String> {
+    match asset {
+        "WINFUT" => Ok(5.0),
+        "WDOFUT" => Ok(0.5),
+        _ => Err(format!("Ativo não suportado: {asset}")),
+    }
+}
+
+fn detect_candle_csv_header(source: &Path) -> Result<bool, String> {
+    let input = File::open(source).map_err(|error| error.to_string())?;
+    let mut reader = BufReader::new(input);
+    loop {
+        let mut raw = Vec::new();
+        if reader.read_until(b'\n', &mut raw).map_err(|error| error.to_string())? == 0 {
+            return Ok(false);
+        }
+        let line = decode_line(&raw);
+        if line.trim().is_empty() { continue; }
+        let delimiter = detect_delimiter(&line);
+        let fields = parse_delimited_line(&line, delimiter);
+        return Ok(detect_candle_layout(&fields).is_some());
+    }
+}
+
 fn detect_layout(fields: &[String]) -> Result<ProfitLayout, String> {
     let price_idx = find_alias(fields, &["preco", "preço", "price", "valor", "preco negocio"]);
     let quantity_idx = find_alias(fields, &["quantidade", "qtd", "quantity", "qty"]);
@@ -1692,10 +1777,14 @@ fn parse_combined_timestamp(raw: &str) -> Result<NaiveDateTime, String> {
         "%d/%m/%y %H:%M:%S",
         "%d/%m/%Y %H:%M:%S%.f",
         "%d/%m/%Y %H:%M:%S",
+        "%d/%m/%Y %H:%M",
+        "%d/%m/%y %H:%M",
         "%Y-%m-%d %H:%M:%S%.f",
         "%Y-%m-%d %H:%M:%S",
+        "%Y-%m-%d %H:%M",
         "%Y-%m-%dT%H:%M:%S%.f",
         "%Y-%m-%dT%H:%M:%S",
+        "%Y-%m-%dT%H:%M",
     ] {
         if let Ok(value) = NaiveDateTime::parse_from_str(text, format) {
             return Ok(value);
@@ -2232,6 +2321,226 @@ fn process_profit_replay_file(
     Ok(result)
 }
 
+fn process_profit_m2_candle_file(
+    app: &tauri::AppHandle,
+    operation_id: &str,
+    source_path: &str,
+    session_start: &str,
+    session_end: &str,
+    expected_asset: Option<&str>,
+) -> Result<ProfitPreparationResult, String> {
+    let source = PathBuf::from(source_path.trim().trim_matches('"'));
+    if !source.exists() || !source.is_file() {
+        return Err("Arquivo de candles do Profit não encontrado.".to_string());
+    }
+    let (window_start, window_end) = validate_training_window(session_start, session_end)?;
+    let source_bytes = fs::metadata(&source).map_err(|error| error.to_string())?.len();
+    let (output_path, metadata_path) = derived_paths(&source, window_start, window_end)?;
+    let temp_path = output_path.with_extension("replay.tmp");
+    let _temp_guard = TempFileGuard(temp_path.clone());
+
+    let input = File::open(&source).map_err(|error| error.to_string())?;
+    let mut reader = BufReader::with_capacity(1024 * 1024, input);
+    let mut delimiter = ',';
+    let mut layout: Option<ProfitCandleLayout> = None;
+    let mut physical_line = 0_u64;
+    let mut source_rows = 0_u64;
+    let mut kept_rows = 0_u64;
+    let mut bytes_processed = 0_u64;
+    let mut last_emitted_bytes = 0_u64;
+    let mut symbol = String::new();
+    let mut source_date: Option<NaiveDate> = None;
+    let mut previous_timestamp: Option<NaiveDateTime> = None;
+    let mut ascending_steps = 0_u64;
+    let mut descending_steps = 0_u64;
+    let mut rows: Vec<ProfitCandleRow> = Vec::new();
+
+    loop {
+        let mut raw = Vec::new();
+        let read = reader.read_until(b'\n', &mut raw).map_err(|error| error.to_string())?;
+        if read == 0 { break; }
+        physical_line += 1;
+        bytes_processed += read as u64;
+        let line = decode_line(&raw);
+        if line.trim().is_empty() { continue; }
+
+        if layout.is_none() {
+            delimiter = detect_delimiter(&line);
+            let fields = parse_delimited_line(&line, delimiter);
+            let detected = detect_candle_layout(&fields).ok_or_else(|| {
+                "Cabeçalho OHLCV não reconhecido. Exporte do Profit colunas Ativo, Data/Hora, Abertura, Máxima, Mínima, Fechamento e Volume.".to_string()
+            })?;
+            layout = Some(detected);
+            continue;
+        }
+
+        let current = layout.as_ref().expect("candle layout initialized");
+        let fields = parse_delimited_line(&line, delimiter);
+        let max_index = [
+            current.symbol_idx, current.date_idx, current.time_idx, current.timestamp_idx,
+            Some(current.open_idx), Some(current.high_idx), Some(current.low_idx),
+            Some(current.close_idx), Some(current.volume_idx),
+        ].into_iter().flatten().max().unwrap_or(0);
+        if fields.len() <= max_index {
+            return Err(format!("Linha {physical_line}: faltam colunas para formar o candle OHLCV."));
+        }
+
+        source_rows += 1;
+        let timestamp = row_candle_timestamp(&fields, current)
+            .map_err(|error| format!("Linha {physical_line}: {error}"))?;
+        if timestamp.minute() % 2 != 0 || timestamp.second() != 0 || timestamp.nanosecond() != 0 {
+            return Err(format!("Linha {physical_line}: o timestamp precisa marcar a abertura de um candle M2 (minuto par, segundo zero)."));
+        }
+        match source_date {
+            Some(date) if date != timestamp.date() => return Err(format!(
+                "Linha {physical_line}: o arquivo contém mais de um pregão ({} e {}). Trate um dia por arquivo.",
+                date, timestamp.date()
+            )),
+            None => source_date = Some(timestamp.date()),
+            _ => {}
+        }
+        if let Some(previous) = previous_timestamp {
+            if timestamp > previous { ascending_steps += 1; }
+            else if timestamp < previous { descending_steps += 1; }
+            else { return Err(format!("Linha {physical_line}: há dois candles com o mesmo timestamp.")); }
+        }
+        previous_timestamp = Some(timestamp);
+
+        let row_symbol = value_at(&fields, current.symbol_idx).to_uppercase();
+        if row_symbol.is_empty() {
+            return Err("O CSV OHLCV precisa conter a coluna Ativo/Contrato. Ela é necessária para identificar o vencimento do WIN/WDO e validar o aquecimento.".to_string());
+        }
+        let row_asset = if row_symbol.starts_with("WIN") { "WINFUT" }
+            else if row_symbol.starts_with("WDO") { "WDOFUT" }
+            else { return Err(format!("Ativo não suportado no CSV: {row_symbol}")); };
+        if let Some(expected) = expected_asset {
+            if !row_asset.eq_ignore_ascii_case(expected) {
+                return Err(format!("O CSV contém {row_symbol}, mas o plano selecionou {expected}."));
+            }
+        }
+        if symbol.is_empty() { symbol = row_symbol.clone(); }
+        else if row_symbol != symbol {
+            return Err(format!("Linha {physical_line}: o arquivo mistura contratos ({symbol} e {row_symbol})."));
+        }
+
+        let open = parse_candle_price(&fields, current.open_idx, physical_line, "abertura")?;
+        let high = parse_candle_price(&fields, current.high_idx, physical_line, "máxima")?;
+        let low = parse_candle_price(&fields, current.low_idx, physical_line, "mínima")?;
+        let close = parse_candle_price(&fields, current.close_idx, physical_line, "fechamento")?;
+        let volume = parse_candle_price(&fields, current.volume_idx, physical_line, "volume")?;
+        if open <= 0.0 || high <= 0.0 || low <= 0.0 || close <= 0.0 || volume < 0.0 {
+            return Err(format!("Linha {physical_line}: preços devem ser positivos e o volume não pode ser negativo."));
+        }
+        if high < low || high < open || high < close || low > open || low > close {
+            return Err(format!("Linha {physical_line}: máxima/mínima incompatíveis com OHLC."));
+        }
+        let tick = expected_candle_tick(row_asset)?;
+        for price in [open, high, low, close] {
+            if ((price / tick) - (price / tick).round()).abs() > 1e-7 {
+                return Err(format!("Linha {physical_line}: preço {price} fora do tick de {tick} do ativo."));
+            }
+        }
+
+        if timestamp.time() >= window_start && timestamp.time() < window_end {
+            rows.push(ProfitCandleRow {
+                timestamp, source_row: physical_line, open, high, low, close, volume,
+            });
+            kept_rows += 1;
+        }
+
+        if bytes_processed.saturating_sub(last_emitted_bytes) >= 1024 * 1024 {
+            emit_progress(app, operation_id, bytes_processed, source_bytes, source_rows, kept_rows);
+            last_emitted_bytes = bytes_processed;
+        }
+    }
+
+    if source_rows == 0 { return Err("Nenhum candle foi encontrado no arquivo.".to_string()); }
+    if rows.is_empty() {
+        return Err(format!("Nenhum candle M2 entre {} e {} foi encontrado.", window_start.format("%H:%M"), window_end.format("%H:%M")));
+    }
+    rows.sort_by_key(|row| row.timestamp);
+    for pair in rows.windows(2) {
+        if pair[0].timestamp == pair[1].timestamp {
+            return Err("Há candles M2 duplicados no arquivo.".to_string());
+        }
+    }
+
+    let source_order = if ascending_steps > 0 && descending_steps == 0 { "ASCENDING" }
+        else if descending_steps > 0 && ascending_steps == 0 { "DESCENDING" }
+        else if ascending_steps == 0 && descending_steps == 0 { "ASCENDING" }
+        else { "UNKNOWN" }.to_string();
+
+    let output = File::create(&temp_path).map_err(|error| error.to_string())?;
+    let mut writer = BufWriter::with_capacity(1024 * 1024, output);
+    const CANDLE_HEADER: &str = "symbol,timestamp,source_row,open,high,low,close,volume\n";
+    writer.write_all(CANDLE_HEADER.as_bytes()).map_err(|error| error.to_string())?;
+    for row in &rows {
+        let output_line = format!(
+            "{},{},{},{},{},{},{},{}\n",
+            csv_escape(&symbol),
+            row.timestamp.format("%Y-%m-%dT%H:%M:%S"),
+            row.source_row,
+            row.open,
+            row.high,
+            row.low,
+            row.close,
+            row.volume
+        );
+        writer.write_all(output_line.as_bytes()).map_err(|error| error.to_string())?;
+    }
+    writer.flush().map_err(|error| error.to_string())?;
+    drop(writer);
+    replace_file_safely(&temp_path, &output_path)?;
+
+    let output_bytes = fs::metadata(&output_path).map_err(|error| error.to_string())?.len();
+    let reduction_pct = if source_bytes == 0 { 0.0 }
+        else { ((1.0 - output_bytes as f64 / source_bytes as f64) * 100.0).max(0.0) };
+    let first_timestamp = rows.first().map(|row| row.timestamp.format("%Y-%m-%dT%H:%M:%S").to_string());
+    let last_timestamp = rows.last().map(|row| row.timestamp.format("%Y-%m-%dT%H:%M:%S").to_string());
+    let result = ProfitPreparationResult {
+        source_path: source.to_string_lossy().to_string(),
+        output_path: output_path.to_string_lossy().to_string(),
+        metadata_path: metadata_path.to_string_lossy().to_string(),
+        symbol: symbol.clone(),
+        source_order,
+        source_rows,
+        kept_rows,
+        discarded_rows: source_rows.saturating_sub(kept_rows),
+        source_bytes,
+        output_bytes,
+        reduction_pct,
+        first_timestamp,
+        last_timestamp,
+        session_start: window_start.format("%H:%M:%S").to_string(),
+        session_end: window_end.format("%H:%M:%S").to_string(),
+    };
+    let metadata = json!({
+        "schemaVersion": 2,
+        "purpose": "Simulador de Trade — replay de candles M2 WINFUT/WDOFUT",
+        "dataMode": "CANDLES_M2_SYNTHETIC",
+        "sourceTimeframeMinutes": 2,
+        "timezone": "America/Sao_Paulo",
+        "window": {
+            "startInclusive": result.session_start.clone(),
+            "endExclusive": result.session_end.clone()
+        },
+        "fields": ["symbol", "timestamp", "source_row", "open", "high", "low", "close", "volume"],
+        "sourceOrder": &result.source_order,
+        "canonicalOrder": "ASCENDING",
+        "syntheticMovement": {
+            "enabled": true,
+            "secondsPerCandle": 120,
+            "deterministicPerCandle": true,
+            "note": "A trajetória segundo a segundo é sintética e não representa negócios tick a tick históricos."
+        },
+        "summary": &result
+    });
+    fs::write(&metadata_path, serde_json::to_string_pretty(&metadata).map_err(|error| error.to_string())?)
+        .map_err(|error| error.to_string())?;
+    emit_progress(app, operation_id, source_bytes, source_bytes, source_rows, kept_rows);
+    Ok(result)
+}
+
 #[tauri::command]
 async fn prepare_profit_replay_file(
     app: tauri::AppHandle,
@@ -2239,24 +2548,31 @@ async fn prepare_profit_replay_file(
     source_path: String,
     session_start: String,
     session_end: String,
+    expected_asset: Option<String>,
 ) -> Result<ProfitPreparationResult, String> {
     tauri::async_runtime::spawn_blocking(move || {
+        let source = PathBuf::from(source_path.trim().trim_matches('"'));
+        // O caminho M2 é a opção principal: não indexa nem percorre negócios tick a tick.
+        if detect_candle_csv_header(&source)? {
+            return process_profit_m2_candle_file(
+                &app,
+                &operation_id,
+                &source_path,
+                &session_start,
+                &session_end,
+                expected_asset.as_deref(),
+            );
+        }
+
+        // Compatibilidade com arquivos antigos de negócios individuais.
         if let Some(result) = profit_index::try_process_indexed_profit_replay_file(
-            &app,
-            &operation_id,
-            &source_path,
-            &session_start,
-            &session_end,
+            &app, &operation_id, &source_path, &session_start, &session_end,
         )? {
             return Ok(result);
         }
 
         process_profit_replay_file(
-            &app,
-            &operation_id,
-            &source_path,
-            &session_start,
-            &session_end,
+            &app, &operation_id, &source_path, &session_start, &session_end,
         )
     })
     .await

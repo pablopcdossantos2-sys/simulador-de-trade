@@ -103,15 +103,14 @@ Depois de tratar o CSV, a data é extraída do conteúdo. Se o usuário associar
 
 Quando todos os requisitos estão disponíveis:
 
-1. os arquivos de aquecimento são ordenados cronologicamente;
-2. o backend Rust lê seus negócios;
-3. esses negócios são agregados diretamente em candles M2;
-4. somente os últimos candles definidos pela política de aquecimento são mantidos;
-5. esses candles alimentam o indicador;
-6. eles **não são desenhados no gráfico**;
-7. o replay visual começa apenas no pregão-alvo.
+1. os arquivos de aquecimento M2 são ordenados cronologicamente;
+2. o backend lê diretamente os registros OHLCV;
+3. somente os últimos candles definidos pela política de aquecimento são mantidos;
+4. esses candles alimentam o indicador;
+5. eles **não são desenhados no gráfico**;
+6. o replay visual começa apenas no pregão-alvo.
 
-Assim o gráfico do usuário continua começando no horário definido no plano, enquanto as médias já possuem histórico anterior.
+O aquecimento não precisa sintetizar preços segundo a segundo: as barras OHLCV são suficientes para calcular as médias. A geração de movimento sintético acontece apenas durante o replay visível.
 
 ## Contrato
 

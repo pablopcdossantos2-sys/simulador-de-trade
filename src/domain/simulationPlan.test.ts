@@ -36,6 +36,19 @@ describe("planejamento de simulação", () => {
     ).toThrow(/calendário de pregões ainda não disponível/i);
   });
 
+  it("exige que a janela do replay M2 comece e termine em minuto par", () => {
+    expect(() =>
+      calculateSimulationPlan({
+        asset: "WINFUT",
+        date: "2026-10-14",
+        timeframeMinutes: 2,
+        startTime: "09:01",
+        endTime: "12:00",
+        warmupPolicy: "STANDARD",
+      }),
+    ).toThrow(/alinhados a minutos pares/i);
+  });
+
   it("rejeita timeframe fora de M2/M5", () => {
     expect(() =>
       calculateSimulationPlan({

@@ -1,215 +1,76 @@
-# Tratamento dos dados do Profit Ultra
+# Preparar dados do Profit para o replay
 
-## Objetivo
+## Fonte recomendada: candles M2
 
-O Simulador de Trade não precisa armazenar toda a exportação bruta do Profit Ultra.
+O fluxo principal usa um CSV exportado do gráfico de **2 minutos (M2)** do Profit. Não é necessário exportar negócios tick a tick.
 
-A ferramenta de preparação cria um arquivo derivado focado exclusivamente no replay de WIN/WDO dentro da **faixa horária escolhida pelo usuário**, preservando o arquivo bruto original.
+O CSV precisa ter um cabeçalho que identifique:
 
-## Janela de treino
+- ativo/contrato;
+- data e hora do candle (ou uma coluna única de timestamp);
+- abertura;
+- máxima;
+- mínima;
+- fechamento;
+- volume.
 
-O usuário escolhe o horário inicial e final. A regra é sempre **início inclusivo, fim exclusivo**.
+São reconhecidos nomes comuns em português e inglês, como `Ativo`, `Contrato`, `Data`, `Hora`, `Timestamp`, `Abertura/Open`, `Máxima/High`, `Mínima/Low`, `Fechamento/Close` e `Volume`. São aceitos delimitadores vírgula, ponto e vírgula ou tabulação e codificações UTF-8/Windows-1252.
 
-Exemplo:
+O timestamp deve marcar a **abertura** do candle e respeitar a grade M2 (minuto par, segundo zero). Use um arquivo por pregão. Não misture contratos.
 
-```text
-09:00:00 <= negócio < 12:00:00
-```
+## O que o aplicativo valida
 
-Em M2, isso produz como último candle completo o intervalo 11:58–12:00. Dados fora da janela selecionada são descartados do arquivo tratado.
+Antes de preparar o replay, o programa confere:
 
-Quando existe um plano de simulação ativo, o formulário herda automaticamente a mesma janela horária. O player também confere o `.replay.meta.json` e rejeita arquivos tratados para horários diferentes.
+- se o ativo pertence à família WIN ou WDO selecionada;
+- se as datas pertencem a um único pregão;
+- se os candles estão em intervalos M2 válidos;
+- se abertura, máxima, mínima e fechamento são coerentes;
+- se os preços respeitam o tick do ativo (WIN: 5 pontos; WDO: 0,5 ponto);
+- se o volume é não negativo;
+- se há timestamps duplicados;
+- se existe conteúdo na janela solicitada.
 
-## Campos preservados
+A janela usa início inclusivo e final exclusivo. Por exemplo, 09:00–12:00 inclui candles cuja abertura ocorre desde 09:00 até 11:58. O candle de 12:00 já fica fora da seleção.
 
-Cada linha do arquivo de replay contém somente:
+## Arquivo compacto gerado
 
-```text
-symbol,timestamp,source_row,price,quantity
-```
-
-### symbol
-
-Contrato presente no arquivo original, por exemplo `WINV26` ou `WDOV26`.
-
-### timestamp
-
-Data/hora do negócio em formato canônico.
-
-### source_row
-
-Linha física do CSV original.
-
-Esse campo é importante porque algumas exportações do Profit aparecem em ordem cronológica descendente e vários negócios podem compartilhar exatamente o mesmo segundo.
-
-### price
-
-Preço negociado, normalizado para ponto decimal.
-
-Exemplos:
+O simulador cria um replay derivado com as colunas:
 
 ```text
-205.935  -> 205935
-5.321,5  -> 5321.5
+symbol,timestamp,source_row,open,high,low,close,volume
 ```
 
-### quantity
+O arquivo contém um registro por candle, e não milhares de linhas por segundo. Os metadados registram contrato, janela, timezone, formato, quantidade de candles e tamanho do arquivo.
 
-Quantidade negociada.
+O CSV original do Profit nunca é sobrescrito. O replay e os metadados são gravados ao lado da fonte.
 
-A quantidade é mantida porque o indicador inicial possui VWAP e precisa de informação de volume.
+## Movimento segundo a segundo
 
-## Dados descartados
+Durante a reprodução, o backend gera até 120 preços para cada candle M2. O percurso é determinístico para aquele candle e:
 
-O arquivo tratado não mantém:
+1. começa no preço de abertura;
+2. alcança máxima e mínima em uma ordem e em segundos escolhidos pelo gerador;
+3. mantém todos os preços dentro da faixa OHLC;
+4. termina no fechamento;
+5. distribui o volume total ao longo dos 120 segundos.
 
-- agente comprador;
-- agente vendedor;
-- lado agressor;
-- RLP;
-- métricas de agressão;
-- qualquer outra coluna que não seja necessária para reconstruir preço e volume.
+O algoritmo usa o ativo, timestamp e OHLCV como semente. Reiniciar a mesma sessão, portanto, não muda aleatoriamente o caminho.
 
-Essas informações continuam existindo apenas no CSV bruto original.
+### Limite importante da fonte OHLC
 
-## Compatibilidade inicial
+Um candle M2 não informa a sequência real dos preços entre abertura, máxima, mínima e fechamento. Não existe algoritmo capaz de recuperar essa sequência verdadeira apenas a partir dos quatro preços agregados.
 
-O parser Rust foi baseado nas regras validadas no Candle Lab e reconhece inicialmente:
+Por isso, o percurso sintético é uma hipótese visual e de execução. Ele dá movimento ao gráfico e permite treinar reações a variações de preço, mas não é um substituto de tape reading histórico. Quando stop e alvo cabem na mesma faixa M2, a ordem simulada em que os níveis são tocados pode alterar o resultado.
 
-- layout Profit sem cabeçalho de 8 colunas;
-- layout Profit sem cabeçalho de 9 colunas;
-- arquivos com cabeçalho contendo aliases conhecidos;
-- UTF-8;
-- Windows-1252/CP1252;
-- delimitadores vírgula, ponto e vírgula ou tab;
-- data com ano de dois ou quatro dígitos;
-- horário com ou sem fração de segundo;
-- arquivos em ordem ascendente ou descendente.
+O aplicativo identifica o replay como **movimento simulado** para não confundi-lo com dados tick a tick históricos.
 
-## Índice temporal M1 e seek direto
+## Aquecimento do indicador
 
-Para CSVs grandes, o aplicativo pode criar um arquivo auxiliar de índice M1 ao lado da fonte bruta.
+Os arquivos dos pregões anteriores são lidos como candles M2 e usados para calcular o histórico necessário das médias. Esses candles ficam ocultos no gráfico. O usuário começa a ver o mercado apenas no início da janela selecionada para o pregão-alvo.
 
-Exemplo:
+Para o aquecimento padrão, o planejador considera 260 candles (cinco vezes o período da MME 52). O modo estrito considera 520 candles.
 
-```text
-WINV26_TRADES.csv
-WINV26_TRADES.m1-index.json
-```
+## Compatibilidade
 
-O índice registra, minuto a minuto:
-
-- primeiro e último timestamp;
-- primeira e última linha física;
-- byte inicial e byte final;
-- quantidade de negócios;
-- ordem física da fonte;
-- layout e delimitador detectados;
-- tamanho e data de modificação da fonte para detectar índice desatualizado.
-
-O CSV bruto continua intacto.
-
-Quando um índice M1 válido existe, **Gerar/Tratar arquivo** não precisa percorrer todo o CSV desde o início. O backend localiza os minutos da janela solicitada, faz `seek` diretamente para o primeiro byte necessário e interrompe a leitura ao final do intervalo.
-
-Se o CSV for alterado depois da indexação, o índice é considerado inválido e o sistema volta ao caminho seguro de varredura integral até que o usuário o reindexe.
-
-Para arquivos em ordem descendente, a janela localizada por seek ainda é convertida para o `.replay.csv` canônico em ordem cronológica ascendente.
-
-## Processamento streaming
-
-O arquivo não é carregado inteiro na memória.
-
-Fluxo:
-
-```text
-CSV bruto
-   ↓
-leitura linha a linha
-   ↓
-detecção de layout
-   ↓
-normalização de data/preço/quantidade
-   ↓
-filtro 09:00–12:00
-   ↓
-remoção de colunas irrelevantes
-   ↓
-arquivo .replay.csv
-```
-
-O frontend recebe eventos periódicos de progresso com:
-
-- bytes processados;
-- tamanho total;
-- linhas lidas;
-- negócios preservados;
-- percentual concluído.
-
-## Arquivos gerados
-
-Para uma fonte como:
-
-```text
-WINV26_TRADES.csv
-```
-
-o sistema cria, na mesma pasta:
-
-```text
-WINV26_TRADES_0900-1200.replay.csv
-WINV26_TRADES_0900-1200.replay.meta.json
-```
-
-O arquivo `.meta.json` registra:
-
-- versão do formato;
-- timezone de referência;
-- janela de horário;
-- campos preservados;
-- ordem detectada na fonte;
-- quantidade de linhas;
-- tamanho original;
-- tamanho tratado;
-- percentual de redução;
-- primeiro/último timestamp preservado.
-
-## Ordem cronológica
-
-O tratamento registra a ordem física detectada na fonte como:
-
-- `ASCENDING`;
-- `DESCENDING`;
-- `UNKNOWN`.
-
-Se a fonte for descendente, o processador usa offsets leves das linhas preservadas e grava o arquivo final `.replay.csv` já em **ordem cronológica ascendente**. Os registros completos não precisam ser mantidos em memória.
-
-O campo `source_row` continua preservando a posição física no CSV bruto para auditoria. O metadado registra também `canonicalOrder: "ASCENDING"`.
-
-Se o arquivo bruto alternar entre trechos ascendentes e descendentes, o tratamento é interrompido em vez de produzir uma sequência ambígua.
-
-## Segurança dos dados
-
-A ferramenta nunca sobrescreve o CSV bruto.
-
-O tratamento cria novos arquivos derivados. Isso permite:
-
-- refazer o tratamento quando necessário;
-- auditar a origem;
-- comparar o derivado com a fonte;
-- atualizar o algoritmo sem perder o dado original.
-
-## Player de replay já integrado
-
-O aplicativo desktop já consegue abrir o `.replay.csv` como uma sessão de streaming. O backend Rust entrega os eventos em blocos para reduzir o custo de comunicação com o frontend, mas o motor processa cada negócio individualmente.
-
-A cada negócio revelado:
-
-1. o candle M2 aberto é criado ou atualizado;
-2. preço e volume mudam;
-3. o indicador é recalculado somente com o histórico já revelado;
-4. a autorização Compra/Venda é atualizada;
-5. uma OCO aberta é testada contra aquele negócio exato.
-
-A interface oferece Reprodução, Pausa, +1 negócio, Reiniciar e ritmos visuais 1×, 2×, 5× e 10×.
-
-A próxima etapa de dados será a seleção explícita de pregão/data e o mecanismo de aquecimento do indicador antes das 09:00 lógicas do treino.
+O aplicativo ainda reconhece arquivos legados `.replay.csv` criados a partir de negócios individuais. Essa opção existe para abrir estudos e dados já preparados; novos arquivos devem usar o formato M2 para reduzir espaço e simplificar a importação.

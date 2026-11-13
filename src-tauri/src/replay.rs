@@ -1,4 +1,5 @@
-use chrono::{NaiveDateTime, NaiveTime, Timelike};
+use chrono::{Duration, NaiveDateTime, NaiveTime, Timelike};
+use std::collections::VecDeque;
 use serde::Serialize;
 use std::fs::File;
 use std::io::{BufRead, BufReader, Seek, SeekFrom};
@@ -7,13 +8,18 @@ use std::sync::Mutex;
 
 pub struct ReplayState(pub Mutex<Option<ReplaySession>>);
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ReplayFormat { Ticks, CandlesM2 }
+
 pub struct ReplaySession {
     reader: BufReader<File>,
     source_path: PathBuf,
     data_start: u64,
     symbol: String,
     asset: String,
+    format: ReplayFormat,
     sequence: u64,
+    pending_synthetic: VecDeque<ReplayTradeRecord>,
     finished: bool,
     session_start: Option<String>,
     session_end: Option<String>,
@@ -29,6 +35,9 @@ pub struct ReplaySessionInfo {
     pub finished: bool,
     pub session_start: Option<String>,
     pub session_end: Option<String>,
+    pub mode: String,
+    pub synthetic: bool,
+    pub source_timeframe_minutes: Option<u32>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -40,6 +49,17 @@ pub struct ReplayTradeRecord {
     pub sequence: u64,
     pub price: f64,
     pub quantity: f64,
+}
+
+#[derive(Debug, Clone)]
+struct ReplayCandleRecord {
+    timestamp: String,
+    source_row: u64,
+    open: f64,
+    high: f64,
+    low: f64,
+    close: f64,
+    volume: f64,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -114,6 +134,43 @@ fn parse_replay_line(line: &str, asset: &str, sequence: u64) -> Result<ReplayTra
     })
 }
 
+fn parse_replay_candle_line(line: &str, asset: &str) -> Result<ReplayCandleRecord, String> {
+    let fields: Vec<&str> = line.trim_end_matches(|ch| ch == '\r' || ch == '\n').split(',').collect();
+    if fields.len() != 8 {
+        return Err(format!("Linha M2 inválida: esperadas 8 colunas, encontradas {}.", fields.len()));
+    }
+    let expected_asset = parse_asset(fields[0])?;
+    if expected_asset != asset {
+        return Err(format!("O arquivo M2 mistura famílias de ativos ({asset} e {expected_asset})."));
+    }
+    let source_row = fields[2].trim().parse::<u64>()
+        .map_err(|_| "source_row inválido no arquivo M2.".to_string())?;
+    let number = |index: usize, label: &str| -> Result<f64, String> {
+        let value = fields[index].trim().parse::<f64>()
+            .map_err(|_| format!("{label} inválido no arquivo M2."))?;
+        if !value.is_finite() { return Err(format!("{label} não finito no arquivo M2.")); }
+        Ok(value)
+    };
+    let open = number(3, "Abertura")?;
+    let high = number(4, "Máxima")?;
+    let low = number(5, "Mínima")?;
+    let close = number(6, "Fechamento")?;
+    let volume = number(7, "Volume")?;
+    if open <= 0.0 || high <= 0.0 || low <= 0.0 || close <= 0.0 || volume < 0.0 {
+        return Err("OHLC precisa ser positivo e o volume não pode ser negativo.".to_string());
+    }
+    if high < low || high < open || high < close || low > open || low > close {
+        return Err("Candle M2 inválido: máxima/mínima incompatíveis com OHLC.".to_string());
+    }
+    let timestamp = fields[1].trim().to_string();
+    let parsed = parse_replay_timestamp(&timestamp)?;
+    if parsed.minute() % 2 != 0 || parsed.second() != 0 || parsed.nanosecond() != 0 {
+        return Err(format!("O timestamp {timestamp} não representa a abertura de um candle M2."));
+    }
+    Ok(ReplayCandleRecord { timestamp, source_row, open, high, low, close, volume })
+}
+
+
 fn validate_header(header: &str) -> Result<(), String> {
     if header.trim_end_matches(|ch| ch == '\r' || ch == '\n')
         != "symbol,timestamp,source_row,price,quantity"
@@ -151,75 +208,50 @@ fn read_replay_window(path: &Path) -> (Option<String>, Option<String>) {
 }
 
 fn open_session(path: &Path) -> Result<(ReplaySession, ReplaySessionInfo), String> {
-    if !path.exists() || !path.is_file() {
-        return Err("Arquivo de replay não encontrado.".to_string());
-    }
-
+    if !path.exists() || !path.is_file() { return Err("Arquivo de replay não encontrado.".to_string()); }
     let file = File::open(path).map_err(|error| error.to_string())?;
     let mut reader = BufReader::with_capacity(4 * 1024 * 1024, file);
-
     let mut header = String::new();
-    reader
-        .read_line(&mut header)
-        .map_err(|error| error.to_string())?;
-    validate_header(&header)?;
+    reader.read_line(&mut header).map_err(|error| error.to_string())?;
+    let normalized_header = header.trim_end_matches(|ch| ch == '\r' || ch == '\n');
+    let format = match normalized_header {
+        "symbol,timestamp,source_row,price,quantity" => ReplayFormat::Ticks,
+        "symbol,timestamp,source_row,open,high,low,close,volume" => ReplayFormat::CandlesM2,
+        _ => return Err("Formato de replay inválido. São aceitos negócios legados ou OHLCV M2.".to_string()),
+    };
     let data_start = reader.stream_position().map_err(|error| error.to_string())?;
-
     let first_line = loop {
         let mut candidate = String::new();
-        let read = reader
-            .read_line(&mut candidate)
-            .map_err(|error| error.to_string())?;
-        if read == 0 {
-            return Err("O arquivo de replay não possui negócios.".to_string());
-        }
-        if candidate.trim().is_empty() {
-            continue;
-        }
+        let read = reader.read_line(&mut candidate).map_err(|error| error.to_string())?;
+        if read == 0 { return Err("O arquivo de replay não possui candles ou negócios.".to_string()); }
+        if candidate.trim().is_empty() { continue; }
         break candidate;
     };
-
     let first_fields: Vec<&str> = first_line.trim_end_matches(|ch| ch == '\r' || ch == '\n').split(',').collect();
-    if first_fields.len() != 5 {
-        return Err("Primeira linha de replay inválida.".to_string());
-    }
-
+    let expected_columns = if format == ReplayFormat::Ticks { 5 } else { 8 };
+    if first_fields.len() != expected_columns { return Err("Primeira linha de replay inválida.".to_string()); }
     let symbol = first_fields[0].trim().to_string();
     let asset = parse_asset(&symbol)?.to_string();
-    parse_replay_line(&first_line, &asset, 0)?;
-
-    reader
-        .seek(SeekFrom::Start(data_start))
-        .map_err(|error| error.to_string())?;
-
+    match format {
+        ReplayFormat::Ticks => { parse_replay_line(&first_line, &asset, 0)?; }
+        ReplayFormat::CandlesM2 => { parse_replay_candle_line(&first_line, &asset)?; }
+    }
+    reader.seek(SeekFrom::Start(data_start)).map_err(|error| error.to_string())?;
     let (session_start, session_end) = read_replay_window(path);
-
+    let synthetic = format == ReplayFormat::CandlesM2;
     let info = ReplaySessionInfo {
         source_path: path.to_string_lossy().to_string(),
-        symbol: symbol.clone(),
-        asset: asset.clone(),
-        finished: false,
-        session_start: session_start.clone(),
-        session_end: session_end.clone(),
+        symbol: symbol.clone(), asset: asset.clone(), finished: false,
+        session_start: session_start.clone(), session_end: session_end.clone(),
+        mode: if synthetic { "CANDLES_M2_SYNTHETIC" } else { "TICK_LEGACY" }.to_string(),
+        synthetic, source_timeframe_minutes: if synthetic { Some(2) } else { None },
     };
-
-    Ok((
-        ReplaySession {
-            reader,
-            source_path: path.to_path_buf(),
-            data_start,
-            symbol,
-            asset,
-            sequence: 0,
-            finished: false,
-            session_start,
-            session_end,
-            pending_error: None,
-        },
-        info,
-    ))
+    Ok((ReplaySession {
+        reader, source_path: path.to_path_buf(), data_start, symbol, asset, format,
+        sequence: 0, pending_synthetic: VecDeque::new(), finished: false,
+        session_start, session_end, pending_error: None,
+    }, info))
 }
-
 
 fn parse_replay_timestamp(raw: &str) -> Result<NaiveDateTime, String> {
     for format in [
@@ -299,6 +331,7 @@ fn process_warmup_candles(
     let mut candles: Vec<WarmupCandleRecord> = Vec::new();
     let mut expected_asset: Option<String> = None;
     let mut expected_symbol: Option<String> = None;
+    let mut expected_format: Option<ReplayFormat> = None;
     let mut previous_timestamp: Option<NaiveDateTime> = None;
 
     for raw_path in source_paths {
@@ -311,6 +344,14 @@ fn process_warmup_candles(
             }
         } else {
             expected_asset = Some(info.asset.clone());
+        }
+
+        if let Some(format) = expected_format {
+            if format != session.format {
+                return Err("Não misture arquivos de aquecimento de negócios tick a tick e candles M2.".to_string());
+            }
+        } else {
+            expected_format = Some(session.format);
         }
 
         if let Some(symbol) = &expected_symbol {
@@ -334,26 +375,41 @@ fn process_warmup_candles(
                 break;
             }
 
-            let trade = parse_replay_line(&line, &session.asset, 0)?;
-            let timestamp = parse_replay_timestamp(&trade.timestamp)?;
-
-            if let Some(previous) = previous_timestamp {
-                if timestamp < previous {
-                    return Err(
-                        "Os arquivos de aquecimento não estão em ordem cronológica. Ordene-os do pregão mais antigo para o mais recente."
-                            .to_string(),
-                    );
+            match session.format {
+                ReplayFormat::Ticks => {
+                    let trade = parse_replay_line(&line, &session.asset, 0)?;
+                    let timestamp = parse_replay_timestamp(&trade.timestamp)?;
+                    if let Some(previous) = previous_timestamp {
+                        if timestamp < previous {
+                            return Err("Os arquivos de aquecimento não estão em ordem cronológica. Ordene-os do pregão mais antigo para o mais recente.".to_string());
+                        }
+                    }
+                    previous_timestamp = Some(timestamp);
+                    push_warmup_trade(&mut candles, timestamp, trade.price, trade.quantity, timeframe_minutes)?;
+                }
+                ReplayFormat::CandlesM2 => {
+                    if timeframe_minutes != 2 {
+                        return Err("O aquecimento baseado em OHLC precisa usar candles M2.".to_string());
+                    }
+                    let candle = parse_replay_candle_line(&line, &session.asset)?;
+                    let timestamp = parse_replay_timestamp(&candle.timestamp)?;
+                    if let Some(previous) = previous_timestamp {
+                        if timestamp < previous {
+                            return Err("Os arquivos M2 de aquecimento precisam estar em ordem cronológica.".to_string());
+                        }
+                    }
+                    previous_timestamp = Some(timestamp);
+                    candles.push(WarmupCandleRecord {
+                        index: candles.len(),
+                        timestamp: candle.timestamp,
+                        open: candle.open,
+                        high: candle.high,
+                        low: candle.low,
+                        close: candle.close,
+                        volume: candle.volume,
+                    });
                 }
             }
-            previous_timestamp = Some(timestamp);
-
-            push_warmup_trade(
-                &mut candles,
-                timestamp,
-                trade.price,
-                trade.quantity,
-                timeframe_minutes,
-            )?;
         }
     }
 
@@ -431,53 +487,132 @@ pub fn open_replay_file(
     Ok(info)
 }
 
-fn read_next_replay_batch(
-    session: &mut ReplaySession,
-    max_events: usize,
-) -> Result<Vec<ReplayTradeRecord>, String> {
-    if let Some(error) = session.pending_error.take() {
-        return Err(error);
-    }
+fn stable_seed(value: &str) -> u64 {
+    let mut hash = 0xcbf29ce484222325_u64;
+    for byte in value.as_bytes() { hash ^= *byte as u64; hash = hash.wrapping_mul(0x100000001b3); }
+    if hash == 0 { 0x9e3779b97f4a7c15 } else { hash }
+}
 
-    if session.finished {
-        return Ok(Vec::new());
-    }
+fn next_random(state: &mut u64) -> u64 {
+    let mut value = *state;
+    value ^= value >> 12; value ^= value << 25; value ^= value >> 27;
+    *state = value;
+    value.wrapping_mul(0x2545f4914f6cdd1d)
+}
 
+fn random_unit(state: &mut u64) -> f64 {
+    (next_random(state) >> 11) as f64 / ((1_u64 << 53) as f64)
+}
+
+fn tick_size(asset: &str) -> Result<f64, String> {
+    match asset { "WINFUT" => Ok(5.0), "WDOFUT" => Ok(0.5), _ => Err(format!("Ativo não suportado: {asset}")) }
+}
+
+fn fill_random_bridge(
+    prices: &mut [i64; 120], start_second: usize, end_second: usize,
+    start_tick: i64, end_tick: i64, low_tick: i64, high_tick: i64, random: &mut u64,
+) {
+    let duration = end_second.saturating_sub(start_second);
+    if duration == 0 { prices[start_second] = end_tick; return; }
+    let range = (high_tick - low_tick).max(0) as f64;
+    let noise_amplitude = (range * 0.055).clamp(0.0, 3.0);
+    let mut cumulative_noise = 0.0;
+    let mut noise_path = vec![0.0; duration + 1];
+    for step in 1..duration {
+        cumulative_noise += (random_unit(random) * 2.0 - 1.0) * noise_amplitude;
+        noise_path[step] = cumulative_noise;
+    }
+    let total_noise = cumulative_noise;
+    for step in 1..duration {
+        let progress = step as f64 / duration as f64;
+        let bridge_noise = noise_path[step] - total_noise * progress;
+        let baseline = start_tick as f64 + (end_tick - start_tick) as f64 * progress;
+        prices[start_second + step] = (baseline + bridge_noise).round().clamp(low_tick as f64, high_tick as f64) as i64;
+    }
+    prices[end_second] = end_tick;
+}
+
+fn expand_m2_candle(candle: &ReplayCandleRecord, asset: &str, sequence_start: u64) -> Result<VecDeque<ReplayTradeRecord>, String> {
+    let tick = tick_size(asset)?;
+    let to_tick = |price: f64| -> Result<i64, String> {
+        let steps = price / tick;
+        let rounded = steps.round();
+        if (steps - rounded).abs() > 1e-7 {
+            return Err(format!("Preço {price} fora do tick válido de {tick} para {asset}."));
+        }
+        Ok(rounded as i64)
+    };
+    let open_tick = to_tick(candle.open)?;
+    let high_tick = to_tick(candle.high)?;
+    let low_tick = to_tick(candle.low)?;
+    let close_tick = to_tick(candle.close)?;
+    let seed_text = format!(
+        "{asset}|{}|{}|{}|{}|{}|{}|simulador-m2-path-v1",
+        candle.timestamp, candle.open, candle.high, candle.low, candle.close, candle.volume
+    );
+    let mut random = stable_seed(&seed_text);
+    let first_extreme_second = 18 + (next_random(&mut random) % 31) as usize;
+    let second_extreme_second = 70 + (next_random(&mut random) % 31) as usize;
+    let high_first = next_random(&mut random) % 2 == 0;
+    let first_extreme = if high_first { high_tick } else { low_tick };
+    let second_extreme = if high_first { low_tick } else { high_tick };
+    let mut prices = [open_tick; 120];
+    prices[0] = open_tick;
+    let waypoints = [
+        (0_usize, open_tick),
+        (first_extreme_second, first_extreme),
+        (second_extreme_second, second_extreme),
+        (119_usize, close_tick),
+    ];
+    for pair in waypoints.windows(2) {
+        fill_random_bridge(&mut prices, pair[0].0, pair[1].0, pair[0].1, pair[1].1, low_tick, high_tick, &mut random);
+    }
+    let start = parse_replay_timestamp(&candle.timestamp)?;
+    let per_second_volume = candle.volume / 120.0;
+    let mut events = VecDeque::with_capacity(120);
+    for second in 0..120 {
+        let timestamp = start + Duration::seconds(second as i64);
+        events.push_back(ReplayTradeRecord {
+            asset: asset.to_string(),
+            timestamp: timestamp.format("%Y-%m-%dT%H:%M:%S").to_string(),
+            source_row: candle.source_row,
+            sequence: sequence_start + second as u64,
+            price: prices[second] as f64 * tick,
+            quantity: per_second_volume,
+        });
+    }
+    Ok(events)
+}
+
+fn read_next_replay_batch(session: &mut ReplaySession, max_events: usize) -> Result<Vec<ReplayTradeRecord>, String> {
+    if let Some(error) = session.pending_error.take() { return Err(error); }
+    if session.finished && session.pending_synthetic.is_empty() { return Ok(Vec::new()); }
     let limit = max_events.clamp(1, 5000);
     let mut result = Vec::with_capacity(limit);
-
     while result.len() < limit {
+        if let Some(event) = session.pending_synthetic.pop_front() { result.push(event); continue; }
         let mut line = String::new();
-        let read = session
-            .reader
-            .read_line(&mut line)
-            .map_err(|error| error.to_string())?;
-
-        if read == 0 {
-            session.finished = true;
+        let read = session.reader.read_line(&mut line).map_err(|error| error.to_string())?;
+        if read == 0 { session.finished = true; break; }
+        if line.trim().is_empty() { continue; }
+        let parsed: Result<(), String> = match session.format {
+            ReplayFormat::Ticks => parse_replay_line(&line, &session.asset, session.sequence).map(|record| {
+                session.sequence += 1;
+                session.pending_synthetic.push_back(record);
+            }),
+            ReplayFormat::CandlesM2 => parse_replay_candle_line(&line, &session.asset).and_then(|candle| {
+                let events = expand_m2_candle(&candle, &session.asset, session.sequence)?;
+                session.sequence += 120;
+                session.pending_synthetic = events;
+                Ok(())
+            }),
+        };
+        if let Err(error) = parsed {
+            if result.is_empty() { return Err(error); }
+            session.pending_error = Some(error);
             break;
         }
-
-        if line.trim().is_empty() {
-            continue;
-        }
-
-        match parse_replay_line(&line, &session.asset, session.sequence) {
-            Ok(record) => {
-                session.sequence += 1;
-                result.push(record);
-            }
-            Err(error) => {
-                if result.is_empty() {
-                    return Err(error);
-                }
-
-                session.pending_error = Some(error);
-                break;
-            }
-        }
     }
-
     Ok(result)
 }
 
@@ -508,6 +643,7 @@ pub fn reset_replay_session(
         .seek(SeekFrom::Start(session.data_start))
         .map_err(|error| error.to_string())?;
     session.sequence = 0;
+    session.pending_synthetic.clear();
     session.finished = false;
     session.pending_error = None;
 
@@ -518,6 +654,9 @@ pub fn reset_replay_session(
         finished: false,
         session_start: session.session_start.clone(),
         session_end: session.session_end.clone(),
+        mode: if session.format == ReplayFormat::CandlesM2 { "CANDLES_M2_SYNTHETIC" } else { "TICK_LEGACY" }.to_string(),
+        synthetic: session.format == ReplayFormat::CandlesM2,
+        source_timeframe_minutes: if session.format == ReplayFormat::CandlesM2 { Some(2) } else { None },
     })
 }
 
@@ -627,6 +766,81 @@ mod tests {
         assert_eq!(next[0].price, 130010.0);
 
         let _ = std::fs::remove_file(path);
+    }
+
+    #[test]
+    fn parses_valid_m2_ohlcv_row() {
+        let candle = parse_replay_candle_line(
+            "WINV26,2026-10-07T09:00:00,17,130000,130050,129950,130010,1200\\n",
+            "WINFUT",
+        ).unwrap();
+        assert_eq!(candle.timestamp, "2026-10-07T09:00:00");
+        assert_eq!(candle.source_row, 17);
+        assert_eq!(candle.open, 130000.0);
+        assert_eq!(candle.high, 130050.0);
+        assert_eq!(candle.low, 129950.0);
+        assert_eq!(candle.close, 130010.0);
+        assert_eq!(candle.volume, 1200.0);
+    }
+
+    #[test]
+    fn rejects_m2_row_with_timestamp_off_two_minute_grid() {
+        let result = parse_replay_candle_line(
+            "WINV26,2026-10-07T09:01:00,17,130000,130050,129950,130010,1200\\n",
+            "WINFUT",
+        );
+        assert!(result.unwrap_err().contains("abertura de um candle M2"));
+    }
+
+    #[test]
+    fn rejects_m2_row_with_inconsistent_high_low() {
+        let result = parse_replay_candle_line(
+            "WINV26,2026-10-07T09:00:00,17,130000,129900,130050,130010,1200\\n",
+            "WINFUT",
+        );
+        assert!(result.unwrap_err().contains("máxima/mínima incompatíveis"));
+    }
+
+    #[test]
+    fn synthetic_m2_path_is_repeatable_and_stays_inside_source_ohlc() {
+        let candle = ReplayCandleRecord {
+            timestamp: "2026-10-07T09:00:00".to_string(),
+            source_row: 7,
+            open: 130000.0,
+            high: 130050.0,
+            low: 129950.0,
+            close: 130010.0,
+            volume: 1200.0,
+        };
+        let first = expand_m2_candle(&candle, "WINFUT", 100).unwrap();
+        let second = expand_m2_candle(&candle, "WINFUT", 100).unwrap();
+        assert_eq!(first.len(), 120);
+        assert_eq!(first.front().unwrap().price, candle.open);
+        assert_eq!(first.back().unwrap().price, candle.close);
+        assert!((first.iter().map(|event| event.quantity).sum::<f64>() - candle.volume).abs() < 1e-8);
+        assert_eq!(
+            first.iter().map(|event| event.price).collect::<Vec<_>>(),
+            second.iter().map(|event| event.price).collect::<Vec<_>>()
+        );
+        assert_eq!(first.iter().map(|event| event.price).fold(f64::MIN, f64::max), candle.high);
+        assert_eq!(first.iter().map(|event| event.price).fold(f64::MAX, f64::min), candle.low);
+        assert!(first.iter().enumerate().all(|(index, event)| event.sequence == 100 + index as u64));
+    }
+
+    #[test]
+    fn synthetic_wdo_path_uses_half_point_ticks() {
+        let candle = ReplayCandleRecord {
+            timestamp: "2026-10-07T09:00:00".to_string(),
+            source_row: 1,
+            open: 5200.0,
+            high: 5202.0,
+            low: 5199.0,
+            close: 5201.5,
+            volume: 600.0,
+        };
+        let events = expand_m2_candle(&candle, "WDOFUT", 0).unwrap();
+        assert_eq!(events.len(), 120);
+        assert!(events.iter().all(|event| ((event.price / 0.5) - (event.price / 0.5).round()).abs() < 1e-8));
     }
 
     #[test]

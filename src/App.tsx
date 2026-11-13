@@ -1064,7 +1064,9 @@ export default function App() {
           <div className="mode-badge">
             <span className="pulse" />
             {dataMode === "replay"
-              ? `Replay real · ${replay.session?.symbol ?? asset}`
+              ? replay.session?.synthetic
+                ? `Replay M2 · movimento simulado · ${replay.session.symbol}`
+                : `Replay tick histórico (legado) · ${replay.session?.symbol ?? asset}`
               : "Indicador real · candles sintéticos"}
           </div>
           <ThemeToggle
