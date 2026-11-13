@@ -57,7 +57,7 @@ export function loadUsageSessions(): UsageSessionRecord[] {
 
 export function subscribeUsageSessions(listener: () => void): () => void {
   listeners.add(listener);
-  return () => listeners.delete(listener);
+  return () => { listeners.delete(listener); };
 }
 
 export function startUsageTracking(): void {
