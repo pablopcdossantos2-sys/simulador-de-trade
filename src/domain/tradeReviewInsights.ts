@@ -14,6 +14,8 @@ export interface TradeReviewPattern {
   trend: ReviewPatternTrend;
   recentPercentage: number | null;
   previousPercentage: number | null;
+  recentSampleSize: number | null;
+  previousSampleSize: number | null;
 }
 
 export interface TradeReviewInsights {
@@ -114,6 +116,8 @@ function trendFor(
   trend: ReviewPatternTrend;
   recentPercentage: number | null;
   previousPercentage: number | null;
+  recentSampleSize: number;
+  previousSampleSize: number;
 } {
   const recentMeasure = measure(definition, recent);
   const previousMeasure = measure(definition, previous);
@@ -124,17 +128,23 @@ function trendFor(
     recentMeasure.percentage === null ||
     previousMeasure.percentage === null
   ) {
-    return { trend: "INSUFFICIENT", recentPercentage: recentMeasure.percentage, previousPercentage: previousMeasure.percentage };
+    return {
+      trend: "INSUFFICIENT",
+      recentPercentage: recentMeasure.percentage,
+      previousPercentage: previousMeasure.percentage,
+      recentSampleSize: recentMeasure.sampleSize,
+      previousSampleSize: previousMeasure.sampleSize,
+    };
   }
 
   const delta = recentMeasure.percentage - previousMeasure.percentage;
   if (delta <= -10) {
-    return { trend: "IMPROVING", recentPercentage: recentMeasure.percentage, previousPercentage: previousMeasure.percentage };
+    return { trend: "IMPROVING", recentPercentage: recentMeasure.percentage, previousPercentage: previousMeasure.percentage, recentSampleSize: recentMeasure.sampleSize, previousSampleSize: previousMeasure.sampleSize };
   }
   if (delta >= 10) {
-    return { trend: "WORSENING", recentPercentage: recentMeasure.percentage, previousPercentage: previousMeasure.percentage };
+    return { trend: "WORSENING", recentPercentage: recentMeasure.percentage, previousPercentage: previousMeasure.percentage, recentSampleSize: recentMeasure.sampleSize, previousSampleSize: previousMeasure.sampleSize };
   }
-  return { trend: "STABLE", recentPercentage: recentMeasure.percentage, previousPercentage: previousMeasure.percentage };
+  return { trend: "STABLE", recentPercentage: recentMeasure.percentage, previousPercentage: previousMeasure.percentage, recentSampleSize: recentMeasure.sampleSize, previousSampleSize: previousMeasure.sampleSize };
 }
 
 export function buildTradeReviewInsights(
@@ -161,7 +171,7 @@ export function buildTradeReviewInsights(
 
       const trend = comparisonAvailable
         ? trendFor(definition, recent, previous)
-        : { trend: "INSUFFICIENT" as const, recentPercentage: null, previousPercentage: null };
+        : { trend: "INSUFFICIENT" as const, recentPercentage: null, previousPercentage: null, recentSampleSize: null, previousSampleSize: null };
 
       return {
         key: definition.key,
