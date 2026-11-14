@@ -4,6 +4,7 @@ import { DataPreparationPanel } from "./components/DataPreparationPanel";
 import { ReplayControls } from "./components/ReplayControls";
 import { ReplayLoadPanel } from "./components/ReplayLoadPanel";
 import { ReplayCatalogPanel } from "./components/ReplayCatalogPanel";
+import { AvailableReplaysPanel } from "./components/AvailableReplaysPanel";
 import { PlanDataPreparationPanel } from "./components/PlanDataPreparationPanel";
 import { RuleViolationModal } from "./components/RuleViolationModal";
 import { SimulationPlanner } from "./components/SimulationPlanner";
@@ -1538,6 +1539,18 @@ export default function App() {
             }
           }}
         />      </details>
+      </section>
+
+      <section className="app-area available-replays-area" hidden={activeArea !== "PREGOES"}>
+        <h2 className="area-title">Pregões e replays</h2>
+        <AvailableReplaysPanel
+          refreshKey={catalogRefreshKey}
+          onUseReplay={(path) => {
+            replay.setPath(path);
+            setActiveArea("SIMULADOR");
+            setFeedback("Replay selecionado. Confira o plano e clique em “Carregar replay” para iniciar.");
+          }}
+        />
       </section>
 
       <section className="app-area results-area" hidden={activeArea !== "RESULTADOS"}>
