@@ -11,6 +11,14 @@ interface Props {
   disabled?: boolean;
 }
 
+function currentLocalDate(): string {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
 function brDate(value: string): string {
   const [year, month, day] = value.split("-");
   return `${day}/${month}/${year}`;
@@ -18,7 +26,7 @@ function brDate(value: string): string {
 
 export function SimulationPlanner({ onPlanChange, disabled = false }: Props) {
   const [asset, setAsset] = useState<Asset>("WINFUT");
-  const [date, setDate] = useState("2026-10-14");
+  const [date, setDate] = useState(currentLocalDate);
   const timeframeMinutes = DEFAULT_TIMEFRAME_MINUTES;
 
   const result = useMemo(() => {
