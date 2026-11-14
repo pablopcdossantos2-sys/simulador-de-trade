@@ -187,7 +187,7 @@ export function CandleChart({
       const deltaX = x - chartPan.startX;
       const deltaY = yValue - chartPan.startY;
       const nextOffset = chartPan.startOffset + Math.round(deltaX / Math.max(xStep, 1));
-      setPanOffset(Math.max(0, Math.min(Math.max(0, allCandles.length - 1), nextOffset)));
+      setPanOffset(Math.max(0, Math.min(Math.max(0, allCandles.length - visibleBars), nextOffset)));
       setPanPriceOffset(chartPan.startPriceOffset + (deltaY / (PLOT_BOTTOM - PLOT_TOP)) * chartPan.range);
       setCrosshair(null);
       didDragRef.current = true;
