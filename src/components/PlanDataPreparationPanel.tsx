@@ -12,6 +12,7 @@ interface Props {
   plan: SimulationPlan | null;
   matches: RequirementMatch[];
   onCatalogUpdated: () => void;
+  onFullSessionFilePrepared?: (path: string) => void;
 }
 
 interface RowState {
@@ -30,7 +31,7 @@ function brDate(value: string): string {
   return `${day}/${month}/${year}`;
 }
 
-export function PlanDataPreparationPanel({ plan, matches, onCatalogUpdated }: Props) {
+export function PlanDataPreparationPanel({ plan, matches, onCatalogUpdated, onFullSessionFilePrepared }: Props) {
   const [rows, setRows] = useState<Record<string, RowState>>({});
   const [processing, setProcessing] = useState(false);
 
@@ -129,6 +130,42 @@ export function PlanDataPreparationPanel({ plan, matches, onCatalogUpdated }: Pr
     }
   }
 
+  async function prepareFullSession(match: RequirementMatch) {
+    if (!plan || match.requirement.role !== "TARGET") return;
+    const key = keyFor(match.requirement.role, match.requirement.date);
+    const sourcePath = rows[key]?.sourcePath.trim().replace(/^"(.*)"$/, "$1") ?? "";
+    if (!sourcePath) {
+      updateRow(key, { status: "error", message: "Selecione o CSV original que contém o pregão completo para habilitar a análise de Stops." });
+      return;
+    }
+    updateRow(key, { status: "working", message: "Preparando o pregão completo para a análise contrafactual...", progress: 0 });
+    try {
+      const result = await prepareProfitReplayFile(
+        sourcePath,
+        plan.fullSessionStart,
+        plan.fullSessionEnd,
+        (progress) => updateRow(key, { progress: progress.percent }),
+        plan.asset,
+      );
+      const entry = await registerReplayFile(result.outputPath);
+      if (entry.tradeDate !== plan.targetDate) {
+        throw new Error("O CSV selecionado não corresponde à data do pregão planejado.");
+      }
+      onFullSessionFilePrepared?.(result.outputPath);
+      updateRow(key, {
+        status: "done",
+        progress: 100,
+        message: `Pregão completo preparado: ${result.keptRows.toLocaleString("pt-BR")} candles M2 (${plan.fullSessionStart}–${plan.fullSessionEnd}).`,
+      });
+      onCatalogUpdated();
+    } catch (error) {
+      updateRow(key, {
+        status: "error",
+        message: error instanceof Error ? error.message : "Não foi possível preparar o pregão completo.",
+      });
+    }
+  }
+
   async function processAll() {
     if (!plan || processing) return;
     setProcessing(true);
@@ -181,6 +218,23 @@ export function PlanDataPreparationPanel({ plan, matches, onCatalogUpdated }: Pr
                 <div className="plan-data-existing">
                   <strong>Já disponível</strong>
                   <small>{match.entry?.symbol} · {match.entry?.outputPath}</small>
+                  {match.requirement.role === "TARGET" && (
+                    <div className="full-session-source">
+                      <label htmlFor={`full-session-${key}`}>CSV original para análise do pregão completo (opcional)</label>
+                      <input
+                        id={`full-session-${key}`}
+                        value={row?.sourcePath ?? ""}
+                        onChange={(event) => updateRow(key, { sourcePath: event.target.value })}
+                        placeholder="Selecione o CSV M2 que contém o dia completo"
+                        disabled={processing || row?.status === "working"}
+                      />
+                      <div className="plan-data-actions">
+                        <button type="button" className="secondary" onClick={() => void chooseSourceFile(key)} disabled={processing || row?.status === "working"}>Selecionar CSV original</button>
+                        <button type="button" onClick={() => void prepareFullSession(match)} disabled={processing || row?.status === "working" || !(row?.sourcePath ?? "").trim()}>Preparar pregão completo</button>
+                      </div>
+                      <small>A análise posterior usará ${plan.fullSessionStart}–${plan.fullSessionEnd}. Sem esse arquivo, será possível analisar apenas a janela carregada no replay.</small>
+                    </div>
+                  )}
                 </div>
               ) : (
                 <div className="plan-data-input">
