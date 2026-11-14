@@ -22,6 +22,7 @@ import {
   type ThemeMode,
 } from "./components/ThemeToggle";
 import {
+  isPriceOnTick,
   roundPriceToTick,
   tickSizeFor,
 } from "./domain/marketSpecs";
@@ -141,6 +142,14 @@ export default function App() {
   const [contracts, setContracts] = useState("1");
   const [executionSettings, setExecutionSettings] =
     useState<ExecutionSettings>(DEFAULT_EXECUTION_SETTINGS);
+  const [cloudOpacity, setCloudOpacity] = useState(() => {
+    try {
+      const stored = Number(localStorage.getItem("simulador-de-trade:cloud-opacity"));
+      return Number.isFinite(stored) ? Math.max(0, Math.min(1, stored)) : 0.2;
+    } catch {
+      return 0.2;
+    }
+  });
   const [theme, setTheme] = useState<ThemeMode>(initialTheme);
   const [ruleViolation, setRuleViolation] = useState<string | null>(null);
   const [feedback, setFeedback] = useState(
@@ -398,7 +407,6 @@ export default function App() {
 
   useEffect(() => {
     if (dataMode !== "demo") return;
-
     const timer = window.setInterval(() => {
       setCandles((current) => [...current, nextDemoCandle(asset, current)]);
     }, 1500);
@@ -798,7 +806,6 @@ export default function App() {
       positionRef.current = null;
       setPosition(null);
     }
-
     replay.setPlaying(false);
 
     const finalEvents = [...trainingEvents];
@@ -1144,7 +1151,19 @@ export default function App() {
           interruptStopTraining(position, nextStop);
           return;
         }
-        validateOcoOrder(asset, position.side, position.requestedEntry, nextStop, nextTarget);
+        const marketPrice = dataMode === "replay"
+          ? currentReplayTrade?.price ?? lastPrice
+          : lastPrice;
+        if (!isPriceOnTick(asset, nextStop) || !isPriceOnTick(asset, nextTarget)) {
+          throw new TradingRuleError(`Stop e alvo precisam respeitar o tick de ${tickSizeFor(asset)} do ativo.`);
+        }
+        if (position.side === "BUY") {
+          if (nextStop >= marketPrice) throw new TradingRuleError("O stop de uma compra precisa permanecer abaixo do preço atual.");
+          if (nextTarget <= Math.max(position.entry, marketPrice)) throw new TradingRuleError("O alvo de uma compra precisa permanecer acima da entrada e do preço atual.");
+        } else {
+          if (nextStop <= marketPrice) throw new TradingRuleError("O stop de uma venda precisa permanecer acima do preço atual.");
+          if (nextTarget >= Math.min(position.entry, marketPrice)) throw new TradingRuleError("O alvo de uma venda precisa permanecer abaixo da entrada e do preço atual.");
+        }
         const updated = { ...position, stopLoss: nextStop, target: nextTarget };
         positionRef.current = updated;
         setPosition(updated);
@@ -1197,8 +1216,7 @@ export default function App() {
     <main className="app-shell">
       <header className="topbar">
         <div>
-          <p className="eyebrow">Treino de execução disciplinada</p>
-          <h1>Simulador de Trade</h1>
+          <p className="eyebrow">Treino de execução disciplinada</p>          <h1>Simulador de Trade</h1>
           <p className="subtitle">
             WINFUT e WDOFUT · Multi Médias - Nuvem e Sinais · OCO obrigatório
           </p>
@@ -1409,6 +1427,7 @@ export default function App() {
               entryPlacementEnabled={Boolean(tradingEnabled && !position && authorizedSideForChart)}
               onEntryPlacement={placeOrderFromChart}
               onAdjustOco={stopTrainingIncident ? undefined : adjustOcoFromChart}
+              cloudOpacity={cloudOpacity}
             />
           ) : (
             <div className="chart-placeholder">
@@ -1597,8 +1616,7 @@ export default function App() {
             setStopAnalysisEvaluation(null);
             setStopAnalysisScenario(null);
             setStopAnalysisScope(null);
-          }}
-          configurable={!trainingActive && !position && !startingTraining}
+          }}          configurable={!trainingActive && !position && !startingTraining}
           fullDayReady={Boolean(fullSessionReplayPath)}
           incident={stopTrainingIncident}
           analysisLoading={stopAnalysisLoading}
@@ -1721,6 +1739,11 @@ export default function App() {
         <h2 className="area-title">Configurações</h2>
       <ExecutionSettingsPanel
         settings={executionSettings}
+        cloudOpacity={cloudOpacity}
+        onCloudOpacitySaved={(value) => {
+          setCloudOpacity(value);
+          try { localStorage.setItem("simulador-de-trade:cloud-opacity", String(value)); } catch { /* Preferência visual opcional. */ }
+        }}
         onSaved={setExecutionSettings}
       />
       <BackupPanel
