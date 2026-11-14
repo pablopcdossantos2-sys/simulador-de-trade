@@ -833,8 +833,6 @@ export default function App() {
     );
 
     setSessionHistoryRefreshKey((value) => value + 1);
-    setTrainingStartingBalance("");
-    setStopTrainingStartingBalance("");
     setStopTrainingEnabled(false);
     setFeedback(endedAfterStopViolation
       ? "Treino encerrado após a infração do stop. O cenário contrafactual não foi registrado como operação real."
@@ -1572,7 +1570,7 @@ export default function App() {
         <h2 className="area-title">Treinamento de Stops</h2>
         <StopTrainingPanel
           asset={asset}
-          startingBalanceBRL={executionSettings.stopTrainingStartingBalanceBRL}
+          startingBalanceBRL={executionSettings.stopTrainingStartingBalanceBRL ?? null}
           enabled={stopTrainingEnabled}
           trainingActive={trainingActive}
           onEnabledChange={setStopTrainingEnabled}
