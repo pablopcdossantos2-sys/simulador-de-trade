@@ -362,7 +362,20 @@ export function CandleChart({
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
         onClick={handleChartClick}
-        onMouseLeave={() => { setCrosshair(null); if (!dragRef.current && !axisDragRef.current) didDragRef.current = false; }}>
+        onMouseLeave={() => {
+          setCrosshair(null);
+          // Sair do SVG cancela o gesto: evita que um mouseup externo deixe o stop preso.
+          if (dragRef.current) {
+            dragRef.current = null;
+            setDraggingOco(null);
+          }
+          if (axisDragRef.current || chartPanRef.current) {
+            axisDragRef.current = null;
+            chartPanRef.current = null;
+            setIsPanning(false);
+          }
+          didDragRef.current = false;
+        }}>
         <rect width={WIDTH} height={HEIGHT} className="chart-bg" />
         {[0, 0.25, 0.5, 0.75, 1].map((ratio) => {
           const value = max - range * ratio;
