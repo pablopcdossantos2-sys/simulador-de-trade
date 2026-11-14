@@ -2538,11 +2538,21 @@ fn process_profit_m2_candle_file(
 
     let selected_date = requested_date.or_else(|| rows.last().map(|row| row.timestamp.date()))
         .ok_or_else(|| "Não foi possível identificar a data dos candles.".to_string())?;
+    let available_dates: std::collections::BTreeSet<NaiveDate> =
+        rows.iter().map(|row| row.timestamp.date()).collect();
     let selected_rows: Vec<ProfitCandleRow> = rows.into_iter()
         .filter(|row| row.timestamp.date() == selected_date)
         .collect();
     if selected_rows.is_empty() {
-        return Err(format!("O CSV não contém candles para {}.", selected_date.format("%d/%m/%Y")));
+        let dates = available_dates.iter()
+            .map(|date| date.format("%d/%m/%Y").to_string())
+            .collect::<Vec<_>>()
+            .join(", ");
+        return Err(format!(
+            "O CSV não contém candles para {}. Data(s) identificada(s) dentro do arquivo: {}. Confira se o arquivo selecionado corresponde ao pregão solicitado.",
+            selected_date.format("%d/%m/%Y"),
+            if dates.is_empty() { "nenhuma".to_string() } else { dates }
+        ));
     }
 
     let mut m2_rows: Vec<ProfitCandleRow> = Vec::new();
@@ -3001,6 +3011,23 @@ mod tests {
         assert_eq!(normalize_profit_number("205.935").unwrap(), "205935");
         assert_eq!(normalize_profit_number("5.321,5").unwrap(), "5321.5");
         assert_eq!(normalize_profit_number("5321.5").unwrap(), "5321.5");
+    }
+
+    #[test]
+    fn parses_profit_m1_export_for_november_12_2026() {
+        let header = "Ativo;Data;Hora;Abertura;Máximo;Mínimo;Fechamento;Volume;Quantidade";
+        let header_fields = parse_delimited_line(header, detect_delimiter(header));
+        let layout = detect_candle_layout(&header_fields)
+            .expect("o cabeçalho real do Profit deve ser reconhecido");
+
+        let row = "WINFUT;12/11/2026;18:24:00;172.825;172.850;172.770;172.770;806.932.166,00;23.352";
+        let fields = parse_delimited_line(row, ';');
+        let timestamp = row_candle_timestamp(&fields, &layout).unwrap();
+        let requested_date = parse_date("2026-11-12").unwrap();
+
+        assert_eq!(timestamp.date(), requested_date);
+        assert_eq!(timestamp.format("%Y-%m-%dT%H:%M:%S").to_string(), "2026-11-12T18:24:00");
+        assert_eq!(parse_candle_price(&fields, layout.volume_idx, 2, "quantidade").unwrap(), 23352.0);
     }
 
     #[test]
