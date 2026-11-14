@@ -1556,7 +1556,7 @@ export default function App() {
                 Estopar manualmente a mercado
               </button>
               {dataMode === "replay" && replay.finished && (
-                <button type="button" className="market-close-button" onClick={closeOpenPositionAtReplayEnd}>
+                <button type="button" className="market-close-button" onClick={closeOpenPositionAtReplayEnd} disabled={Boolean(stopTrainingIncident)}>
                   Encerrar a mercado no último preço
                 </button>
               )}
