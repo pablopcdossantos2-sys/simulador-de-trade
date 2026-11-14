@@ -2983,6 +2983,14 @@ async fn prepare_profit_replay_file(
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn replay_backup_base64_round_trip_preserves_bytes() {
+        for bytes in [b"".as_slice(), b"f".as_slice(), b"fo".as_slice(), b"foo".as_slice(), b"replay csv data".as_slice()] {
+            assert_eq!(decode_base64(&encode_base64(bytes)).unwrap(), bytes);
+        }
+    }
+
+
     use super::*;
 
     #[test]
