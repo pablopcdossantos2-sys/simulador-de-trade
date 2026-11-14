@@ -17,7 +17,7 @@ interface Props {
 }
 interface ChartCandle extends Candle { source: "context" | "target"; }
 interface Crosshair { candleIndex: number; y: number; }
-interface OcoDrag { kind: "stop" | "target"; mode: "position" | "draft"; min: number; max: number; }
+interface OcoDrag { kind: "target"; mode: "position" | "draft"; min: number; max: number; }
 interface AxisDrag { axis: "x" | "y"; startX: number; startY: number; visibleBars: number; priceZoom: number; }
 interface ChartPan { startX: number; startY: number; startOffset: number; startPriceOffset: number; range: number; }
 interface RulerPoint { x: number; y: number; price: number; candleIndex: number; }
@@ -101,7 +101,7 @@ export function CandleChart({
   const [maximized, setMaximized] = useState(false);
   const [rulerStart, setRulerStart] = useState<RulerPoint | null>(null);
   const [rulerEnd, setRulerEnd] = useState<RulerPoint | null>(null);
-  const [draggingOco, setDraggingOco] = useState<{ kind: "stop" | "target"; mode: "position" | "draft"; price: number } | null>(null);
+  const [draggingOco, setDraggingOco] = useState<{ kind: "target"; mode: "position" | "draft"; price: number } | null>(null);
   const dragRef = useRef<OcoDrag | null>(null);
   const axisDragRef = useRef<AxisDrag | null>(null);
   const chartPanRef = useRef<ChartPan | null>(null);
@@ -248,7 +248,7 @@ export function CandleChart({
 
   function beginOcoDrag(
     event: ReactMouseEvent<SVGLineElement>,
-    kind: "stop" | "target",
+    kind: "target",
     mode: "position" | "draft",
     currentPrice: number,
   ) {
@@ -455,10 +455,9 @@ export function CandleChart({
         {position && <>
           <PriceLine y={y(position.entry)} label={"Entrada " + formatPrice(position.entry, asset)} className="entry-line" />
           <PriceLine
-            y={y(draggingOco?.mode === "position" && draggingOco.kind === "stop" ? draggingOco.price : position.stopLoss)}
-            label={"Stop " + formatPrice(draggingOco?.mode === "position" && draggingOco.kind === "stop" ? draggingOco.price : position.stopLoss, asset)}
-            className="stop-line" interactive
-            onMouseDown={(event) => beginOcoDrag(event, "stop", "position", position.stopLoss)}
+            y={y(position.stopLoss)}
+            label={"Stop " + formatPrice(position.stopLoss, asset)}
+            className="stop-line"
           />
           <PriceLine
             y={y(draggingOco?.mode === "position" && draggingOco.kind === "target" ? draggingOco.price : position.target)}
@@ -470,10 +469,9 @@ export function CandleChart({
         {!position && draftOrder && <>
           <PriceLine y={y(draftOrder.entry)} label={"Entrada proposta " + formatPrice(draftOrder.entry, asset)} className="entry-line" />
           <PriceLine
-            y={y(draggingOco?.mode === "draft" && draggingOco.kind === "stop" ? draggingOco.price : draftOrder.stopLoss)}
-            label={"Stop " + formatPrice(draggingOco?.mode === "draft" && draggingOco.kind === "stop" ? draggingOco.price : draftOrder.stopLoss, asset)}
-            className="stop-line" interactive
-            onMouseDown={(event) => beginOcoDrag(event, "stop", "draft", draftOrder.stopLoss)}
+            y={y(draftOrder.stopLoss)}
+            label={"Stop " + formatPrice(draftOrder.stopLoss, asset)}
+            className="stop-line"
           />
           <PriceLine
             y={y(draggingOco?.mode === "draft" && draggingOco.kind === "target" ? draggingOco.price : draftOrder.target)}
@@ -489,7 +487,8 @@ export function CandleChart({
           const candle = visible[idx];
           const x = xForIndex(idx);
           const isBuy = signal.side === "BUY";
-          const markerY = isBuy ? Math.min(PLOT_BOTTOM - 9, y(candle.low) + 23) : Math.max(PLOT_TOP + 9, y(candle.high) - 23);
+          // O marcador usa o preço do candle como âncora, não um deslocamento em pixels.
+          const markerY = isBuy ? y(candle.low) : y(candle.high);
           return <g key={signal.id}>
             <circle cx={x} cy={markerY} r="9" className={isBuy ? "signal-buy" : "signal-sell"} />
             <text x={x} y={isBuy ? markerY + 25 : markerY - 15} textAnchor="middle" className="signal-label">{signal.label.toUpperCase()}</text>
