@@ -528,3 +528,18 @@ describe("regras e execução SELL", () => {
     expect(result?.netResultBRL).toBe(-46);
   });
 });
+
+
+describe("reentrada após stop", () => {
+  it("libera a reentrada após dez candles fechados desde um stop", async () => {
+    const { canReenterAfterStop } = await import("./trading");
+    expect(canReenterAfterStop("STOP", 100, 109)).toBe(false);
+    expect(canReenterAfterStop("STOP", 100, 110)).toBe(true);
+  });
+
+  it("não aplica o prazo de dez candles a encerramentos por alvo ou manuais", async () => {
+    const { canReenterAfterStop } = await import("./trading");
+    expect(canReenterAfterStop("TARGET", 100, 120)).toBe(false);
+    expect(canReenterAfterStop("MANUAL_STOP", 100, 120)).toBe(false);
+  });
+});
