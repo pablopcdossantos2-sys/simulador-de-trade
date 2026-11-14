@@ -2105,6 +2105,15 @@ fn derived_paths(
     ))
 }
 
+pub(super) fn unique_temp_path(output_path: &Path, suffix: &str) -> PathBuf {
+    let nonce = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_nanos();
+    let file_name = output_path.file_name().and_then(|value| value.to_str()).unwrap_or("replay");
+    output_path.with_file_name(format!(".{file_name}.{}.{}.{}", std::process::id(), nonce, suffix))
+}
+
 struct TempFileGuard(PathBuf);
 
 impl Drop for TempFileGuard {
@@ -2159,8 +2168,7 @@ fn canonicalize_replay_file(
             // Seeks aleatórios invalidam o buffer; um buffer moderado evita reler
             // megabytes a cada linha em arquivos grandes.
             let mut reader = BufReader::with_capacity(64 * 1024, input);
-            let new_path = output_path.with_extension("replay.new");
-            let _ = fs::remove_file(&new_path);
+            let new_path = unique_temp_path(output_path, "replay.new");
             let output = File::create(&new_path).map_err(|error| error.to_string())?;
             let mut writer = BufWriter::with_capacity(4 * 1024 * 1024, output);
             writer
@@ -2254,7 +2262,7 @@ fn process_profit_replay_file(
         .len();
     let (output_path, metadata_path) =
         derived_paths(&source, window_start, window_end)?;
-    let temp_path = output_path.with_extension("replay.tmp");
+    let temp_path = unique_temp_path(&output_path, "replay.tmp");
     let _temp_guard = TempFileGuard(temp_path.clone());
 
     let input = File::open(&source).map_err(|error| error.to_string())?;
@@ -2741,7 +2749,7 @@ fn process_profit_m2_candle_file(
     let date_label = selected_date.format("%Y%m%d").to_string();
     let output_path = parent.join(format!("{stem}_{date_label}_{range}.replay.csv"));
     let metadata_path = parent.join(format!("{stem}_{date_label}_{range}.replay.meta.json"));
-    let temp_path = output_path.with_extension("replay.tmp");
+    let temp_path = unique_temp_path(&output_path, "replay.tmp");
     let _temp_guard = TempFileGuard(temp_path.clone());
 
     let output = File::create(&temp_path).map_err(|error| error.to_string())?;
