@@ -124,7 +124,7 @@ describe("buildTradeReviewContextInsights", () => {
           ...trade.entryContext,
           indicatorSeries: trade.entryContext.indicatorSeries.map((point) => ({
             ...point,
-            vwap: 103,
+            vwap: 120,
           })),
         };
       }
