@@ -122,6 +122,9 @@ describe("buildTradeReviewContextInsights", () => {
       if (trade.entryContext && index < 5) {
         trade.entryContext = {
           ...trade.entryContext,
+          candles: trade.entryContext.candles.map((candle) => candle.index === 7
+            ? { ...candle, open: 98, high: 105, low: 97, close: 104 }
+            : { ...candle, high: 102, low: 98 }),
           indicatorSeries: trade.entryContext.indicatorSeries.map((point) => ({
             ...point,
             vwap: 120,
@@ -138,6 +141,18 @@ describe("buildTradeReviewContextInsights", () => {
     expect(vwapAssociation?.contextLabel).toBe("Abaixo da VWAP");
     expect(vwapAssociation?.count).toBe(3);
     expect(vwapAssociation?.sampleSize).toBe(5);
+
+    const bodyAssociation = result.associations.find(
+      (item) => item.dimension === "ENTRY_CANDLE_BODY" && item.patternKey === "EMOTION_FEAR",
+    );
+    expect(bodyAssociation?.contextLabel).toContain("Corpo dominante");
+    expect(bodyAssociation?.sampleSize).toBe(5);
+
+    const rangeAssociation = result.associations.find(
+      (item) => item.dimension === "ENTRY_CANDLE_RANGE" && item.patternKey === "EMOTION_FEAR",
+    );
+    expect(rangeAssociation?.contextLabel).toContain("Range expandido");
+    expect(rangeAssociation?.sampleSize).toBe(5);
   });
 
   it("keeps older trades in asset and direction analysis but excludes them from unavailable chart context", () => {
