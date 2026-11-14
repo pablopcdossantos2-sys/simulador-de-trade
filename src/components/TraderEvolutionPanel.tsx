@@ -256,7 +256,6 @@ export function TraderEvolutionPanel({ refreshKey }: Props) {
 
       <article className={`evolution-diagnosis ${metrics.diagnosticLevel.toLowerCase()}`}>
         <div>
-          <p className="eyebrow">Diagnóstico da rotina</p>
           <h3>{metrics.diagnosticTitle}</h3>
           <p>{metrics.diagnosticDescription}</p>
         </div>
