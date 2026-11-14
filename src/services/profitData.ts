@@ -77,6 +77,7 @@ export async function prepareProfitReplayFile(
   sessionEnd: string,
   onProgress?: (progress: ProfitPreparationProgress) => void,
   expectedAsset?: "WINFUT" | "WDOFUT",
+  targetDate?: string,
 ): Promise<ProfitPreparationResult> {
   if (!isTauriRuntime()) {
     throw new Error(
@@ -103,6 +104,7 @@ export async function prepareProfitReplayFile(
       sessionStart,
       sessionEnd,
       expectedAsset,
+      targetDate,
     });
   } finally {
     unlisten?.();
