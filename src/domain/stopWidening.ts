@@ -3,6 +3,13 @@ import { grossResultBRL, tickSizeFor } from "./marketSpecs";
 
 export type StopWideningOutcome = "TARGET" | "BANKRUPTCY" | "SESSION_END";
 
+export interface StopWideningAdjustment {
+  timestamp: string;
+  marketPrice: number;
+  previousStop: number;
+  nextStop: number;
+}
+
 export interface StopWideningScenario {
   outcome: StopWideningOutcome;
   startingBalanceBRL: number;
@@ -15,6 +22,7 @@ export interface StopWideningScenario {
   attemptedStop: number;
   lastStop: number;
   processedTrades: number;
+  adjustments: StopWideningAdjustment[];
 }
 
 function pointsFor(side: Side, entry: number, exit: number): number {
@@ -102,6 +110,7 @@ export function simulateStopWideningScenario(input: {
   let lastPrice = lastObservedPrice;
   let lastTimestamp = lastObservedTimestamp;
   let processedTrades = 0;
+  const adjustments: StopWideningAdjustment[] = [];
 
   for (const trade of tradesAfterViolation) {
     if (trade.sequence <= (position.openedReplaySequence ?? -1)) continue;
@@ -126,6 +135,7 @@ export function simulateStopWideningScenario(input: {
         attemptedStop,
         lastStop: currentStop,
         processedTrades,
+        adjustments,
       };
     }
 
@@ -148,6 +158,7 @@ export function simulateStopWideningScenario(input: {
         attemptedStop,
         lastStop: currentStop,
         processedTrades,
+        adjustments,
       };
     }
 
@@ -155,10 +166,17 @@ export function simulateStopWideningScenario(input: {
       ? trade.price <= currentStop
       : trade.price >= currentStop;
     if (stopReached) {
+      const previousStop = currentStop;
       currentStop = position.side === "BUY"
         ? currentStop - initialRiskPoints
         : currentStop + initialRiskPoints;
       widenedTimes += 1;
+      adjustments.push({
+        timestamp: trade.timestamp,
+        marketPrice: trade.price,
+        previousStop,
+        nextStop: currentStop,
+      });
     }
   }
 
@@ -173,5 +191,6 @@ export function simulateStopWideningScenario(input: {
     attemptedStop,
     lastStop: currentStop,
     processedTrades,
+    adjustments,
   };
 }
