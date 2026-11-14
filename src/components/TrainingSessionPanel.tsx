@@ -223,7 +223,7 @@ export function TrainingSessionPanel({
             type="button"
             className="training-start"
             onClick={onStart}
-            disabled={!canStart || !replayLoaded || !Number.isFinite(Number(startingBalance)) || Number(startingBalance) <= 0
+            disabled={!canStart || !replayLoaded || !Number.isFinite(Number(startingBalance)) || Number(startingBalance) <= 0}
           >
             {mode === "EXAM" ? "Iniciar prova" : "Iniciar treino"}
           </button>
