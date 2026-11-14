@@ -232,7 +232,7 @@ export function PlanDataPreparationPanel({ plan, matches, onCatalogUpdated, onFu
                         <button type="button" className="secondary" onClick={() => void chooseSourceFile(key)} disabled={processing || row?.status === "working"}>Selecionar CSV original</button>
                         <button type="button" onClick={() => void prepareFullSession(match)} disabled={processing || row?.status === "working" || !(row?.sourcePath ?? "").trim()}>Preparar pregão completo</button>
                       </div>
-                      <small>A análise posterior usará ${plan.fullSessionStart}–${plan.fullSessionEnd}. Sem esse arquivo, será possível analisar apenas a janela carregada no replay.</small>
+                      <small>A análise posterior usará {plan.fullSessionStart}–{plan.fullSessionEnd}. Sem esse arquivo, será possível analisar apenas a janela carregada no replay.</small>
                     </div>
                   )}
                 </div>
