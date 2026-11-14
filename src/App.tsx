@@ -144,7 +144,9 @@ export default function App() {
     useState<ExecutionSettings>(DEFAULT_EXECUTION_SETTINGS);
   const [cloudOpacity, setCloudOpacity] = useState(() => {
     try {
-      const stored = Number(localStorage.getItem("simulador-de-trade:cloud-opacity"));
+      const raw = localStorage.getItem("simulador-de-trade:cloud-opacity");
+      if (raw === null) return 0.2;
+      const stored = Number(raw);
       return Number.isFinite(stored) ? Math.max(0, Math.min(1, stored)) : 0.2;
     } catch {
       return 0.2;
