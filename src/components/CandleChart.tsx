@@ -11,7 +11,7 @@ interface Props {
   draftOrder?: { side: Side; entry: number; stopLoss: number; target: number } | null;
   entryPlacementEnabled?: boolean;
   onEntryPlacement?: (price: number) => void;
-  onAdjustOco?: (kind: "stop" | "target", price: number, mode: "position" | "draft") => void;
+  onAdjustOco?: (kind: "target", price: number, mode: "position" | "draft") => void;
   fitAllCandles?: boolean;
   cloudOpacity?: number;
 }
