@@ -14,6 +14,7 @@ import { ProgressOverviewPanel } from "./components/ProgressOverviewPanel";
 import { StudentProgressPanel } from "./components/StudentProgressPanel";
 import { TraderEvolutionPanel } from "./components/TraderEvolutionPanel";
 import { ExecutionSettingsPanel } from "./components/ExecutionSettingsPanel";
+import { DatabaseMaintenancePanel } from "./components/DatabaseMaintenancePanel";
 import { BackupPanel } from "./components/BackupPanel";
 import { InfoTip } from "./components/InfoTip";
 import { ManualPanel } from "./components/ManualPanel";
@@ -61,6 +62,7 @@ import {
 import { useReplayPlayer } from "./hooks/useReplayPlayer";
 import { indicator } from "./services/indicator";
 import {
+  deleteAllDatabaseData,
   deleteAllTrades,
   loadTrades,
   saveTrade,
@@ -243,9 +245,8 @@ export default function App() {
         authorization.id !== previousSignalId &&
         !usedSignalIdsRef.current.has(authorization.id)
       ) {
-        pauseReplayRef.current?.();
         setFeedback(
-          `Novo sinal de ${sideLabel(authorization.side)} confirmado no fechamento do candle. Replay pausado para você avaliar a entrada.`,
+          `Novo sinal de ${sideLabel(authorization.side)} confirmado no fechamento do candle. A reprodução continuará enquanto você avalia a entrada.`,
         );
       }
     },
@@ -307,8 +308,6 @@ export default function App() {
     const latestClosedIndex = indicatorCandles.at(-1)?.index;
     if (latestClosedIndex === undefined) return null;
 
-    // Usa o toque fechado mais recente; a autorização expira após 3 candles
-    // e deixa de valer assim que a zona direcional é perdida.
     const touchedPoint = [...indicatorEvaluation.series].reverse().find((point) => {
       if (
         point.candleIndex <= lastClosedTradeMarker.candleIndex ||
@@ -318,15 +317,26 @@ export default function App() {
       const candle = candleByIndex.get(point.candleIndex);
       return Boolean(candle && candle.low <= point.ema52 && candle.high >= point.ema52);
     });
-    if (!touchedPoint || latestClosedIndex - touchedPoint.candleIndex > 3) return null;
-    const candle = candleByIndex.get(touchedPoint.candleIndex);
-    if (!candle) return null;
+    const ma52Candle = touchedPoint && latestClosedIndex - touchedPoint.candleIndex <= 3
+      ? candleByIndex.get(touchedPoint.candleIndex)
+      : undefined;
+    const stopCooldownElapsed = canReenterAfterStop(
+      lastClosedTradeMarker.trade.exitReason,
+      lastClosedTradeMarker.candleIndex,
+      latestClosedIndex,
+    );
+    if (!ma52Candle && !stopCooldownElapsed) return null;
+
+    const authorizationCandle = ma52Candle ?? candleByIndex.get(latestClosedIndex);
+    if (!authorizationCandle) return null;
+    const method = ma52Candle ? "MA52" as const : "STOP_COOLDOWN" as const;
     return {
-      id: `ma52-reentry:${lastClosedTradeMarker.trade.id}:${candle.index}`,
+      id: `${method === "MA52" ? "ma52-reentry" : "stop-cooldown-reentry"}:${lastClosedTradeMarker.trade.id}:${authorizationCandle.index}`,
       side,
-      candleIndex: candle.index,
-      timestamp: candle.timestamp,
-      price: candle.close,
+      candleIndex: authorizationCandle.index,
+      timestamp: authorizationCandle.timestamp,
+      price: authorizationCandle.close,
+      method,
     };
   }, [lastClosedTradeMarker, signal?.id, signalAlreadyUsed, indicatorEvaluation.series, indicatorEvaluation.zone, indicatorCandles]);
   const authorizedSideForChart = signal && !signalAlreadyUsed
@@ -484,7 +494,9 @@ export default function App() {
     if (signalAlreadyUsed) {
       setFeedback(
         reentryAuthorization
-          ? "O sinal ativo já foi utilizado, mas um candle posterior tocou na MME 52. A reentrada na mesma direção está autorizada."
+          ? reentryAuthorization.method === "STOP_COOLDOWN"
+            ? "Dez candles fechados após o stop. A reentrada na mesma direção está autorizada."
+            : "Um candle posterior tocou na MME 52. A reentrada na mesma direção está autorizada."
           : "O sinal ativo já foi utilizado. Aguarde um novo gatilho ou um candle posterior ao encerramento que toque na MME 52.",
       );
       return;
@@ -524,7 +536,9 @@ export default function App() {
 
     setFeedback(
       reentryAuthorization
-        ? `Candle posterior tocou na MME 52. Reentrada de ${sideLabel(reentryAuthorization.side).toLowerCase()} autorizada.`
+        ? reentryAuthorization.method === "STOP_COOLDOWN"
+          ? `Dez candles fechados após o stop. Reentrada de ${sideLabel(reentryAuthorization.side).toLowerCase()} autorizada.`
+          : `Candle posterior tocou na MME 52. Reentrada de ${sideLabel(reentryAuthorization.side).toLowerCase()} autorizada.`
         : "Sem zona autorizadora ativa ou toque posterior na MME 52. Compra e Venda permanecem bloqueadas.",
     );
   }, [indicatorEvaluation.zone, signal, position, lastCandle?.index, reentryAuthorization?.id]);
@@ -1210,7 +1224,7 @@ export default function App() {
     <main className="app-shell">
       <header className="topbar">
         <div>
-          <p className="eyebrow">Treino de execução disciplinada</p>          <h1>Simulador de Trade</h1>
+          <h1>Simulador de Trade</h1>
           <p className="subtitle">
             WINFUT e WDOFUT · Multi Médias - Nuvem e Sinais · OCO obrigatório
           </p>
@@ -1397,14 +1411,9 @@ export default function App() {
         <div className="market card">
           <div className="section-heading">
             <div>
-              <p className="eyebrow">
-                {dataMode === "replay"
-                  ? "Mercado histórico revelado até agora"
-                  : "Motor do indicador integrado"}
-              </p>
               <h2>{asset}</h2>
             </div>
-            <SignalBadge evaluation={indicatorEvaluation} signalAlreadyUsed={signalAlreadyUsed} reentrySide={reentryAuthorization?.side ?? null} />
+            <SignalBadge evaluation={indicatorEvaluation} signalAlreadyUsed={signalAlreadyUsed} reentrySide={reentryAuthorization?.side ?? null} reentryMethod={reentryAuthorization?.method ?? null} />
           </div>
 
           {visibleCandles.length || warmupCandles.length ? (
@@ -1436,12 +1445,11 @@ export default function App() {
         </div>
 
         <aside className="order-panel card">
-          <p className="eyebrow">Boleta protegida</p>
           <h2>Ordem OCO</h2>
 
           <div className="rule-box">
             <strong>Regras</strong>
-            <span>Compra na zona verde; venda na vermelha. Risco/retorno mínimo: 1:2. Reentrada exige novo toque na MME 52.</span>
+            <span>Compra na zona verde; venda na vermelha. Risco/retorno mínimo: 1:2. Reentrada após toque na MME 52 ou dez candles fechados depois de um stop.</span>
           </div>
 
           <label>
@@ -1634,7 +1642,6 @@ export default function App() {
       <section className="history card">
         <div className="section-heading">
           <div>
-            <p className="eyebrow">Persistência local</p>
             <h2>Histórico de operações</h2>
           </div>
           <div className="history-actions">
@@ -1752,6 +1759,27 @@ export default function App() {
           );
         }}
       />
+      <DatabaseMaintenancePanel
+        disabled={Boolean(position) || Boolean(trainingActive)}
+        onDeleteAll={async () => {
+          await deleteAllDatabaseData();
+          setTrades([]);
+          setTrainingSession(null);
+          setTrainingEvents([]);
+          setExecutionSettings(DEFAULT_EXECUTION_SETTINGS);
+          setStopTrainingEnabled(false);
+          setTrainingMode("FREE");
+          setLastClosedTradeMarker(null);
+          activeSignalRef.current = null;
+          usedSignalIdsRef.current = new Set();
+          ignoredSignalIdsRef.current = new Set();
+          lastSuggestedSignalIdRef.current = null;
+          setCloudOpacity(0.2);
+          try { localStorage.removeItem("simulador-de-trade:cloud-opacity"); } catch { /* Preferência visual opcional. */ }
+          setSessionHistoryRefreshKey((value) => value + 1);
+          setFeedback("Banco de dados apagado. As configurações de execução voltaram aos valores iniciais.");
+        }}
+      />
       </section>
 
       <RuleViolationModal
@@ -1766,17 +1794,19 @@ function SignalBadge({
   evaluation,
   signalAlreadyUsed = false,
   reentrySide = null,
+  reentryMethod = null,
 }: {
   evaluation: IndicatorEvaluation;
   signalAlreadyUsed?: boolean;
   reentrySide?: Side | null;
+  reentryMethod?: "MA52" | "STOP_COOLDOWN" | null;
 }) {
   const signal = evaluation.authorization;
 
   if (reentrySide && (!signal || signalAlreadyUsed)) {
     return (
       <div className={`signal-badge ${reentrySide === "BUY" ? "buy" : "sell"}`}>
-        Reentrada MME 52 · {sideLabel(reentrySide)} autorizada
+        {reentryMethod === "STOP_COOLDOWN" ? "Reentrada após 10 candles" : "Reentrada MME 52"} · {sideLabel(reentrySide)} autorizada
       </div>
     );
   }
