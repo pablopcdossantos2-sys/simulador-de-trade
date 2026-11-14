@@ -76,6 +76,7 @@ export interface SimulationPlan {
   warmupMinutes: number;
   sameWindowSessionsNeeded: number;
   sameWindowPreviousDates: string[];
+  fullSessionStart: string;
   fullSessionEnd: string;
   fullSessionBars: number;
   fullSessionsNeeded: number;
@@ -253,6 +254,7 @@ export function calculateSimulationPlan(
   const warmupMinutes = warmupBars * input.timeframeMinutes;
 
   const sameWindowSessionsNeeded = Math.ceil(warmupBars / visible.bars);
+  const fullSessionStart = B3_SPECIAL_SESSION_START_2026[input.date] ?? "09:00";
   const fullSessionEnd = FULL_SESSION_END_2026[input.asset];
 
   const fullSessionPreviousDates: string[] = [];
@@ -302,6 +304,7 @@ export function calculateSimulationPlan(
       input.date,
       sameWindowSessionsNeeded,
     ),
+    fullSessionStart,
     fullSessionEnd,
     fullSessionBars,
     fullSessionsNeeded: fullSessionPreviousDates.length,
