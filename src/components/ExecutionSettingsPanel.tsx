@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { InfoTip } from "./InfoTip";
 import { saveExecutionSettings } from "../services/executionSettings";
 import type { ExecutionSettings, IntrabarPolicy } from "../types";
 
@@ -110,7 +111,7 @@ export function ExecutionSettingsPanel({ settings, onSaved }: Props) {
         <label>
           WINFUT · custo por contrato (R$)
           <input type="number" min="0" step="0.01" value={winCost} onChange={(event) => setWinCost(event.target.value)} />
-          <small>Por operação completa.</small>
+          <InfoTip label="Custo por operação completa">Informe o custo total estimado de ida e volta por contrato, não o custo de cada lado separadamente.</InfoTip>
         </label>
         <label>
           WDOFUT · custo por contrato (R$)
@@ -131,7 +132,10 @@ export function ExecutionSettingsPanel({ settings, onSaved }: Props) {
       </div>
 
       <div className="execution-settings-capitals">
-        <h3>Capital dos treinamentos</h3>
+        <div className="capital-heading">
+          <h3>Capital dos treinamentos</h3>
+          <InfoTip label="Como o capital é usado">Informe uma vez; os valores serão usados nos próximos treinos. Cada modalidade mantém seu próprio saldo inicial.</InfoTip>
+        </div>
         <div className="execution-settings-grid">
           <label>
             Treino disciplinado (R$)
@@ -142,15 +146,16 @@ export function ExecutionSettingsPanel({ settings, onSaved }: Props) {
             <input type="number" min="0.01" step="0.01" value={stopBalance} onChange={(event) => setStopBalance(event.target.value)} placeholder="Não configurado" />
           </label>
         </div>
-        <small>Informe uma vez; os valores serão usados nos próximos treinos.</small>
       </div>
 
-      <p className="cost-source-note">
-        Custos de referência aproximados. Confira sua nota de corretagem e ajuste os valores.{" "}
-        <a href={COST_REFERENCE_URL} target="_blank" rel="noreferrer">Referência B3</a> ·{" "}
-        <a href={WIN_TARIFF_URL} target="_blank" rel="noreferrer">Tarifas WIN</a> ·{" "}
-        <a href={WDO_TARIFF_URL} target="_blank" rel="noreferrer">Tarifas WDO</a>.
-      </p>
+      <div className="cost-source-help">
+        <InfoTip label="Referências de custos e tarifas">
+          Os custos são valores de referência aproximados. Confira sua nota de corretagem e ajuste os valores.{" "}
+          <a href={COST_REFERENCE_URL} target="_blank" rel="noreferrer">Referência B3</a> ·{" "}
+          <a href={WIN_TARIFF_URL} target="_blank" rel="noreferrer">Tarifas WIN</a> ·{" "}
+          <a href={WDO_TARIFF_URL} target="_blank" rel="noreferrer">Tarifas WDO</a>.
+        </InfoTip>
+      </div>
 
       <div className="execution-settings-actions">
         <button type="button" onClick={() => void save()} disabled={saving}>

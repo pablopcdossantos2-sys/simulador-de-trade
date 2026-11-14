@@ -3816,3 +3816,7 @@ td {
   border-color: #c3d2df; background: #fff; color: #405b73; box-shadow: 0 12px 30px #1b35501f;
 }
 :root[data-theme="light"] .info-tip-content strong { color: #203d58; }
+
+.catalog-title, .capital-heading { display: flex; align-items: center; gap: 9px; }
+.catalog-footnote, .cost-source-help { display: flex; justify-content: flex-end; margin-top: 8px; }
+.replay-note-help { display: flex; justify-content: flex-end; }

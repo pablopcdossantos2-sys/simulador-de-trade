@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import type { Asset } from "../types";
+import { InfoTip } from "./InfoTip";
 import type { SimulationPlan } from "../domain/simulationPlan";
 import {
   matchSimulationPlan,
@@ -61,19 +62,16 @@ export function ReplayCatalogPanel({
   return (
     <section className="catalog-panel card">
       <div className="section-heading">
-        <div>
+        <div className="catalog-title">
           <h2>Arquivos disponíveis</h2>
+          <InfoTip label="Sobre o catálogo">O catálogo reúne os arquivos de replay preparados e verifica se cada um corresponde ao ativo, à data e à janela exigidos pelo plano atual.</InfoTip>
         </div>
         <button type="button" className="catalog-refresh" onClick={() => void refresh(true)}>
           Atualizar catálogo
         </button>
       </div>
 
-      {!plan && (
-        <p className="data-description">
-          Aplique um plano para conferir os arquivos M2 necessários.
-        </p>
-      )}
+
 
       {error && <div className="data-status error">{error}</div>}
 
@@ -133,10 +131,11 @@ export function ReplayCatalogPanel({
             ))}
           </div>
 
-          <p className="data-footnote">
-            Arquivos movidos ou apagados são marcados como indisponíveis. O botão
-            “Atualizar catálogo” remove referências a arquivos que não existem mais.
-          </p>
+          <div className="catalog-footnote">
+            <InfoTip label="Atualização do catálogo">
+              Arquivos movidos ou apagados são marcados como indisponíveis. O botão Atualizar catálogo remove referências a arquivos que não existem mais.
+            </InfoTip>
+          </div>
         </>
       )}
     </section>
