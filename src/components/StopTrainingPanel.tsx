@@ -14,6 +14,7 @@ interface Props {
   startingBalance: string;
   onStartingBalanceChange: (value: string) => void;
   enabled: boolean;
+  trainingActive: boolean;
   onEnabledChange: (enabled: boolean) => void;
   onDismissIncident: () => void;
   configurable: boolean;
@@ -51,6 +52,7 @@ export function StopTrainingPanel({
   startingBalance,
   onStartingBalanceChange,
   enabled,
+  trainingActive,
   onEnabledChange,
   onDismissIncident,
   configurable,
@@ -86,7 +88,7 @@ export function StopTrainingPanel({
           <h2>Treinamento de Stops</h2>
         </div>
         <span className={incident ? "stop-training-status violated" : enabled ? "stop-training-status active" : "stop-training-status"}>
-          {incident ? "Regra infringida" : enabled ? "Monitoramento ativo" : "Não iniciado"}
+          {incident ? "Regra infringida" : enabled ? trainingActive ? "Monitoramento ativo" : "Armado para o próximo treino" : "Não iniciado"}
         </span>
       </div>
 
@@ -116,7 +118,7 @@ export function StopTrainingPanel({
             </button>
           ) : (
             <div className="stop-training-enabled-note">
-              <p>O afastamento do stop será monitorado durante o próximo treinamento formal.</p>
+              <p>O treinamento está armado. O monitoramento começará assim que você iniciar uma sessão formal de replay.</p>
               <button type="button" className="secondary" onClick={() => onEnabledChange(false)} disabled={!configurable}>Desativar</button>
             </div>
           )}
@@ -132,10 +134,10 @@ export function StopTrainingPanel({
           <span>Direção: {incident.position.side === "BUY" ? "Compra" : "Venda"} · preço de entrada executado: {incident.position.entry.toLocaleString("pt-BR")}</span>
           <span>Momento da infração: {clock(incident.marketTimestamp)}.</span>
           <p>
-            A alteração não foi aplicada à posição real do simulador. O replay foi pausado no instante da tentativa; a análise abaixo é hipotética e não altera o resultado registrado da operação.
+            A alteração não foi aplicada à posição real do simulador. O replay foi pausado no instante da tentativa; a análise abaixo é hipotética e não altera o resultado registrado da operação. Para registrar o encerramento do exercício, clique em “Encerrar treino” no painel “Treino disciplinado” acima. Depois disso, este painel liberará a conclusão da análise.
           </p>
           {configurable && (
-            <button type="button" className="secondary" onClick={onDismissIncident}>Concluir análise e liberar novo treinamento</button>
+            <button type="button" className="secondary" onClick={onDismissIncident} disabled={analysisLoading}>{analysisLoading ? "Aguardando análise..." : "Concluir análise e liberar novo treinamento"}</button>
           )}
         </div>
       )}
