@@ -4,7 +4,6 @@ import { DEFAULT_MULTI_MEDIAS_CONFIG } from "../services/indicator";
 export const DEFAULT_TIMEFRAME_MINUTES = 2;
 export const SUPPORTED_TIMEFRAMES_MINUTES = [2] as const;
 export const STANDARD_WARMUP_MULTIPLIER = 5;
-export const STRICT_WARMUP_MULTIPLIER = 10;
 
 const SUPPORTED_CALENDAR_YEARS = new Set([2025, 2026]);
 export const SUPPORTED_SIMULATION_YEARS = [2026] as const;
@@ -49,15 +48,10 @@ const B3_SPECIAL_SESSION_START_2026: Record<string, string> = {
   "2026-02-18": "13:00",
 };
 
-export type WarmupPolicy = "STANDARD" | "STRICT";
-
 export interface SimulationPlanInput {
   asset: Asset;
   date: string;
   timeframeMinutes: number;
-  startTime: string;
-  endTime: string;
-  warmupPolicy: WarmupPolicy;
 }
 
 export interface SimulationDataRequirement {
@@ -237,25 +231,21 @@ export function calculateSimulationPlan(
     );
   }
 
+  const fullSessionStart = B3_SPECIAL_SESSION_START_2026[input.date] ?? "09:00";
+  const fullSessionEnd = FULL_SESSION_END_2026[input.asset];
   const visible = barsForWindow(
-    input.startTime,
-    input.endTime,
+    fullSessionStart,
+    fullSessionEnd,
     input.timeframeMinutes,
   );
   if (visible.bars < 1) {
-    throw new Error("A janela selecionada não contém um candle completo.");
+    throw new Error("O pregão completo não contém candles M2 suficientes.");
   }
 
-  const multiplier =
-    input.warmupPolicy === "STRICT"
-      ? STRICT_WARMUP_MULTIPLIER
-      : STANDARD_WARMUP_MULTIPLIER;
-  const warmupBars = DEFAULT_MULTI_MEDIAS_CONFIG.emaSlowLength * multiplier;
+  const warmupBars =
+    DEFAULT_MULTI_MEDIAS_CONFIG.emaSlowLength * STANDARD_WARMUP_MULTIPLIER;
   const warmupMinutes = warmupBars * input.timeframeMinutes;
-
   const sameWindowSessionsNeeded = Math.ceil(warmupBars / visible.bars);
-  const fullSessionStart = B3_SPECIAL_SESSION_START_2026[input.date] ?? "09:00";
-  const fullSessionEnd = FULL_SESSION_END_2026[input.asset];
 
   const fullSessionPreviousDates: string[] = [];
   const warmupRequirements: SimulationDataRequirement[] = [];
@@ -287,8 +277,8 @@ export function calculateSimulationPlan(
     {
       role: "TARGET",
       date: input.date,
-      startTime: input.startTime,
-      endTime: input.endTime,
+      startTime: fullSessionStart,
+      endTime: fullSessionEnd,
     },
   ];
 
@@ -310,8 +300,8 @@ export function calculateSimulationPlan(
     fullSessionsNeeded: fullSessionPreviousDates.length,
     fullSessionPreviousDates,
     targetDate: input.date,
-    targetStartTime: input.startTime,
-    targetEndTime: input.endTime,
+    targetStartTime: fullSessionStart,
+    targetEndTime: fullSessionEnd,
     contractWarning: winExpiryWarning(input.date, input.asset),
     dataRequirements,
   };

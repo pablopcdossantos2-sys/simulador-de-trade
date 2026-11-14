@@ -13,8 +13,7 @@ interface Props {
   canStart: boolean;
   replayLoaded: boolean;
   mode: TrainingMode;
-  startingBalance: string;
-  onStartingBalanceChange: (value: string) => void;
+  startingBalanceBRL: number | null;
   onModeChange: (mode: TrainingMode) => void;
   onStart: () => void;
   onEnd: () => void;
@@ -99,8 +98,7 @@ export function TrainingSessionPanel({
   canStart,
   replayLoaded,
   mode,
-  startingBalance,
-  onStartingBalanceChange,
+  startingBalanceBRL,
   onModeChange,
   onStart,
   onEnd,
@@ -136,7 +134,6 @@ export function TrainingSessionPanel({
     <section className="training-session-panel card">
       <div className="section-heading">
         <div>
-          <p className="eyebrow">Etapa 5 · Iniciar e acompanhar o treino</p>
           <h2>Treino disciplinado</h2>
         </div>
         <span
@@ -148,19 +145,11 @@ export function TrainingSessionPanel({
 
       {!active && (
         <>
-        <div className="training-capital-field">
-          <label htmlFor="discipline-training-balance">Saldo inicial deste treino (R$)</label>
-          <input
-            id="discipline-training-balance"
-            type="number"
-            min="0.01"
-            step="0.01"
-            value={startingBalance}
-            onChange={(event) => onStartingBalanceChange(event.target.value)}
-            placeholder="Informe o saldo inicial"
-          />
-          <small>Esse valor será usado como referência financeira desta sessão. Não há saldo padrão.</small>
-        </div>
+        <small className="training-hint">
+          Capital configurado: {startingBalanceBRL == null
+            ? "não definido"
+            : new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(startingBalanceBRL)}
+        </small>
         <div className="training-mode-selector">
           <button
             type="button"
@@ -180,14 +169,6 @@ export function TrainingSessionPanel({
           </button>
         </div>
         </>
-      )}
-
-      {!session && (
-        <p className="data-description">
-          Carregue um replay válido e inicie a sessão antes de operar. A partir
-          desse momento, tentativas bloqueadas, operações e sinais ignorados
-          passam a ser registrados.
-        </p>
       )}
 
       {session && (
@@ -223,7 +204,7 @@ export function TrainingSessionPanel({
             type="button"
             className="training-start"
             onClick={onStart}
-            disabled={!canStart || !replayLoaded || !Number.isFinite(Number(startingBalance)) || Number(startingBalance) <= 0}
+            disabled={!canStart || !replayLoaded}
           >
             {mode === "EXAM" ? "Iniciar prova" : "Iniciar treino"}
           </button>

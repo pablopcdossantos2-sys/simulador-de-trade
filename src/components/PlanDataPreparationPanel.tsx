@@ -12,7 +12,6 @@ interface Props {
   plan: SimulationPlan | null;
   matches: RequirementMatch[];
   onCatalogUpdated: () => void;
-  onFullSessionFilePrepared?: (path: string) => void;
 }
 
 interface RowState {
@@ -31,7 +30,7 @@ function brDate(value: string): string {
   return `${day}/${month}/${year}`;
 }
 
-export function PlanDataPreparationPanel({ plan, matches, onCatalogUpdated, onFullSessionFilePrepared }: Props) {
+export function PlanDataPreparationPanel({ plan, matches, onCatalogUpdated }: Props) {
   const [rows, setRows] = useState<Record<string, RowState>>({});
   const [processing, setProcessing] = useState(false);
 
@@ -130,42 +129,6 @@ export function PlanDataPreparationPanel({ plan, matches, onCatalogUpdated, onFu
     }
   }
 
-  async function prepareFullSession(match: RequirementMatch) {
-    if (!plan || match.requirement.role !== "TARGET") return;
-    const key = keyFor(match.requirement.role, match.requirement.date);
-    const sourcePath = rows[key]?.sourcePath.trim().replace(/^"(.*)"$/, "$1") ?? "";
-    if (!sourcePath) {
-      updateRow(key, { status: "error", message: "Selecione o CSV original que contém o pregão completo para habilitar a análise de Stops." });
-      return;
-    }
-    updateRow(key, { status: "working", message: "Preparando o pregão completo para a análise contrafactual...", progress: 0 });
-    try {
-      const result = await prepareProfitReplayFile(
-        sourcePath,
-        plan.fullSessionStart,
-        plan.fullSessionEnd,
-        (progress) => updateRow(key, { progress: progress.percent }),
-        plan.asset,
-      );
-      const entry = await registerReplayFile(result.outputPath);
-      if (entry.tradeDate !== plan.targetDate) {
-        throw new Error("O CSV selecionado não corresponde à data do pregão planejado.");
-      }
-      onFullSessionFilePrepared?.(result.outputPath);
-      updateRow(key, {
-        status: "done",
-        progress: 100,
-        message: `Pregão completo preparado: ${result.keptRows.toLocaleString("pt-BR")} candles M2 (${plan.fullSessionStart}–${plan.fullSessionEnd}).`,
-      });
-      onCatalogUpdated();
-    } catch (error) {
-      updateRow(key, {
-        status: "error",
-        message: error instanceof Error ? error.message : "Não foi possível preparar o pregão completo.",
-      });
-    }
-  }
-
   async function processAll() {
     if (!plan || processing) return;
     setProcessing(true);
@@ -184,21 +147,14 @@ export function PlanDataPreparationPanel({ plan, matches, onCatalogUpdated, onFu
   return (
     <section className="plan-data-panel card">
       <div className="section-heading">
-        <div>
-          <p className="eyebrow">Etapa 3 · Preparar dados</p>
-          <h2>Importar candles M2</h2>
-        </div>
+        <h2>Dados do pregão</h2>
         <span className="history-count">
           {missing.length} pendência{missing.length === 1 ? "" : "s"}
         </span>
       </div>
 
       <p className="data-description">
-        No Profit, exporte o histórico em período gráfico de 2 minutos (M2). O CSV deve conter
-        Ativo/Contrato, Data/Hora (ou Data com data e hora juntas), Abertura, Máxima, Mínima, Fechamento e Volume Quantidade/Quantidade. Se o Profit exportar Volume Financeiro e Volume Quantidade, o simulador utiliza a quantidade. Não é necessário
-        exportar negócios tick a tick. O sistema guarda somente os candles M2 e gera uma
-        trajetória sintética segundo a segundo durante a reprodução. Arquivos antigos de
-        negócios individuais continuam aceitos, mas não são a fonte recomendada.
+        Selecione os CSVs de candles M2 das datas indicadas. O pregão-alvo é preparado por inteiro.
       </p>
 
       <div className="plan-data-list">
@@ -209,7 +165,7 @@ export function PlanDataPreparationPanel({ plan, matches, onCatalogUpdated, onFu
           return (
             <article key={key} className={available ? "available" : "pending"}>
               <div className="plan-data-identity">
-                <span>{match.requirement.role === "WARMUP" ? "Aquecimento oculto" : "Pregão-alvo"}</span>
+                <span>{match.requirement.role === "WARMUP" ? "Histórico prévio" : "Pregão completo"}</span>
                 <strong>{brDate(match.requirement.date)}</strong>
                 <small>{match.requirement.startTime}–{match.requirement.endTime}</small>
               </div>
@@ -217,24 +173,7 @@ export function PlanDataPreparationPanel({ plan, matches, onCatalogUpdated, onFu
               {available ? (
                 <div className="plan-data-existing">
                   <strong>Já disponível</strong>
-                  <small>{match.entry?.symbol} · {match.entry?.outputPath}</small>
-                  {match.requirement.role === "TARGET" && (
-                    <div className="full-session-source">
-                      <label htmlFor={`full-session-${key}`}>CSV original para análise do pregão completo (opcional)</label>
-                      <input
-                        id={`full-session-${key}`}
-                        value={row?.sourcePath ?? ""}
-                        onChange={(event) => updateRow(key, { sourcePath: event.target.value })}
-                        placeholder="Selecione o CSV M2 que contém o dia completo"
-                        disabled={processing || row?.status === "working"}
-                      />
-                      <div className="plan-data-actions">
-                        <button type="button" className="secondary" onClick={() => void chooseSourceFile(key)} disabled={processing || row?.status === "working"}>Selecionar CSV original</button>
-                        <button type="button" onClick={() => void prepareFullSession(match)} disabled={processing || row?.status === "working" || !(row?.sourcePath ?? "").trim()}>Preparar pregão completo</button>
-                      </div>
-                      <small>A análise posterior usará {plan.fullSessionStart}–{plan.fullSessionEnd}. Sem esse arquivo, será possível analisar apenas a janela carregada no replay.</small>
-                    </div>
-                  )}
+                  <small>{match.entry?.symbol}</small>
                 </div>
               ) : (
                 <div className="plan-data-input">

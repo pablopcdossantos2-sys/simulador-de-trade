@@ -78,6 +78,8 @@ export interface ExecutionSettings {
   costWdoRoundTripBRL?: number;
   slippageTicksPerSide: number;
   intrabarPolicy: IntrabarPolicy;
+  disciplinedTrainingStartingBalanceBRL?: number | null;
+  stopTrainingStartingBalanceBRL?: number | null;
 }
 
 export interface Position {

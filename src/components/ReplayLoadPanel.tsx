@@ -27,8 +27,7 @@ export function ReplayLoadPanel({
     <section className="replay-controls card replay-load-panel">
       <div className="section-heading replay-heading">
         <div>
-          <p className="eyebrow">Etapa 4 · Carregar replay · M{timeframeMinutes}</p>
-          <h2>Arquivo histórico do pregão</h2>
+          <h2>Carregar pregão · M{timeframeMinutes}</h2>
         </div>
         <span className={`replay-status ${finished ? "finished" : session ? "ready" : ""}`}>
           {finished ? "Sessão concluída" : session ? "Arquivo carregado" : "Aguardando arquivo"}
@@ -36,10 +35,7 @@ export function ReplayLoadPanel({
       </div>
 
       <p className="data-description">
-        Selecione o replay compacto (.replay.csv) preparado na Etapa 3.
-        O formato recomendado contém candles OHLCV M2; arquivos antigos de
-        negócios tick a tick continuam disponíveis apenas para compatibilidade.
-        Depois de carregá-lo, inicie a sessão na Etapa 5.
+        Selecione o arquivo M2 do pregão completo preparado acima.
       </p>
 
       <div className="replay-load-row">
@@ -48,7 +44,7 @@ export function ReplayLoadPanel({
           <input
             value={path}
             onChange={(event) => onPathChange(event.target.value)}
-            placeholder={'Ex.: C:\\Dados\\WINV26_TRADES_0900-1200.replay.csv'}
+            placeholder="Arquivo .replay.csv"
             disabled={playing || trainingActive}
           />
         </label>

@@ -11,8 +11,7 @@ interface Incident {
 
 interface Props {
   asset: Asset;
-  startingBalance: string;
-  onStartingBalanceChange: (value: string) => void;
+  startingBalanceBRL: number | null;
   enabled: boolean;
   trainingActive: boolean;
   onEnabledChange: (enabled: boolean) => void;
@@ -49,8 +48,7 @@ function clock(value: string | null): string {
 
 export function StopTrainingPanel({
   asset,
-  startingBalance,
-  onStartingBalanceChange,
+  startingBalanceBRL,
   enabled,
   trainingActive,
   onEnabledChange,
@@ -66,7 +64,7 @@ export function StopTrainingPanel({
   scenario,
   scope,
 }: Props) {
-  const validBalance = Number.isFinite(Number(startingBalance)) && Number(startingBalance) > 0;
+  const validBalance = startingBalanceBRL !== null && Number.isFinite(startingBalanceBRL) && startingBalanceBRL > 0;
   const initialAdjustments = scenario?.adjustments.slice(0, 6) ?? [];
   const remainingAdjustments = scenario
     ? scenario.adjustments.length > 12
@@ -98,27 +96,19 @@ export function StopTrainingPanel({
 
       {!incident && (
         <div className="stop-training-setup">
-          <label htmlFor="stop-training-balance">Saldo inicial deste treinamento (R$)</label>
-          <input
-            id="stop-training-balance"
-            type="number"
-            min="0.01"
-            step="0.01"
-            value={startingBalance}
-            onChange={(event) => onStartingBalanceChange(event.target.value)}
-            placeholder="Informe o saldo inicial"
-            disabled={!configurable || enabled}
-          />
-          <small>Não existe saldo padrão. Informe o capital que será usado para avaliar o risco de esgotamento da conta.</small>
-          <small>As operações do treinamento exigem risco/retorno mínimo de 1:2. A boleta exibe um alerta enquanto o alvo não oferecer ao menos o dobro do risco.</small>
-          <small>{fullDayReady ? "Pregão completo preparado e pronto para análise." : "Antes de ativar, prepare o arquivo do pregão completo na seção de preparação de dados usando o CSV original."}</small>
+          <small>
+            Capital: {validBalance
+              ? brl.format(startingBalanceBRL)
+              : "não configurado em Configurações"}
+          </small>
+          <small>{fullDayReady ? "Pregão completo disponível." : "Prepare os arquivos M2 completos do pregão na aba Simulador."}</small>
           {!enabled ? (
             <button type="button" className="planner-apply" onClick={() => onEnabledChange(true)} disabled={!configurable || !validBalance || !fullDayReady}>
-              Ativar treinamento de Stops
+              Ativar treinamento
             </button>
           ) : (
             <div className="stop-training-enabled-note">
-              <p>O treinamento está armado. O monitoramento começará assim que você iniciar uma sessão formal de replay.</p>
+              <p>Ativado para a próxima sessão formal.</p>
               <button type="button" className="secondary" onClick={() => onEnabledChange(false)} disabled={!configurable}>Desativar</button>
             </div>
           )}
@@ -134,7 +124,7 @@ export function StopTrainingPanel({
           <span>Direção: {incident.position.side === "BUY" ? "Compra" : "Venda"} · preço de entrada executado: {incident.position.entry.toLocaleString("pt-BR")}</span>
           <span>Momento da infração: {clock(incident.marketTimestamp)}.</span>
           <p>
-            A alteração não foi aplicada à posição real do simulador. O replay foi pausado no instante da tentativa; a análise abaixo é hipotética e não altera o resultado registrado da operação. Para registrar o encerramento do exercício, clique em “Encerrar treino” no painel “Treino disciplinado” acima. Depois disso, este painel liberará a conclusão da análise.
+            O stop original foi preservado e o replay foi pausado. Encerre o Treino disciplinado para liberar a análise hipotética.
           </p>
           {configurable && (
             <button type="button" className="secondary" onClick={onDismissIncident} disabled={analysisLoading}>{analysisLoading ? "Aguardando análise..." : "Concluir análise e liberar novo treinamento"}</button>

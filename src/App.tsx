@@ -115,7 +115,7 @@ type StopTrainingIncident = {
 };
 
 export default function App() {
-  const [activeArea, setActiveArea] = useState<"SIMULADOR" | "CONFIGURACOES" | "RESULTADOS" | "EVOLUCAO">("SIMULADOR");
+  const [activeArea, setActiveArea] = useState<"SIMULADOR" | "TREINO_STOPS" | "CONFIGURACOES" | "RESULTADOS" | "EVOLUCAO">("SIMULADOR");
   const [asset, setAsset] = useState<Asset>("WINFUT");
   const [dataMode, setDataMode] = useState<DataMode>("demo");
   const [candles, setCandles] = useState(() => createDemoCandles("WINFUT"));
@@ -147,8 +147,6 @@ export default function App() {
   const [trainingMode, setTrainingMode] = useState<TrainingMode>("FREE");
   const [sessionHistoryRefreshKey, setSessionHistoryRefreshKey] = useState(0);
   const [startingTraining, setStartingTraining] = useState(false);
-  const [trainingStartingBalance, setTrainingStartingBalance] = useState("");
-  const [stopTrainingStartingBalance, setStopTrainingStartingBalance] = useState("");
   const [stopTrainingEnabled, setStopTrainingEnabled] = useState(false);
   const [fullSessionReplayPath, setFullSessionReplayPath] = useState("");
   const [stopTrainingIncident, setStopTrainingIncident] = useState<StopTrainingIncident | null>(null);
@@ -631,6 +629,7 @@ export default function App() {
         targetPath,
       );
       if (!info) return;
+      setFullSessionReplayPath(targetPath);
 
       setDataMode("replay");
       setAsset(info.asset);
@@ -652,13 +651,13 @@ export default function App() {
       ignoredSignalIdsRef.current = new Set();
       lastSuggestedSignalIdRef.current = null;
       setFeedback(
-        `Replay ${info.symbol} carregado com ${hiddenCandles.length} candles ocultos de aquecimento.`,
+        `Replay ${info.symbol} carregado. Histórico anterior: ${hiddenCandles.length} candles ocultos.`,
       );
     } catch (error) {
       setFeedback(
         error instanceof Error
           ? error.message
-          : "Falha ao preparar o aquecimento do replay.",
+          : "Falha ao preparar o histórico anterior do indicador.",
       );
     }
   }
@@ -683,13 +682,15 @@ export default function App() {
   async function startTraining() {
     if (startingTrainingRef.current) return;
 
-    const startingBalanceBRL = Number(trainingStartingBalance);
-    if (!Number.isFinite(startingBalanceBRL) || startingBalanceBRL <= 0) {
-      setFeedback("Informe um saldo inicial maior que zero para iniciar o Treino disciplinado.");
+    const disciplinedBalance = executionSettings.disciplinedTrainingStartingBalanceBRL ?? null;
+    const stopTrainingBalance = executionSettings.stopTrainingStartingBalanceBRL ?? null;
+    if (stopTrainingEnabled && (stopTrainingBalance === null || !Number.isFinite(stopTrainingBalance) || stopTrainingBalance <= 0)) {
+      setFeedback("Configure o capital do Treinamento de Stops em Configurações.");
       return;
     }
-    if (stopTrainingEnabled && (!Number.isFinite(Number(stopTrainingStartingBalance)) || Number(stopTrainingStartingBalance) <= 0)) {
-      setFeedback("Informe um saldo inicial maior que zero no Treinamento de Stops.");
+    const startingBalanceBRL = disciplinedBalance ?? (stopTrainingEnabled ? stopTrainingBalance : null);
+    if (startingBalanceBRL === null || !Number.isFinite(startingBalanceBRL) || startingBalanceBRL <= 0) {
+      setFeedback("Configure o capital do treino em Configurações.");
       return;
     }
 
@@ -1107,7 +1108,7 @@ export default function App() {
         position: positionSnapshot,
         attemptedStop,
         tradesAfterViolation: futureTrades,
-        startingBalanceBRL: Number(stopTrainingStartingBalance),
+        startingBalanceBRL: executionSettings.stopTrainingStartingBalanceBRL ?? 0,
         lastObservedPrice: marketTrade?.price ?? candlesRef.current.at(-1)?.close ?? positionSnapshot.entry,
         lastObservedTimestamp: marketTrade?.timestamp ?? positionSnapshot.openedAt,
       });
@@ -1241,6 +1242,7 @@ export default function App() {
 
       <nav className="main-navigation" aria-label="Áreas principais">
         <button type="button" className={activeArea === "SIMULADOR" ? "active" : ""} aria-current={activeArea === "SIMULADOR" ? "page" : undefined} onClick={() => setActiveArea("SIMULADOR")}>Simulador</button>
+        <button type="button" className={activeArea === "TREINO_STOPS" ? "active" : ""} aria-current={activeArea === "TREINO_STOPS" ? "page" : undefined} onClick={() => setActiveArea("TREINO_STOPS")}>Treinamento de Stops</button>
         <button type="button" className={activeArea === "CONFIGURACOES" ? "active" : ""} aria-current={activeArea === "CONFIGURACOES" ? "page" : undefined} onClick={() => setActiveArea("CONFIGURACOES")}>Configurações</button>
         <button type="button" className={activeArea === "RESULTADOS" ? "active" : ""} aria-current={activeArea === "RESULTADOS" ? "page" : undefined} onClick={() => setActiveArea("RESULTADOS")}>Resultados</button>
         <button type="button" className={activeArea === "EVOLUCAO" ? "active" : ""} aria-current={activeArea === "EVOLUCAO" ? "page" : undefined} onClick={() => setActiveArea("EVOLUCAO")}>Evolução do Trader</button>
@@ -1265,8 +1267,6 @@ export default function App() {
           const demoCandles = createDemoCandles(plan.asset);
           setSimulationPlan(plan);
           setFullSessionReplayPath("");
-          setTrainingStartingBalance("");
-          setStopTrainingStartingBalance("");
           setStopTrainingEnabled(false);
           stopIncidentRef.current = false;
           setStopTrainingIncident(null);
@@ -1306,7 +1306,8 @@ export default function App() {
         onMatchesChange={(matches) => {
           setCatalogMatches(matches);
           const targetPath = targetFileFromMatches(matches);
-          if (targetPath) replay.setPath(targetPath);
+          replay.setPath(targetPath ?? "");
+          setFullSessionReplayPath(targetPath ?? "");
         }}
       />
 
@@ -1316,7 +1317,6 @@ export default function App() {
         onCatalogUpdated={() =>
           setCatalogRefreshKey((value) => value + 1)
         }
-        onFullSessionFilePrepared={setFullSessionReplayPath}
       />
 
 
@@ -1336,49 +1336,19 @@ export default function App() {
         summary={trainingSummary}
         events={trainingEvents}
         mode={trainingMode}
-        startingBalance={trainingStartingBalance}
-        onStartingBalanceChange={setTrainingStartingBalance}
+        startingBalanceBRL={executionSettings.disciplinedTrainingStartingBalanceBRL ?? (stopTrainingEnabled ? executionSettings.stopTrainingStartingBalanceBRL ?? null : null)}
         onModeChange={setTrainingMode}
         canStart={
           Boolean(simulationPlan) &&
           planIsReady(catalogMatches) &&
           Boolean(replay.session) &&
           !startingTraining &&
-          Number.isFinite(Number(trainingStartingBalance)) &&
-          Number(trainingStartingBalance) > 0
+          ((executionSettings.disciplinedTrainingStartingBalanceBRL ?? 0) > 0 ||
+            (stopTrainingEnabled && (executionSettings.stopTrainingStartingBalanceBRL ?? 0) > 0))
         }
         replayLoaded={Boolean(replay.session)}
         onStart={() => void startTraining()}
         onEnd={() => void finishTraining()}
-      />
-
-      <StopTrainingPanel
-        asset={asset}
-        startingBalance={stopTrainingStartingBalance}
-        onStartingBalanceChange={setStopTrainingStartingBalance}
-        enabled={stopTrainingEnabled}
-        trainingActive={trainingActive}
-        onEnabledChange={setStopTrainingEnabled}
-        onDismissIncident={() => {
-          stopIncidentRef.current = false;
-          setStopTrainingIncident(null);
-          setStopAnalysisLoading(false);
-          setStopAnalysisError(null);
-          setStopAnalysisCandles([]);
-          setStopAnalysisEvaluation(null);
-          setStopAnalysisScenario(null);
-          setStopAnalysisScope(null);
-        }}
-        configurable={!trainingActive && !position && !startingTraining}
-        fullDayReady={Boolean(fullSessionReplayPath)}
-        incident={stopTrainingIncident}
-        analysisLoading={stopAnalysisLoading}
-        analysisError={stopAnalysisError}
-        candles={stopAnalysisCandles}
-        contextCandles={warmupCandles}
-        evaluation={stopAnalysisEvaluation}
-        scenario={stopAnalysisScenario}
-        scope={stopAnalysisScope}
       />
 
       <ReplayControls
@@ -1443,10 +1413,8 @@ export default function App() {
           <h2>Ordem OCO</h2>
 
           <div className="rule-box">
-            <strong>Regra de treino</strong>
-            <span>
-              Zona verde autoriza Compra; zona vermelha autoriza Venda. Depois que uma operação termina, um candle posterior que toque na MME 52 pode autorizar uma reentrada na mesma direção, desde que não haja sinal contrário. Toda OCO deve manter risco/retorno mínimo de 1:2; tentativas fora dessas regras são bloqueadas.
-            </span>
+            <strong>Regras</strong>
+            <span>Compra na zona verde; venda na vermelha. Risco/retorno mínimo: 1:2. Reentrada exige novo toque na MME 52.</span>
           </div>
 
           <label>
@@ -1600,6 +1568,37 @@ export default function App() {
       </details>
       </section>
 
+      <section className="app-area stop-training-area" hidden={activeArea !== "TREINO_STOPS"}>
+        <h2 className="area-title">Treinamento de Stops</h2>
+        <StopTrainingPanel
+          asset={asset}
+          startingBalanceBRL={executionSettings.stopTrainingStartingBalanceBRL}
+          enabled={stopTrainingEnabled}
+          trainingActive={trainingActive}
+          onEnabledChange={setStopTrainingEnabled}
+          onDismissIncident={() => {
+            stopIncidentRef.current = false;
+            setStopTrainingIncident(null);
+            setStopAnalysisLoading(false);
+            setStopAnalysisError(null);
+            setStopAnalysisCandles([]);
+            setStopAnalysisEvaluation(null);
+            setStopAnalysisScenario(null);
+            setStopAnalysisScope(null);
+          }}
+          configurable={!trainingActive && !position && !startingTraining}
+          fullDayReady={Boolean(fullSessionReplayPath)}
+          incident={stopTrainingIncident}
+          analysisLoading={stopAnalysisLoading}
+          analysisError={stopAnalysisError}
+          candles={stopAnalysisCandles}
+          contextCandles={warmupCandles}
+          evaluation={stopAnalysisEvaluation}
+          scenario={stopAnalysisScenario}
+          scope={stopAnalysisScope}
+        />
+      </section>
+
       <section className="app-area results-area" hidden={activeArea !== "RESULTADOS"}>
         <h2 className="area-title">Resultados</h2>
       <StudentProgressPanel
@@ -1705,12 +1704,7 @@ export default function App() {
         <h2 className="area-title">Configurações</h2>
       <ExecutionSettingsPanel
         settings={executionSettings}
-        onSaved={(settings) => {
-          setExecutionSettings(settings);
-          setFeedback(
-            "Configurações salvas. Elas serão aplicadas somente às próximas operações.",
-          );
-        }}
+        onSaved={setExecutionSettings}
       />
       <BackupPanel
         disabled={Boolean(position) || Boolean(trainingActive)}

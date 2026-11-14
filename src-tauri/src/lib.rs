@@ -54,6 +54,10 @@ struct TradeRecord {
     entry_context: Option<Value>,
     #[serde(default = "default_intrabar_policy")]
     intrabar_policy: String,
+    #[serde(default, rename = "disciplinedTrainingStartingBalanceBRL")]
+    disciplined_training_starting_balance_brl: Option<f64>,
+    #[serde(default, rename = "stopTrainingStartingBalanceBRL")]
+    stop_training_starting_balance_brl: Option<f64>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -296,7 +300,9 @@ fn initialize_database(connection: &Connection) -> rusqlite::Result<()> {
                 cost_win_round_trip_brl REAL NOT NULL DEFAULT 0.50,
                 cost_wdo_round_trip_brl REAL NOT NULL DEFAULT 2.12,
                 slippage_ticks_per_side INTEGER NOT NULL DEFAULT 0,
-                intrabar_policy TEXT NOT NULL DEFAULT 'STOP_FIRST'
+                intrabar_policy TEXT NOT NULL DEFAULT 'STOP_FIRST',
+                disciplined_training_starting_balance_brl REAL,
+                stop_training_starting_balance_brl REAL
             );
 
             INSERT OR IGNORE INTO execution_settings (
@@ -425,6 +431,13 @@ fn initialize_database(connection: &Connection) -> rusqlite::Result<()> {
         )?;
     }
 
+    if !column_exists(connection, "execution_settings", "disciplined_training_starting_balance_brl")? {
+        connection.execute("ALTER TABLE execution_settings ADD COLUMN disciplined_training_starting_balance_brl REAL", [])?;
+    }
+    if !column_exists(connection, "execution_settings", "stop_training_starting_balance_brl")? {
+        connection.execute("ALTER TABLE execution_settings ADD COLUMN stop_training_starting_balance_brl REAL", [])?;
+    }
+
     if !column_exists(connection, "training_sessions", "mode")? {
         connection.execute(
             "ALTER TABLE training_sessions ADD COLUMN mode TEXT NOT NULL DEFAULT 'FREE'",
@@ -529,7 +542,8 @@ fn load_execution_settings(
         .query_row(
             r#"
             SELECT cost_per_contract_round_trip_brl, cost_win_round_trip_brl,
-                   cost_wdo_round_trip_brl, slippage_ticks_per_side, intrabar_policy
+                   cost_wdo_round_trip_brl, slippage_ticks_per_side, intrabar_policy,
+                   disciplined_training_starting_balance_brl, stop_training_starting_balance_brl
             FROM execution_settings
             WHERE id = 1
             "#,
@@ -541,6 +555,8 @@ fn load_execution_settings(
                     cost_wdo_round_trip_brl: Some(row.get(2)?),
                     slippage_ticks_per_side: row.get(3)?,
                     intrabar_policy: row.get(4)?,
+                    disciplined_training_starting_balance_brl: row.get(5)?,
+                    stop_training_starting_balance_brl: row.get(6)?,
                 })
             },
         )
@@ -576,21 +592,30 @@ fn save_execution_settings(
     if settings.intrabar_policy != "STOP_FIRST" && settings.intrabar_policy != "TARGET_FIRST" {
         return Err("Política intrabar inválida.".to_string());
     }
+    if [
+        settings.disciplined_training_starting_balance_brl,
+        settings.stop_training_starting_balance_brl,
+    ].into_iter().flatten().any(|balance| !balance.is_finite() || balance <= 0.0) {
+        return Err("O capital dos treinamentos precisa ser maior que zero.".to_string());
+    }
 
     let connection = state.0.lock().map_err(|error| error.to_string())?;
     connection.execute(
         r#"
         INSERT INTO execution_settings (
             id, cost_per_contract_round_trip_brl, cost_win_round_trip_brl,
-            cost_wdo_round_trip_brl, slippage_ticks_per_side, intrabar_policy
+            cost_wdo_round_trip_brl, slippage_ticks_per_side, intrabar_policy,
+            disciplined_training_starting_balance_brl, stop_training_starting_balance_brl
         )
-        VALUES (1, ?1, ?2, ?3, ?4, ?5)
+        VALUES (1, ?1, ?2, ?3, ?4, ?5, ?6, ?7)
         ON CONFLICT(id) DO UPDATE SET
             cost_per_contract_round_trip_brl = excluded.cost_per_contract_round_trip_brl,
             cost_win_round_trip_brl = excluded.cost_win_round_trip_brl,
             cost_wdo_round_trip_brl = excluded.cost_wdo_round_trip_brl,
             slippage_ticks_per_side = excluded.slippage_ticks_per_side,
-            intrabar_policy = excluded.intrabar_policy
+            intrabar_policy = excluded.intrabar_policy,
+            disciplined_training_starting_balance_brl = excluded.disciplined_training_starting_balance_brl,
+            stop_training_starting_balance_brl = excluded.stop_training_starting_balance_brl
         "#,
         params![
             settings.cost_per_contract_round_trip_brl,
@@ -598,6 +623,8 @@ fn save_execution_settings(
             wdo_cost,
             settings.slippage_ticks_per_side,
             settings.intrabar_policy,
+            settings.disciplined_training_starting_balance_brl,
+            settings.stop_training_starting_balance_brl,
         ],
     ).map_err(|error| error.to_string())?;
 
@@ -1141,7 +1168,8 @@ fn query_backup_execution_settings(
         .query_row(
             r#"
             SELECT cost_per_contract_round_trip_brl, cost_win_round_trip_brl,
-                   cost_wdo_round_trip_brl, slippage_ticks_per_side, intrabar_policy
+                   cost_wdo_round_trip_brl, slippage_ticks_per_side, intrabar_policy,
+                   disciplined_training_starting_balance_brl, stop_training_starting_balance_brl
             FROM execution_settings
             WHERE id = 1
             "#,
@@ -1153,6 +1181,8 @@ fn query_backup_execution_settings(
                     cost_wdo_round_trip_brl: Some(row.get(2)?),
                     slippage_ticks_per_side: row.get(3)?,
                     intrabar_policy: row.get(4)?,
+                    disciplined_training_starting_balance_brl: row.get(5)?,
+                    stop_training_starting_balance_brl: row.get(6)?,
                 })
             },
         )
@@ -1182,6 +1212,10 @@ fn validate_backup_bundle(bundle: &BackupBundle) -> Result<(), String> {
             .flatten()
             .any(|cost| !cost.is_finite() || cost < 0.0)
         || settings.slippage_ticks_per_side < 0
+        || [
+            settings.disciplined_training_starting_balance_brl,
+            settings.stop_training_starting_balance_brl,
+        ].into_iter().flatten().any(|balance| !balance.is_finite() || balance <= 0.0)
         || !matches!(
             settings.intrabar_policy.as_str(),
             "STOP_FIRST" | "TARGET_FIRST"
@@ -1464,15 +1498,18 @@ fn import_backup(
             r#"
             INSERT INTO execution_settings (
                 id, cost_per_contract_round_trip_brl, cost_win_round_trip_brl,
-                cost_wdo_round_trip_brl, slippage_ticks_per_side, intrabar_policy
+                cost_wdo_round_trip_brl, slippage_ticks_per_side, intrabar_policy,
+                disciplined_training_starting_balance_brl, stop_training_starting_balance_brl
             )
-            VALUES (1, ?1, ?2, ?3, ?4, ?5)
+            VALUES (1, ?1, ?2, ?3, ?4, ?5, ?6, ?7)
             ON CONFLICT(id) DO UPDATE SET
                 cost_per_contract_round_trip_brl = excluded.cost_per_contract_round_trip_brl,
                 cost_win_round_trip_brl = excluded.cost_win_round_trip_brl,
                 cost_wdo_round_trip_brl = excluded.cost_wdo_round_trip_brl,
                 slippage_ticks_per_side = excluded.slippage_ticks_per_side,
-                intrabar_policy = excluded.intrabar_policy
+                intrabar_policy = excluded.intrabar_policy,
+                disciplined_training_starting_balance_brl = excluded.disciplined_training_starting_balance_brl,
+                stop_training_starting_balance_brl = excluded.stop_training_starting_balance_brl
             "#,
             params![
                 legacy_cost,
@@ -1480,6 +1517,8 @@ fn import_backup(
                 wdo_cost,
                 bundle.execution_settings.slippage_ticks_per_side,
                 bundle.execution_settings.intrabar_policy,
+                bundle.execution_settings.disciplined_training_starting_balance_brl,
+                bundle.execution_settings.stop_training_starting_balance_brl,
             ],
         )
         .map_err(|error| error.to_string())?;
@@ -2635,6 +2674,8 @@ mod tests {
                 cost_wdo_round_trip_brl: None,
                 slippage_ticks_per_side: 0,
                 intrabar_policy: "STOP_FIRST".to_string(),
+                disciplined_training_starting_balance_brl: None,
+                stop_training_starting_balance_brl: None,
             };
 
         let mut bundle = BackupBundle {
@@ -2679,6 +2720,33 @@ mod tests {
             restored.execution_settings.intrabar_policy,
             "STOP_FIRST"
         );
+        assert_eq!(restored.execution_settings.disciplined_training_starting_balance_brl, None);
+        assert_eq!(restored.execution_settings.stop_training_starting_balance_brl, None);
+    }
+
+    #[test]
+    fn backup_json_round_trip_preserves_training_capitals() {
+        let bundle = BackupBundle {
+            format: "simulador-de-trade-backup".to_string(),
+            schema_version: 1,
+            app_version: "0.1.0".to_string(),
+            exported_at: "2026-11-14T09:00:00Z".to_string(),
+            trades: Vec::new(),
+            training_sessions: Vec::new(),
+            training_events: Vec::new(),
+            execution_settings: ExecutionSettingsRecord {
+                cost_per_contract_round_trip_brl: 0.0,
+                cost_win_round_trip_brl: Some(0.5),
+                cost_wdo_round_trip_brl: Some(2.12),
+                slippage_ticks_per_side: 0,
+                intrabar_policy: "STOP_FIRST".to_string(),
+                disciplined_training_starting_balance_brl: Some(2500.0),
+                stop_training_starting_balance_brl: Some(1000.0),
+            },
+        };
+        let restored: BackupBundle = serde_json::from_str(&serde_json::to_string(&bundle).unwrap()).unwrap();
+        assert_eq!(restored.execution_settings.disciplined_training_starting_balance_brl, Some(2500.0));
+        assert_eq!(restored.execution_settings.stop_training_starting_balance_brl, Some(1000.0));
     }
 
     #[test]
@@ -2726,6 +2794,8 @@ mod tests {
                 cost_wdo_round_trip_brl: None,
                 slippage_ticks_per_side: 0,
                 intrabar_policy: "STOP_FIRST".to_string(),
+                disciplined_training_starting_balance_brl: None,
+                stop_training_starting_balance_brl: None,
             },
         };
 
@@ -2860,6 +2930,8 @@ mod tests {
                 cost_wdo_round_trip_brl: None,
                 slippage_ticks_per_side: 0,
                 intrabar_policy: "STOP_FIRST".to_string(),
+                disciplined_training_starting_balance_brl: None,
+                stop_training_starting_balance_brl: None,
             },
         };
 
@@ -3113,6 +3185,13 @@ mod tests {
         assert_eq!(wdo_cost, 2.12);
         assert_eq!(slippage, 0);
         assert_eq!(policy, "STOP_FIRST");
+        let (discipline, stops): (Option<f64>, Option<f64>) = connection.query_row(
+            "SELECT disciplined_training_starting_balance_brl, stop_training_starting_balance_brl FROM execution_settings WHERE id = 1",
+            [],
+            |row| Ok((row.get(0)?, row.get(1)?)),
+        ).unwrap();
+        assert_eq!(discipline, None);
+        assert_eq!(stops, None);
     }
 
     #[test]

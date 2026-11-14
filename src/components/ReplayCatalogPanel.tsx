@@ -62,8 +62,7 @@ export function ReplayCatalogPanel({
     <section className="catalog-panel card">
       <div className="section-heading">
         <div>
-          <p className="eyebrow">Etapa 2 · Conferir dados disponíveis</p>
-          <h2>Dados disponíveis para o plano</h2>
+          <h2>Arquivos disponíveis</h2>
         </div>
         <button type="button" className="catalog-refresh" onClick={() => void refresh(true)}>
           Atualizar catálogo
@@ -72,8 +71,7 @@ export function ReplayCatalogPanel({
 
       {!plan && (
         <p className="data-description">
-          Aplique primeiro um plano de simulação para o sistema comparar as datas necessárias
-          com os arquivos já preparados neste computador.
+          Aplique um plano para conferir os arquivos M2 necessários.
         </p>
       )}
 
@@ -107,7 +105,7 @@ export function ReplayCatalogPanel({
               >
                 <div>
                   <span className="catalog-role">
-                    {match.requirement.role === "WARMUP" ? "Aquecimento" : "Pregão-alvo"}
+                    {match.requirement.role === "WARMUP" ? "Histórico prévio" : "Pregão completo"}
                   </span>
                   <strong>{brDate(match.requirement.date)}</strong>
                   <small>

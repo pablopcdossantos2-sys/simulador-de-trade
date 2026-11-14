@@ -10,6 +10,8 @@ export const DEFAULT_EXECUTION_SETTINGS: ExecutionSettings = {
   costWdoRoundTripBRL: 2.12,
   slippageTicksPerSide: 0,
   intrabarPolicy: "STOP_FIRST",
+  disciplinedTrainingStartingBalanceBRL: null,
+  stopTrainingStartingBalanceBRL: null,
 };
 
 function isTauriRuntime(): boolean {
@@ -17,6 +19,12 @@ function isTauriRuntime(): boolean {
 }
 function validCost(value: unknown): value is number {
   return typeof value === "number" && Number.isFinite(value) && value >= 0;
+}
+
+function optionalPositiveBalance(value: unknown): number | null {
+  if (value === null || value === undefined || value === "") return null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
 }
 
 function normalize(value: Partial<ExecutionSettings> | null): ExecutionSettings {
@@ -37,6 +45,8 @@ function normalize(value: Partial<ExecutionSettings> | null): ExecutionSettings 
     costWdoRoundTripBRL: wdoCost,
     slippageTicksPerSide: Number.isInteger(slippage) && slippage >= 0 ? slippage : 0,
     intrabarPolicy,
+    disciplinedTrainingStartingBalanceBRL: optionalPositiveBalance(value?.disciplinedTrainingStartingBalanceBRL),
+    stopTrainingStartingBalanceBRL: optionalPositiveBalance(value?.stopTrainingStartingBalanceBRL),
   };
 }
 
