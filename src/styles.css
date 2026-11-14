@@ -244,6 +244,7 @@ h2 {
   background: #091321;
   box-shadow: 0 0 0 100vmax rgba(0, 0, 0, 0.92);
 }
+:root[data-theme="light"] .chart-shell-maximized { background: #f8fbfe; box-shadow: 0 0 0 100vmax rgba(248, 251, 254, 0.98); }
 .chart-shell-maximized .chart {
   flex: 1 1 auto;
   width: 100%;
