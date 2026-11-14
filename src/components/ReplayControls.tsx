@@ -53,9 +53,6 @@ export function ReplayControls({
     <section className="replay-controls card">
       <div className="section-heading replay-heading">
         <div>
-          <p className="eyebrow">
-Etapa 6 · Reproduzir o mercado · M{timeframeMinutes}
-          </p>
           <h2>Controles de reprodução</h2>
         </div>
         <span className={`replay-status ${finished ? "finished" : session ? "ready" : ""}`}>
