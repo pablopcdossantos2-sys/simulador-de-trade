@@ -25,7 +25,11 @@ export function loadSignalAlertSettings(): SignalAlertSettings {
 }
 
 export function saveSignalAlertSettings(settings: SignalAlertSettings): void {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
+  } catch {
+    // O restante do simulador não depende da persistência desta preferência.
+  }
 }
 
 export function playSignalAlert(side: "BUY" | "SELL"): void {
