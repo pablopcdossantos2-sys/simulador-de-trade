@@ -1098,12 +1098,12 @@ export default function App() {
     setFeedback(`Entrada ${sideLabel(authorizedSideForChart)} posicionada em ${money.format(entry)}. Arraste as linhas de Stop e Alvo no gráfico; o mínimo 1:2 será validado antes de aceitar a ordem.`);
   }
 
-  function adjustOcoFromChart(kind: "stop" | "target", rawPrice: number, mode: "position" | "draft") {
+  function adjustOcoFromChart(kind: "target", rawPrice: number, mode: "position" | "draft") {
     const rounded = roundPriceToTick(asset, rawPrice);
     try {
       if (mode === "position" && position) {
-        const nextStop = kind === "stop" ? rounded : position.stopLoss;
-        const nextTarget = kind === "target" ? rounded : position.target;
+        const nextStop = position.stopLoss;
+        const nextTarget = rounded;
         const marketPrice = dataMode === "replay"
           ? currentReplayTrade?.price ?? lastPrice
           : lastPrice;
@@ -1120,17 +1120,17 @@ export default function App() {
         const updated = { ...position, stopLoss: nextStop, target: nextTarget };
         positionRef.current = updated;
         setPosition(updated);
-        setFeedback(`${kind === "stop" ? "Stop" : "Alvo"} ajustado para ${money.format(rounded)}.`);
+        setFeedback(`Alvo ajustado para ${money.format(rounded)}.`);
         return;
       }
       if (mode === "draft" && draftEntryPrice !== null && draftSide) {
         const current = ocoLevelsFromDistances(asset, draftSide, draftEntryPrice, Number(stopDistance), Number(targetDistance));
-        const nextStop = kind === "stop" ? rounded : current.stopLoss;
-        const nextTarget = kind === "target" ? rounded : current.target;
+        const nextStop = current.stopLoss;
+        const nextTarget = rounded;
         validateOcoOrder(asset, draftSide, draftEntryPrice, nextStop, nextTarget);
         setStopDistance(String(Math.abs(draftEntryPrice - nextStop)));
         setTargetDistance(String(Math.abs(nextTarget - draftEntryPrice)));
-        setFeedback(`${kind === "stop" ? "Stop" : "Alvo"} do rascunho ajustado. A relação risco/retorno continua em pelo menos 1:2.`);
+        setFeedback(`Alvo do rascunho ajustado. A relação risco/retorno continua em pelo menos 1:2.`);
       }
     } catch (error) {
       const reason = error instanceof Error ? error.message : "Ajuste OCO inválido.";
