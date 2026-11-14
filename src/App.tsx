@@ -101,7 +101,7 @@ const money = new Intl.NumberFormat("pt-BR", {
 function formatTradeDateTime(value: string, part: "date" | "time"): string {
   const parsed = new Date(value);
   if (Number.isNaN(parsed.getTime())) {
-    const match = /^(\\d{4})-(\\d{2})-(\\d{2})[T ](\\d{2}):(\\d{2})/.exec(value);
+    const match = /^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})/.exec(value);
     if (!match) return value;
     return part === "date"
       ? `${match[3]}/${match[2]}/${match[1]}`
