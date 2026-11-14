@@ -11,6 +11,7 @@ interface Props {
   entryPlacementEnabled?: boolean;
   onEntryPlacement?: (price: number) => void;
   onAdjustOco?: (kind: "stop" | "target", price: number, mode: "position" | "draft") => void;
+  fitAllCandles?: boolean;
 }
 interface ChartCandle extends Candle { source: "context" | "target"; }
 interface Crosshair { candleIndex: number; y: number; }
@@ -83,6 +84,7 @@ export function CandleChart({
   entryPlacementEnabled = false,
   onEntryPlacement,
   onAdjustOco,
+  fitAllCandles = false,
 }: Props) {
   const [visibleBars, setVisibleBars] = useState(DEFAULT_VISIBLE_BARS);
   const [priceZoom, setPriceZoom] = useState(1);
@@ -99,7 +101,8 @@ export function CandleChart({
     .slice(-CONTEXT_BARS);
   const target: ChartCandle[] = candles.map((candle) => ({ ...candle, source: "target" as const }));
   const allCandles = [...context, ...target];
-  const visible = allCandles.slice(-visibleBars);
+  const visible = fitAllCandles ? allCandles : allCandles.slice(-visibleBars);
+  const effectiveVisibleBars = fitAllCandles ? Math.max(visible.length, 1) : visibleBars;
   if (!visible.length) return null;
 
   const visibleIndices = new Set(visible.map((candle) => candle.index));
@@ -127,8 +130,8 @@ export function CandleChart({
   const range = Math.max(baseRange / priceZoom, asset === "WINFUT" ? 5 : 0.5);
   const min = centerPrice - range / 2;
   const max = centerPrice + range / 2;
-  const xStep = (PLOT_RIGHT - PLOT_LEFT) / visibleBars;
-  const emptySlots = visibleBars - visible.length;
+  const xStep = (PLOT_RIGHT - PLOT_LEFT) / effectiveVisibleBars;
+  const emptySlots = effectiveVisibleBars - visible.length;
   const xForIndex = (idx: number) => PLOT_LEFT + (emptySlots + idx + 0.5) * xStep;
   const y = (price: number) => PLOT_BOTTOM - ((price - min) / range) * (PLOT_BOTTOM - PLOT_TOP);
 
@@ -275,13 +278,19 @@ export function CandleChart({
           <span>Vol. {new Intl.NumberFormat("pt-BR", { notation: "compact", maximumFractionDigits: 1 }).format(readoutCandle.volume)}</span>
         </div>
         <div className="chart-controls" aria-label="Controles de zoom do gráfico">
-          <button type="button" aria-label="Zoom out: mostrar mais candles" title="Mostrar mais candles"
-            disabled={visibleBars >= MAX_VISIBLE_BARS}
-            onClick={() => { setVisibleBars((value) => Math.min(MAX_VISIBLE_BARS, value + 12)); setCrosshair(null); }}>−</button>
-          <span>{visibleBars} candles</span>
-          <button type="button" aria-label="Zoom in: mostrar menos candles" title="Mostrar menos candles"
-            disabled={visibleBars <= MIN_VISIBLE_BARS}
-            onClick={() => { setVisibleBars((value) => Math.max(MIN_VISIBLE_BARS, value - 12)); setCrosshair(null); }}>+</button>
+          {fitAllCandles ? (
+            <span>{visible.length.toLocaleString("pt-BR")} candles · visão completa</span>
+          ) : (
+            <>
+              <button type="button" aria-label="Zoom out: mostrar mais candles" title="Mostrar mais candles"
+                disabled={visibleBars >= MAX_VISIBLE_BARS}
+                onClick={() => { setVisibleBars((value) => Math.min(MAX_VISIBLE_BARS, value + 12)); setCrosshair(null); }}>−</button>
+              <span>{visibleBars} candles</span>
+              <button type="button" aria-label="Zoom in: mostrar menos candles" title="Mostrar menos candles"
+                disabled={visibleBars <= MIN_VISIBLE_BARS}
+                onClick={() => { setVisibleBars((value) => Math.max(MIN_VISIBLE_BARS, value - 12)); setCrosshair(null); }}>+</button>
+            </>
+          )}
           <span title="Arraste o eixo de preços para alterar a escala vertical">{priceZoom.toFixed(1)}× Y</span>
           <button type="button" onClick={() => { setVisibleBars(DEFAULT_VISIBLE_BARS); setPriceZoom(1); setCrosshair(null); }}>Padrão</button>
         </div>
