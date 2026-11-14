@@ -19,6 +19,7 @@ interface Crosshair { candleIndex: number; y: number; }
 interface OcoDrag { kind: "stop" | "target"; mode: "position" | "draft"; min: number; max: number; }
 interface AxisDrag { axis: "x" | "y"; startX: number; startY: number; visibleBars: number; priceZoom: number; }
 interface ChartPan { startX: number; startY: number; startOffset: number; startPriceOffset: number; range: number; }
+interface RulerPoint { x: number; y: number; price: number; candleIndex: number; }
 
 const WIDTH = 1120;
 const HEIGHT = 510;
@@ -95,6 +96,9 @@ export function CandleChart({
   const [panPriceOffset, setPanPriceOffset] = useState(0);
   const [isPanning, setIsPanning] = useState(false);
   const [crosshair, setCrosshair] = useState<Crosshair | null>(null);
+  const [rulerEnabled, setRulerEnabled] = useState(false);
+  const [rulerStart, setRulerStart] = useState<RulerPoint | null>(null);
+  const [rulerEnd, setRulerEnd] = useState<RulerPoint | null>(null);
   const [draggingOco, setDraggingOco] = useState<{ kind: "stop" | "target"; mode: "position" | "draft"; price: number } | null>(null);
   const dragRef = useRef<OcoDrag | null>(null);
   const axisDragRef = useRef<AxisDrag | null>(null);
@@ -252,7 +256,7 @@ export function CandleChart({
       axisDragRef.current = { axis: "x", startX: x, startY: yValue, visibleBars, priceZoom };
       didDragRef.current = true;
       event.preventDefault();
-    } else if (!fitAllCandles && x >= PLOT_LEFT && x <= PLOT_RIGHT && yValue >= PLOT_TOP && yValue <= VOLUME_BOTTOM) {
+    } else if (!rulerEnabled && !fitAllCandles && x >= PLOT_LEFT && x <= PLOT_RIGHT && yValue >= PLOT_TOP && yValue <= VOLUME_BOTTOM) {
       chartPanRef.current = { startX: x, startY: yValue, startOffset: panOffset, startPriceOffset: panPriceOffset, range };
       setCrosshair(null);
       event.preventDefault();
@@ -285,14 +289,27 @@ export function CandleChart({
       didDragRef.current = false;
       return;
     }
-    if (!entryPlacementEnabled || !onEntryPlacement) return;
     const rect = event.currentTarget.getBoundingClientRect();
     if (!rect.width || !rect.height) return;
     const x = (event.clientX - rect.left) * WIDTH / rect.width;
     const yValue = (event.clientY - rect.top) * HEIGHT / rect.height;
     if (x < PLOT_LEFT || x > PLOT_RIGHT || yValue < PLOT_TOP || yValue > PLOT_BOTTOM) return;
     const price = max - ((yValue - PLOT_TOP) / (PLOT_BOTTOM - PLOT_TOP)) * (max - min);
-    onEntryPlacement(price);
+    if (rulerEnabled) {
+      const slot = Math.floor((x - PLOT_LEFT) / xStep);
+      const visibleIndex = slot - emptySlots;
+      if (visibleIndex < 0 || visibleIndex >= visible.length) return;
+      const point = { x, y: yValue, price, candleIndex: visible[visibleIndex].index };
+      if (!rulerStart || rulerEnd) {
+        setRulerStart(point);
+        setRulerEnd(null);
+      } else {
+        setRulerEnd(point);
+        setRulerEnabled(false);
+      }
+      return;
+    }
+    if (entryPlacementEnabled && onEntryPlacement) onEntryPlacement(price);
   }
 
   return (
@@ -322,7 +339,14 @@ export function CandleChart({
             </>
           )}
           <span title="Arraste o eixo de preços para alterar a escala vertical">{priceZoom.toFixed(1)}× Y</span>
-          <button type="button" onClick={() => { setVisibleBars(DEFAULT_VISIBLE_BARS); setPriceZoom(1); setPanOffset(0); setPanPriceOffset(0); setCrosshair(null); }}>Padrão</button>
+          <button type="button" className={rulerEnabled ? "ruler-tool active" : "ruler-tool"}
+            aria-pressed={rulerEnabled}
+            title="Clique em dois níveis do gráfico para medir a amplitude em pontos"
+            onClick={() => { setRulerEnabled((value) => !value); setRulerStart(null); setRulerEnd(null); }}>
+            Régua
+          </button>
+          {(rulerStart || rulerEnd) && <button type="button" onClick={() => { setRulerStart(null); setRulerEnd(null); setRulerEnabled(false); }}>Limpar régua</button>}
+          <button type="button" onClick={() => { setVisibleBars(DEFAULT_VISIBLE_BARS); setPriceZoom(1); setPanOffset(0); setPanPriceOffset(0); setCrosshair(null); setRulerStart(null); setRulerEnd(null); }}>Padrão</button>
         </div>
       </div>
 
@@ -451,6 +475,21 @@ export function CandleChart({
             className="session-label" textAnchor="start">JANELA DE TREINO</text>
         </>}
 
+        {rulerStart && <>
+          {rulerEnd && <>
+            <line x1={rulerStart.x} y1={rulerStart.y} x2={rulerEnd.x} y2={rulerEnd.y} className="ruler-measure-line" />
+            <circle cx={rulerEnd.x} cy={rulerEnd.y} r="5" className="ruler-measure-point" />
+            <g className="ruler-measure-label">
+              <rect x={Math.max(PLOT_LEFT + 4, Math.min(PLOT_RIGHT - 150, (rulerStart.x + rulerEnd.x) / 2 - 73))}
+                y={Math.max(PLOT_TOP + 4, Math.min(PLOT_BOTTOM - 30, (rulerStart.y + rulerEnd.y) / 2 - 25))}
+                width="146" height="24" rx="6" />
+              <text x={Math.max(PLOT_LEFT + 77, Math.min(PLOT_RIGHT - 77, (rulerStart.x + rulerEnd.x) / 2))}
+                y={Math.max(PLOT_TOP + 20, Math.min(PLOT_BOTTOM - 14, (rulerStart.y + rulerEnd.y) / 2 - 9))}
+                textAnchor="middle">{formatPrice(Math.abs(rulerEnd.price - rulerStart.price), asset)} pontos</text>
+            </g>
+          </>}
+          <circle cx={rulerStart.x} cy={rulerStart.y} r="5" className="ruler-measure-point" />
+        </>}
         {crosshair && crosshairX !== null && <>
           <line x1={crosshairX} x2={crosshairX} y1={PLOT_TOP} y2={VOLUME_BOTTOM} className="crosshair-line" />
           <line x1={PLOT_LEFT} x2={PLOT_RIGHT} y1={crosshair.y} y2={crosshair.y} className="crosshair-line" />
@@ -467,8 +506,13 @@ export function CandleChart({
       </svg>
 
       <p className="chart-axis-hint">
-        {entryPlacementEnabled ? "Clique em um preço do gráfico para posicionar a entrada. Arraste dentro da área dos candles para mover o gráfico; arraste as linhas de Stop e Alvo para ajustar a OCO (regra 1:2)." : "Arraste dentro da área dos candles para mover o gráfico na horizontal e vertical. Arraste o eixo de preços (à direita) para ajustar o zoom vertical e o eixo de horários (embaixo) para ajustar o zoom horizontal."}
+        {rulerEnabled ? "Régua ativa: clique em dois pontos do gráfico para medir a amplitude em pontos. Clique em Régua novamente para cancelar." : entryPlacementEnabled ? "Clique em um preço do gráfico para posicionar a entrada. Arraste dentro da área dos candles para mover o gráfico; arraste as linhas de Stop e Alvo para ajustar a OCO (regra 1:2)." : "Arraste dentro da área dos candles para mover o gráfico na horizontal e vertical. Arraste o eixo de preços (à direita) para ajustar o zoom vertical e o eixo de horários (embaixo) para ajustar o zoom horizontal."}
       </p>
+      {rulerStart && <p className="ruler-readout" role="status">
+        {rulerEnd
+          ? `Amplitude medida: ${formatPrice(Math.abs(rulerEnd.price - rulerStart.price), asset)} pontos · de ${formatPrice(rulerStart.price, asset)} até ${formatPrice(rulerEnd.price, asset)}`
+          : `Ponto inicial: ${formatPrice(rulerStart.price, asset)} · selecione o segundo ponto`}
+      </p>}
       {contextCandles.length > 0 && <p className="chart-context-note">
         {candles.length === 0
           ? "Contexto do pregão anterior: os últimos candles disponíveis e seu fechamento permanecem visíveis antes do primeiro negócio do treino."
