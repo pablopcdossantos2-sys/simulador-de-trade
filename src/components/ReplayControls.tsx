@@ -142,7 +142,7 @@ export function ReplayControls({
 
           {!trainingActive && (
             <p className="replay-note replay-start-guidance" role="status">
-              Você pode reproduzir ou avançar o replay para observar o pregão sem iniciar uma sessão. Para registrar operações no treinamento, clique em <strong>Iniciar treino</strong>; a sessão começará novamente do início do replay.
+              Inicie o treino para liberar a reprodução e os avanços do replay. A sessão começará novamente do início do pregão selecionado.
             </p>
           )}
 
