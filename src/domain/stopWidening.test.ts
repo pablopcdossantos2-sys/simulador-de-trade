@@ -45,6 +45,12 @@ describe("simulateStopWideningScenario", () => {
     });
     expect(result.outcome).toBe("TARGET");
     expect(result.widenedTimes).toBe(1);
+    expect(result.adjustments).toEqual([{
+      timestamp: trade(1, 900).timestamp,
+      marketPrice: 900,
+      previousStop: 900,
+      nextStop: 850,
+    }]);
     expect(result.finalBalanceBRL).toBe(10020);
   });
 
@@ -78,6 +84,12 @@ describe("simulateStopWideningScenario", () => {
     });
     expect(result.outcome).toBe("TARGET");
     expect(result.widenedTimes).toBe(1);
+    expect(result.adjustments).toEqual([{
+      timestamp: trade(1, 1100).timestamp,
+      marketPrice: 1100,
+      previousStop: 1100,
+      nextStop: 1150,
+    }]);
     expect(result.finalBalanceBRL).toBe(10020);
   });
 
