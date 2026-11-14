@@ -3820,3 +3820,43 @@ td {
 .catalog-title, .capital-heading { display: flex; align-items: center; gap: 9px; }
 .catalog-footnote, .cost-source-help { display: flex; justify-content: flex-end; margin-top: 8px; }
 .replay-note-help { display: flex; justify-content: flex-end; }
+
+
+/* Orientação para iniciar o treino e liberar o replay */
+.training-start-blocked {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 12px;
+  padding: 11px 13px;
+  border: 1px solid #6f5634;
+  border-radius: 10px;
+  background: #2b2112;
+  color: #dfc18d;
+  line-height: 1.5;
+}
+.training-start-blocked button {
+  flex: 0 0 auto;
+  min-height: 34px;
+  padding: 7px 11px;
+  border-radius: 8px;
+  background: #e6c98d;
+  color: #30230c;
+  cursor: pointer;
+  font-weight: 800;
+}
+.replay-start-guidance strong { color: #d5e6f5; }
+:root[data-theme="light"] .training-start-blocked {
+  border-color: #ddc78d;
+  background: #fff8e7;
+  color: #705d2e;
+}
+:root[data-theme="light"] .training-start-blocked button {
+  background: #173f64;
+  color: #fff;
+}
+:root[data-theme="light"] .replay-start-guidance strong { color: #2d465d; }
+@media (max-width: 620px) {
+  .training-start-blocked { align-items: stretch; flex-direction: column; }
+}
