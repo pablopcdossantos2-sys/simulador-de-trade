@@ -147,6 +147,7 @@ export function TrainingSessionPanel({
       </div>
 
       {!active && (
+        <>
         <div className="training-capital-field">
           <label htmlFor="discipline-training-balance">Saldo inicial deste treino (R$)</label>
           <input
@@ -178,6 +179,7 @@ export function TrainingSessionPanel({
             <small>Resultados ficam ocultos até o encerramento.</small>
           </button>
         </div>
+        </>
       )}
 
       {!session && (
