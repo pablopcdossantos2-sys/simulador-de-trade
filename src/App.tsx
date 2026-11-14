@@ -1357,6 +1357,16 @@ export default function App() {
         onStartingBalanceChange={setStopTrainingStartingBalance}
         enabled={stopTrainingEnabled}
         onEnabledChange={setStopTrainingEnabled}
+        onDismissIncident={() => {
+          stopIncidentRef.current = false;
+          setStopTrainingIncident(null);
+          setStopAnalysisLoading(false);
+          setStopAnalysisError(null);
+          setStopAnalysisCandles([]);
+          setStopAnalysisEvaluation(null);
+          setStopAnalysisScenario(null);
+          setStopAnalysisScope(null);
+        }}
         configurable={!trainingActive && !position && !startingTraining}
         incident={stopTrainingIncident}
         analysisLoading={stopAnalysisLoading}
@@ -1482,7 +1492,7 @@ export default function App() {
               placeholder="Obrigatório"
             />
           </label>
-          {(() => {
+          {!position && (() => {
             const side = draftSide ?? authorizedSideForChart;
             const entry = draftEntryPrice ?? lastPrice;
             const stop = Number(stopLoss);
@@ -1542,7 +1552,7 @@ export default function App() {
                   ? "Alvo primeiro"
                   : "Stop primeiro"}
               </small>
-              <button type="button" className="market-close-button" onClick={stopPositionManually}>
+              <button type="button" className="market-close-button" onClick={stopPositionManually} disabled={Boolean(stopTrainingIncident)}>
                 Estopar manualmente a mercado
               </button>
               {dataMode === "replay" && replay.finished && (
