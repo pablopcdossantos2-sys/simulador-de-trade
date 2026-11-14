@@ -9,7 +9,6 @@ on:
       - "v*"
     paths:
       - ".github/workflows/windows-build.yml"
-      - ".github/workflows/build-windows.yml"
       - "src/**"
       - "src-tauri/src/**"
       - "src-tauri/tauri.conf.json"
