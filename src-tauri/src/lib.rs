@@ -54,10 +54,6 @@ struct TradeRecord {
     entry_context: Option<Value>,
     #[serde(default = "default_intrabar_policy")]
     intrabar_policy: String,
-    #[serde(default, rename = "disciplinedTrainingStartingBalanceBRL")]
-    disciplined_training_starting_balance_brl: Option<f64>,
-    #[serde(default, rename = "stopTrainingStartingBalanceBRL")]
-    stop_training_starting_balance_brl: Option<f64>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -104,6 +100,10 @@ struct ExecutionSettingsRecord {
     slippage_ticks_per_side: i64,
     #[serde(default = "default_intrabar_policy")]
     intrabar_policy: String,
+    #[serde(default, rename = "disciplinedTrainingStartingBalanceBRL")]
+    disciplined_training_starting_balance_brl: Option<f64>,
+    #[serde(default, rename = "stopTrainingStartingBalanceBRL")]
+    stop_training_starting_balance_brl: Option<f64>,
 }
 
 #[derive(Debug, Clone, Serialize)]
