@@ -33,6 +33,13 @@ const brl = new Intl.NumberFormat("pt-BR", {
   currency: "BRL",
 });
 
+function marketPrice(value: number, asset: Asset): string {
+  return new Intl.NumberFormat("pt-BR", {
+    minimumFractionDigits: asset === "WDOFUT" ? 1 : 0,
+    maximumFractionDigits: asset === "WDOFUT" ? 1 : 0,
+  }).format(value);
+}
+
 function clock(value: string | null): string {
   if (!value) return "horário indisponível";
   const match = value.match(/T(\d{2}:\d{2}:\d{2})/);
@@ -58,6 +65,18 @@ export function StopTrainingPanel({
   scope,
 }: Props) {
   const validBalance = Number.isFinite(Number(startingBalance)) && Number(startingBalance) > 0;
+  const initialAdjustments = scenario?.adjustments.slice(0, 6) ?? [];
+  const remainingAdjustments = scenario
+    ? scenario.adjustments.length > 12
+      ? scenario.adjustments.slice(-6)
+      : scenario.adjustments.slice(6)
+    : [];
+  const omittedAdjustmentCount = scenario
+    ? Math.max(0, scenario.adjustments.length - initialAdjustments.length - remainingAdjustments.length)
+    : 0;
+  const remainingAdjustmentOffset = scenario && scenario.adjustments.length > 12
+    ? scenario.adjustments.length - 6
+    : 6;
 
   return (
     <section className="stop-training-panel card">
@@ -89,6 +108,7 @@ export function StopTrainingPanel({
             disabled={!configurable || enabled}
           />
           <small>Não existe saldo padrão. Informe o capital que será usado para avaliar o risco de esgotamento da conta.</small>
+          <small>As operações do treinamento exigem risco/retorno mínimo de 1:2. A boleta exibe um alerta enquanto o alvo não oferecer ao menos o dobro do risco.</small>
           <small>{fullDayReady ? "Pregão completo preparado e pronto para análise." : "Antes de ativar, prepare o arquivo do pregão completo na seção de preparação de dados usando o CSV original."}</small>
           {!enabled ? (
             <button type="button" className="planner-apply" onClick={() => onEnabledChange(true)} disabled={!configurable || !validBalance || !fullDayReady}>
@@ -147,7 +167,41 @@ export function StopTrainingPanel({
             <div><span>Resultado hipotético</span><strong className={scenario.netResultBRL >= 0 ? "positive" : "negative"}>{brl.format(scenario.netResultBRL)}</strong></div>
             <div><span>Afastamentos adicionais</span><strong>{scenario.widenedTimes}</strong></div>
             <div><span>Risco inicial (1R)</span><strong>{scenario.initialRiskPoints.toLocaleString("pt-BR")} pts</strong></div>
-            <div><span>Último stop hipotético</span><strong>{scenario.lastStop.toLocaleString("pt-BR")}</strong></div>
+            <div><span>Último stop hipotético</span><strong>{marketPrice(scenario.lastStop, asset)}</strong></div>
+            <div><span>Saída hipotética</span><strong>{marketPrice(scenario.exitPrice, asset)}</strong><small>{clock(scenario.exitTimestamp)}</small></div>
+          </div>
+          <div className="stop-adjustment-history">
+            <div className="stop-adjustment-heading">
+              <strong>Como o stop teria evoluído</strong>
+              <small>{scenario.adjustments.length.toLocaleString("pt-BR")} afastamentos simulados</small>
+            </div>
+            {scenario.adjustments.length === 0 ? (
+              <p className="stop-adjustment-empty">Nenhum novo toque no stop ocorreu antes do alvo ou do fim do período analisado.</p>
+            ) : (
+              <ol className="stop-adjustment-list">
+                {initialAdjustments.map((adjustment, index) => (
+                  <li className="stop-adjustment-event" key={`first-${index}-${adjustment.timestamp}`}>
+                    <span className="stop-adjustment-number">{index + 1}</span>
+                    <div>
+                      <strong>{clock(adjustment.timestamp)} · mercado em {marketPrice(adjustment.marketPrice, asset)}</strong>
+                      <small>Stop afastado de {marketPrice(adjustment.previousStop, asset)} para {marketPrice(adjustment.nextStop, asset)}</small>
+                    </div>
+                  </li>
+                ))}
+                {omittedAdjustmentCount > 0 && (
+                  <li className="stop-adjustment-omitted">{omittedAdjustmentCount.toLocaleString("pt-BR")} afastamentos intermediários não exibidos</li>
+                )}
+                {remainingAdjustments.map((adjustment, index) => (
+                  <li className="stop-adjustment-event" key={`last-${index}-${adjustment.timestamp}`}>
+                    <span className="stop-adjustment-number">{remainingAdjustmentOffset + index + 1}</span>
+                    <div>
+                      <strong>{clock(adjustment.timestamp)} · mercado em {marketPrice(adjustment.marketPrice, asset)}</strong>
+                      <small>Stop afastado de {marketPrice(adjustment.previousStop, asset)} para {marketPrice(adjustment.nextStop, asset)}</small>
+                    </div>
+                  </li>
+                ))}
+              </ol>
+            )}
           </div>
           <p className="stop-scenario-note">
             Regra didática aplicada: a partir do stop que você tentou definir, cada novo toque no stop desloca-o mais 1R para longe da entrada, mantendo o alvo original. Os custos e o slippage configurados para a posição são considerados no resultado.
