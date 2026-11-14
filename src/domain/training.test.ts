@@ -76,6 +76,7 @@ describe("sessão formal de treino", () => {
       timeframeMinutes: 2,
       warmupBars: 260,
       mode: "EXAM",
+      startingBalanceBRL: 5000,
       now: new Date("2026-10-16T10:00:00Z"),
     });
 
@@ -87,6 +88,7 @@ describe("sessão formal de treino", () => {
     expect(ended.id).toBe("session-1");
     expect(ended.status).toBe("ENDED");
     expect(ended.mode).toBe("EXAM");
+    expect(ended.startingBalanceBRL).toBe(5000);
     expect(ended.endedAt).toBe("2026-10-16T11:00:00.000Z");
   });
 
