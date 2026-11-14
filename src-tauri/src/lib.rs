@@ -154,6 +154,14 @@ struct BackupBundle {
     execution_settings: ExecutionSettingsRecord,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct ReplayBackupFile {
+    output_file_name: String,
+    replay_content_base64: String,
+    metadata_content_base64: String,
+}
+
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 struct BackupSummary {
@@ -162,6 +170,108 @@ struct BackupSummary {
     trades: usize,
     sessions: usize,
     events: usize,
+    replays: usize,
+}
+
+fn encode_base64(bytes: &[u8]) -> String {
+    const TABLE: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    let mut output = String::with_capacity((bytes.len() + 2) / 3 * 4);
+    for chunk in bytes.chunks(3) {
+        let a = chunk[0] as u32;
+        let b = chunk.get(1).copied().unwrap_or(0) as u32;
+        let c = chunk.get(2).copied().unwrap_or(0) as u32;
+        let value = (a << 16) | (b << 8) | c;
+        output.push(TABLE[((value >> 18) & 63) as usize] as char);
+        output.push(TABLE[((value >> 12) & 63) as usize] as char);
+        output.push(if chunk.len() > 1 { TABLE[((value >> 6) & 63) as usize] as char } else { '=' });
+        output.push(if chunk.len() > 2 { TABLE[(value & 63) as usize] as char } else { '=' });
+    }
+    output
+}
+
+fn decode_base64(input: &str) -> Result<Vec<u8>, String> {
+    fn value(byte: u8) -> Option<u8> {
+        match byte {
+            b'A'..=b'Z' => Some(byte - b'A'),
+            b'a'..=b'z' => Some(byte - b'a' + 26),
+            b'0'..=b'9' => Some(byte - b'0' + 52),
+            b'+' => Some(62),
+            b'/' => Some(63),
+            _ => None,
+        }
+    }
+    let bytes = input.as_bytes();
+    if bytes.len() % 4 != 0 {
+        return Err("Conteúdo de replay inválido no backup.".to_string());
+    }
+    let mut output = Vec::with_capacity(bytes.len() / 4 * 3);
+    for chunk in bytes.chunks_exact(4) {
+        let a = value(chunk[0]).ok_or_else(|| "Conteúdo de replay inválido no backup.".to_string())? as u32;
+        let b = value(chunk[1]).ok_or_else(|| "Conteúdo de replay inválido no backup.".to_string())? as u32;
+        let c = if chunk[2] == b'=' { 0 } else { value(chunk[2]).ok_or_else(|| "Conteúdo de replay inválido no backup.".to_string())? as u32 };
+        let d = if chunk[3] == b'=' { 0 } else { value(chunk[3]).ok_or_else(|| "Conteúdo de replay inválido no backup.".to_string())? as u32 };
+        if chunk[2] == b'=' && chunk[3] != b'=' {
+            return Err("Conteúdo de replay inválido no backup.".to_string());
+        }
+        let combined = (a << 18) | (b << 12) | (c << 6) | d;
+        output.push((combined >> 16) as u8);
+        if chunk[2] != b'=' { output.push((combined >> 8) as u8); }
+        if chunk[3] != b'=' { output.push(combined as u8); }
+    }
+    Ok(output)
+}
+
+fn collect_replay_backup_files(app: &tauri::AppHandle) -> Result<Vec<ReplayBackupFile>, String> {
+    let entries = catalog::list_replay_catalog(app.clone())?;
+    let mut files = Vec::new();
+    let mut total_bytes = 0u64;
+    for (index, entry) in entries.into_iter().filter(|entry| entry.exists).enumerate() {
+        let output_path = PathBuf::from(&entry.output_path);
+        let metadata_path = PathBuf::from(&entry.metadata_path);
+        if !output_path.is_file() || !metadata_path.is_file() { continue; }
+        let replay_bytes = fs::read(&output_path).map_err(|error| format!("Não foi possível incluir o replay {} no backup: {error}", output_path.display()))?;
+        let metadata_bytes = fs::read(&metadata_path).map_err(|error| format!("Não foi possível incluir os metadados do replay {} no backup: {error}", metadata_path.display()))?;
+        total_bytes = total_bytes.saturating_add(replay_bytes.len() as u64).saturating_add(metadata_bytes.len() as u64);
+        if total_bytes > 350 * 1024 * 1024 {
+            return Err("Os arquivos de replay disponíveis excedem 350 MB. Faça o backup em um local com espaço suficiente ou reduza o catálogo.".to_string());
+        }
+        let original_name = output_path.file_name().and_then(|name| name.to_str()).ok_or_else(|| "Nome de arquivo de replay inválido.".to_string())?;
+        files.push(ReplayBackupFile {
+            output_file_name: format!("{index:04}-{original_name}"),
+            replay_content_base64: encode_base64(&replay_bytes),
+            metadata_content_base64: encode_base64(&metadata_bytes),
+        });
+    }
+    Ok(files)
+}
+
+fn validate_replay_backup_files(files: &[ReplayBackupFile]) -> Result<(), String> {
+    for file in files {
+        let name = Path::new(&file.output_file_name).file_name().and_then(|value| value.to_str());
+        if name != Some(file.output_file_name.as_str()) || !file.output_file_name.ends_with(".replay.csv") {
+            return Err("O backup contém um nome de arquivo de replay inválido.".to_string());
+        }
+        let _ = decode_base64(&file.replay_content_base64)?;
+        let _ = decode_base64(&file.metadata_content_base64)?;
+    }
+    Ok(())
+}
+
+fn restore_replay_backup_files(app: &tauri::AppHandle, files: &[ReplayBackupFile]) -> Result<(), String> {
+    if files.is_empty() { return Ok(()); }
+    let data_dir = app.path().app_data_dir().map_err(|error| error.to_string())?;
+    let replay_dir = data_dir.join("replays");
+    fs::create_dir_all(&replay_dir).map_err(|error| error.to_string())?;
+    for file in files {
+        let output_path = replay_dir.join(&file.output_file_name);
+        let metadata_path = output_path.with_extension("meta.json");
+        let replay_bytes = decode_base64(&file.replay_content_base64)?;
+        let metadata_bytes = decode_base64(&file.metadata_content_base64)?;
+        fs::write(&output_path, replay_bytes).map_err(|error| error.to_string())?;
+        fs::write(&metadata_path, metadata_bytes).map_err(|error| error.to_string())?;
+        catalog::register_replay_file(app.clone(), output_path.to_string_lossy().to_string())?;
+    }
+    Ok(())
 }
 
 #[derive(Debug, Clone)]
@@ -1376,6 +1486,7 @@ fn validate_backup_bundle(bundle: &BackupBundle) -> Result<(), String> {
 
 #[tauri::command]
 fn export_backup(
+    app: tauri::AppHandle,
     state: tauri::State<'_, DbState>,
     destination_path: String,
 ) -> Result<BackupSummary, String> {
@@ -1395,6 +1506,7 @@ fn export_backup(
     let events = query_backup_events(&connection)?;
     let settings = query_backup_execution_settings(&connection)?;
     drop(connection);
+    let replay_files = collect_replay_backup_files(&app)?;
 
     let bundle = BackupBundle {
         format: "simulador-de-trade-backup".to_string(),
@@ -1407,7 +1519,9 @@ fn export_backup(
         execution_settings: settings,
     };
 
-    let text = serde_json::to_string_pretty(&bundle)
+    let mut bundle_value = serde_json::to_value(&bundle).map_err(|error| error.to_string())?;
+    bundle_value["replayFiles"] = serde_json::to_value(&replay_files).map_err(|error| error.to_string())?;
+    let text = serde_json::to_string_pretty(&bundle_value)
         .map_err(|error| error.to_string())?;
     let file_name = path
         .file_name()
@@ -1436,11 +1550,13 @@ fn export_backup(
         trades: bundle.trades.len(),
         sessions: bundle.training_sessions.len(),
         events: bundle.training_events.len(),
+        replays: replay_files.len(),
     })
 }
 
 #[tauri::command]
 fn import_backup(
+    app: tauri::AppHandle,
     state: tauri::State<'_, DbState>,
     source_path: String,
     mode: String,
@@ -1458,21 +1574,24 @@ fn import_backup(
         return Err("O backup importado precisa possuir extensão .json.".to_string());
     }
 
-    const MAX_BACKUP_BYTES: u64 = 50 * 1024 * 1024;
+    const MAX_BACKUP_BYTES: u64 = 500 * 1024 * 1024;
     let file_size = fs::metadata(&path)
         .map_err(|error| error.to_string())?
         .len();
     if file_size > MAX_BACKUP_BYTES {
-        return Err("O backup excede o limite de 50 MB.".to_string());
+        return Err("O backup excede o limite de 500 MB.".to_string());
     }
 
     let raw = fs::read_to_string(&path).map_err(|error| error.to_string())?;
-    let bundle: BackupBundle =
-        serde_json::from_str(&raw).map_err(|error| {
-            format!("Backup JSON inválido: {error}")
-        })?;
+    let backup_value: Value = serde_json::from_str(&raw).map_err(|error| format!("Backup JSON inválido: {error}"))?;
+    let bundle: BackupBundle = serde_json::from_value(backup_value.clone()).map_err(|error| format!("Backup JSON inválido: {error}"))?;
+    let replay_files: Vec<ReplayBackupFile> = backup_value.get("replayFiles")
+        .cloned().map(serde_json::from_value).transpose()
+        .map_err(|error| format!("Lista de replays do backup inválida: {error}"))?
+        .unwrap_or_default();
 
     validate_backup_bundle(&bundle)?;
+    validate_replay_backup_files(&replay_files)?;
 
     let mut connection = state.0.lock().map_err(|error| error.to_string())?;
     let _safety_backup = if mode == "replace_all" {
@@ -1640,6 +1759,7 @@ fn import_backup(
     }
 
     transaction.commit().map_err(|error| error.to_string())?;
+    restore_replay_backup_files(&app, &replay_files)?;
 
     Ok(BackupSummary {
         path: path.to_string_lossy().to_string(),
@@ -1647,6 +1767,7 @@ fn import_backup(
         trades: bundle.trades.len(),
         sessions: bundle.training_sessions.len(),
         events: bundle.training_events.len(),
+        replays: replay_files.len(),
     })
 }
 
