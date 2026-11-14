@@ -1,4 +1,5 @@
-import { useRef, useState, type MouseEvent as ReactMouseEvent } from "react";
+import { useEffect, useRef, useState, type MouseEvent as ReactMouseEvent } from "react";
+import { InfoTip } from "./InfoTip";
 import type { Asset, Candle, IndicatorEvaluation, IndicatorPoint, Position, Side } from "../types";
 
 interface Props {
@@ -97,6 +98,7 @@ export function CandleChart({
   const [isPanning, setIsPanning] = useState(false);
   const [crosshair, setCrosshair] = useState<Crosshair | null>(null);
   const [rulerEnabled, setRulerEnabled] = useState(false);
+  const [maximized, setMaximized] = useState(false);
   const [rulerStart, setRulerStart] = useState<RulerPoint | null>(null);
   const [rulerEnd, setRulerEnd] = useState<RulerPoint | null>(null);
   const [draggingOco, setDraggingOco] = useState<{ kind: "stop" | "target"; mode: "position" | "draft"; price: number } | null>(null);
@@ -104,6 +106,20 @@ export function CandleChart({
   const axisDragRef = useRef<AxisDrag | null>(null);
   const chartPanRef = useRef<ChartPan | null>(null);
   const didDragRef = useRef(false);
+
+  useEffect(() => {
+    if (!maximized) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") setMaximized(false);
+    }
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [maximized]);
 
   // O aquecimento completo continua alimentando o indicador; só os candles finais
   // do pregão anterior são exibidos como contexto visual.
@@ -313,7 +329,7 @@ export function CandleChart({
   }
 
   return (
-    <div className="chart-shell">
+    <div className={maximized ? "chart-shell chart-shell-maximized" : "chart-shell"}>
       <div className="chart-toolbar">
         <div className="chart-ohlc" aria-live="polite" aria-label="Dados do candle selecionado">
           <strong>{hoveredCandle ? "Candle selecionado" : "Último candle"}</strong>
@@ -325,6 +341,10 @@ export function CandleChart({
           <span>Vol. {new Intl.NumberFormat("pt-BR", { notation: "compact", maximumFractionDigits: 1 }).format(readoutCandle.volume)}</span>
         </div>
         <div className="chart-controls" aria-label="Controles de zoom do gráfico">
+          <InfoTip label="Como interagir com o gráfico">
+            <p>Clique em um preço do gráfico para posicionar a entrada. Arraste dentro da área dos candles para mover o gráfico; arraste as linhas de Stop e Alvo para ajustar a OCO (regra 1:2).</p>
+            <p>Os candles anteriores são apenas contexto visual; o replay continua revelando somente os negócios do pregão selecionado.</p>
+          </InfoTip>
           {fitAllCandles ? (
             <span>{visible.length.toLocaleString("pt-BR")} candles · visão completa</span>
           ) : (
@@ -346,6 +366,9 @@ export function CandleChart({
             Régua
           </button>
           {(rulerStart || rulerEnd) && <button type="button" onClick={() => { setRulerStart(null); setRulerEnd(null); setRulerEnabled(false); }}>Limpar régua</button>}
+          <button type="button" onClick={() => setMaximized((value) => !value)}>
+            {maximized ? "Restaurar gráfico" : "Maximizar gráfico"}
+          </button>
           <button type="button" onClick={() => { setVisibleBars(DEFAULT_VISIBLE_BARS); setPriceZoom(1); setPanOffset(0); setPanPriceOffset(0); setCrosshair(null); setRulerStart(null); setRulerEnd(null); }}>Padrão</button>
         </div>
       </div>
