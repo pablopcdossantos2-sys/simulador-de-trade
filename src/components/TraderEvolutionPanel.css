@@ -141,3 +141,37 @@
 :root[data-theme="light"] .review-insight-recommendation { background: #edf4fa; border-left-color: #6d98bd; }
 :root[data-theme="light"] .review-insight-recommendation strong { color: #355a7a; }
 :root[data-theme="light"] .review-insight-recommendation span { color: #536b81; }
+
+
+/* Cruzamento dos desvios com o contexto de mercado */
+.review-context-insights { display: grid; gap: 12px; }
+.review-context-coverage { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.review-context-coverage article { display: grid; gap: 7px; padding: 13px 15px; border: 1px solid #263b54; border-radius: 11px; background: #0d1929; }
+.review-context-coverage article span { color: #8fa4ba; font-size: .74rem; }
+.review-context-coverage article strong { color: #e0ebf6; font-size: 1.3rem; font-variant-numeric: tabular-nums; }
+.review-context-empty { padding: 16px; border: 1px dashed #344c67; border-radius: 11px; color: #9bb0c5; background: #0d1929; font-size: .82rem; line-height: 1.5; }
+.review-context-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.review-context-card { display: grid; align-content: start; gap: 9px; min-width: 0; padding: 14px; border: 1px solid #344c67; border-radius: 12px; background: #101e30; }
+.review-context-card-heading { display: flex; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
+.review-context-card-heading strong { color: #e0ebf6; font-size: .87rem; }
+.review-context-card-heading span { border-radius: 999px; padding: 4px 8px; font-size: .67rem; font-weight: 700; }
+.review-context-card-heading span.recurrent { color: #e8cf9e; background: #49391c; }
+.review-context-card-heading span.early { color: #a9c8e8; background: #203a55; }
+.review-context-card p { margin: 0; color: #9bb0c5; font-size: .78rem; line-height: 1.4; }
+.review-context-card p strong { color: #c7d8e8; }
+.review-context-comparison { display: flex; align-items: baseline; flex-wrap: wrap; gap: 6px 12px; }
+.review-context-comparison strong { color: #e0ebf6; font-size: .88rem; }
+.review-context-comparison span { color: #8fa4ba; font-size: .72rem; }
+.review-context-comparison .review-context-delta { color: #e8c27f; font-weight: 700; }
+:root[data-theme="light"] .review-context-coverage article, :root[data-theme="light"] .review-context-empty, :root[data-theme="light"] .review-context-card { border-color: #d1dde8; background: #f7fafc; }
+:root[data-theme="light"] .review-context-coverage article span, :root[data-theme="light"] .review-context-card p, :root[data-theme="light"] .review-context-comparison span { color: #62798e; }
+:root[data-theme="light"] .review-context-coverage article strong, :root[data-theme="light"] .review-context-card-heading strong, :root[data-theme="light"] .review-context-comparison strong { color: #21384e; }
+:root[data-theme="light"] .review-context-card p strong { color: #355a7a; }
+:root[data-theme="light"] .review-context-comparison .review-context-delta { color: #8a5d16; }
+@media (max-width: 700px) {
+  .review-context-list { grid-template-columns: 1fr; }
+  .review-context-coverage { gap: 6px; }
+  .review-context-coverage article { padding: 10px 8px; }
+  .review-context-coverage article span { font-size: .66rem; }
+  .review-context-coverage article strong { font-size: 1.08rem; }
+}
