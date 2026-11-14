@@ -134,7 +134,6 @@ export function StudentProgressPanel({
     <section className="student-progress card">
       <div className="section-heading">
         <div>
-          <p className="eyebrow">Evolução histórica</p>
           <h2>Desenvolvimento do trader</h2>
         </div>
         <span className="history-count">
