@@ -70,6 +70,8 @@ struct TrainingSessionRecord {
     started_at: String,
     ended_at: Option<String>,
     status: String,
+    #[serde(default)]
+    starting_balance_brl: Option<f64>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -212,11 +214,11 @@ fn column_exists(
 fn initialize_database(connection: &Connection) -> rusqlite::Result<()> {
     let current_schema_version: i64 =
         connection.query_row("PRAGMA user_version", [], |row| row.get(0))?;
-    if current_schema_version > 6 {
+    if current_schema_version > 7 {
         return Err(rusqlite::Error::SqliteFailure(
             rusqlite::ffi::Error::new(rusqlite::ffi::SQLITE_SCHEMA),
             Some(format!(
-                "O banco está na versão {current_schema_version}, mais nova que esta versão do aplicativo (6). Atualize o Simulador de Trade."
+                "O banco está na versão {current_schema_version}, mais nova que esta versão do aplicativo (7). Atualize o Simulador de Trade."
             )),
         ));
     }
@@ -265,7 +267,8 @@ fn initialize_database(connection: &Connection) -> rusqlite::Result<()> {
                 mode TEXT NOT NULL DEFAULT 'FREE',
                 started_at TEXT NOT NULL,
                 ended_at TEXT,
-                status TEXT NOT NULL
+                status TEXT NOT NULL,
+                starting_balance_brl REAL
             );
 
             CREATE INDEX IF NOT EXISTS idx_training_sessions_trade_date
@@ -429,7 +432,14 @@ fn initialize_database(connection: &Connection) -> rusqlite::Result<()> {
         )?;
     }
 
-    connection.execute_batch("PRAGMA user_version = 6;")?;
+    if !column_exists(connection, "training_sessions", "starting_balance_brl")? {
+        connection.execute(
+            "ALTER TABLE training_sessions ADD COLUMN starting_balance_brl REAL",
+            [],
+        )?;
+    }
+
+    connection.execute_batch("PRAGMA user_version = 7;")?;
     Ok(())
 }
 
@@ -605,9 +615,10 @@ fn save_training_session(
             r#"
             INSERT INTO training_sessions (
                 id, asset, trade_date, start_time, end_time,
-                timeframe_minutes, warmup_bars, mode, started_at, ended_at, status
+                timeframe_minutes, warmup_bars, mode, started_at, ended_at, status,
+                starting_balance_brl
             )
-            VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)
+            VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)
             ON CONFLICT(id) DO UPDATE SET
                 asset = excluded.asset,
                 trade_date = excluded.trade_date,
@@ -618,7 +629,8 @@ fn save_training_session(
                 mode = excluded.mode,
                 started_at = excluded.started_at,
                 ended_at = excluded.ended_at,
-                status = excluded.status
+                status = excluded.status,
+                starting_balance_brl = excluded.starting_balance_brl
             "#,
             params![
                 session.id,
@@ -632,6 +644,7 @@ fn save_training_session(
                 session.started_at,
                 session.ended_at,
                 session.status,
+                session.starting_balance_brl,
             ],
         )
         .map_err(|error| error.to_string())?;
@@ -691,7 +704,8 @@ fn list_training_sessions(
             r#"
             SELECT
                 id, asset, trade_date, start_time, end_time,
-                timeframe_minutes, warmup_bars, mode, started_at, ended_at, status
+                timeframe_minutes, warmup_bars, mode, started_at, ended_at, status,
+                starting_balance_brl
             FROM training_sessions
             ORDER BY started_at DESC, id ASC, id ASC
             LIMIT 500
@@ -713,6 +727,7 @@ fn list_training_sessions(
                 started_at: row.get(8)?,
                 ended_at: row.get(9)?,
                 status: row.get(10)?,
+                starting_balance_brl: row.get(11)?,
             })
         })
         .map_err(|error| error.to_string())?;
@@ -1202,6 +1217,7 @@ fn validate_backup_bundle(bundle: &BackupBundle) -> Result<(), String> {
             || !matches!(session.status.as_str(), "ACTIVE" | "ENDED")
             || session.timeframe_minutes <= 0
             || session.warmup_bars < 0
+            || session.starting_balance_brl.is_some_and(|balance| !balance.is_finite() || balance <= 0.0)
         {
             return Err(format!(
                 "O backup contém uma sessão inválida: {}.",
@@ -1333,9 +1349,10 @@ fn import_backup(
                 r#"
                 INSERT INTO training_sessions (
                     id, asset, trade_date, start_time, end_time,
-                    timeframe_minutes, warmup_bars, mode, started_at, ended_at, status
+                    timeframe_minutes, warmup_bars, mode, started_at, ended_at, status,
+                    starting_balance_brl
                 )
-                VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)
+                VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)
                 ON CONFLICT(id) DO NOTHING
                 "#,
                 params![
@@ -1350,6 +1367,7 @@ fn import_backup(
                     session.started_at,
                     session.ended_at,
                     session.status,
+                    session.starting_balance_brl,
                 ],
             )
             .map_err(|error| error.to_string())?;
