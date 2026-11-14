@@ -270,6 +270,16 @@ h2 {
   font-weight: 750;
 }
 .chart-controls button:disabled { opacity: 0.4; cursor: not-allowed; }
+.chart-controls .ruler-tool.active { border-color: #e5b84d; background: #55421b; color: #ffe4a0; }
+.ruler-measure-line { stroke: #f0bd4f; stroke-width: 2; stroke-dasharray: 6 4; pointer-events: none; }
+.ruler-measure-point { fill: #f0bd4f; stroke: #172536; stroke-width: 2; pointer-events: none; }
+.ruler-measure-label rect { fill: #172536; stroke: #f0bd4f; stroke-width: 1; }
+.ruler-measure-label text { fill: #ffe4a0; font-size: 12px; font-weight: 800; pointer-events: none; }
+.ruler-readout { margin: 5px 4px 0; color: #f0bd4f; font-size: .8rem; font-weight: 700; }
+:root[data-theme="light"] .chart-controls .ruler-tool.active { border-color: #a87516; background: #fff1c9; color: #76500b; }
+:root[data-theme="light"] .ruler-measure-label rect { fill: #fff8e7; stroke: #b7821e; }
+:root[data-theme="light"] .ruler-measure-label text { fill: #6c4b0b; }
+:root[data-theme="light"] .ruler-readout { color: #875d0c; }
 .chart-controls span { min-width: 68px; color: #8da3bb; font-size: 0.7rem; text-align: center; }
 .chart-context-note { margin: 0 4px 4px; color: #8197ad; font-size: 0.76rem; line-height: 1.4; }
 .chart { display: block; width: 100%; height: auto; aspect-ratio: 1120 / 510; cursor: grab; touch-action: none; user-select: none; }
