@@ -34,7 +34,6 @@ export function ExecutionSettingsPanel({ settings, cloudOpacity, onCloudOpacityS
   const [slippage, setSlippage] = useState(String(settings.slippageTicksPerSide));
   const [intrabarPolicy, setIntrabarPolicy] = useState<IntrabarPolicy>(settings.intrabarPolicy);
   const [disciplineBalance, setDisciplineBalance] = useState(formatOptionalBalance(settings.disciplinedTrainingStartingBalanceBRL));
-  const [stopBalance, setStopBalance] = useState(formatOptionalBalance(settings.stopTrainingStartingBalanceBRL));
   const [feedback, setFeedback] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -44,7 +43,6 @@ export function ExecutionSettingsPanel({ settings, cloudOpacity, onCloudOpacityS
     setSlippage(String(settings.slippageTicksPerSide));
     setIntrabarPolicy(settings.intrabarPolicy);
     setDisciplineBalance(formatOptionalBalance(settings.disciplinedTrainingStartingBalanceBRL));
-    setStopBalance(formatOptionalBalance(settings.stopTrainingStartingBalanceBRL));
   }, [
     settings.costPerContractRoundTripBRL,
     settings.costWinRoundTripBRL,
@@ -52,7 +50,6 @@ export function ExecutionSettingsPanel({ settings, cloudOpacity, onCloudOpacityS
     settings.slippageTicksPerSide,
     settings.intrabarPolicy,
     settings.disciplinedTrainingStartingBalanceBRL,
-    settings.stopTrainingStartingBalanceBRL,
   ]);
 
   useEffect(() => {
@@ -78,10 +75,8 @@ export function ExecutionSettingsPanel({ settings, cloudOpacity, onCloudOpacityS
     }
 
     let disciplinedCapital: number | null;
-    let stopsCapital: number | null;
     try {
       disciplinedCapital = parseOptionalBalance(disciplineBalance, "Treino disciplinado");
-      stopsCapital = parseOptionalBalance(stopBalance, "Treinamento de Stops");
     } catch (error) {
       setFeedback(error instanceof Error ? error.message : "Verifique os capitais informados.");
       return;
@@ -97,7 +92,6 @@ export function ExecutionSettingsPanel({ settings, cloudOpacity, onCloudOpacityS
         slippageTicksPerSide: nextSlippage,
         intrabarPolicy,
         disciplinedTrainingStartingBalanceBRL: disciplinedCapital,
-        stopTrainingStartingBalanceBRL: stopsCapital,
       });
       onSaved(next);
       const opacity = Math.max(0, Math.min(100, Number(cloudOpacityPercent))) / 100;
@@ -156,17 +150,13 @@ export function ExecutionSettingsPanel({ settings, cloudOpacity, onCloudOpacityS
 
       <div className="execution-settings-capitals">
         <div className="capital-heading">
-          <h3>Capital dos treinamentos</h3>
-          <InfoTip label="Como o capital é usado">Informe uma vez; os valores serão usados nos próximos treinos. Cada modalidade mantém seu próprio saldo inicial.</InfoTip>
+          <h3>Capital do treino disciplinado</h3>
+          <InfoTip label="Como o capital é usado">Informe o saldo inicial que será utilizado nos próximos treinos disciplinados. Deixe em branco se não quiser registrar um saldo inicial.</InfoTip>
         </div>
         <div className="execution-settings-grid">
           <label>
-            Treino disciplinado (R$)
+            Saldo inicial (R$)
             <input type="number" min="0.01" step="0.01" value={disciplineBalance} onChange={(event) => setDisciplineBalance(event.target.value)} placeholder="Não configurado" />
-          </label>
-          <label>
-            Treinamento de Stops (R$)
-            <input type="number" min="0.01" step="0.01" value={stopBalance} onChange={(event) => setStopBalance(event.target.value)} placeholder="Não configurado" />
           </label>
         </div>
       </div>
