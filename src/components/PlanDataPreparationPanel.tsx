@@ -71,13 +71,13 @@ export function PlanDataPreparationPanel({ plan, matches, onCatalogUpdated }: Pr
     }
     try {
       const selected = await open({
-        title: "Selecionar CSV de candles M2 do Profit",
+        title: "Selecionar CSV M1 ou M2 do Profit",
         multiple: false,
         directory: false,
         filters: [{ name: "Arquivo CSV", extensions: ["csv"] }],
       });
       if (!selected || Array.isArray(selected)) return;
-      updateRow(key, { sourcePath: selected, status: "idle", message: "", progress: 0 });
+      setRows((current) => Object.fromEntries(Object.entries(current).map(([rowKey, row]) => [rowKey, { ...row, sourcePath: selected, status: "idle", message: "", progress: 0 }])));
     } catch (error) {
       updateRow(key, {
         status: "error",
@@ -91,7 +91,7 @@ export function PlanDataPreparationPanel({ plan, matches, onCatalogUpdated }: Pr
     const key = keyFor(match.requirement.role, match.requirement.date);
     const sourcePath = rows[key]?.sourcePath.trim().replace(/^"(.*)"$/, "$1") ?? "";
     if (!sourcePath) {
-      updateRow(key, { status: "error", message: "Selecione o CSV M2 correspondente a esta data." });
+      updateRow(key, { status: "error", message: "Selecione o CSV M1 ou M2 que contém esta data." });
       return false;
     }
 
@@ -103,6 +103,7 @@ export function PlanDataPreparationPanel({ plan, matches, onCatalogUpdated }: Pr
         match.requirement.endTime,
         (progress: ProfitPreparationProgress) => updateRow(key, { progress: progress.percent }),
         plan.asset,
+        match.requirement.date,
       );
       const entry = await registerReplayFile(result.outputPath);
       if (entry.tradeDate !== match.requirement.date) {
@@ -116,7 +117,7 @@ export function PlanDataPreparationPanel({ plan, matches, onCatalogUpdated }: Pr
       updateRow(key, {
         status: "done",
         progress: 100,
-        message: `${entry.symbol}: ${result.keptRows.toLocaleString("pt-BR")} candles M2 preparados (${(result.outputBytes / 1024).toFixed(1)} KB).`,
+        message: `${entry.symbol}: ${result.keptRows.toLocaleString("pt-BR")} candles M2 preparados a partir de M${result.sourceTimeframeMinutes} (${(result.outputBytes / 1024).toFixed(1)} KB).`,
       });
       onCatalogUpdated();
       return true;
@@ -154,7 +155,7 @@ export function PlanDataPreparationPanel({ plan, matches, onCatalogUpdated }: Pr
       </div>
 
       <p className="data-description">
-        Selecione os CSVs de candles M2 das datas indicadas. O pregão-alvo é preparado por inteiro.
+        Selecione um CSV M1 ou M2 do Profit. Um mesmo arquivo histórico pode conter várias datas; a conversão para M2 é automática.
       </p>
 
       <div className="plan-data-list">
@@ -180,7 +181,7 @@ export function PlanDataPreparationPanel({ plan, matches, onCatalogUpdated }: Pr
                   <input
                     value={row?.sourcePath ?? ""}
                     onChange={(event) => updateRow(key, { sourcePath: event.target.value })}
-                    placeholder={`CSV M2 de ${brDate(match.requirement.date)}`}
+                    placeholder={`CSV com ${brDate(match.requirement.date)}`}
                     disabled={processing || row?.status === "working"}
                   />
                   <div className="plan-data-actions">
