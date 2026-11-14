@@ -99,15 +99,17 @@ const money = new Intl.NumberFormat("pt-BR", {
 });
 
 function formatTradeDateTime(value: string, part: "date" | "time"): string {
-  const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) {
-    const match = /^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})/.exec(value);
-    if (!match) return value;
+  // Timestamps sem offset representam o relógio do pregão, não o fuso da máquina.
+  const marketClock = /^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})/.exec(value);
+  const hasExplicitZone = /(?:Z|[+-]\d{2}:?\d{2})$/i.test(value);
+  if (marketClock && !hasExplicitZone) {
     return part === "date"
-      ? `${match[3]}/${match[2]}/${match[1]}`
-      : `${match[4]}:${match[5]}`;
+      ? `${marketClock[3]}/${marketClock[2]}/${marketClock[1]}`
+      : `${marketClock[4]}:${marketClock[5]}`;
   }
 
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return value;
   return new Intl.DateTimeFormat("pt-BR", {
     timeZone: "America/Sao_Paulo",
     ...(part === "date"
@@ -674,14 +676,13 @@ export default function App() {
         simulationPlan.timeframeMinutes,
         simulationPlan.warmupBars,
       );
-      setWarmupCandles(hiddenCandles);
-
       const info = await replay.loadReplay(
         simulationPlan.targetStartTime,
         simulationPlan.targetEndTime,
         targetPath,
       );
       if (!info) return;
+      setWarmupCandles(hiddenCandles);
       setFullSessionReplayPath(targetPath);
 
       setDataMode("replay");
@@ -726,6 +727,14 @@ export default function App() {
     setCurrentReplayTrade(null);
     positionRef.current = null;
     setPosition(null);
+    setLastClosedTradeMarker(null);
+    lastSeenReplaySignalRef.current = null;
+    setDraftEntryPrice(null);
+    setDraftSide(null);
+    activeSignalRef.current = null;
+    usedSignalIdsRef.current = new Set();
+    ignoredSignalIdsRef.current = new Set();
+    lastSuggestedSignalIdRef.current = null;
     setStopDistance("");
     setTargetDistance("");
     setContracts("1");
@@ -767,6 +776,10 @@ export default function App() {
     setCurrentReplayTrade(null);
     positionRef.current = null;
     setPosition(null);
+    setLastClosedTradeMarker(null);
+    lastSeenReplaySignalRef.current = null;
+    setDraftEntryPrice(null);
+    setDraftSide(null);
     setStopDistance("");
     setTargetDistance("");
     setContracts("1");
@@ -940,7 +953,11 @@ export default function App() {
     try {
       const closed = closePositionManually(position, marketPrice ?? 0, timestamp ?? new Date().toISOString());
       persistClosedTrade(closed);
-      setFeedback(`Stop manual acionado a ${money.format(closed.exitPrice)}. Resultado: ${money.format(closed.resultPoints)} pontos.`);
+      setFeedback(
+        examActive
+          ? "Stop manual acionado. O resultado será revelado ao final da prova."
+          : `Stop manual acionado a ${money.format(closed.exitPrice)}. Resultado: ${money.format(closed.resultPoints)} pontos.`,
+      );
     } catch (error) {
       const reason = error instanceof Error ? error.message : "Não foi possível estopar manualmente a operação.";
       setFeedback(reason);
