@@ -704,6 +704,7 @@ export default function App() {
       setTrainingSession(null);
       setTrainingEvents([]);
       activeSignalRef.current = null;
+      lastSeenReplaySignalRef.current = null;
       usedSignalIdsRef.current = new Set();
       ignoredSignalIdsRef.current = new Set();
       lastSuggestedSignalIdRef.current = null;
