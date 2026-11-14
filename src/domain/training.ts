@@ -44,6 +44,7 @@ export function createTrainingSession(input: {
   timeframeMinutes: number;
   warmupBars: number;
   mode: TrainingSession["mode"];
+  startingBalanceBRL: number;
   now?: Date;
 }): TrainingSession {
   const now = input.now ?? new Date();
@@ -57,6 +58,7 @@ export function createTrainingSession(input: {
     timeframeMinutes: input.timeframeMinutes,
     warmupBars: input.warmupBars,
     mode: input.mode,
+    startingBalanceBRL: input.startingBalanceBRL,
     startedAt: now.toISOString(),
     endedAt: null,
     status: "ACTIVE",
