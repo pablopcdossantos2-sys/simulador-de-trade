@@ -246,8 +246,9 @@ export default function App() {
         authorization.id !== previousSignalId &&
         !usedSignalIdsRef.current.has(authorization.id)
       ) {
+        pauseReplayRef.current?.();
         setFeedback(
-          `Novo sinal de ${sideLabel(authorization.side)} confirmado no fechamento do candle. A reprodução continuará enquanto você avalia a entrada.`,
+          `Novo sinal de ${sideLabel(authorization.side)} confirmado no fechamento do candle. Replay pausado para você avaliar a entrada.`,
         );
       }
     },
@@ -1032,6 +1033,11 @@ export default function App() {
       setFeedback(
         `${sideLabel(side)} aberta em ${money.format(orderEntry)} com OCO obrigatório ativo.${useReentry ? reentryAuthorization?.method === "STOP_COOLDOWN" ? " Reentrada autorizada após dez candles fechados desde o stop." : " Reentrada autorizada pelo toque posterior na MME 52." : ""}`,
       );
+      // A confirmação do sinal pausa o replay para a decisão; ao executar a ordem,
+      // a reprodução retoma automaticamente com a posição sendo monitorada.
+      if (dataMode === "replay" && replay.session && !replay.finished && !stopIncidentRef.current) {
+        replay.setPlaying(true);
+      }
     } catch (error) {
       const isDisciplineError = error instanceof TradingRuleError;
       const reason = isDisciplineError
