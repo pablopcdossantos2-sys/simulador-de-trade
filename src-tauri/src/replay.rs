@@ -8,6 +8,9 @@ use std::sync::Mutex;
 
 pub struct ReplayState(pub Mutex<Option<ReplaySession>>);
 
+/// Leitor independente para análise pós-operação; não altera o cursor do replay ativo.
+pub struct ReplayAnalysisState(pub Mutex<Option<ReplaySession>>);
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum ReplayFormat { Ticks, CandlesM2 }
 
@@ -666,6 +669,40 @@ pub fn reset_replay_session(
 #[tauri::command]
 pub fn close_replay_session(
     state: tauri::State<'_, ReplayState>,
+) -> Result<(), String> {
+    let mut guard = state.0.lock().map_err(|error| error.to_string())?;
+    *guard = None;
+    Ok(())
+}
+
+/// Abre uma leitura independente do arquivo completo para análise contrafactual.
+#[tauri::command]
+pub fn open_replay_analysis_file(
+    state: tauri::State<'_, ReplayAnalysisState>,
+    source_path: String,
+) -> Result<ReplaySessionInfo, String> {
+    let path = PathBuf::from(source_path.trim().trim_matches('"'));
+    let (session, info) = open_session(&path)?;
+    let mut guard = state.0.lock().map_err(|error| error.to_string())?;
+    *guard = Some(session);
+    Ok(info)
+}
+
+#[tauri::command]
+pub fn next_replay_analysis_trades(
+    state: tauri::State<'_, ReplayAnalysisState>,
+    max_events: usize,
+) -> Result<Vec<ReplayTradeRecord>, String> {
+    let mut guard = state.0.lock().map_err(|error| error.to_string())?;
+    let session = guard
+        .as_mut()
+        .ok_or_else(|| "Nenhum arquivo de análise pós-operação está aberto.".to_string())?;
+    read_next_replay_batch(session, max_events)
+}
+
+#[tauri::command]
+pub fn close_replay_analysis_file(
+    state: tauri::State<'_, ReplayAnalysisState>,
 ) -> Result<(), String> {
     let mut guard = state.0.lock().map_err(|error| error.to_string())?;
     *guard = None;
