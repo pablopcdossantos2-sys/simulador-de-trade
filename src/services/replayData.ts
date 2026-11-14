@@ -62,3 +62,28 @@ export async function loadWarmupCandles(
     maxBars,
   });
 }
+
+/**
+ * Lê o mesmo arquivo por um cursor independente, preservando o ponto do replay
+ * que está em andamento. Utilizado somente na análise posterior à infração.
+ */
+export async function loadFullReplayTrades(sourcePath: string): Promise<ReplayTrade[]> {
+  ensureDesktop();
+  const normalized = sourcePath.trim().replace(/^"(.*)"$/, "$1");
+  if (!normalized) throw new Error("Arquivo completo do replay não informado.");
+
+  await invoke("open_replay_analysis_file", { sourcePath: normalized });
+  const trades: ReplayTrade[] = [];
+  try {
+    while (true) {
+      const batch = await invoke<ReplayTrade[]>("next_replay_analysis_trades", {
+        maxEvents: 5000,
+      });
+      if (batch.length === 0) break;
+      trades.push(...batch);
+    }
+    return trades;
+  } finally {
+    await invoke("close_replay_analysis_file");
+  }
+}
