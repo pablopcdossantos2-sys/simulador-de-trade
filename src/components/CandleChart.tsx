@@ -457,7 +457,7 @@ export function CandleChart({
           <PriceLine
             y={y(position.stopLoss)}
             label={"Stop " + formatPrice(position.stopLoss, asset)}
-            className="stop-line"
+            className="stop-line" blockDrag
           />
           <PriceLine
             y={y(draggingOco?.mode === "position" && draggingOco.kind === "target" ? draggingOco.price : position.target)}
@@ -562,19 +562,25 @@ function PriceLine({
   label,
   className,
   interactive = false,
+  blockDrag = false,
   onMouseDown,
 }: {
   y: number;
   label: string;
   className: string;
   interactive?: boolean;
+  blockDrag?: boolean;
   onMouseDown?: (event: ReactMouseEvent<SVGLineElement>) => void;
 }) {
   return <g>
-    {interactive && <line
+    {(interactive || blockDrag) && <line
       x1={PLOT_LEFT} x2={PLOT_RIGHT} y1={y} y2={y}
       stroke="transparent" strokeWidth="16" pointerEvents="stroke"
-      className="oco-drag-hitbox" onMouseDown={onMouseDown}
+      className="oco-drag-hitbox"
+      onMouseDown={interactive ? onMouseDown : (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+      }}
     />}
     <line x1={PLOT_LEFT} x2={PLOT_RIGHT} y1={y} y2={y} className={className} pointerEvents="none" />
     <text x={PLOT_RIGHT - 8} y={y - 5} textAnchor="end" className="price-label" pointerEvents="none">{label}</text>
