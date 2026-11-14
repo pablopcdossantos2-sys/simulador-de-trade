@@ -77,6 +77,7 @@ import { startUsageTracking } from "./services/usageTracking";
 import type {
   Asset,
   ExecutionSettings,
+  IndicatorEvaluation,
   IndicatorSignal,
   Position,
   ReplayTrade,
