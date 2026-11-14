@@ -12,6 +12,7 @@ interface Props {
   onEntryPlacement?: (price: number) => void;
   onAdjustOco?: (kind: "stop" | "target", price: number, mode: "position" | "draft") => void;
   fitAllCandles?: boolean;
+  cloudOpacity?: number;
 }
 interface ChartCandle extends Candle { source: "context" | "target"; }
 interface Crosshair { candleIndex: number; y: number; }
@@ -85,6 +86,7 @@ export function CandleChart({
   onEntryPlacement,
   onAdjustOco,
   fitAllCandles = false,
+  cloudOpacity = 0.2,
 }: Props) {
   const [visibleBars, setVisibleBars] = useState(DEFAULT_VISIBLE_BARS);
   const [priceZoom, setPriceZoom] = useState(1);
@@ -224,7 +226,7 @@ export function CandleChart({
       axisDragRef.current = { axis: "y", startX: x, startY: yValue, visibleBars, priceZoom };
       didDragRef.current = true;
       event.preventDefault();
-    } else if (x >= PLOT_LEFT && x <= PLOT_RIGHT && yValue >= VOLUME_BOTTOM + 8 && yValue <= HEIGHT) {
+    } else if (x >= PLOT_LEFT && x <= PLOT_RIGHT && yValue >= VOLUME_BOTTOM && yValue <= HEIGHT) {
       axisDragRef.current = { axis: "x", startX: x, startY: yValue, visibleBars, priceZoom };
       didDragRef.current = true;
       event.preventDefault();
@@ -334,7 +336,7 @@ export function CandleChart({
             x1 + "," + y(currentPoint.ema52), x0 + "," + y(previousPoint.ema52),
           ].join(" ");
           return <polygon key={"cloud-" + candle.index} points={points}
-            className={currentPoint.zone === "GREEN" ? "indicator-cloud-green" : "indicator-cloud-red"} />;
+            className={currentPoint.zone === "GREEN" ? "indicator-cloud-green" : "indicator-cloud-red"} style={{ opacity: cloudOpacity }} />;
         })}
 
         {visible.map((candle, idx) => {
