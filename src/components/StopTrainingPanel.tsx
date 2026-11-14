@@ -17,6 +17,7 @@ interface Props {
   onEnabledChange: (enabled: boolean) => void;
   onDismissIncident: () => void;
   configurable: boolean;
+  fullDayReady: boolean;
   incident: Incident | null;
   analysisLoading: boolean;
   analysisError: string | null;
@@ -46,6 +47,7 @@ export function StopTrainingPanel({
   onEnabledChange,
   onDismissIncident,
   configurable,
+  fullDayReady,
   incident,
   analysisLoading,
   analysisError,
@@ -87,8 +89,9 @@ export function StopTrainingPanel({
             disabled={!configurable || enabled}
           />
           <small>Não existe saldo padrão. Informe o capital que será usado para avaliar o risco de esgotamento da conta.</small>
+          <small>{fullDayReady ? "Pregão completo preparado e pronto para análise." : "Antes de ativar, prepare o arquivo do pregão completo na seção de preparação de dados usando o CSV original."}</small>
           {!enabled ? (
-            <button type="button" className="planner-apply" onClick={() => onEnabledChange(true)} disabled={!configurable || !validBalance}>
+            <button type="button" className="planner-apply" onClick={() => onEnabledChange(true)} disabled={!configurable || !validBalance || !fullDayReady}>
               Ativar treinamento de Stops
             </button>
           ) : (
