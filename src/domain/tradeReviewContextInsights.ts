@@ -7,7 +7,9 @@ export type ReviewContextDimension =
   | "INDICATOR_ZONE"
   | "VWAP_POSITION"
   | "ENTRY_CANDLE_BODY"
-  | "ENTRY_CANDLE_RANGE";
+  | "ENTRY_CANDLE_RANGE"
+  | "STOP_VS_RECENT_RANGE"
+  | "PLANNED_RISK_REWARD";
 
 export type ReviewContextAssociationStrength = "RECURRENT" | "EARLY_SIGNAL";
 
@@ -118,7 +120,7 @@ function candleBodyCondition(context: TradeEntryContext): string | null {
   return "Corpo dominante (60% ou mais do range)";
 }
 
-function candleRangeCondition(context: TradeEntryContext): string | null {
+function averagePreviousRange(context: TradeEntryContext): number | null {
   const candle = entryCandle(context);
   if (!candle) return null;
   const previousRanges = context.candles
@@ -127,13 +129,41 @@ function candleRangeCondition(context: TradeEntryContext): string | null {
     .map((item) => item.high - item.low)
     .filter((range) => Number.isFinite(range) && range > 0);
   if (previousRanges.length < 5) return null;
-
   const averageRange = previousRanges.reduce((sum, range) => sum + range, 0) / previousRanges.length;
-  if (averageRange <= 0) return null;
+  return averageRange > 0 ? averageRange : null;
+}
+
+function candleRangeCondition(context: TradeEntryContext): string | null {
+  const candle = entryCandle(context);
+  const averageRange = averagePreviousRange(context);
+  if (!candle || averageRange === null) return null;
   const relativeRange = (candle.high - candle.low) / averageRange;
   if (relativeRange >= 1.5) return "Range expandido (1,5× ou mais da média recente)";
   if (relativeRange <= 0.7) return "Range comprimido (até 0,7× da média recente)";
   return "Range próximo da média recente";
+}
+
+function stopRelativeRangeCondition(trade: Trade): string | null {
+  if (!trade.entryContext) return null;
+  const averageRange = averagePreviousRange(trade.entryContext);
+  if (averageRange === null) return null;
+  const riskDistance = Math.abs(trade.entry - trade.stopLoss);
+  if (!Number.isFinite(riskDistance) || riskDistance <= 0) return null;
+  const relativeRisk = riskDistance / averageRange;
+  if (relativeRisk < 1) return "Stop menor que 1 range médio";
+  if (relativeRisk < 2) return "Stop entre 1 e 2 ranges médios";
+  return "Stop igual ou maior que 2 ranges médios";
+}
+
+function plannedRiskRewardCondition(trade: Trade): string | null {
+  const risk = Math.abs(trade.entry - trade.stopLoss);
+  const reward = Math.abs(trade.target - trade.entry);
+  if (!Number.isFinite(risk) || !Number.isFinite(reward) || risk <= 0 || reward <= 0) return null;
+  const ratio = reward / risk;
+  if (ratio < 2) return "R:R planejado abaixo de 2,0";
+  if (ratio < 2.5) return "R:R planejado de 2,0 a menos de 2,5";
+  if (ratio < 3.5) return "R:R planejado de 2,5 a menos de 3,5";
+  return "R:R planejado de 3,5 ou mais";
 }
 
 const dimensions: ContextDimensionDefinition[] = [
@@ -172,6 +202,16 @@ const dimensions: ContextDimensionDefinition[] = [
     key: "ENTRY_CANDLE_RANGE",
     label: "Amplitude do candle de entrada",
     value: (trade) => trade.entryContext ? candleRangeCondition(trade.entryContext) : null,
+  },
+  {
+    key: "STOP_VS_RECENT_RANGE",
+    label: "Stop em relação à volatilidade recente",
+    value: stopRelativeRangeCondition,
+  },
+  {
+    key: "PLANNED_RISK_REWARD",
+    label: "Relação risco/retorno planejada",
+    value: plannedRiskRewardCondition,
   },
 ];
 
