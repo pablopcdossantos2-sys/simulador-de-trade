@@ -1368,6 +1368,7 @@ export default function App() {
           setStopAnalysisScope(null);
         }}
         configurable={!trainingActive && !position && !startingTraining}
+        fullDayReady={Boolean(fullSessionReplayPath)}
         incident={stopTrainingIncident}
         analysisLoading={stopAnalysisLoading}
         analysisError={stopAnalysisError}
@@ -1420,7 +1421,7 @@ export default function App() {
               draftOrder={draftOrder}
               entryPlacementEnabled={Boolean(tradingEnabled && !position && authorizedSideForChart)}
               onEntryPlacement={placeOrderFromChart}
-              onAdjustOco={adjustOcoFromChart}
+              onAdjustOco={stopTrainingIncident ? undefined : adjustOcoFromChart}
             />
           ) : (
             <div className="chart-placeholder">
