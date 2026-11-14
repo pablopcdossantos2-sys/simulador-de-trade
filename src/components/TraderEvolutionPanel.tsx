@@ -249,7 +249,6 @@ export function TraderEvolutionPanel({ refreshKey }: Props) {
           Acompanhe sua rotina de prática, o uso do simulador e a aplicação das regras.
           Os dados são armazenados localmente neste dispositivo.
         </p>
-        <span>O tempo de uso considera o aplicativo em primeiro plano; não significa, por si só, tempo efetivo de estudo.</span>
       </div>
 
       {error && <div className="evolution-error">Não foi possível carregar todo o histórico: {error}</div>}
@@ -310,6 +309,9 @@ export function TraderEvolutionPanel({ refreshKey }: Props) {
       <div className="evolution-section-heading">
         <h3>Uso do programa</h3>
         <span>Atividade registrada neste dispositivo</span>
+        <InfoTip label="Como o tempo de uso é calculado">
+          O tempo considera o aplicativo em primeiro plano. Ele não representa, necessariamente, o tempo efetivo de estudo.
+        </InfoTip>
       </div>
       <div className="evolution-kpis">
         <article><span>Inicializações</span><strong>{metrics.launches}</strong></article>
@@ -340,13 +342,12 @@ export function TraderEvolutionPanel({ refreshKey }: Props) {
         <article><span>Execução alinhada</span><strong>{reviewSummary.aligned}</strong></article>
         <article><span>Execução parcial / a revisar</span><strong>{reviewSummary.partial + reviewSummary.needsReview}</strong></article>
       </div>
-      <p className="evolution-footnote">
-        A classificação resume as respostas registradas: não é uma nota automática nem uma conclusão sobre habilidade.
-        O simulador não consegue inferir emoções ou todas as decisões discricionárias; a avaliação é preenchida pelo próprio trader.
-      </p>
       <div className="evolution-section-heading">
         <h3>Padrões de comportamento identificados</h3>
         <span>Análise das avaliações individuais, separada do resultado financeiro</span>
+        <InfoTip label="Como interpretar as avaliações">
+          A classificação resume as respostas registradas. Não é uma nota automática nem uma conclusão sobre habilidade. Emoções e decisões discricionárias são informadas pelo próprio trader; o simulador não as infere.
+        </InfoTip>
       </div>
       <section className="review-insights">
         <div className="review-insights-overview">
@@ -363,10 +364,7 @@ export function TraderEvolutionPanel({ refreshKey }: Props) {
             <strong>{reviewInsights.earlySignals}</strong>
           </article>
         </div>
-        <p className="evolution-footnote">
-          Um padrão só é classificado como recorrente com pelo menos 5 avaliações aplicáveis, 2 ocorrências e frequência mínima de 20%.
-          Antes disso, aparece como sinal inicial para observação — não como diagnóstico.
-        </p>
+
         {reviewInsights.patterns.length === 0 ? (
           <div className="review-insights-empty">
             {reviewInsights.reviewedTrades === 0
@@ -408,14 +406,18 @@ export function TraderEvolutionPanel({ refreshKey }: Props) {
             ))}
           </div>
         )}
-        <p className="evolution-footnote">
-          A comparação usa até 10 avaliações recentes contra até 10 anteriores e só é exibida quando cada grupo tem pelo menos 5 registros.
-          Os dados vêm da autoavaliação do trader; o simulador não observa emoções nem infere intenções.
-        </p>
+        <div className="evolution-inline-help">
+          <InfoTip label="Critérios dos padrões e da comparação">
+            Um padrão é recorrente quando há pelo menos 5 avaliações aplicáveis, 2 ocorrências e frequência mínima de 20%. Antes disso, aparece como sinal inicial. A tendência compara até 10 avaliações recentes com até 10 anteriores, desde que cada grupo tenha ao menos 5 registros. Os dados vêm da autoavaliação do trader.
+          </InfoTip>
+        </div>
       </section>
       <div className="evolution-section-heading">
         <h3>Em quais contextos os desvios aparecem?</h3>
         <span>Cruzamento das avaliações com as condições na entrada</span>
+        <InfoTip label="Quais condições são analisadas">
+          A análise cruza os desvios com ativo, direção, zona do indicador, posição do preço em relação à VWAP, proporção do corpo do candle de entrada, amplitude frente aos 10 candles anteriores, distância do stop em relação à volatilidade recente e relação risco/retorno planejada. Operações antigas sem snapshot ainda contribuem para ativo, direção e risco/retorno, mas não para as condições que dependem do gráfico.
+        </InfoTip>
       </div>
       <section className="review-context-insights">
         <div className="review-context-coverage">
@@ -432,12 +434,7 @@ export function TraderEvolutionPanel({ refreshKey }: Props) {
             <strong>{reviewContextInsights.contextCoveragePercentage.toFixed(0)}%</strong>
           </article>
         </div>
-        <p className="evolution-footnote">
-          A análise cruza os desvios registrados com ativo, direção, zona do indicador, posição do preço em relação à VWAP,
-          proporção do corpo do candle de entrada, amplitude frente aos 10 anteriores, distância do stop em relação à volatilidade recente
-          e relação risco/retorno planejada. Operações antigas sem snapshot continuam contribuindo para ativo, direção e risco/retorno,
-          mas não para as condições que dependem do gráfico.
-        </p>
+
         {reviewContextInsights.associations.length === 0 ? (
           <div className="review-context-empty">
             Ainda não há uma situação com frequência pelo menos 10 pontos percentuais acima da base geral e amostra mínima de 3 operações.
@@ -466,11 +463,11 @@ export function TraderEvolutionPanel({ refreshKey }: Props) {
             ))}
           </div>
         )}
-        <p className="evolution-footnote">
-          São exibidas até 12 associações com maior diferença em relação à base geral. Um sinal contextual inicial exige ao menos 3 operações no grupo;
-          uma associação recorrente exige ao menos 5 operações e 2 ocorrências. A diferença mínima é de 10 pontos percentuais.
-          Esses critérios são exploratórios: não provam que o contexto causou o desvio nem substituem uma análise estatística.
-        </p>
+        <div className="evolution-inline-help">
+          <InfoTip label="Critérios das associações contextuais">
+            São exibidas até 12 associações com maior diferença em relação à base geral. Um sinal inicial exige ao menos 3 operações no grupo; uma associação recorrente exige 5 operações e 2 ocorrências. A diferença mínima é de 10 pontos percentuais. Esses critérios são exploratórios: não provam causalidade nem substituem uma análise estatística.
+          </InfoTip>
+        </div>
       </section>
       <div className="trade-review-toolbar">
         <label>
@@ -592,17 +589,11 @@ export function TraderEvolutionPanel({ refreshKey }: Props) {
         <article><span>Aderência nas tentativas registradas</span><strong>{metrics.trainingAttemptAdherencePct === null ? "—" : `${metrics.trainingAttemptAdherencePct.toFixed(1)}%`}</strong></article>
         <article><span>Sinais não utilizados</span><strong>{metrics.ignoredSignals}</strong></article>
       </div>
-      <p className="evolution-footnote">
-        A aderência é calculada como entradas aceitas ÷ (entradas aceitas + tentativas bloqueadas), somente nas sessões que registram esses eventos.
-        Sinais ignorados são mostrados à parte e não são tratados automaticamente como erros. As operações vencedoras e perdedoras representam resultado financeiro,
-        não uma avaliação isolada da qualidade da decisão.
-      </p>
-      <p className="evolution-footnote">
-        Critérios iniciais: o diagnóstico de rotina consistente exige ao menos 5 sessões e prática em 3 dias dos últimos 14; o alerta de execução exige ao menos 5 tentativas e aprovação inferior a 75%. Esses limites são referências ajustáveis, não padrões científicos.
-      </p>
-      <p className="evolution-footnote">
-        Este diagnóstico avalia hábitos e dados observáveis do simulador. Ele não certifica que alguém se tornou um bom trader nem prevê rentabilidade futura.
-      </p>
+      <div className="evolution-inline-help">
+        <InfoTip label="Como interpretar a aderência e o diagnóstico">
+          A aderência é calculada como entradas aceitas ÷ (entradas aceitas + tentativas bloqueadas), apenas nas sessões que registram esses eventos. Sinais ignorados aparecem à parte e não são tratados automaticamente como erros. O diagnóstico de rotina consistente exige ao menos 5 sessões e prática em 3 dos últimos 14 dias; o alerta de execução exige ao menos 5 tentativas e aprovação inferior a 75%. São referências operacionais, não padrões científicos. O diagnóstico não certifica habilidade nem prevê rentabilidade.
+        </InfoTip>
+      </div>
     </section>
   );
 }
