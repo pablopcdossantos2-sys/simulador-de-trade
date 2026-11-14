@@ -23,7 +23,6 @@ export function ProgressOverviewPanel({ trades, hidden = false }: Props) {
     <section className="progress-overview card">
       <div className="section-heading">
         <div>
-          <p className="eyebrow">Evolução agregada</p>
           <h2>Resultado por ativo</h2>
         </div>
         <span className="history-count">{trades.length} trades</span>
