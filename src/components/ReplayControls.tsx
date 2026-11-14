@@ -8,6 +8,7 @@ interface Props {
   speed: number;
   processed: number;
   currentTimestamp: string | null;
+  countdownSeconds?: number | null;
   finished: boolean;
   busy: boolean;
   onPlayPause: () => void;
@@ -17,6 +18,14 @@ interface Props {
   onStepCandle: () => void;
   onReset: () => void;
   onSpeedChange: (value: number) => void;
+}
+
+function countdown(value: number): string {
+  const total = Math.max(0, Math.floor(value));
+  const hours = Math.floor(total / 3600);
+  const minutes = Math.floor((total % 3600) / 60);
+  const seconds = total % 60;
+  return [hours, minutes, seconds].map((part) => String(part).padStart(2, "0")).join(":");
 }
 
 function clock(timestamp: string | null): string {
@@ -37,6 +46,7 @@ export function ReplayControls({
   speed,
   processed,
   currentTimestamp,
+  countdownSeconds = null,
   finished,
   busy,
   onPlayPause,
@@ -79,6 +89,12 @@ export function ReplayControls({
               <span>Horário atual</span>
               <strong>{clock(currentTimestamp)}</strong>
             </div>
+            {countdownSeconds !== null && (
+              <div className="replay-countdown" aria-live="off">
+                <span>Tempo restante do pregão</span>
+                <strong>{countdown(countdownSeconds)}</strong>
+              </div>
+            )}
           </div>
 
           <div className="replay-buttons">
