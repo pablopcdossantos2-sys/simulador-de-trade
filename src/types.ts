@@ -92,6 +92,8 @@ export interface Position {
   requestedEntry: number;
   entry: number;
   stopLoss: number;
+  /** Stop original da entrada; não muda quando o usuário ajusta o stop ativo. */
+  initialStopLoss?: number;
   target: number;
   contracts: number;
   slippageTicksPerSide: number;
@@ -129,6 +131,8 @@ export interface Trade {
   requestedEntry: number;
   entry: number;
   stopLoss: number;
+  /** Stop original da entrada, preservado para métricas de risco (R). */
+  initialStopLoss?: number;
   target: number;
   contracts: number;
   slippageTicksPerSide: number;
