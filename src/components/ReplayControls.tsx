@@ -89,21 +89,21 @@ Etapa 6 · Reproduzir o mercado · M{timeframeMinutes}
               type="button"
               className="replay-primary"
               onClick={onPlayPause}
-              disabled={finished || !trainingActive || locked}
+              disabled={finished || locked}
             >
               {playing ? "Pausar" : "Reproduzir"}
             </button>
             <button
               type="button"
               onClick={onStep}
-              disabled={playing || finished || busy || !trainingActive || locked}
+              disabled={playing || finished || busy || locked}
             >
               {session.synthetic ? "+1 segundo" : "+1 negócio"}
             </button>
             <button
               type="button"
               onClick={onStepCandle}
-              disabled={playing || finished || busy || !trainingActive}
+              disabled={playing || finished || busy}
             >
               +1 candle
             </button>
@@ -129,7 +129,7 @@ Etapa 6 · Reproduzir o mercado · M{timeframeMinutes}
 
           {!trainingActive && (
             <p className="replay-note replay-start-guidance" role="status">
-              Para liberar <strong>Reproduzir</strong>, primeiro inicie a sessão em <strong>Treino disciplinado</strong>. Se o início estiver bloqueado, confira a orientação exibida naquele painel.
+              Você pode reproduzir ou avançar o replay para observar o pregão sem iniciar uma sessão. Para registrar operações no treinamento, clique em <strong>Iniciar treino</strong>; a sessão começará novamente do início do replay.
             </p>
           )}
 
