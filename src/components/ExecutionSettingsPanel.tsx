@@ -5,6 +5,8 @@ import type { ExecutionSettings, IntrabarPolicy } from "../types";
 
 interface Props {
   settings: ExecutionSettings;
+  cloudOpacity: number;
+  onCloudOpacitySaved: (value: number) => void;
   onSaved: (settings: ExecutionSettings) => void;
 }
 
@@ -25,7 +27,8 @@ function parseOptionalBalance(raw: string, label: string): number | null {
   return value;
 }
 
-export function ExecutionSettingsPanel({ settings, onSaved }: Props) {
+export function ExecutionSettingsPanel({ settings, cloudOpacity, onCloudOpacitySaved, onSaved }: Props) {
+  const [cloudOpacityPercent, setCloudOpacityPercent] = useState(String(Math.round(cloudOpacity * 100)));
   const [winCost, setWinCost] = useState(String(settings.costWinRoundTripBRL ?? settings.costPerContractRoundTripBRL));
   const [wdoCost, setWdoCost] = useState(String(settings.costWdoRoundTripBRL ?? settings.costPerContractRoundTripBRL));
   const [slippage, setSlippage] = useState(String(settings.slippageTicksPerSide));
@@ -51,6 +54,10 @@ export function ExecutionSettingsPanel({ settings, onSaved }: Props) {
     settings.disciplinedTrainingStartingBalanceBRL,
     settings.stopTrainingStartingBalanceBRL,
   ]);
+
+  useEffect(() => {
+    setCloudOpacityPercent(String(Math.round(cloudOpacity * 100)));
+  }, [cloudOpacity]);
 
   async function save() {
     const nextWinCost = Number(winCost);
@@ -93,6 +100,8 @@ export function ExecutionSettingsPanel({ settings, onSaved }: Props) {
         stopTrainingStartingBalanceBRL: stopsCapital,
       });
       onSaved(next);
+      const opacity = Math.max(0, Math.min(100, Number(cloudOpacityPercent))) / 100;
+      onCloudOpacitySaved(opacity);
       setFeedback("Configurações salvas.");
     } catch (error) {
       setFeedback(error instanceof Error ? error.message : "Não foi possível salvar as configurações.");
@@ -128,6 +137,20 @@ export function ExecutionSettingsPanel({ settings, onSaved }: Props) {
             <option value="STOP_FIRST">Stop primeiro</option>
             <option value="TARGET_FIRST">Alvo primeiro</option>
           </select>
+        </label>
+      </div>
+
+      <div className="execution-settings-capitals">
+        <div className="capital-heading">
+          <h3>Visualização do gráfico</h3>
+          <InfoTip label="Opacidade da confluência">Ajuste a intensidade da área verde ou vermelha entre as médias quando houver confluência. O valor não altera os cálculos do indicador.</InfoTip>
+        </div>
+        <label className="cloud-opacity-control">
+          Opacidade da área de confluência
+          <div className="cloud-opacity-input">
+            <input type="range" min="0" max="100" step="5" value={cloudOpacityPercent} onChange={(event) => setCloudOpacityPercent(event.target.value)} />
+            <output>{cloudOpacityPercent}%</output>
+          </div>
         </label>
       </div>
 
