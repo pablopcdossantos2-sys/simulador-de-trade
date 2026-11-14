@@ -186,6 +186,19 @@ describe("relatório por sessão", () => {
     expect(result.executionAdherencePct).toBeCloseTo(66.666, 2);
   });
 
+  it("calcula R pelo stop inicial mesmo após mover o stop", () => {
+    const movedStopTrade: Trade = {
+      ...trades[1],
+      stopLoss: 130005,
+      initialStopLoss: 130200,
+      exitPrice: 130105,
+      resultPoints: -5,
+    };
+    const result = calculateSessionPerformance(session, events, [movedStopTrade]);
+    expect(result.totalR).toBeCloseTo(-0.05, 8);
+    expect(result.expectancyR).toBeCloseTo(-0.05, 8);
+  });
+
   it("agrupa tentativas bloqueadas por motivo", () => {
     expect(blockedAttemptBreakdown(events)).toEqual([
       {
