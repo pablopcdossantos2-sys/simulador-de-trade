@@ -236,7 +236,7 @@ export function performanceByHour(trades: Trade[]): HourBucket[] {
   for (const trade of trades) {
     const marketOpenedAt =
       trade.entryContext?.marketTimestamp ?? trade.openedAt;
-    const match = marketOpenedAt.match(/T(\d{2}):/);
+    const match = marketOpenedAt.match(/[T ](\d{2}):/);
     const hour = match?.[1] ?? "--";
     const label = hour === "--" ? "Sem horário" : `${hour}:00`;
     const bucket = buckets.get(label) ?? {
