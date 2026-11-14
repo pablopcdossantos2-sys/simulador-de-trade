@@ -500,7 +500,7 @@ export default function App() {
           ? reentryAuthorization.method === "STOP_COOLDOWN"
             ? "Dez candles fechados após o stop. A reentrada na mesma direção está autorizada."
             : "Um candle posterior tocou na MME 52. A reentrada na mesma direção está autorizada."
-          : "O sinal ativo já foi utilizado. Aguarde um novo gatilho ou um candle posterior ao encerramento que toque na MME 52.",
+          : "O sinal ativo já foi utilizado. Aguarde um novo gatilho, um toque posterior na MME 52 ou dez candles fechados após um stop.",
       );
       return;
     }
@@ -542,7 +542,7 @@ export default function App() {
         ? reentryAuthorization.method === "STOP_COOLDOWN"
           ? `Dez candles fechados após o stop. Reentrada de ${sideLabel(reentryAuthorization.side).toLowerCase()} autorizada.`
           : `Candle posterior tocou na MME 52. Reentrada de ${sideLabel(reentryAuthorization.side).toLowerCase()} autorizada.`
-        : "Sem zona autorizadora ativa ou toque posterior na MME 52. Compra e Venda permanecem bloqueadas.",
+        : "Sem zona autorizadora ativa, toque na MME 52 ou dez candles fechados após um stop. Compra e Venda permanecem bloqueadas.",
     );
   }, [indicatorEvaluation.zone, signal, position, lastCandle?.index, reentryAuthorization?.id]);
 
@@ -963,7 +963,7 @@ export default function App() {
       const useFreshSignal = Boolean(signal && !signalAlreadyUsed);
       const useReentry = !useFreshSignal && Boolean(reentryAuthorization && reentryAuthorization.side === side);
       if (!useFreshSignal && !useReentry) {
-        throw new TradingRuleError("Entrada fora do operacional: aguarde um sinal válido ou um candle posterior ao fim da última operação que toque na MME 52.");
+        throw new TradingRuleError("Entrada fora do operacional: aguarde um sinal válido, um toque posterior na MME 52 ou dez candles fechados após um stop.");
       }
       const entrySignal = useFreshSignal ? signal : null;
       const orderEntry = draftEntryPrice !== null && draftSide === side ? draftEntryPrice : lastPrice;
@@ -1819,7 +1819,7 @@ function SignalBadge({
   }
 
   if (signalAlreadyUsed) {
-    return <div className="signal-badge neutral">Sinal utilizado · aguardando novo gatilho ou toque na MME 52</div>;
+    return <div className="signal-badge neutral">Sinal utilizado · aguardando novo gatilho ou critério de reentrada</div>;
   }
 
   return (
