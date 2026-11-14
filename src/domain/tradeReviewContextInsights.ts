@@ -115,6 +115,7 @@ function candleBodyCondition(context: TradeEntryContext): string | null {
   const range = candle.high - candle.low;
   if (!Number.isFinite(range) || range <= 0) return null;
   const bodyRatio = Math.abs(candle.close - candle.open) / range;
+  if (!Number.isFinite(bodyRatio)) return null;
   if (bodyRatio < 0.25) return "Corpo pequeno (menos de 25% do range)";
   if (bodyRatio < 0.6) return "Corpo intermediário (25% a 60% do range)";
   return "Corpo dominante (60% ou mais do range)";
@@ -138,6 +139,7 @@ function candleRangeCondition(context: TradeEntryContext): string | null {
   const averageRange = averagePreviousRange(context);
   if (!candle || averageRange === null) return null;
   const relativeRange = (candle.high - candle.low) / averageRange;
+  if (!Number.isFinite(relativeRange) || relativeRange <= 0) return null;
   if (relativeRange >= 1.5) return "Range expandido (1,5× ou mais da média recente)";
   if (relativeRange <= 0.7) return "Range comprimido (até 0,7× da média recente)";
   return "Range próximo da média recente";
@@ -147,7 +149,7 @@ function stopRelativeRangeCondition(trade: Trade): string | null {
   if (!trade.entryContext) return null;
   const averageRange = averagePreviousRange(trade.entryContext);
   if (averageRange === null) return null;
-  const riskDistance = Math.abs(trade.entry - trade.stopLoss);
+  const riskDistance = Math.abs(trade.requestedEntry - trade.stopLoss);
   if (!Number.isFinite(riskDistance) || riskDistance <= 0) return null;
   const relativeRisk = riskDistance / averageRange;
   if (relativeRisk < 1) return "Stop menor que 1 range médio";
@@ -156,8 +158,8 @@ function stopRelativeRangeCondition(trade: Trade): string | null {
 }
 
 function plannedRiskRewardCondition(trade: Trade): string | null {
-  const risk = Math.abs(trade.entry - trade.stopLoss);
-  const reward = Math.abs(trade.target - trade.entry);
+  const risk = Math.abs(trade.requestedEntry - trade.stopLoss);
+  const reward = Math.abs(trade.target - trade.requestedEntry);
   if (!Number.isFinite(risk) || !Number.isFinite(reward) || risk <= 0 || reward <= 0) return null;
   const ratio = reward / risk;
   if (ratio < 2) return "R:R planejado abaixo de 2,0";
