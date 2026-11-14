@@ -3698,3 +3698,68 @@ td {
 @media (max-width: 480px) {
   .stop-scenario-grid { grid-template-columns: 1fr; }
 }
+
+
+.training-capital-field {
+  display: grid;
+  gap: 8px;
+  max-width: 520px;
+  margin: 14px 0 16px;
+}
+.training-capital-field label {
+  color: #a9bdd1;
+  font-size: .82rem;
+  font-weight: 800;
+}
+.training-capital-field input {
+  min-height: 42px;
+  padding: 9px 12px;
+  border: 1px solid #344b64;
+  border-radius: 9px;
+  background: #0b1726;
+  color: #dce9f5;
+}
+.training-capital-field small { color: #8298ad; line-height: 1.45; }
+.risk-reward-status {
+  margin: 10px 0 14px;
+  padding: 10px 12px;
+  border: 1px solid;
+  border-radius: 9px;
+  font-size: .78rem;
+  line-height: 1.45;
+  font-weight: 750;
+}
+.risk-reward-status.valid {
+  border-color: #2d7050;
+  background: #0e271c;
+  color: #a5e4be;
+}
+.risk-reward-status.warning {
+  border-color: #a16f37;
+  background: #302315;
+  color: #f0cc91;
+}
+.stop-training-enabled-note {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.stop-training-enabled-note p { margin: 0; }
+:root[data-theme="light"] .training-capital-field label { color: #31516e; }
+:root[data-theme="light"] .training-capital-field input {
+  border-color: #c8d7e4;
+  background: #fff;
+  color: #2d465d;
+}
+:root[data-theme="light"] .training-capital-field small { color: #687f94; }
+:root[data-theme="light"] .risk-reward-status.valid {
+  border-color: #98cbb0;
+  background: #eaf7f0;
+  color: #266b4e;
+}
+:root[data-theme="light"] .risk-reward-status.warning {
+  border-color: #e0c08d;
+  background: #fff7e8;
+  color: #85551d;
+}
