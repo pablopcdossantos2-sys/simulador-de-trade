@@ -1239,6 +1239,32 @@ fn query_backup_execution_settings(
         .map_err(|error| error.to_string())
 }
 
+fn create_pre_restore_backup(connection: &Connection) -> Result<Option<PathBuf>, String> {
+    let database_path: String = connection
+        .query_row("PRAGMA database_list", [], |row| row.get(2))
+        .map_err(|error| error.to_string())?;
+    if database_path.trim().is_empty() {
+        return Ok(None);
+    }
+
+    // Consolida o WAL antes de copiar o arquivo principal.
+    connection
+        .execute_batch("PRAGMA wal_checkpoint(FULL);")
+        .map_err(|error| error.to_string())?;
+    let source = PathBuf::from(database_path);
+    let parent = source.parent().unwrap_or_else(|| Path::new("."));
+    let stem = source.file_stem().and_then(|value| value.to_str()).unwrap_or("database");
+    let nonce = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_nanos();
+    let backup = parent.join(format!("{stem}.pre-restore-{nonce}.sqlite3"));
+    fs::copy(&source, &backup).map_err(|error| {
+        format!("Não foi possível criar a cópia de segurança antes da restauração: {error}")
+    })?;
+    Ok(Some(backup))
+}
+
 fn validate_backup_bundle(bundle: &BackupBundle) -> Result<(), String> {
     if bundle.format != "simulador-de-trade-backup" {
         return Err(
@@ -1444,6 +1470,11 @@ fn import_backup(
     validate_backup_bundle(&bundle)?;
 
     let mut connection = state.0.lock().map_err(|error| error.to_string())?;
+    let _safety_backup = if mode == "replace_all" {
+        Some(create_pre_restore_backup(&connection)?)
+    } else {
+        None
+    };
     let transaction = connection
         .transaction()
         .map_err(|error| error.to_string())?;
