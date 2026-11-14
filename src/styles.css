@@ -3891,3 +3891,226 @@ td {
 :root[data-theme="light"] .crosshair-readout text {
   fill: #203d58;
 }
+
+
+/* Respiro interno e hierarquia visual do manual e manutenção do banco */
+.manual-panel {
+  padding: clamp(22px, 3.2vw, 34px);
+}
+.manual-intro {
+  margin: 0 0 24px;
+  padding: 15px 18px;
+  border: 1px solid #29445f;
+  border-radius: 12px;
+  background: #101f31;
+  color: #b9cce0;
+  line-height: 1.65;
+}
+.manual-topic {
+  margin: 0;
+  padding: 20px 4px 22px;
+  border-top: 1px solid #24384f;
+}
+.manual-topic h3 {
+  display: block;
+  margin: 0 0 15px;
+  padding: 11px 15px;
+  border: 1px solid #2c4966;
+  border-left: 4px solid #65aeea;
+  border-radius: 9px;
+  background: linear-gradient(90deg, #142b43 0%, #101f31 75%);
+  color: #e1effc;
+  font-size: 1rem;
+  font-weight: 850;
+  letter-spacing: -0.01em;
+  line-height: 1.4;
+}
+.manual-topic p,
+.manual-topic li {
+  color: #a9bbcf;
+  line-height: 1.7;
+}
+.manual-topic p {
+  margin: 12px 0 0;
+}
+.manual-topic ol,
+.manual-topic ul {
+  display: grid;
+  gap: 9px;
+  margin: 0;
+  padding-left: 25px;
+}
+.manual-topic li {
+  padding-left: 3px;
+}
+.manual-topic li::marker {
+  color: #70b7ed;
+  font-weight: 800;
+}
+.manual-note {
+  margin-top: 8px;
+  padding: 18px;
+  border: 1px solid #334b63;
+  border-radius: 12px;
+  background: #0d1a29;
+}
+.manual-note h3 {
+  margin-top: 0;
+}
+.database-maintenance {
+  padding: clamp(22px, 3vw, 30px);
+}
+.database-maintenance .section-heading {
+  margin-bottom: 10px;
+}
+.database-maintenance .data-description {
+  max-width: 980px;
+  margin: 0 0 20px;
+  padding: 15px 17px;
+  border: 1px solid #263d55;
+  border-radius: 11px;
+  background: #0b1928;
+  line-height: 1.7;
+}
+.database-maintenance .danger-button {
+  margin-top: 2px;
+}
+.database-maintenance .training-hint,
+.database-maintenance .data-status {
+  display: block;
+  margin-top: 14px;
+}
+
+/* Modo de importação avançado com hierarquia clara */
+.advanced-tools {
+  padding: 0;
+  overflow: hidden;
+  border-color: #304a66;
+  background: #0d1b2b;
+}
+.advanced-tools > summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  min-height: 66px;
+  padding: 14px 18px;
+  list-style: none;
+  color: #d1e4f7;
+  font-size: 0.94rem;
+}
+.advanced-tools > summary::-webkit-details-marker {
+  display: none;
+}
+.advanced-tools > summary::after {
+  content: "+";
+  display: grid;
+  flex: 0 0 30px;
+  width: 30px;
+  height: 30px;
+  place-items: center;
+  border: 1px solid #3a5b7b;
+  border-radius: 8px;
+  background: #142b42;
+  color: #a9d4f5;
+  font-size: 1.2rem;
+}
+.advanced-tools[open] > summary {
+  margin: 0;
+  border-bottom: 1px solid #2a4058;
+  background: #11243a;
+}
+.advanced-tools[open] > summary::after {
+  content: "−";
+}
+.advanced-tools > summary span {
+  display: block;
+}
+.advanced-tools > summary small {
+  display: block;
+  margin-left: auto;
+  color: #819bb5;
+  font-size: 0.76rem;
+  font-weight: 550;
+  text-align: right;
+}
+.advanced-tools > :not(summary) {
+  margin-right: 18px;
+  margin-left: 18px;
+}
+.advanced-tools > .advanced-tools-help {
+  margin-top: 14px;
+}
+.advanced-tools > .data-preparation {
+  margin-bottom: 18px;
+}
+:root[data-theme="light"] .manual-intro {
+  border-color: #cbd9e5;
+  background: #f2f7fb;
+  color: #486078;
+}
+:root[data-theme="light"] .manual-topic {
+  border-color: #dce5ed;
+}
+:root[data-theme="light"] .manual-topic h3 {
+  border-color: #c6d7e5;
+  border-left-color: #397eb5;
+  background: linear-gradient(90deg, #e8f2fa 0%, #f7fafd 80%);
+  color: #254765;
+}
+:root[data-theme="light"] .manual-topic p,
+:root[data-theme="light"] .manual-topic li {
+  color: #50677d;
+}
+:root[data-theme="light"] .manual-topic li::marker {
+  color: #397eb5;
+}
+:root[data-theme="light"] .manual-note {
+  border-color: #d2dee8;
+  background: #f4f8fb;
+}
+:root[data-theme="light"] .database-maintenance .data-description {
+  border-color: #d3dfe9;
+  background: #f5f9fc;
+  color: #526b82;
+}
+:root[data-theme="light"] .advanced-tools {
+  border-color: #cbd9e5;
+  background: #f6f9fc;
+}
+:root[data-theme="light"] .advanced-tools > summary {
+  color: #294b68;
+}
+:root[data-theme="light"] .advanced-tools[open] > summary {
+  border-bottom-color: #d4e0e9;
+  background: #eaf2f8;
+}
+:root[data-theme="light"] .advanced-tools > summary::after {
+  border-color: #b9cddd;
+  background: #edf4f9;
+  color: #315f84;
+}
+:root[data-theme="light"] .advanced-tools > summary small {
+  color: #6d8499;
+}
+@media (max-width: 620px) {
+  .manual-panel,
+  .database-maintenance {
+    padding: 18px;
+  }
+  .manual-topic {
+    padding: 16px 0 18px;
+  }
+  .manual-topic h3 {
+    padding: 10px 12px;
+  }
+  .advanced-tools > summary {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+  .advanced-tools > summary small {
+    flex-basis: calc(100% - 44px);
+    margin-left: 0;
+    text-align: left;
+  }
+}
