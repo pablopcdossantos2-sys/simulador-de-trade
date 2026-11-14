@@ -1683,8 +1683,9 @@ export default function App() {
           setTrades(nextTrades);
           setExecutionSettings(nextSettings);
           setSessionHistoryRefreshKey((value) => value + 1);
+          setCatalogRefreshKey((value) => value + 1);
           setFeedback(
-            "Backup importado. Histórico, relatórios e configurações foram atualizados.",
+            "Backup importado. Histórico, relatórios, configurações e catálogo de replays foram atualizados.",
           );
         }}
       />
