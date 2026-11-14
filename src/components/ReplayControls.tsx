@@ -116,7 +116,7 @@ export function ReplayControls({
             <button
               type="button"
               onClick={onStepCandle}
-              disabled={playing || finished || busy}
+              disabled={playing || finished || busy || locked}
             >
               +1 candle
             </button>
