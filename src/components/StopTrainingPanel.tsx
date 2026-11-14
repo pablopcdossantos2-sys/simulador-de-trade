@@ -15,6 +15,7 @@ interface Props {
   onStartingBalanceChange: (value: string) => void;
   enabled: boolean;
   onEnabledChange: (enabled: boolean) => void;
+  onDismissIncident: () => void;
   configurable: boolean;
   incident: Incident | null;
   analysisLoading: boolean;
@@ -43,6 +44,7 @@ export function StopTrainingPanel({
   onStartingBalanceChange,
   enabled,
   onEnabledChange,
+  onDismissIncident,
   configurable,
   incident,
   analysisLoading,
@@ -109,6 +111,9 @@ export function StopTrainingPanel({
           <p>
             A alteração não foi aplicada à posição real do simulador. O replay foi pausado no instante da tentativa; a análise abaixo é hipotética e não altera o resultado registrado da operação.
           </p>
+          {configurable && (
+            <button type="button" className="secondary" onClick={onDismissIncident}>Concluir análise e liberar novo treinamento</button>
+          )}
         </div>
       )}
 
