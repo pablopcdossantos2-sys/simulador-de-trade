@@ -44,7 +44,7 @@ export function BackupPanel({ disabled, onImported }: Props) {
   async function handleImport() {
     if (
       importMode === "replace_all" &&
-      !window.confirm("Substituir todos os trades, sessões, eventos e configurações locais pelos dados do backup? Esta ação não pode ser desfeita.")
+      !window.confirm("Substituir todos os trades, sessões, eventos e configurações locais pelos dados do backup? Os replays incluídos também serão restaurados. Esta ação não pode ser desfeita.")
     ) return;
 
     setBusy("import");
@@ -83,9 +83,11 @@ export function BackupPanel({ disabled, onImported }: Props) {
 
       <p className="data-description">
         Exporte sessões, trades, notas, avaliações individuais, snapshots de
-        entrada, eventos e configurações. Em “Mesclar”, registros locais e configurações atuais são
-        preservados. Em “Substituir tudo”, os dados locais são apagados em uma
-        transação e o backup passa a ser a fonte.
+        entrada, eventos, configurações e todos os arquivos de replay catalogados,
+        incluindo seus metadados. Ao importar, esses replays são restaurados e
+        adicionados automaticamente ao catálogo local. Em “Mesclar”, registros locais
+        e configurações atuais são preservados. Em “Substituir tudo”, os registros
+        locais são substituídos pelos dados do backup.
       </p>
 
       <label className="backup-import-mode">
