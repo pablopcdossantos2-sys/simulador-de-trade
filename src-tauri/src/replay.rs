@@ -380,6 +380,9 @@ fn process_warmup_candles(
             if read == 0 {
                 break;
             }
+            if line.trim().is_empty() {
+                continue;
+            }
 
             match session.format {
                 ReplayFormat::Ticks => {
