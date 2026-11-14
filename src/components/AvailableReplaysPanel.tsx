@@ -6,7 +6,6 @@ import {
 
 interface Props {
   refreshKey: number;
-  onUseReplay: (path: string) => void;
 }
 
 function formatDate(value: string): string {
@@ -19,7 +18,7 @@ function formatBytes(value: number): string {
   return `${(value / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-export function AvailableReplaysPanel({ refreshKey, onUseReplay }: Props) {
+export function AvailableReplaysPanel({ refreshKey }: Props) {
   const [entries, setEntries] = useState<ReplayCatalogEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -80,7 +79,6 @@ export function AvailableReplaysPanel({ refreshKey, onUseReplay }: Props) {
               <small>{entry.symbol} · {formatBytes(entry.fileBytes)}</small>
               <small className="available-replay-filename">{entry.outputPath.split(/[\\/]/).pop()}</small>
             </div>
-            <button type="button" onClick={() => onUseReplay(entry.outputPath)}>Usar no simulador</button>
           </article>
         ))}
       </div>
