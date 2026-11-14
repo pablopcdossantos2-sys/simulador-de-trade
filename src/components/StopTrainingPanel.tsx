@@ -14,7 +14,7 @@ interface Props {
   startingBalance: string;
   onStartingBalanceChange: (value: string) => void;
   enabled: boolean;
-  onEnable: () => void;
+  onEnabledChange: (enabled: boolean) => void;
   configurable: boolean;
   incident: Incident | null;
   analysisLoading: boolean;
@@ -42,7 +42,7 @@ export function StopTrainingPanel({
   startingBalance,
   onStartingBalanceChange,
   enabled,
-  onEnable,
+  onEnabledChange,
   configurable,
   incident,
   analysisLoading,
@@ -86,13 +86,14 @@ export function StopTrainingPanel({
           />
           <small>Não existe saldo padrão. Informe o capital que será usado para avaliar o risco de esgotamento da conta.</small>
           {!enabled ? (
-            <button type="button" className="planner-apply" onClick={onEnable} disabled={!configurable || !validBalance}>
+            <button type="button" className="planner-apply" onClick={() => onEnabledChange(true)} disabled={!configurable || !validBalance}>
               Ativar treinamento de Stops
             </button>
           ) : (
-            <p className="stop-training-enabled-note">
-              O afastamento do stop será monitorado durante o próximo treinamento formal.
-            </p>
+            <div className="stop-training-enabled-note">
+              <p>O afastamento do stop será monitorado durante o próximo treinamento formal.</p>
+              <button type="button" className="secondary" onClick={() => onEnabledChange(false)} disabled={!configurable}>Desativar</button>
+            </div>
           )}
         </div>
       )}
@@ -164,6 +165,7 @@ export function StopTrainingPanel({
             position={null}
             asset={asset}
             entryPlacementEnabled={false}
+            fitAllCandles
           />
         </div>
       )}
