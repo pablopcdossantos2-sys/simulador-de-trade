@@ -495,20 +495,22 @@ export default function App() {
     persistClosedTradeRef.current = persistClosedTrade;
   });
 
+  const alertableSignal = signal && !signalAlreadyUsed ? signal : reentryAuthorization;
+
   useEffect(() => {
     if (!signalAlertEffectMountedRef.current) {
       signalAlertEffectMountedRef.current = true;
-      lastAlertedSignalIdRef.current = signal?.id ?? null;
+      lastAlertedSignalIdRef.current = alertableSignal?.id ?? null;
       return;
     }
-    if (!signal) {
+    if (!alertableSignal) {
       lastAlertedSignalIdRef.current = null;
       return;
     }
-    if (lastAlertedSignalIdRef.current === signal.id) return;
-    lastAlertedSignalIdRef.current = signal.id;
-    playSignalAlert(signal.side);
-  }, [signal?.id]);
+    if (lastAlertedSignalIdRef.current === alertableSignal.id) return;
+    lastAlertedSignalIdRef.current = alertableSignal.id;
+    playSignalAlert(alertableSignal.side);
+  }, [alertableSignal?.id]);
 
   useEffect(() => {
     if (dataMode !== "demo" || !position || !lastCandle) return;
