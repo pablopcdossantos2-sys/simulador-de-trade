@@ -435,8 +435,9 @@ export function TraderEvolutionPanel({ refreshKey }: Props) {
         </div>
         <p className="evolution-footnote">
           A análise cruza os desvios registrados com ativo, direção, zona do indicador, posição do preço em relação à VWAP,
-          proporção do corpo do candle de entrada e amplitude desse candle frente aos 10 anteriores.
-          Operações antigas sem snapshot continuam contribuindo para ativo e direção, mas não para as condições do gráfico.
+          proporção do corpo do candle de entrada, amplitude frente aos 10 anteriores, distância do stop em relação à volatilidade recente
+          e relação risco/retorno planejada. Operações antigas sem snapshot continuam contribuindo para ativo, direção e risco/retorno,
+          mas não para as condições que dependem do gráfico.
         </p>
         {reviewContextInsights.associations.length === 0 ? (
           <div className="review-context-empty">
