@@ -178,7 +178,7 @@ export function buildTradeReviewInsights(
   const comparisonAvailable = recent.length >= 5 && previous.length >= 5;
 
   const patterns = definitions
-    .map((definition) => {
+    .map((definition): TradeReviewPattern | null => {
       const current = measure(definition, reviewed);
       if (current.count === 0 || current.percentage === null) return null;
 
