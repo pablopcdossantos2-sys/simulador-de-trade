@@ -1344,12 +1344,28 @@ export default function App() {
         countdownSeconds={sessionCountdownSeconds}
         finished={replay.finished}
         busy={replay.busy}
-        onPlayPause={() => replay.setPlaying(!replay.playing)}
+        onPlayPause={() => {
+          if (!trainingActive || startingTraining) return;
+          replay.setPlaying(!replay.playing);
+        }}
         trainingActive={trainingActive}
-        onStep={() => void replay.step()}
-        onStepCandle={() => void replay.stepCandle()}
-        onReset={() => void resetReplay()}
-        onSpeedChange={(value) => replay.setSpeed(value)}
+        locked={!trainingActive || startingTraining}
+        onStep={() => {
+          if (!trainingActive || startingTraining) return;
+          void replay.step();
+        }}
+        onStepCandle={() => {
+          if (!trainingActive || startingTraining) return;
+          void replay.stepCandle();
+        }}
+        onReset={() => {
+          if (!trainingActive || startingTraining) return;
+          void resetReplay();
+        }}
+        onSpeedChange={(value) => {
+          if (!trainingActive || startingTraining) return;
+          replay.setSpeed(value);
+        }}
       />
 
       <section className="workspace">
