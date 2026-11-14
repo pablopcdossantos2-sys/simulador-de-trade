@@ -137,7 +137,7 @@ export function calculateSessionPerformance(
       : (usedSignalIds.size / signalOpportunities) * 100;
 
   const rMultiples = scopedTrades.map((trade) => {
-    const initialRisk = Math.abs(trade.entry - trade.stopLoss);
+    const initialRisk = Math.abs(trade.entry - (trade.initialStopLoss ?? trade.stopLoss));
     return initialRisk > 0 ? trade.resultPoints / initialRisk : 0;
   });
   const totalR = rMultiples.reduce((sum, value) => sum + value, 0);
