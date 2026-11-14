@@ -2108,26 +2108,37 @@ impl Drop for TempFileGuard {
     }
 }
 
+#[cfg(windows)]
+fn atomic_replace_file(new_path: &Path, output_path: &Path) -> Result<(), String> {
+    use std::os::windows::ffi::OsStrExt;
+    use windows_sys::Win32::Storage::FileSystem::{
+        MoveFileExW, MOVEFILE_REPLACE_EXISTING, MOVEFILE_WRITE_THROUGH,
+    };
+
+    let source: Vec<u16> = new_path.as_os_str().encode_wide().chain(Some(0)).collect();
+    let destination: Vec<u16> = output_path.as_os_str().encode_wide().chain(Some(0)).collect();
+    let result = unsafe {
+        MoveFileExW(
+            source.as_ptr(),
+            destination.as_ptr(),
+            MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH,
+        )
+    };
+    if result == 0 {
+        return Err(std::io::Error::last_os_error().to_string());
+    }
+    Ok(())
+}
+
+#[cfg(not(windows))]
+fn atomic_replace_file(new_path: &Path, output_path: &Path) -> Result<(), String> {
+    fs::rename(new_path, output_path).map_err(|error| error.to_string())
+}
+
 fn replace_file_safely(new_path: &Path, output_path: &Path) -> Result<(), String> {
-    if !output_path.exists() {
-        return fs::rename(new_path, output_path).map_err(|error| error.to_string());
-    }
-
-    let backup_path = output_path.with_extension("replay.previous");
-    let _ = fs::remove_file(&backup_path);
-
-    fs::rename(output_path, &backup_path).map_err(|error| error.to_string())?;
-
-    match fs::rename(new_path, output_path) {
-        Ok(()) => {
-            let _ = fs::remove_file(&backup_path);
-            Ok(())
-        }
-        Err(error) => {
-            let _ = fs::rename(&backup_path, output_path);
-            Err(error.to_string())
-        }
-    }
+    // O arquivo temporário fica no mesmo diretório/volume. A substituição é atômica
+    // e não cria nem remove nomes auxiliares que possam pertencer ao usuário.
+    atomic_replace_file(new_path, output_path)
 }
 
 fn canonicalize_replay_file(
