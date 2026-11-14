@@ -1255,7 +1255,6 @@ export default function App() {
           setCatalogMatches(matches);
           const targetPath = targetFileFromMatches(matches);
           replay.setPath(targetPath ?? "");
-          setFullSessionReplayPath(targetPath ?? "");
         }}
       />
 
@@ -1657,7 +1656,6 @@ export default function App() {
           setTrainingSession(null);
           setTrainingEvents([]);
           setExecutionSettings(DEFAULT_EXECUTION_SETTINGS);
-          setStopTrainingEnabled(false);
           setTrainingMode("FREE");
           setLastClosedTradeMarker(null);
           activeSignalRef.current = null;
