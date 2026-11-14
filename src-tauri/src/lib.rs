@@ -231,6 +231,7 @@ fn initialize_database(connection: &Connection) -> rusqlite::Result<()> {
 
     connection.execute_batch(
             r#"
+            PRAGMA foreign_keys = ON;
             PRAGMA journal_mode = WAL;
 
             CREATE TABLE IF NOT EXISTS trades (
@@ -1308,6 +1309,34 @@ fn validate_backup_bundle(bundle: &BackupBundle) -> Result<(), String> {
                 "O backup contém uma sessão inválida: {}.",
                 session.id
             ));
+        }
+    }
+
+    // Valida as referências antes de iniciar qualquer substituição de dados.
+    for event in &bundle.training_events {
+        if !matches!(
+            event.r#type.as_str(),
+            "SESSION_STARTED" | "SESSION_ENDED" | "BLOCKED_ATTEMPT"
+                | "SIGNAL_IGNORED" | "TRADE_OPENED" | "TRADE_CLOSED" | "TECHNICAL_ISSUE"
+        ) {
+            return Err(format!("O backup contém um evento com tipo inválido: {}.", event.id));
+        }
+        if !bundle.training_sessions.iter().any(|session| session.id == event.session_id) {
+            return Err(format!(
+                "O evento {} referencia uma sessão inexistente ({}).",
+                event.id, event.session_id
+            ));
+        }
+        if let Some(trade_id) = event.trade_id.as_deref() {
+            if !bundle.trades.iter().any(|trade| trade.id == trade_id) {
+                return Err(format!(
+                    "O evento {} referencia uma operação inexistente ({}).",
+                    event.id, trade_id
+                ));
+            }
+        }
+        if event.side.as_deref().is_some_and(|side| !matches!(side, "BUY" | "SELL")) {
+            return Err(format!("O evento {} contém uma direção inválida.", event.id));
         }
     }
 
