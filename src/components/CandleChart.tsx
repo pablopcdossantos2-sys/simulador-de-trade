@@ -364,12 +364,6 @@ export function CandleChart({
         {ema8Path && <path d={ema8Path} className="indicator-ema8-line" />}
         {ema52Path && <path d={ema52Path} className="indicator-ema52-line" />}
 
-        {lastCandle && <>
-          <line x1={PLOT_LEFT} x2={PLOT_RIGHT} y1={y(lastCandle.close)} y2={y(lastCandle.close)} className="last-price-line" />
-          <rect x={PLOT_RIGHT + 4} y={y(lastCandle.close) - 10} width="78" height="20" rx="4" className="last-price-tag" />
-          <text x={PLOT_RIGHT + 43} y={y(lastCandle.close) + 4} textAnchor="middle" className="last-price-tag-text">{formatPrice(lastCandle.close, asset)}</text>
-        </>}
-
         {position && <>
           <PriceLine y={y(position.entry)} label={"Entrada " + formatPrice(position.entry, asset)} className="entry-line" />
           <PriceLine
