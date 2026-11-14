@@ -1354,12 +1354,16 @@ fn validate_backup_bundle(bundle: &BackupBundle) -> Result<(), String> {
                 event.id, event.session_id
             ));
         }
-        if let Some(trade_id) = event.trade_id.as_deref() {
-            if !bundle.trades.iter().any(|trade| trade.id == trade_id) {
-                return Err(format!(
-                    "O evento {} referencia uma operação inexistente ({}).",
-                    event.id, trade_id
-                ));
+        // TRADE_OPENED pode referenciar uma posição ainda aberta, que não é
+        // persistida na tabela trades até o fechamento da operação.
+        if event.r#type == "TRADE_CLOSED" {
+            if let Some(trade_id) = event.trade_id.as_deref() {
+                if !bundle.trades.iter().any(|trade| trade.id == trade_id) {
+                    return Err(format!(
+                        "O evento {} referencia uma operação encerrada inexistente ({}).",
+                        event.id, trade_id
+                    ));
+                }
             }
         }
         if event.side.as_deref().is_some_and(|side| !matches!(side, "BUY" | "SELL")) {
