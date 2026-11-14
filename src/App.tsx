@@ -430,7 +430,9 @@ export default function App() {
     const currentCandle = candlesRef.current[candlesRef.current.length - 1];
     setLastClosedTradeMarker({
       trade: closed,
-      candleIndex: currentCandle?.index ?? closed.entryContext?.candleIndex ?? -1,
+      candleIndex: dataMode === "replay"
+        ? (currentCandle?.index ?? closed.entryContext?.candleIndex ?? -1) + warmupCandles.length
+        : currentCandle?.index ?? closed.entryContext?.candleIndex ?? -1,
     });
     setDraftEntryPrice(null);
     setDraftSide(null);
@@ -1027,7 +1029,7 @@ export default function App() {
         tradeId: nextPosition.id,
       });
       setFeedback(
-        `${sideLabel(side)} aberta em ${money.format(orderEntry)} com OCO obrigatório ativo.${useReentry ? " Reentrada autorizada pelo toque posterior na MME 52." : ""}`,
+        `${sideLabel(side)} aberta em ${money.format(orderEntry)} com OCO obrigatório ativo.${useReentry ? reentryAuthorization?.method === "STOP_COOLDOWN" ? " Reentrada autorizada após dez candles fechados desde o stop." : " Reentrada autorizada pelo toque posterior na MME 52." : ""}`,
       );
     } catch (error) {
       const isDisciplineError = error instanceof TradingRuleError;
