@@ -199,6 +199,22 @@ describe("relatório por sessão", () => {
     expect(result.expectancyR).toBeCloseTo(-0.05, 8);
   });
 
+  it("não conta autorizações de reentrada como sinais do indicador", () => {
+    const reentryEvent: TrainingEvent = {
+      id: "e8",
+      sessionId: "s1",
+      type: "TRADE_OPENED",
+      timestamp: "",
+      marketTimestamp: "2026-10-14T11:10:00",
+      signalId: "ma52-reentry:t1:42",
+      side: "BUY",
+      reason: null,
+      tradeId: "t3",
+    };
+    const result = calculateSessionPerformance(session, [...events, reentryEvent], trades);
+    expect(result.signalAdherencePct).toBeCloseTo(66.666, 2);
+  });
+
   it("agrupa tentativas bloqueadas por motivo", () => {
     expect(blockedAttemptBreakdown(events)).toEqual([
       {
