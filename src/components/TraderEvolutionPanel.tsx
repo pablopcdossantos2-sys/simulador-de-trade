@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { buildTraderEvolutionMetrics } from "../domain/traderEvolution";
 import { buildTradeReviewInsights } from "../domain/tradeReviewInsights";
+import { buildTradeReviewContextInsights } from "../domain/tradeReviewContextInsights";
 import {
   assessTradeReview,
   createTradeReviewDraft,
@@ -155,6 +156,10 @@ export function TraderEvolutionPanel({ refreshKey }: Props) {
   );
 
   const reviewInsights = useMemo(() => buildTradeReviewInsights(trades), [trades]);
+  const reviewContextInsights = useMemo(
+    () => buildTradeReviewContextInsights(trades),
+    [trades],
+  );
 
   const reviewSummary = useMemo(() => {
     const reviewed = trades.filter((trade) => trade.review);
@@ -407,6 +412,64 @@ export function TraderEvolutionPanel({ refreshKey }: Props) {
         <p className="evolution-footnote">
           A comparação usa até 10 avaliações recentes contra até 10 anteriores e só é exibida quando cada grupo tem pelo menos 5 registros.
           Os dados vêm da autoavaliação do trader; o simulador não observa emoções nem infere intenções.
+        </p>
+      </section>
+      <div className="evolution-section-heading">
+        <h3>Em quais contextos os desvios aparecem?</h3>
+        <span>Cruzamento das avaliações com as condições na entrada</span>
+      </div>
+      <section className="review-context-insights">
+        <div className="review-context-coverage">
+          <article>
+            <span>Operações avaliadas</span>
+            <strong>{reviewContextInsights.reviewedTrades}</strong>
+          </article>
+          <article>
+            <span>Com contexto de mercado</span>
+            <strong>{reviewContextInsights.reviewedWithContext}</strong>
+          </article>
+          <article>
+            <span>Cobertura dos snapshots</span>
+            <strong>{reviewContextInsights.contextCoveragePercentage.toFixed(0)}%</strong>
+          </article>
+        </div>
+        <p className="evolution-footnote">
+          A análise cruza os desvios registrados com ativo, direção, zona do indicador, posição do preço em relação à VWAP,
+          proporção do corpo do candle de entrada e amplitude desse candle frente aos 10 anteriores.
+          Operações antigas sem snapshot continuam contribuindo para ativo e direção, mas não para as condições do gráfico.
+        </p>
+        {reviewContextInsights.associations.length === 0 ? (
+          <div className="review-context-empty">
+            Ainda não há uma situação com frequência pelo menos 10 pontos percentuais acima da base geral e amostra mínima de 3 operações.
+            Continue registrando as avaliações para que possíveis associações possam ser observadas.
+          </div>
+        ) : (
+          <div className="review-context-list">
+            {reviewContextInsights.associations.map((association) => (
+              <article className="review-context-card" key={association.id}>
+                <div className="review-context-card-heading">
+                  <strong>{association.patternTitle}</strong>
+                  <span className={association.strength === "RECURRENT" ? "recurrent" : "early"}>
+                    {association.strength === "RECURRENT" ? "Associação recorrente" : "Sinal contextual inicial"}
+                  </span>
+                </div>
+                <p><strong>{association.dimensionLabel}:</strong> {association.contextLabel}</p>
+                <div className="review-context-comparison">
+                  <strong>{association.count} de {association.sampleSize} operações · {association.percentage.toFixed(0)}%</strong>
+                  <span>Base geral: {association.baselineCount} de {association.baselineSampleSize} · {association.baselinePercentage.toFixed(0)}%</span>
+                  <span className="review-context-delta">+{association.differencePercentagePoints.toFixed(0)} p.p.</span>
+                </div>
+                <div className="review-insight-bar" role="img" aria-label={"Frequência de " + association.percentage.toFixed(0) + " por cento nesse contexto"}>
+                  <span style={{ width: String(Math.min(100, association.percentage)) + "%" }} />
+                </div>
+              </article>
+            ))}
+          </div>
+        )}
+        <p className="evolution-footnote">
+          São exibidas até 12 associações com maior diferença em relação à base geral. Um sinal contextual inicial exige ao menos 3 operações no grupo;
+          uma associação recorrente exige ao menos 5 operações e 2 ocorrências. A diferença mínima é de 10 pontos percentuais.
+          Esses critérios são exploratórios: não provam que o contexto causou o desvio nem substituem uma análise estatística.
         </p>
       </section>
       <div className="trade-review-toolbar">
