@@ -354,8 +354,7 @@ export default function App() {
     const current = marketClockSeconds(currentReplayTrade?.timestamp) ??
       marketClockSeconds(trainingSession.startTime);
     if (end === null || current === null) return null;
-    const remaining = end - current;
-    return Math.max(0, remaining < 0 ? remaining + 24 * 60 * 60 : remaining);
+    return Math.max(0, end - current);
   }, [trainingActive, trainingSession, currentReplayTrade?.timestamp]);
   const examActive = Boolean(
     trainingActive && trainingSession?.mode === "EXAM",
