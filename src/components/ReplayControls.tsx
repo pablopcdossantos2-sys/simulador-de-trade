@@ -11,6 +11,7 @@ interface Props {
   busy: boolean;
   onPlayPause: () => void;
   trainingActive: boolean;
+  locked?: boolean;
   onStep: () => void;
   onStepCandle: () => void;
   onReset: () => void;
@@ -39,6 +40,7 @@ export function ReplayControls({
   busy,
   onPlayPause,
   trainingActive,
+  locked = false,
   onStep,
   onStepCandle,
   onReset,
@@ -86,14 +88,14 @@ Etapa 6 · Reproduzir o mercado · M{timeframeMinutes}
               type="button"
               className="replay-primary"
               onClick={onPlayPause}
-              disabled={finished || !trainingActive}
+              disabled={finished || !trainingActive || locked}
             >
               {playing ? "Pausar" : "Reproduzir"}
             </button>
             <button
               type="button"
               onClick={onStep}
-              disabled={playing || finished || busy || !trainingActive}
+              disabled={playing || finished || busy || !trainingActive || locked}
             >
               {session.synthetic ? "+1 segundo" : "+1 negócio"}
             </button>
@@ -104,7 +106,7 @@ Etapa 6 · Reproduzir o mercado · M{timeframeMinutes}
             >
               +1 candle
             </button>
-            <button type="button" onClick={onReset} disabled={busy || trainingActive}>
+            <button type="button" onClick={onReset} disabled={busy || trainingActive || locked}>
               Reiniciar
             </button>
 
@@ -113,6 +115,7 @@ Etapa 6 · Reproduzir o mercado · M{timeframeMinutes}
               <select
                 value={speed}
                 onChange={(event) => onSpeedChange(Number(event.target.value))}
+                disabled={locked}
               >
                 {[1, 2, 5, 10].map((value) => (
                   <option key={value} value={value}>
