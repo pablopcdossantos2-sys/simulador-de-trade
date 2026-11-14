@@ -207,7 +207,6 @@ export function SessionHistoryPanel({ refreshKey }: Props) {
     <section className="session-history card">
       <div className="section-heading">
         <div>
-          <p className="eyebrow">Histórico persistente</p>
           <h2>Sessões registradas</h2>
         </div>
         <span className="history-count">{sessions.length} sessões</span>
