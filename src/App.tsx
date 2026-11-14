@@ -1236,11 +1236,6 @@ export default function App() {
           ))}
         </div>
 
-        <div className="quote">
-          <span>Último preço</span>
-          <strong>{lastCandle ? money.format(lastPrice) : "—"}</strong>
-        </div>
-
         <div className="indicator-name">
           <span>Indicador</span>
           <strong>{indicator.name}</strong>
@@ -1355,7 +1350,18 @@ export default function App() {
           ((executionSettings.disciplinedTrainingStartingBalanceBRL ?? 0) > 0 ||
             (stopTrainingEnabled && (executionSettings.stopTrainingStartingBalanceBRL ?? 0) > 0))
         }
+        startBlockedReason={
+          startingTraining
+            ? "Aguarde a inicialização da sessão."
+            : !replay.session
+              ? "Carregue o replay do pregão-alvo antes de iniciar."
+              : !((executionSettings.disciplinedTrainingStartingBalanceBRL ?? 0) > 0 ||
+                  (stopTrainingEnabled && (executionSettings.stopTrainingStartingBalanceBRL ?? 0) > 0))
+                ? "O capital do Treino disciplinado ainda não foi configurado. Informe o saldo inicial em Configurações para liberar o início."
+                : null
+        }
         replayLoaded={Boolean(replay.session)}
+        onOpenSettings={() => setActiveArea("CONFIGURACOES")}
         onStart={() => void startTraining()}
         onEnd={() => void finishTraining()}
       />
