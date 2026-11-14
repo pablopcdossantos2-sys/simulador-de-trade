@@ -341,21 +341,23 @@ export function CandleChart({
           <span>Vol. {new Intl.NumberFormat("pt-BR", { notation: "compact", maximumFractionDigits: 1 }).format(readoutCandle.volume)}</span>
         </div>
         <div className="chart-controls" aria-label="Controles de zoom do gráfico">
-          <InfoTip label="Como interagir com o gráfico">
-            <p>Clique em um preço do gráfico para posicionar a entrada. Arraste dentro da área dos candles para mover o gráfico; arraste as linhas de Stop e Alvo para ajustar a OCO (regra 1:2).</p>
+          <InfoTip label="Como interagir com o gráfico" className="chart-info-tip">
+            <p>Clique em um preço do gráfico para posicionar a entrada. Arraste a área dos candles para mover o gráfico; somente a linha de Alvo pode ser arrastada para ajustar a OCO. O Stop permanece fixo.</p>
             <p>Os candles anteriores são apenas contexto visual; o replay continua revelando somente os negócios do pregão selecionado.</p>
           </InfoTip>
           {fitAllCandles ? (
             <span>{visible.length.toLocaleString("pt-BR")} candles · visão completa</span>
           ) : (
             <>
-              <button type="button" aria-label="Zoom out: mostrar mais candles" title="Mostrar mais candles"
-                disabled={visibleBars >= MAX_VISIBLE_BARS}
-                onClick={() => { setVisibleBars((value) => Math.min(MAX_VISIBLE_BARS, value + 12)); setCrosshair(null); }}>−</button>
-              <span>{visibleBars} candles</span>
-              <button type="button" aria-label="Zoom in: mostrar menos candles" title="Mostrar menos candles"
-                disabled={visibleBars <= MIN_VISIBLE_BARS}
-                onClick={() => { setVisibleBars((value) => Math.max(MIN_VISIBLE_BARS, value - 12)); setCrosshair(null); }}>+</button>
+              <div className="chart-candle-zoom" role="group" aria-label="Quantidade de candles visíveis">
+                <button type="button" className="chart-candle-step" aria-label="Mostrar mais candles" title="Mostrar mais candles"
+                  disabled={visibleBars >= MAX_VISIBLE_BARS}
+                  onClick={() => { setVisibleBars((value) => Math.min(MAX_VISIBLE_BARS, value + 12)); setCrosshair(null); }}>−</button>
+                <span>{visibleBars} candles</span>
+                <button type="button" className="chart-candle-step" aria-label="Mostrar menos candles" title="Mostrar menos candles"
+                  disabled={visibleBars <= MIN_VISIBLE_BARS}
+                  onClick={() => { setVisibleBars((value) => Math.max(MIN_VISIBLE_BARS, value - 12)); setCrosshair(null); }}>+</button>
+              </div>
             </>
           )}
           <span title="Arraste o eixo de preços para alterar a escala vertical">{priceZoom.toFixed(1)}× Y</span>
