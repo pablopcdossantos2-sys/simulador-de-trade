@@ -98,6 +98,24 @@ const money = new Intl.NumberFormat("pt-BR", {
   maximumFractionDigits: 2,
 });
 
+function formatTradeDateTime(value: string, part: "date" | "time"): string {
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) {
+    const match = /^(\\d{4})-(\\d{2})-(\\d{2})[T ](\\d{2}):(\\d{2})/.exec(value);
+    if (!match) return value;
+    return part === "date"
+      ? `${match[3]}/${match[2]}/${match[1]}`
+      : `${match[4]}:${match[5]}`;
+  }
+
+  return new Intl.DateTimeFormat("pt-BR", {
+    timeZone: "America/Sao_Paulo",
+    ...(part === "date"
+      ? { day: "2-digit", month: "2-digit", year: "numeric" }
+      : { hour: "2-digit", minute: "2-digit", hour12: false }),
+  }).format(parsed);
+}
+
 function initialTheme(): ThemeMode {
   try {
     const stored = localStorage.getItem(THEME_KEY);
@@ -1579,7 +1597,10 @@ export default function App() {
 
 
       <details className="advanced-tools">
-        <summary>Importação alternativa fora do plano (avançado)</summary>
+        <summary>
+          <span>Modo de importação alternativo</span>
+          <small>Avançado · preparar um CSV fora do plano atual</small>
+        </summary>
         <div className="advanced-tools-help">
           <InfoTip label="Quando usar a importação avançada">
             Utilize esta ferramenta para preparar um arquivo avulso, testar um CSV ou adicionar ao catálogo um replay que não pertence ao plano ativo. Para os pregões planejados, use a importação guiada.
@@ -1672,6 +1693,8 @@ export default function App() {
             <table>
               <thead>
                 <tr>
+                  <th>Dia</th>
+                  <th>Horário</th>
                   <th>Ativo</th>
                   <th>Direção</th>
                   <th>Qtd.</th>
@@ -1687,6 +1710,8 @@ export default function App() {
               <tbody>
                 {historyTradesForDisplay.slice(0, 10).map((trade) => (
                   <tr key={trade.id}>
+                    <td>{formatTradeDateTime(trade.openedAt, "date")}</td>
+                    <td>{formatTradeDateTime(trade.openedAt, "time")}</td>
                     <td>{trade.asset}</td>
                     <td>{sideLabel(trade.side)}</td>
                     <td>{trade.contracts}</td>
