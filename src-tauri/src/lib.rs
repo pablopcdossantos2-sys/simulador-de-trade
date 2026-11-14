@@ -1679,8 +1679,8 @@ fn find_alias(fields: &[String], aliases: &[&str]) -> Option<usize> {
 
 fn detect_candle_layout(fields: &[String]) -> Option<ProfitCandleLayout> {
     let open_idx = find_alias(fields, &["abertura", "open", "preco abertura", "preço abertura"])?;
-    let high_idx = find_alias(fields, &["maxima", "máxima", "high", "preco maximo", "preço máximo"])?;
-    let low_idx = find_alias(fields, &["minima", "mínima", "low", "preco minimo", "preço mínimo"])?;
+    let high_idx = find_alias(fields, &["maxima", "máxima", "maximo", "máximo", "high", "preco maximo", "preço máximo"])?;
+    let low_idx = find_alias(fields, &["minima", "mínima", "minimo", "mínimo", "low", "preco minimo", "preço mínimo"])?;
     let close_idx = find_alias(fields, &["fechamento", "close", "preco fechamento", "preço fechamento"])?;
     // Para VWAP, prefira sempre volume negociado em quantidade/contratos.
     // Não use "Volume Financeiro" quando a exportação também trouxer "Volume Quantidade".
@@ -2530,7 +2530,8 @@ fn process_profit_m2_candle_file(
         }
     }
 
-    let source_is_m1 = rows.windows(2).any(|pair| {
+    let source_is_m1 = rows.iter().any(|row| row.timestamp.minute() % 2 != 0)
+        || rows.windows(2).any(|pair| {
         pair[0].timestamp.date() == pair[1].timestamp.date()
             && (pair[1].timestamp - pair[0].timestamp).num_seconds() == 60
     });
