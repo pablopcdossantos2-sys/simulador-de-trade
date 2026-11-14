@@ -187,6 +187,7 @@ export interface TrainingSession {
   timeframeMinutes: number;
   warmupBars: number;
   mode: TrainingMode;
+  startingBalanceBRL?: number | null;
   startedAt: string;
   endedAt: string | null;
   status: TrainingSessionStatus;
