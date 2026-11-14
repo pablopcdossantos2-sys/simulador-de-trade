@@ -11,7 +11,9 @@ interface Props {
   summary: TrainingSummary | null;
   events: TrainingEvent[];
   canStart: boolean;
+  startBlockedReason?: string | null;
   replayLoaded: boolean;
+  onOpenSettings: () => void;
   mode: TrainingMode;
   startingBalanceBRL: number | null;
   onModeChange: (mode: TrainingMode) => void;
@@ -96,7 +98,9 @@ export function TrainingSessionPanel({
   summary,
   events,
   canStart,
+  startBlockedReason = null,
   replayLoaded,
+  onOpenSettings,
   mode,
   startingBalanceBRL,
   onModeChange,
@@ -243,6 +247,14 @@ export function TrainingSessionPanel({
         <small className="training-hint">
           O replay do pregão-alvo precisa estar carregado antes do início.
         </small>
+      )}
+      {replayLoaded && !canStart && startBlockedReason && (
+        <div className="training-hint training-start-blocked" role="status">
+          <span>{startBlockedReason}</span>
+          {startBlockedReason.includes("capital") && (
+            <button type="button" onClick={onOpenSettings}>Abrir Configurações</button>
+          )}
+        </div>
       )}
 
       {examActive && (
