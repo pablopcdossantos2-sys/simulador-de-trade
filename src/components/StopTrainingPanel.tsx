@@ -65,6 +65,9 @@ export function StopTrainingPanel({
   scope,
 }: Props) {
   const validBalance = startingBalanceBRL !== null && Number.isFinite(startingBalanceBRL) && startingBalanceBRL > 0;
+  const capitalLabel = validBalance && startingBalanceBRL !== null
+    ? brl.format(startingBalanceBRL)
+    : "não configurado em Configurações";
   const initialAdjustments = scenario?.adjustments.slice(0, 6) ?? [];
   const remainingAdjustments = scenario
     ? scenario.adjustments.length > 12
@@ -97,9 +100,7 @@ export function StopTrainingPanel({
       {!incident && (
         <div className="stop-training-setup">
           <small>
-            Capital: {validBalance
-              ? brl.format(startingBalanceBRL)
-              : "não configurado em Configurações"}
+            Capital: {capitalLabel}
           </small>
           <small>{fullDayReady ? "Pregão completo disponível." : "Prepare os arquivos M2 completos do pregão na aba Simulador."}</small>
           {!enabled ? (

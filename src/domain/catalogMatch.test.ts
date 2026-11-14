@@ -31,9 +31,6 @@ const plan = calculateSimulationPlan({
   asset: "WINFUT",
   date: "2026-10-14",
   timeframeMinutes: 2,
-  startTime: "09:00",
-  endTime: "12:00",
-  warmupPolicy: "STANDARD",
 });
 
 describe("catálogo de dados do plano", () => {
@@ -45,7 +42,7 @@ describe("catálogo de dados do plano", () => {
       entry({
         outputPath: "C:\\data\\target.replay.csv",
         tradeDate: "2026-10-14",
-        sessionEnd: "12:00",
+        sessionEnd: "18:00",
       }),
     ]);
 
@@ -67,7 +64,7 @@ describe("catálogo de dados do plano", () => {
       entry({
         outputPath: "C:\\data\\target.replay.csv",
         tradeDate: "2026-10-14",
-        sessionEnd: "12:00",
+        sessionEnd: "18:00",
         symbol: "WINV26",
       }),
     ]);
@@ -76,7 +73,7 @@ describe("catálogo de dados do plano", () => {
     expect(planIsReady(matches)).toBe(false);
   });
 
-  it("ignora arquivos que não cobrem toda a janela exigida", () => {
+  it("ignora arquivos que não cobrem todo o pregão", () => {
     const matches = matchSimulationPlan(plan, "WINFUT", [
       entry({
         sessionEnd: "12:00",
@@ -93,7 +90,7 @@ describe("catálogo de dados do plano", () => {
 });
 
 
-it("exige janela exata para o pregão-alvo, mesmo que um arquivo maior exista", () => {
+it("exige o pregão completo para o arquivo-alvo", () => {
   const matches = matchSimulationPlan(plan, "WINFUT", [
     entry({
       outputPath: "C:\\data\\warmup.replay.csv",
@@ -102,7 +99,7 @@ it("exige janela exata para o pregão-alvo, mesmo que um arquivo maior exista", 
       outputPath: "C:\\data\\target-too-wide.replay.csv",
       tradeDate: "2026-10-14",
       sessionStart: "09:00",
-      sessionEnd: "18:00",
+      sessionEnd: "12:00",
     }),
   ]);
 
