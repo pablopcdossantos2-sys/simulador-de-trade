@@ -148,7 +148,7 @@ O treinamento é ativado separadamente e usa um saldo inicial próprio, sem valo
 
 A OCO deve respeitar risco/retorno mínimo de 1:2. A boleta mostra um aviso enquanto o alvo não representar ao menos o dobro da distância do stop.
 
-Durante uma sessão formal, afastar o stop para aumentar o risco interrompe imediatamente o replay. A tentativa é registrada como infração e não modifica o stop da posição real. O sistema lê o arquivo do pregão completo em um cursor independente, sem alterar o ponto do replay interrompido.
+Durante uma sessão formal, afastar o stop para aumentar o risco interrompe imediatamente o replay. A tentativa é registrada como infração e não modifica o stop da posição real. O treino formal permanece aberto para que o usuário o encerre pelo painel “Treino disciplinado”; após esse encerramento, a análise pode ser concluída e um novo exercício liberado. O sistema lê o arquivo do pregão completo em um cursor independente, sem alterar o ponto do replay interrompido.
 
 A análise contrafactual começa no stop que o usuário tentou definir. Cada vez que o mercado alcança esse nível, o cenário desloca o stop mais uma unidade do risco original (1R), mantendo o alvo. O relatório apresenta saldo inicial/final hipotético, resultado, quantidade e histórico de afastamentos, preço/horário de saída e o gráfico completo. Custos e slippage configurados são considerados. O cenário é didático: não representa execução real, margem da corretora ou liquidação compulsória. Quando o replay usa candles M2, os eventos intrabar são sintéticos e a reconstrução é uma hipótese baseada nessa trajetória.
 
