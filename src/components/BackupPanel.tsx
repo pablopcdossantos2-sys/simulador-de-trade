@@ -76,7 +76,6 @@ export function BackupPanel({ disabled, onImported }: Props) {
     <section className="backup-panel card">
       <div className="section-heading">
         <div>
-          <p className="eyebrow">Segurança dos dados</p>
           <h2>Backup e restauração</h2>
         </div>
         <span className="history-count">JSON v1</span>
