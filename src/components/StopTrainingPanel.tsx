@@ -87,7 +87,6 @@ export function StopTrainingPanel({
     <section className="stop-training-panel card">
       <div className="section-heading">
         <div>
-          <p className="eyebrow">Treinamento específico</p>
           <h2>Treinamento de Stops</h2>
         </div>
         <span className={incident ? "stop-training-status violated" : enabled ? "stop-training-status active" : "stop-training-status"}>
