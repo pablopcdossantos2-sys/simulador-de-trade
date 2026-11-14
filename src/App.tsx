@@ -44,6 +44,7 @@ import {
   visibleTradesForTrainingState,
 } from "./domain/training";
 import {
+  canReenterAfterStop,
   closePositionAtMarket,
   closePositionManually,
   openPosition,
