@@ -1543,14 +1543,7 @@ export default function App() {
 
       <section className="app-area available-replays-area" hidden={activeArea !== "PREGOES"}>
         <h2 className="area-title">Pregões e replays</h2>
-        <AvailableReplaysPanel
-          refreshKey={catalogRefreshKey}
-          onUseReplay={(path) => {
-            replay.setPath(path);
-            setActiveArea("SIMULADOR");
-            setFeedback("Replay selecionado. Confira o plano e clique em “Carregar replay” para iniciar.");
-          }}
-        />
+        <AvailableReplaysPanel refreshKey={catalogRefreshKey} />
       </section>
 
       <section className="app-area results-area" hidden={activeArea !== "RESULTADOS"}>
