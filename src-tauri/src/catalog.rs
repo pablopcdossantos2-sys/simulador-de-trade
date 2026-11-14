@@ -58,39 +58,56 @@ fn load_catalog(app: &tauri::AppHandle) -> Result<Vec<ReplayCatalogEntry>, Strin
     serde_json::from_str(&raw).map_err(|error| error.to_string())
 }
 
+#[cfg(windows)]
+fn atomic_replace_file(new_path: &Path, output_path: &Path) -> Result<(), String> {
+    use std::os::windows::ffi::OsStrExt;
+    use windows_sys::Win32::Storage::FileSystem::{
+        MoveFileExW, MOVEFILE_REPLACE_EXISTING, MOVEFILE_WRITE_THROUGH,
+    };
+
+    let source: Vec<u16> = new_path.as_os_str().encode_wide().chain(Some(0)).collect();
+    let destination: Vec<u16> = output_path.as_os_str().encode_wide().chain(Some(0)).collect();
+    let result = unsafe {
+        MoveFileExW(
+            source.as_ptr(),
+            destination.as_ptr(),
+            MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH,
+        )
+    };
+    if result == 0 {
+        return Err(std::io::Error::last_os_error().to_string());
+    }
+    Ok(())
+}
+
+#[cfg(not(windows))]
+fn atomic_replace_file(new_path: &Path, output_path: &Path) -> Result<(), String> {
+    fs::rename(new_path, output_path).map_err(|error| error.to_string())
+}
+
 fn save_catalog(
     app: &tauri::AppHandle,
     entries: &[ReplayCatalogEntry],
 ) -> Result<(), String> {
     let path = catalog_path(app)?;
-    let temp_path = path.with_extension("json.tmp");
-    let backup_path = path.with_extension("json.previous");
-    let raw =
-        serde_json::to_string_pretty(entries).map_err(|error| error.to_string())?;
+    let nonce = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_nanos();
+    let temp_path = path.with_file_name(format!("replay-catalog.{}.{}.tmp", std::process::id(), nonce));
+    let raw = serde_json::to_string_pretty(entries).map_err(|error| error.to_string())?;
 
-    fs::write(&temp_path, raw).map_err(|error| error.to_string())?;
-
-    if !path.exists() {
-        return fs::rename(&temp_path, &path).map_err(|error| error.to_string());
-    }
-
-    let _ = fs::remove_file(&backup_path);
-    fs::rename(&path, &backup_path).map_err(|error| {
+    let write_result = (|| -> Result<(), String> {
+        let mut file = fs::File::create(&temp_path).map_err(|error| error.to_string())?;
+        use std::io::Write;
+        file.write_all(raw.as_bytes()).map_err(|error| error.to_string())?;
+        file.sync_all().map_err(|error| error.to_string())?;
+        atomic_replace_file(&temp_path, &path)
+    })();
+    if write_result.is_err() {
         let _ = fs::remove_file(&temp_path);
-        error.to_string()
-    })?;
-
-    match fs::rename(&temp_path, &path) {
-        Ok(()) => {
-            let _ = fs::remove_file(&backup_path);
-            Ok(())
-        }
-        Err(error) => {
-            let _ = fs::rename(&backup_path, &path);
-            let _ = fs::remove_file(&temp_path);
-            Err(error.to_string())
-        }
     }
+    write_result
 }
 
 fn read_metadata(output_path: &Path) -> Result<(PathBuf, Value), String> {
