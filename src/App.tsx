@@ -1357,6 +1357,7 @@ export default function App() {
         startingBalance={stopTrainingStartingBalance}
         onStartingBalanceChange={setStopTrainingStartingBalance}
         enabled={stopTrainingEnabled}
+        trainingActive={trainingActive}
         onEnabledChange={setStopTrainingEnabled}
         onDismissIncident={() => {
           stopIncidentRef.current = false;
