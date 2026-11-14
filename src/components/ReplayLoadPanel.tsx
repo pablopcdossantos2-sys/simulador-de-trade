@@ -1,4 +1,5 @@
 import type { ReplaySessionInfo } from "../services/replayData";
+import { InfoTip } from "./InfoTip";
 
 interface Props {
   path: string;
@@ -26,17 +27,15 @@ export function ReplayLoadPanel({
   return (
     <section className="replay-controls card replay-load-panel">
       <div className="section-heading replay-heading">
-        <div>
+        <div className="replay-load-title">
           <h2>Carregar pregão · M{timeframeMinutes}</h2>
+          <InfoTip label="Sobre o replay">Selecione o arquivo M2 completo gerado pelo fluxo de preparação de dados. O arquivo tratado é salvo na mesma pasta do CSV de origem.</InfoTip>
         </div>
         <span className={`replay-status ${finished ? "finished" : session ? "ready" : ""}`}>
           {finished ? "Sessão concluída" : session ? "Arquivo carregado" : "Aguardando arquivo"}
         </span>
       </div>
 
-      <p className="data-description">
-        Selecione o arquivo M2 do pregão completo preparado acima.
-      </p>
 
       <div className="replay-load-row">
         <label>

@@ -1,9 +1,26 @@
 import { useEffect, useState } from "react";
+import { InfoTip } from "./InfoTip";
 import {
   prepareProfitReplayFile,
   type ProfitPreparationProgress,
   type ProfitPreparationResult,
 } from "../services/profitData";
+
+function readableError(error: unknown, fallback: string): string {
+  if (typeof error === "string" && error.trim()) return error;
+  if (error instanceof Error && error.message) return error.message;
+  if (error && typeof error === "object" && "message" in error) {
+    const message = String((error as { message?: unknown }).message ?? "");
+    if (message.trim()) return message;
+  }
+  try {
+    const serialized = JSON.stringify(error);
+    if (serialized && serialized !== "{}") return serialized;
+  } catch {
+    // Mantém a mensagem alternativa se o erro não puder ser serializado.
+  }
+  return fallback;
+}
 
 interface Props {
   onPrepared?: (result: ProfitPreparationResult) => void;
@@ -70,7 +87,7 @@ export function DataPreparationPanel({
     } catch (error) {
       setStatus("error");
       setMessage(
-        error instanceof Error ? error.message : "Falha ao tratar o arquivo.",
+        readableError(error, "Falha ao tratar o arquivo. Consulte os detalhes técnicos."),
       );
     }
   }
@@ -85,14 +102,11 @@ export function DataPreparationPanel({
         <span className="session-window">{sessionStart} → {sessionEnd}</span>
       </div>
 
-      <p className="data-description">
-        Prefira exportar o gráfico M2 do Profit com Ativo/Contrato, Data/Hora (ou Data com data e hora juntas),
-        Abertura, Máxima, Mínima, Fechamento e Volume Quantidade/Quantidade. Quando houver Volume Financeiro e Volume Quantidade,
-        o sistema utiliza a quantidade. O sistema cria um arquivo
-        compacto OHLCV e gera movimento sintético segundo a segundo durante o
-        replay. CSVs antigos de negócios individuais continuam aceitos apenas
-        para compatibilidade.
-      </p>
+      <div className="data-preparation-help">
+        <InfoTip label="Formato dos arquivos aceitos">
+          Exporte do Profit as colunas Ativo/Contrato, Data, Hora, Abertura, Máxima, Mínima, Fechamento e Quantidade. Se houver Volume Financeiro e Quantidade, o sistema utiliza Quantidade. O replay M2 gera uma trajetória sintética dentro de cada candle; não representa negócios históricos tick a tick. Arquivos antigos de negócios individuais continuam aceitos para compatibilidade.
+        </InfoTip>
+      </div>
 
       <div className="data-window-grid">
         <label>
@@ -177,12 +191,11 @@ export function DataPreparationPanel({
         </div>
       )}
 
-      <p className="data-footnote">
-        O horário inicial é inclusivo e o horário final é exclusivo. Use nesta
-        etapa exatamente a faixa de dados que você pretende preservar; o
-        planejador da simulação também indicará os dados extras necessários
-        para aquecer o indicador.
-      </p>
+      <div className="data-footnote">
+        <InfoTip label="Sobre a faixa de horário">
+          O horário inicial é inclusivo e o horário final é exclusivo. O planejador indicará também os dados anteriores necessários para aquecer o indicador.
+        </InfoTip>
+      </div>
     </section>
   );
 }

@@ -15,6 +15,7 @@ import { StudentProgressPanel } from "./components/StudentProgressPanel";
 import { TraderEvolutionPanel } from "./components/TraderEvolutionPanel";
 import { ExecutionSettingsPanel } from "./components/ExecutionSettingsPanel";
 import { BackupPanel } from "./components/BackupPanel";
+import { InfoTip } from "./components/InfoTip";
 import {
   ThemeToggle,
   type ThemeMode,
@@ -114,6 +115,13 @@ type StopTrainingIncident = {
   position: Position;
 };
 
+function ocoLevelsFromDistances(asset: Asset, side: Side, entry: number, stopPoints: number, targetPoints: number) {
+  return {
+    stopLoss: roundPriceToTick(asset, side === "BUY" ? entry - stopPoints : entry + stopPoints),
+    target: roundPriceToTick(asset, side === "BUY" ? entry + targetPoints : entry - targetPoints),
+  };
+}
+
 export default function App() {
   const [activeArea, setActiveArea] = useState<"SIMULADOR" | "TREINO_STOPS" | "CONFIGURACOES" | "RESULTADOS" | "EVOLUCAO">("SIMULADOR");
   const [asset, setAsset] = useState<Asset>("WINFUT");
@@ -123,8 +131,8 @@ export default function App() {
     useState<ReplayTrade | null>(null);
   const [position, setPosition] = useState<Position | null>(null);
   const [trades, setTrades] = useState<Trade[]>([]);
-  const [stopLoss, setStopLoss] = useState("");
-  const [target, setTarget] = useState("");
+  const [stopDistance, setStopDistance] = useState("");
+  const [targetDistance, setTargetDistance] = useState("");
   const [draftEntryPrice, setDraftEntryPrice] = useState<number | null>(null);
   const [draftSide, setDraftSide] = useState<Side | null>(null);
   const [lastClosedTradeMarker, setLastClosedTradeMarker] = useState<{ trade: Trade; candleIndex: number } | null>(null);
@@ -327,11 +335,15 @@ export default function App() {
   );
   const draftOrder = useMemo(() => {
     if (position || draftEntryPrice === null || !draftSide) return null;
-    const parsedStop = Number(stopLoss);
-    const parsedTarget = Number(target);
-    if (!Number.isFinite(parsedStop) || !Number.isFinite(parsedTarget) || parsedStop <= 0 || parsedTarget <= 0) return null;
-    return { side: draftSide, entry: draftEntryPrice, stopLoss: parsedStop, target: parsedTarget };
-  }, [position, draftEntryPrice, draftSide, stopLoss, target]);
+    const stopPoints = Number(stopDistance);
+    const targetPoints = Number(targetDistance);
+    if (!Number.isFinite(stopPoints) || !Number.isFinite(targetPoints) || stopPoints <= 0 || targetPoints <= 0) return null;
+    return {
+      side: draftSide,
+      entry: draftEntryPrice,
+      ...ocoLevelsFromDistances(asset, draftSide, draftEntryPrice, stopPoints, targetPoints),
+    };
+  }, [position, draftEntryPrice, draftSide, stopDistance, targetDistance, asset]);
 
   function appendTrainingEvent(event: TrainingEvent) {
     setTrainingEvents((current) => [...current, event]);
@@ -472,14 +484,12 @@ export default function App() {
     lastSuggestedSignalIdRef.current = signal.id;
 
     const distance = suggestedOcoDistance(asset);
-    const entry = lastPrice;
-
     if (signal.side === "BUY") {
-      setStopLoss(String(entry - distance.stop));
-      setTarget(String(entry + distance.target));
+      setStopDistance(String(distance.stop));
+      setTargetDistance(String(distance.target));
     } else {
-      setStopLoss(String(entry + distance.stop));
-      setTarget(String(entry - distance.target));
+      setStopDistance(String(distance.stop));
+      setTargetDistance(String(distance.target));
     }
 
     setFeedback(
@@ -578,8 +588,8 @@ export default function App() {
     setAsset(next);
     setCandles(createDemoCandles(next));
     setPosition(null);
-    setStopLoss("");
-    setTarget("");
+    setStopDistance("");
+    setTargetDistance("");
     setContracts("1");
     setFeedback(
       `Ativo alterado para ${next}. Aguarde a formação de uma zona válida antes de operar.`,
@@ -641,8 +651,8 @@ export default function App() {
       setLastClosedTradeMarker(null);
       setDraftEntryPrice(null);
       setDraftSide(null);
-      setStopLoss("");
-      setTarget("");
+      setStopDistance("");
+      setTargetDistance("");
       setContracts("1");
       setTrainingSession(null);
       setTrainingEvents([]);
@@ -673,8 +683,8 @@ export default function App() {
     setCurrentReplayTrade(null);
     positionRef.current = null;
     setPosition(null);
-    setStopLoss("");
-    setTarget("");
+    setStopDistance("");
+    setTargetDistance("");
     setContracts("1");
     setFeedback("Replay reiniciado no começo da sessão.");
   }
@@ -719,8 +729,8 @@ export default function App() {
     setCurrentReplayTrade(null);
     positionRef.current = null;
     setPosition(null);
-    setStopLoss("");
-    setTarget("");
+    setStopDistance("");
+    setTargetDistance("");
     setContracts("1");
     activeSignalRef.current = null;
     usedSignalIdsRef.current = new Set();
@@ -902,7 +912,7 @@ export default function App() {
     }
   }
 
-  function normalizeOrderPrice(
+  function normalizeDistance(
     raw: string,
     setter: (value: string) => void,
     label: string,
@@ -917,7 +927,7 @@ export default function App() {
 
     if (Math.abs(rounded - parsed) > 1e-9) {
       setFeedback(
-        `${label} ajustado de ${money.format(parsed)} para ${money.format(rounded)} para respeitar o tick de ${tickSizeFor(asset)} do ${asset}.`,
+        `${label} ajustada de ${parsed.toLocaleString("pt-BR")} para ${rounded.toLocaleString("pt-BR")} pontos para respeitar o tick de ${tickSizeFor(asset)} do ${asset}.`,
       );
     }
   }
@@ -975,7 +985,7 @@ export default function App() {
           execution: executionSettings,
           candleIndex: lastCandle.index,
           replaySequence: dataMode === "replay" ? currentReplayTrade?.sequence : undefined,
-          oco: { stopLoss: Number(stopLoss), target: Number(target) },
+          oco: ocoLevelsFromDistances(asset, side, orderEntry, Number(stopDistance), Number(targetDistance)),
           signal: entrySignal,
           entryContext,
           signalAlreadyUsed: entrySignal ? signalAlreadyUsed : false,
@@ -1043,11 +1053,11 @@ export default function App() {
     setDraftSide(authorizedSideForChart);
     setDraftEntryPrice(entry);
     if (authorizedSideForChart === "BUY") {
-      setStopLoss(String(roundPriceToTick(asset, entry - distance.stop)));
-      setTarget(String(roundPriceToTick(asset, entry + distance.target)));
+      setStopDistance(String(distance.stop));
+      setTargetDistance(String(distance.target));
     } else {
-      setStopLoss(String(roundPriceToTick(asset, entry + distance.stop)));
-      setTarget(String(roundPriceToTick(asset, entry - distance.target)));
+      setStopDistance(String(distance.stop));
+      setTargetDistance(String(distance.target));
     }
     setFeedback(`Entrada ${sideLabel(authorizedSideForChart)} posicionada em ${money.format(entry)}. Arraste as linhas de Stop e Alvo no gráfico; o mínimo 1:2 será validado antes de aceitar a ordem.`);
   }
@@ -1141,13 +1151,12 @@ export default function App() {
         return;
       }
       if (mode === "draft" && draftEntryPrice !== null && draftSide) {
-        const currentStop = Number(stopLoss);
-        const currentTarget = Number(target);
-        const nextStop = kind === "stop" ? rounded : currentStop;
-        const nextTarget = kind === "target" ? rounded : currentTarget;
+        const current = ocoLevelsFromDistances(asset, draftSide, draftEntryPrice, Number(stopDistance), Number(targetDistance));
+        const nextStop = kind === "stop" ? rounded : current.stopLoss;
+        const nextTarget = kind === "target" ? rounded : current.target;
         validateOcoOrder(asset, draftSide, draftEntryPrice, nextStop, nextTarget);
-        setStopLoss(String(nextStop));
-        setTarget(String(nextTarget));
+        setStopDistance(String(Math.abs(draftEntryPrice - nextStop)));
+        setTargetDistance(String(Math.abs(nextTarget - draftEntryPrice)));
         setFeedback(`${kind === "stop" ? "Stop" : "Alvo"} do rascunho ajustado. A relação risco/retorno continua em pelo menos 1:2.`);
       }
     } catch (error) {
@@ -1399,11 +1408,13 @@ export default function App() {
             </div>
           )}
 
-          <p className="chart-note">
-            {dataMode === "replay"
-              ? `Cada negócio revelado atualiza o candle M${replayTimeframeMinutes} aberto, o volume, o indicador e as regras de execução. Candles futuros permanecem ocultos.`
-              : "Modo demonstrativo com candles sintéticos. Carregue um .replay.csv para usar dados tratados do Profit Ultra."}
-          </p>
+          <div className="chart-note">
+            <InfoTip label="Sobre os dados do gráfico">
+              {dataMode === "replay"
+                ? `Cada negócio revelado atualiza o candle M${replayTimeframeMinutes} aberto, o volume, o indicador e as regras de execução. Candles futuros permanecem ocultos.`
+                : "O modo demonstrativo utiliza candles sintéticos. Para reproduzir dados do Profit Ultra, prepare o arquivo pelo fluxo de dados do pregão."}
+            </InfoTip>
+          </div>
         </div>
 
         <aside className="order-panel card">
@@ -1433,41 +1444,35 @@ export default function App() {
           </label>
 
           <label>
-            Stop loss
+            Distância do stop (pontos)
             <input
               type="number"
+              min={tickSizeFor(asset)}
               step={tickSizeFor(asset)}
-              value={stopLoss}
-              onChange={(event) => setStopLoss(event.target.value)}
-              onBlur={() =>
-                normalizeOrderPrice(stopLoss, setStopLoss, "Stop loss")
-              }
+              value={stopDistance}
+              onChange={(event) => setStopDistance(event.target.value)}
+              onBlur={() => normalizeDistance(stopDistance, setStopDistance, "Distância do stop")}
               disabled={Boolean(position) || !lastCandle}
-              placeholder="Obrigatório"
+              placeholder="Ex.: 100"
             />
           </label>
 
           <label>
-            Alvo
+            Distância do alvo (pontos)
             <input
               type="number"
+              min={tickSizeFor(asset)}
               step={tickSizeFor(asset)}
-              value={target}
-              onChange={(event) => setTarget(event.target.value)}
-              onBlur={() =>
-                normalizeOrderPrice(target, setTarget, "Alvo")
-              }
+              value={targetDistance}
+              onChange={(event) => setTargetDistance(event.target.value)}
+              onBlur={() => normalizeDistance(targetDistance, setTargetDistance, "Distância do alvo")}
               disabled={Boolean(position) || !lastCandle}
-              placeholder="Obrigatório"
+              placeholder="Ex.: 200"
             />
           </label>
           {!position && (() => {
-            const side = draftSide ?? authorizedSideForChart;
-            const entry = draftEntryPrice ?? lastPrice;
-            const stop = Number(stopLoss);
-            const targetPrice = Number(target);
-            const risk = side === "BUY" ? entry - stop : side === "SELL" ? stop - entry : 0;
-            const reward = side === "BUY" ? targetPrice - entry : side === "SELL" ? entry - targetPrice : 0;
+            const risk = Number(stopDistance);
+            const reward = Number(targetDistance);
             const valid = Number.isFinite(risk) && Number.isFinite(reward) && risk > 0 && reward + 1e-9 >= risk * 2;
             return (
               <div className={valid ? "risk-reward-status valid" : "risk-reward-status warning"} role="status">
@@ -1540,10 +1545,11 @@ export default function App() {
 
       <details className="advanced-tools">
         <summary>Importação alternativa fora do plano (avançado)</summary>
-        <p className="data-description">
-          Use esta ferramenta apenas se precisar tratar um arquivo fora do fluxo guiado acima.
-          Para a simulação planejada, prefira “Tratar dados necessários”.
-        </p>
+        <div className="advanced-tools-help">
+          <InfoTip label="Quando usar a importação avançada">
+            Utilize esta ferramenta para preparar um arquivo avulso, testar um CSV ou adicionar ao catálogo um replay que não pertence ao plano ativo. Para os pregões planejados, use a importação guiada.
+          </InfoTip>
+        </div>
         <DataPreparationPanel
           plannedStart={simulationPlan?.targetStartTime}
           plannedEnd={simulationPlan?.targetEndTime}

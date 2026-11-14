@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { InfoTip } from "./InfoTip";
 import { open } from "@tauri-apps/plugin-dialog";
 import type { SimulationPlan } from "../domain/simulationPlan";
 import type { RequirementMatch } from "../domain/catalogMatch";
@@ -12,6 +13,22 @@ interface Props {
   plan: SimulationPlan | null;
   matches: RequirementMatch[];
   onCatalogUpdated: () => void;
+}
+
+function readableError(error: unknown, fallback: string): string {
+  if (typeof error === "string" && error.trim()) return error;
+  if (error instanceof Error && error.message) return error.message;
+  if (error && typeof error === "object" && "message" in error) {
+    const message = String((error as { message?: unknown }).message ?? "");
+    if (message.trim()) return message;
+  }
+  try {
+    const serialized = JSON.stringify(error);
+    if (serialized && serialized !== "{}") return serialized;
+  } catch {
+    // Mantém a mensagem alternativa se o erro não puder ser serializado.
+  }
+  return fallback;
 }
 
 interface RowState {
@@ -124,7 +141,7 @@ export function PlanDataPreparationPanel({ plan, matches, onCatalogUpdated }: Pr
     } catch (error) {
       updateRow(key, {
         status: "error",
-        message: error instanceof Error ? error.message : "Falha ao preparar o arquivo M2.",
+        message: readableError(error, "Falha ao preparar o arquivo M2. Consulte os detalhes técnicos."),
       });
       return false;
     }
@@ -154,9 +171,11 @@ export function PlanDataPreparationPanel({ plan, matches, onCatalogUpdated }: Pr
         </span>
       </div>
 
-      <p className="data-description">
-        Selecione um CSV M1 ou M2 do Profit. Um mesmo arquivo histórico pode conter várias datas; a conversão para M2 é automática.
-      </p>
+      <div className="plan-data-help">
+        <InfoTip label="Sobre os arquivos do Profit">
+          Selecione um CSV M1 ou M2. Um único arquivo histórico pode conter várias datas; o sistema separa o pregão solicitado, ordena os registros e converte M1 em M2 automaticamente.
+        </InfoTip>
+      </div>
 
       <div className="plan-data-list">
         {matches.map((match) => {
