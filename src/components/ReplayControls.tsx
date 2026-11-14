@@ -127,6 +127,12 @@ Etapa 6 · Reproduzir o mercado · M{timeframeMinutes}
             </label>
           </div>
 
+          {!trainingActive && (
+            <p className="replay-note replay-start-guidance" role="status">
+              Para liberar <strong>Reproduzir</strong>, primeiro inicie a sessão em <strong>Treino disciplinado</strong>. Se o início estiver bloqueado, confira a orientação exibida naquele painel.
+            </p>
+          )}
+
           <div className="replay-note replay-note-help">
             <InfoTip label="Como funciona o replay">
               O ritmo controla o relógio do mercado: em 10×, dois minutos simulados correspondem a aproximadamente 12 segundos reais. {session.synthetic
