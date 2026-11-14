@@ -272,7 +272,8 @@ h2 {
 .chart-controls button:disabled { opacity: 0.4; cursor: not-allowed; }
 .chart-controls span { min-width: 68px; color: #8da3bb; font-size: 0.7rem; text-align: center; }
 .chart-context-note { margin: 0 4px 4px; color: #8197ad; font-size: 0.76rem; line-height: 1.4; }
-.chart { display: block; width: 100%; height: auto; aspect-ratio: 1120 / 510; cursor: crosshair; }
+.chart { display: block; width: 100%; height: auto; aspect-ratio: 1120 / 510; cursor: grab; touch-action: none; user-select: none; }
+.chart.chart-panning { cursor: grabbing; }
 
 .chart-bg {
   fill: #091321;
