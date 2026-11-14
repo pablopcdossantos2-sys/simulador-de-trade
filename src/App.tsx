@@ -68,6 +68,7 @@ import {
   saveTrainingSession,
 } from "./services/persistence";
 import { registerReplayFile } from "./services/replayCatalog";
+import { playSignalAlert } from "./services/signalAlerts";
 import {
   DEFAULT_EXECUTION_SETTINGS,
   loadExecutionSettings,
@@ -145,7 +146,7 @@ function ocoLevelsFromDistances(asset: Asset, side: Side, entry: number, stopPoi
 }
 
 export default function App() {
-  const [activeArea, setActiveArea] = useState<"SIMULADOR" | "RESULTADOS" | "EVOLUCAO" | "MANUAL" | "CONFIGURACOES">("SIMULADOR");
+  const [activeArea, setActiveArea] = useState<"SIMULADOR" | "PREGOES" | "RESULTADOS" | "EVOLUCAO" | "MANUAL" | "CONFIGURACOES">("SIMULADOR");
   const [asset, setAsset] = useState<Asset>("WINFUT");
   const [dataMode, setDataMode] = useState<DataMode>("demo");
   const [candles, setCandles] = useState(() => createDemoCandles("WINFUT"));
@@ -193,6 +194,8 @@ export default function App() {
   const ignoredSignalIdsRef = useRef<Set<string>>(new Set());
   const lastSuggestedSignalIdRef = useRef<string | null>(null);
   const lastSeenReplaySignalRef = useRef<string | null>(null);
+  const lastAlertedSignalIdRef = useRef<string | null>(null);
+  const signalAlertEffectMountedRef = useRef(false);
   const startingTrainingRef = useRef(false);
   const positionRef = useRef<Position | null>(null);
   const candlesRef = useRef(candles);
@@ -490,6 +493,21 @@ export default function App() {
   useEffect(() => {
     persistClosedTradeRef.current = persistClosedTrade;
   });
+
+  useEffect(() => {
+    if (!signalAlertEffectMountedRef.current) {
+      signalAlertEffectMountedRef.current = true;
+      lastAlertedSignalIdRef.current = signal?.id ?? null;
+      return;
+    }
+    if (!signal) {
+      lastAlertedSignalIdRef.current = null;
+      return;
+    }
+    if (lastAlertedSignalIdRef.current === signal.id) return;
+    lastAlertedSignalIdRef.current = signal.id;
+    playSignalAlert(signal.side);
+  }, [signal?.id]);
 
   useEffect(() => {
     if (dataMode !== "demo" || !position || !lastCandle) return;
@@ -1196,6 +1214,7 @@ export default function App() {
 
       <nav className="main-navigation" aria-label="Áreas principais">
         <button type="button" className={activeArea === "SIMULADOR" ? "active" : ""} aria-current={activeArea === "SIMULADOR" ? "page" : undefined} onClick={() => setActiveArea("SIMULADOR")}>Simulador</button>
+        <button type="button" className={activeArea === "PREGOES" ? "active" : ""} aria-current={activeArea === "PREGOES" ? "page" : undefined} onClick={() => setActiveArea("PREGOES")}>Pregões e replays</button>
         <button type="button" className={activeArea === "RESULTADOS" ? "active" : ""} aria-current={activeArea === "RESULTADOS" ? "page" : undefined} onClick={() => setActiveArea("RESULTADOS")}>Resultados</button>
         <button type="button" className={activeArea === "EVOLUCAO" ? "active" : ""} aria-current={activeArea === "EVOLUCAO" ? "page" : undefined} onClick={() => setActiveArea("EVOLUCAO")}>Evolução do Trader</button>
         <button type="button" className={activeArea === "MANUAL" ? "active" : ""} aria-current={activeArea === "MANUAL" ? "page" : undefined} onClick={() => setActiveArea("MANUAL")}>Manual</button>
