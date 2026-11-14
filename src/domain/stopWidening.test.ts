@@ -53,7 +53,7 @@ describe("simulateStopWideningScenario", () => {
       position,
       attemptedStop: 900,
       tradesAfterViolation: [trade(1, 900), trade(2, 400)],
-      startingBalanceBRL: 1000,
+      startingBalanceBRL: 100,
       lastObservedPrice: 990,
       lastObservedTimestamp: trade(0, 990).timestamp,
     });
