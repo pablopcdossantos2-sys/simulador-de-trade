@@ -94,7 +94,7 @@ export function PlanDataPreparationPanel({ plan, matches, onCatalogUpdated }: Pr
         filters: [{ name: "Arquivo CSV", extensions: ["csv"] }],
       });
       if (!selected || Array.isArray(selected)) return;
-      setRows((current) => Object.fromEntries(Object.entries(current).map(([rowKey, row]) => [rowKey, { ...row, sourcePath: selected, status: "idle", message: "", progress: 0 }])));
+      setRows((current) => ({ ...current, [key]: { ...(current[key] ?? { sourcePath: "", status: "idle", message: "", progress: 0 }), sourcePath: selected, status: "idle", message: "", progress: 0 } }));
     } catch (error) {
       updateRow(key, {
         status: "error",
