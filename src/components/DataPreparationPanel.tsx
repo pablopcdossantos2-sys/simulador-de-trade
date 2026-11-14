@@ -96,7 +96,6 @@ export function DataPreparationPanel({
     <section className="data-preparation card">
       <div className="section-heading data-heading">
         <div>
-          <p className="eyebrow">Dados históricos · Profit Ultra</p>
           <h2>Preparar arquivo para replay</h2>
         </div>
         <span className="session-window">{sessionStart} → {sessionEnd}</span>
