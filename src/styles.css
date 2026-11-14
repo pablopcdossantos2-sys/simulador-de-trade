@@ -662,12 +662,12 @@ td {
 }
 
 .indicator-cloud-green {
-  fill: rgba(71, 220, 133, 0.20);
+  fill: rgb(71, 220, 133);
   stroke: none;
 }
 
 .indicator-cloud-red {
-  fill: rgba(244, 91, 111, 0.20);
+  fill: rgb(244, 91, 111);
   stroke: none;
 }
 
@@ -3860,3 +3860,11 @@ td {
 @media (max-width: 620px) {
   .training-start-blocked { align-items: stretch; flex-direction: column; }
 }
+
+
+.cloud-opacity-control { display: grid; gap: 9px; margin-top: 12px; color: #a9bdd1; font-size: .82rem; font-weight: 800; }
+.cloud-opacity-input { display: flex; align-items: center; gap: 12px; }
+.cloud-opacity-input input { flex: 1; accent-color: #56b8e8; }
+.cloud-opacity-input output { min-width: 48px; color: #dce9f5; font-variant-numeric: tabular-nums; text-align: right; }
+:root[data-theme="light"] .cloud-opacity-control { color: #31516e; }
+:root[data-theme="light"] .cloud-opacity-input output { color: #2d465d; }
