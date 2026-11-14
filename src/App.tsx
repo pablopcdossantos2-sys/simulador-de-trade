@@ -1098,7 +1098,7 @@ export default function App() {
     setFeedback(`Entrada ${sideLabel(authorizedSideForChart)} posicionada em ${money.format(entry)}. Arraste as linhas de Stop e Alvo no gráfico; o mínimo 1:2 será validado antes de aceitar a ordem.`);
   }
 
-  function adjustOcoFromChart(kind: "target", rawPrice: number, mode: "position" | "draft") {
+  function adjustOcoFromChart(_kind: "target", rawPrice: number, mode: "position" | "draft") {
     const rounded = roundPriceToTick(asset, rawPrice);
     try {
       if (mode === "position" && position) {
