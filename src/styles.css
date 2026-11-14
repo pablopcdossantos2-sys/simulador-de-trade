@@ -3690,10 +3690,31 @@ td {
   border-color: #cbd9e5;
   background: #f5f8fb;
 }
+.stop-adjustment-history { margin-top: 15px; }
+.stop-adjustment-heading { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
+.stop-adjustment-heading small { color: #8298ad; font-size: .75rem; }
+.stop-adjustment-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; list-style: none; margin: 10px 0 0; padding: 0; }
+.stop-adjustment-event { display: grid; grid-template-columns: 25px minmax(0, 1fr); align-items: start; gap: 8px; min-width: 0; padding: 10px; border: 1px solid #2e435b; border-radius: 9px; background: #0b1726; }
+.stop-adjustment-number { display: grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; background: #1a3a52; color: #c8d9e8; font-size: .72rem; font-weight: 900; }
+.stop-adjustment-event > div { display: grid; gap: 4px; min-width: 0; }
+.stop-adjustment-event strong { color: #dce9f5; font-size: .78rem; overflow-wrap: anywhere; }
+.stop-adjustment-event small, .stop-adjustment-empty { color: #91a5b8; font-size: .76rem; line-height: 1.45; }
+.stop-adjustment-omitted { grid-column: 1 / -1; padding: 5px; color: #91a5b8; font-size: .76rem; text-align: center; }
+.stop-adjustment-empty { margin: 9px 0 0; }
+:root[data-theme="light"] .stop-adjustment-heading small,
+:root[data-theme="light"] .stop-adjustment-event small,
+:root[data-theme="light"] .stop-adjustment-empty,
+:root[data-theme="light"] .stop-adjustment-omitted { color: #687f94; }
+:root[data-theme="light"] .stop-adjustment-event { border-color: #cbd9e5; background: #f5f8fb; }
+:root[data-theme="light"] .stop-adjustment-event strong { color: #2d465d; }
+:root[data-theme="light"] .stop-adjustment-number { background: #e4eef7; color: #31516e; }
+:root[data-theme="light"] .stop-scenario-grid > div small { color: #687f94; font-size: .72rem; }
 :root[data-theme="light"] .stop-scenario-grid strong { color: #2d465d; }
 @media (max-width: 760px) {
   .stop-scenario-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .stop-scenario-heading { flex-direction: column; }
+  .stop-adjustment-list { grid-template-columns: 1fr; }
+  .stop-adjustment-heading { align-items: flex-start; flex-direction: column; }
 }
 @media (max-width: 480px) {
   .stop-scenario-grid { grid-template-columns: 1fr; }
