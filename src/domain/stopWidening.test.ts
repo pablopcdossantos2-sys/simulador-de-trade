@@ -61,6 +61,26 @@ describe("simulateStopWideningScenario", () => {
     expect(result.finalBalanceBRL).toBeLessThan(0);
   });
 
+  it("handles SELL positions when stop is widened away from the market", () => {
+    const sellPosition: Position = {
+      ...position,
+      side: "SELL",
+      stopLoss: 1050,
+      target: 900,
+    };
+    const result = simulateStopWideningScenario({
+      position: sellPosition,
+      attemptedStop: 1100,
+      tradesAfterViolation: [trade(1, 1100), trade(2, 1050), trade(3, 900)],
+      startingBalanceBRL: 10000,
+      lastObservedPrice: 1010,
+      lastObservedTimestamp: trade(0, 1010).timestamp,
+    });
+    expect(result.outcome).toBe("TARGET");
+    expect(result.widenedTimes).toBe(1);
+    expect(result.finalBalanceBRL).toBe(10020);
+  });
+
   it("rejects a stop movement that reduces risk", () => {
     expect(() => simulateStopWideningScenario({
       position,
