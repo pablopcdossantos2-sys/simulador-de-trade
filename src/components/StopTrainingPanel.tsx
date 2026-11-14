@@ -11,6 +11,7 @@ interface Incident {
 
 interface Props {
   asset: Asset;
+  cloudOpacity: number;
   startingBalanceBRL: number | null;
   enabled: boolean;
   trainingActive: boolean;
@@ -48,6 +49,7 @@ function clock(value: string | null): string {
 
 export function StopTrainingPanel({
   asset,
+  cloudOpacity,
   startingBalanceBRL,
   enabled,
   trainingActive,
@@ -219,6 +221,7 @@ export function StopTrainingPanel({
             evaluation={evaluation}
             position={null}
             asset={asset}
+            cloudOpacity={cloudOpacity}
             entryPlacementEnabled={false}
             fitAllCandles
           />
