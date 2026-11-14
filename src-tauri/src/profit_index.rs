@@ -11,7 +11,7 @@ use super::{
     canonicalize_replay_file, csv_escape, decode_line, derived_paths, detect_delimiter,
     detect_layout, emit_progress, in_training_window, normalize_profit_number,
     parse_delimited_line, row_timestamp, validate_training_window, value_at, ProfitLayout,
-    ProfitPreparationResult, TempFileGuard, REPLAY_HEADER,
+    unique_temp_path, ProfitPreparationResult, TempFileGuard, REPLAY_HEADER,
 };
 
 const INDEX_SCHEMA_VERSION: u32 = 1;
@@ -616,7 +616,7 @@ pub(super) fn try_process_indexed_profit_replay_file(
         .map_err(|error| error.to_string())?
         .len();
     let (output_path, metadata_path) = derived_paths(&source, window_start, window_end)?;
-    let temp_path = output_path.with_extension("replay.tmp");
+    let temp_path = unique_temp_path(&output_path, "replay.tmp");
     let _temp_guard = TempFileGuard(temp_path.clone());
 
     let input = File::open(&source).map_err(|error| error.to_string())?;
