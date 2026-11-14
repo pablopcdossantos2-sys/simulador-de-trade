@@ -44,7 +44,7 @@ export function createTrainingSession(input: {
   timeframeMinutes: number;
   warmupBars: number;
   mode: TrainingSession["mode"];
-  startingBalanceBRL: number;
+  startingBalanceBRL: number | null;
   now?: Date;
 }): TrainingSession {
   const now = input.now ?? new Date();
