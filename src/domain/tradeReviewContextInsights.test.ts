@@ -119,6 +119,10 @@ describe("buildTradeReviewContextInsights", () => {
         index,
         index < 3 ? { emotionalInterference: "FEAR" } : {},
       );
+      if (index < 5) {
+        trade.stopLoss = 129995;
+        trade.target = 130015;
+      }
       if (trade.entryContext && index < 5) {
         trade.entryContext = {
           ...trade.entryContext,
@@ -153,6 +157,18 @@ describe("buildTradeReviewContextInsights", () => {
     );
     expect(rangeAssociation?.contextLabel).toContain("Range expandido");
     expect(rangeAssociation?.sampleSize).toBe(5);
+
+    const stopAssociation = result.associations.find(
+      (item) => item.dimension === "STOP_VS_RECENT_RANGE" && item.patternKey === "EMOTION_FEAR",
+    );
+    expect(stopAssociation?.contextLabel).toContain("Stop entre 1 e 2");
+    expect(stopAssociation?.sampleSize).toBe(5);
+
+    const riskRewardAssociation = result.associations.find(
+      (item) => item.dimension === "PLANNED_RISK_REWARD" && item.patternKey === "EMOTION_FEAR",
+    );
+    expect(riskRewardAssociation?.contextLabel).toContain("R:R planejado de 2,5");
+    expect(riskRewardAssociation?.sampleSize).toBe(5);
   });
 
   it("keeps older trades in asset and direction analysis but excludes them from unavailable chart context", () => {
