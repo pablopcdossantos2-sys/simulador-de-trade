@@ -542,7 +542,7 @@ export function CandleChart({
       </svg>
 
       <p className="chart-axis-hint">
-        {rulerEnabled ? "Régua ativa: clique em dois pontos do gráfico para medir a amplitude em pontos. Clique em Régua novamente para cancelar." : entryPlacementEnabled ? "Clique em um preço do gráfico para posicionar a entrada. Arraste dentro da área dos candles para mover o gráfico; arraste as linhas de Stop e Alvo para ajustar a OCO (regra 1:2)." : "Arraste dentro da área dos candles para mover o gráfico na horizontal e vertical. Arraste o eixo de preços (à direita) para ajustar o zoom vertical e o eixo de horários (embaixo) para ajustar o zoom horizontal."}
+        {rulerEnabled ? "Régua ativa: clique em dois pontos do gráfico para medir a amplitude em pontos. Clique em Régua novamente para cancelar." : entryPlacementEnabled ? "Consulte o ícone de informação para ver os gestos de interação com o gráfico." : "Arraste dentro da área dos candles para mover o gráfico na horizontal e vertical. Arraste o eixo de preços (à direita) para ajustar o zoom vertical e o eixo de horários (embaixo) para ajustar o zoom horizontal."}
       </p>
       {rulerStart && <p className="ruler-readout" role="status">
         {rulerEnd
