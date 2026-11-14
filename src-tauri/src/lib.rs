@@ -12,7 +12,7 @@ use std::io::{BufRead, BufReader, BufWriter, Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 use tauri::{Emitter, Manager};
-use replay::ReplayState;
+use replay::{ReplayAnalysisState, ReplayState};
 
 struct DbState(Mutex<Connection>);
 
@@ -3177,6 +3177,7 @@ pub fn run() {
             initialize_database(&connection)?;
             app.manage(DbState(Mutex::new(connection)));
             app.manage(ReplayState(Mutex::new(None)));
+            app.manage(ReplayAnalysisState(Mutex::new(None)));
 
             Ok(())
         })
@@ -3203,6 +3204,9 @@ pub fn run() {
             replay::next_replay_trades,
             replay::reset_replay_session,
             replay::close_replay_session,
+            replay::open_replay_analysis_file,
+            replay::next_replay_analysis_trades,
+            replay::close_replay_analysis_file,
             replay::load_warmup_candles,
             catalog::register_replay_file,
             catalog::list_replay_catalog,
