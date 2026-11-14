@@ -18,6 +18,7 @@ interface ChartCandle extends Candle { source: "context" | "target"; }
 interface Crosshair { candleIndex: number; y: number; }
 interface OcoDrag { kind: "stop" | "target"; mode: "position" | "draft"; min: number; max: number; }
 interface AxisDrag { axis: "x" | "y"; startX: number; startY: number; visibleBars: number; priceZoom: number; }
+interface ChartPan { startX: number; startY: number; startOffset: number; startPriceOffset: number; range: number; }
 
 const WIDTH = 1120;
 const HEIGHT = 510;
@@ -90,10 +91,14 @@ export function CandleChart({
 }: Props) {
   const [visibleBars, setVisibleBars] = useState(DEFAULT_VISIBLE_BARS);
   const [priceZoom, setPriceZoom] = useState(1);
+  const [panOffset, setPanOffset] = useState(0);
+  const [panPriceOffset, setPanPriceOffset] = useState(0);
+  const [isPanning, setIsPanning] = useState(false);
   const [crosshair, setCrosshair] = useState<Crosshair | null>(null);
   const [draggingOco, setDraggingOco] = useState<{ kind: "stop" | "target"; mode: "position" | "draft"; price: number } | null>(null);
   const dragRef = useRef<OcoDrag | null>(null);
   const axisDragRef = useRef<AxisDrag | null>(null);
+  const chartPanRef = useRef<ChartPan | null>(null);
   const didDragRef = useRef(false);
 
   // O aquecimento completo continua alimentando o indicador; só os candles finais
@@ -103,7 +108,9 @@ export function CandleChart({
     .slice(-CONTEXT_BARS);
   const target: ChartCandle[] = candles.map((candle) => ({ ...candle, source: "target" as const }));
   const allCandles = [...context, ...target];
-  const visible = fitAllCandles ? allCandles : allCandles.slice(-visibleBars);
+  const panEnd = Math.max(0, allCandles.length - panOffset);
+  const panStart = Math.max(0, panEnd - visibleBars);
+  const visible = fitAllCandles ? allCandles : allCandles.slice(panStart, panEnd);
   const effectiveVisibleBars = fitAllCandles ? Math.max(visible.length, 1) : visibleBars;
   if (!visible.length) return null;
 
@@ -130,8 +137,8 @@ export function CandleChart({
   const centerPrice = (baseMin + baseMax) / 2;
   const baseRange = Math.max(baseMax - baseMin, asset === "WINFUT" ? 5 : 0.5);
   const range = Math.max(baseRange / priceZoom, asset === "WINFUT" ? 5 : 0.5);
-  const min = centerPrice - range / 2;
-  const max = centerPrice + range / 2;
+  const min = centerPrice - range / 2 + panPriceOffset;
+  const max = centerPrice + range / 2 + panPriceOffset;
   const xStep = (PLOT_RIGHT - PLOT_LEFT) / effectiveVisibleBars;
   const emptySlots = effectiveVisibleBars - visible.length;
   const xForIndex = (idx: number) => PLOT_LEFT + (emptySlots + idx + 0.5) * xStep;
@@ -171,6 +178,18 @@ export function CandleChart({
       const boundedY = Math.max(PLOT_TOP, Math.min(PLOT_BOTTOM, yValue));
       const price = drag.max - ((boundedY - PLOT_TOP) / (PLOT_BOTTOM - PLOT_TOP)) * (drag.max - drag.min);
       setDraggingOco({ kind: drag.kind, mode: drag.mode, price });
+      didDragRef.current = true;
+      return;
+    }
+
+    const chartPan = chartPanRef.current;
+    if (chartPan) {
+      const deltaX = x - chartPan.startX;
+      const deltaY = yValue - chartPan.startY;
+      const nextOffset = chartPan.startOffset + Math.round(deltaX / Math.max(xStep, 1));
+      setPanOffset(Math.max(0, Math.min(Math.max(0, allCandles.length - 1), nextOffset)));
+      setPanPriceOffset(chartPan.startPriceOffset + (deltaY / (PLOT_BOTTOM - PLOT_TOP)) * chartPan.range);
+      setCrosshair(null);
       didDragRef.current = true;
       return;
     }
@@ -222,12 +241,18 @@ export function CandleChart({
     if (!rect.width || !rect.height) return;
     const x = (event.clientX - rect.left) * WIDTH / rect.width;
     const yValue = (event.clientY - rect.top) * HEIGHT / rect.height;
-    if (x >= PLOT_RIGHT && x <= WIDTH && yValue >= PLOT_TOP && yValue <= PLOT_BOTTOM) {
+    if (!fitAllCandles && x >= PLOT_RIGHT && x <= WIDTH && yValue >= PLOT_TOP && yValue <= PLOT_BOTTOM) {
       axisDragRef.current = { axis: "y", startX: x, startY: yValue, visibleBars, priceZoom };
       didDragRef.current = true;
       event.preventDefault();
-    } else if (x >= PLOT_LEFT && x <= PLOT_RIGHT && yValue >= VOLUME_BOTTOM && yValue <= HEIGHT) {
+    } else if (!fitAllCandles && x >= PLOT_LEFT && x <= PLOT_RIGHT && yValue >= VOLUME_BOTTOM && yValue <= HEIGHT) {
       axisDragRef.current = { axis: "x", startX: x, startY: yValue, visibleBars, priceZoom };
+      didDragRef.current = true;
+      event.preventDefault();
+    } else if (!fitAllCandles && x >= PLOT_LEFT && x <= PLOT_RIGHT && yValue >= PLOT_TOP && yValue <= VOLUME_BOTTOM) {
+      chartPanRef.current = { startX: x, startY: yValue, startOffset: panOffset, startPriceOffset: panPriceOffset, range };
+      setIsPanning(true);
+      setCrosshair(null);
       didDragRef.current = true;
       event.preventDefault();
     }
@@ -249,6 +274,8 @@ export function CandleChart({
       return;
     }
     axisDragRef.current = null;
+    chartPanRef.current = null;
+    setIsPanning(false);
     window.setTimeout(() => { didDragRef.current = false; }, 0);
   }
 
@@ -294,7 +321,7 @@ export function CandleChart({
             </>
           )}
           <span title="Arraste o eixo de preços para alterar a escala vertical">{priceZoom.toFixed(1)}× Y</span>
-          <button type="button" onClick={() => { setVisibleBars(DEFAULT_VISIBLE_BARS); setPriceZoom(1); setCrosshair(null); }}>Padrão</button>
+          <button type="button" onClick={() => { setVisibleBars(DEFAULT_VISIBLE_BARS); setPriceZoom(1); setPanOffset(0); setPanPriceOffset(0); setCrosshair(null); }}>Padrão</button>
         </div>
       </div>
 
@@ -304,7 +331,7 @@ export function CandleChart({
         <span className="legend-volume">Volume</span>
       </div>
 
-      <svg className="chart" viewBox={"0 0 " + WIDTH + " " + HEIGHT} role="img"
+      <svg className={"chart" + (isPanning ? " chart-panning" : "")} viewBox={"0 0 " + WIDTH + " " + HEIGHT} role="img"
         aria-label="Gráfico de candles com eixo de preços e horários, volume, médias, VWAP, sinais e controles de zoom"
         onMouseDown={handleAxisMouseDown}
         onMouseMove={handleMouseMove}
@@ -439,7 +466,7 @@ export function CandleChart({
       </svg>
 
       <p className="chart-axis-hint">
-        {entryPlacementEnabled ? "Clique em um preço do gráfico para posicionar a entrada. Arraste as linhas de Stop e Alvo para ajustar a OCO; a regra 1:2 é obrigatória." : "Arraste o eixo de preços (à direita) para ampliar/reduzir os candles verticalmente e o eixo de horários (embaixo) para alterar o zoom horizontal."}
+        {entryPlacementEnabled ? "Clique em um preço do gráfico para posicionar a entrada. Arraste dentro da área dos candles para mover o gráfico; arraste as linhas de Stop e Alvo para ajustar a OCO (regra 1:2)." : "Arraste dentro da área dos candles para mover o gráfico na horizontal e vertical. Arraste o eixo de preços (à direita) para ajustar o zoom vertical e o eixo de horários (embaixo) para ajustar o zoom horizontal."}
       </p>
       {contextCandles.length > 0 && <p className="chart-context-note">
         {candles.length === 0
