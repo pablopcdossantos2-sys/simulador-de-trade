@@ -175,3 +175,8 @@
   .review-context-coverage article span { font-size: .66rem; }
   .review-context-coverage article strong { font-size: 1.08rem; }
 }
+
+
+/* Ajuda contextual nas seções da evolução */
+.evolution-section-heading > .info-tip { margin-left: auto; }
+.evolution-inline-help { display: flex; justify-content: flex-end; }
