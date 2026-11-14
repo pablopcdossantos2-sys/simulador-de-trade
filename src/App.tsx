@@ -176,6 +176,7 @@ export default function App() {
 
   const handleReplayTrade = useCallback(
     (trade: ReplayTrade) => {
+      if (stopIncidentRef.current) return;
       const previousCandles = candlesRef.current;
       const nextCandles = applyReplayTrade(
         previousCandles,
