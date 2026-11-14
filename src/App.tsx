@@ -203,7 +203,7 @@ export default function App() {
 
   const handleReplayTrade = useCallback(
     (trade: ReplayTrade) => {
-        const previousCandles = candlesRef.current;
+      const previousCandles = candlesRef.current;
       const nextCandles = applyReplayTrade(
         previousCandles,
         trade,
@@ -518,6 +518,12 @@ export default function App() {
     if (lastSuggestedSignalIdRef.current === signal.id) return;
     lastSuggestedSignalIdRef.current = signal.id;
 
+    // Sugestões padrão só preenchem campos vazios; valores preparados pelo usuário
+    // permanecem intactos quando um novo sinal aparece.
+    const suggested = suggestedOcoDistance(asset);
+    if (!stopDistance.trim()) setStopDistance(String(suggested.stop));
+    if (!targetDistance.trim()) setTargetDistance(String(suggested.target));
+
     setFeedback(
       `Zona ${signal.side === "BUY" ? "verde" : "vermelha"} ativa após sinal de ${signal.label}. Somente ${signal.label.toLowerCase()} está autorizada.`,
     );
@@ -528,6 +534,8 @@ export default function App() {
     asset,
     position,
     lastCandle?.index,
+    stopDistance,
+    targetDistance,
   ]);
 
   useEffect(() => {
