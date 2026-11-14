@@ -70,7 +70,7 @@ struct TrainingSessionRecord {
     started_at: String,
     ended_at: Option<String>,
     status: String,
-    #[serde(default)]
+    #[serde(rename = "startingBalanceBRL", default)]
     starting_balance_brl: Option<f64>,
 }
 
