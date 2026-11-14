@@ -13,6 +13,8 @@ interface Props {
   canStart: boolean;
   replayLoaded: boolean;
   mode: TrainingMode;
+  startingBalance: string;
+  onStartingBalanceChange: (value: string) => void;
   onModeChange: (mode: TrainingMode) => void;
   onStart: () => void;
   onEnd: () => void;
@@ -97,6 +99,8 @@ export function TrainingSessionPanel({
   canStart,
   replayLoaded,
   mode,
+  startingBalance,
+  onStartingBalanceChange,
   onModeChange,
   onStart,
   onEnd,
@@ -143,6 +147,19 @@ export function TrainingSessionPanel({
       </div>
 
       {!active && (
+        <div className="training-capital-field">
+          <label htmlFor="discipline-training-balance">Saldo inicial deste treino (R$)</label>
+          <input
+            id="discipline-training-balance"
+            type="number"
+            min="0.01"
+            step="0.01"
+            value={startingBalance}
+            onChange={(event) => onStartingBalanceChange(event.target.value)}
+            placeholder="Informe o saldo inicial"
+          />
+          <small>Esse valor será usado como referência financeira desta sessão. Não há saldo padrão.</small>
+        </div>
         <div className="training-mode-selector">
           <button
             type="button"
@@ -191,6 +208,10 @@ export function TrainingSessionPanel({
             <span>Modo</span>
             <strong>{session.mode === "EXAM" ? "Prova" : "Treino livre"}</strong>
           </div>
+          <div>
+            <span>Saldo inicial</span>
+            <strong>{session.startingBalanceBRL == null ? "Não registrado" : new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(session.startingBalanceBRL)}</strong>
+          </div>
         </div>
       )}
 
@@ -200,7 +221,7 @@ export function TrainingSessionPanel({
             type="button"
             className="training-start"
             onClick={onStart}
-            disabled={!canStart || !replayLoaded}
+            disabled={!canStart || !replayLoaded || !Number.isFinite(Number(startingBalance)) || Number(startingBalance) <= 0
           >
             {mode === "EXAM" ? "Iniciar prova" : "Iniciar treino"}
           </button>
