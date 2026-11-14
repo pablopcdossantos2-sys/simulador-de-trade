@@ -17,7 +17,6 @@ export function RuleViolationModal({ message, onClose }: Props) {
         onMouseDown={(event) => event.stopPropagation()}
       >
         <div className="rule-modal-icon" aria-hidden="true">!</div>
-        <p className="eyebrow">Operação bloqueada</p>
         <h2 id="rule-modal-title">Fora do operacional</h2>
         <p id="rule-modal-description">
           Você está infringindo as regras do operacional. A operação não será executada.
