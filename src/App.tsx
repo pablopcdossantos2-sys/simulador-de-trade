@@ -190,6 +190,7 @@ export default function App() {
   const [trainingMode, setTrainingMode] = useState<TrainingMode>("FREE");
   const [sessionHistoryRefreshKey, setSessionHistoryRefreshKey] = useState(0);
   const [startingTraining, setStartingTraining] = useState(false);
+  const [loadingReplay, setLoadingReplay] = useState(false);
   const [stopTrainingEnabled, setStopTrainingEnabled] = useState(false);
   const [fullSessionReplayPath, setFullSessionReplayPath] = useState("");
   const [stopTrainingIncident, setStopTrainingIncident] = useState<StopTrainingIncident | null>(null);
@@ -667,6 +668,8 @@ export default function App() {
       return;
     }
 
+    if (loadingReplay) return;
+    setLoadingReplay(true);
     replay.setPath(targetPath);
 
     try {
@@ -713,6 +716,8 @@ export default function App() {
           ? error.message
           : "Falha ao preparar o histórico anterior do indicador.",
       );
+    } finally {
+      setLoadingReplay(false);
     }
   }
 
@@ -1397,7 +1402,7 @@ export default function App() {
         onPathChange={replay.setPath}
         session={replay.session}
         playing={replay.playing}
-        busy={replay.busy}
+        busy={replay.busy || loadingReplay}
         trainingActive={trainingActive}
         onLoad={() => void loadReplay()}
       />
