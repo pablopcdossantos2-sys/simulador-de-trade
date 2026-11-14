@@ -1475,9 +1475,9 @@ fn import_backup(
                     cost_per_contract_round_trip_brl, opened_at, status, exit_price,
                     exit_reason, closed_at, result_points, gross_result_brl,
                     operational_costs_brl, net_result_brl, post_trade_note,
-                    entry_context_json, intrabar_policy
+                    entry_context_json, intrabar_policy, initial_stop_loss
                 )
-                VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23)
+                VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23, ?24)
                 ON CONFLICT(id) DO NOTHING
                 "#,
                 params![
@@ -1504,6 +1504,7 @@ fn import_backup(
                     trade.post_trade_note,
                     entry_context_json,
                     trade.intrabar_policy,
+                    if trade.initial_stop_loss > 0.0 { trade.initial_stop_loss } else { trade.stop_loss },
                 ],
             )
             .map_err(|error| error.to_string())?;
