@@ -908,7 +908,7 @@ export default function App() {
 
     if (position) {
       setFeedback(
-        "O replay chegou ao fim com uma posição aberta. A sessão permanece ativa até definirmos a política de encerramento no fim da janela.",
+        "O replay chegou ao fim com uma posição aberta. Use “Encerrar posição a mercado” para registrar o fechamento antes de finalizar o treino.",
       );
       return;
     }
