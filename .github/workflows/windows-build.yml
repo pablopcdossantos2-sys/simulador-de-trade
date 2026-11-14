@@ -45,6 +45,17 @@ jobs:
       - name: Rust stable
         uses: dtolnay/rust-toolchain@stable
 
+      - name: Cache Rust dependencies and build output
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git/db
+            src-tauri/target
+          key: ${{ runner.os }}-cargo-windows-build-${{ hashFiles('src-tauri/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-windows-build-
+
       - name: Install frontend dependencies
         run: npm ci
 
