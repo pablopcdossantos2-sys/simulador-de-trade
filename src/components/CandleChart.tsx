@@ -471,7 +471,7 @@ export function CandleChart({
           <PriceLine
             y={y(draftOrder.stopLoss)}
             label={"Stop " + formatPrice(draftOrder.stopLoss, asset)}
-            className="stop-line"
+            className="stop-line" blockDrag
           />
           <PriceLine
             y={y(draggingOco?.mode === "draft" && draggingOco.kind === "target" ? draggingOco.price : draftOrder.target)}
