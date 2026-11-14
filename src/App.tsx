@@ -1356,7 +1356,7 @@ export default function App() {
         startingBalance={stopTrainingStartingBalance}
         onStartingBalanceChange={setStopTrainingStartingBalance}
         enabled={stopTrainingEnabled}
-        onEnable={() => setStopTrainingEnabled(true)}
+        onEnabledChange={setStopTrainingEnabled}
         configurable={!trainingActive && !position && !startingTraining}
         incident={stopTrainingIncident}
         analysisLoading={stopAnalysisLoading}
