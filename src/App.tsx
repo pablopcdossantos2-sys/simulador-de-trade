@@ -1473,11 +1473,11 @@ export default function App() {
                   ? "Alvo primeiro"
                   : "Stop primeiro"}
               </small>
-              <button type="button" className="market-close-button" onClick={stopPositionManually} disabled={Boolean(stopTrainingIncident)}>
+              <button type="button" className="market-close-button" onClick={stopPositionManually}>
                 Estopar manualmente a mercado
               </button>
               {dataMode === "replay" && replay.finished && (
-                <button type="button" className="market-close-button" onClick={closeOpenPositionAtReplayEnd} disabled={Boolean(stopTrainingIncident)}>
+                <button type="button" className="market-close-button" onClick={closeOpenPositionAtReplayEnd}>
                   Encerrar a mercado no último preço
                 </button>
               )}
