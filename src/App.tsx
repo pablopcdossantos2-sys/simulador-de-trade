@@ -237,9 +237,7 @@ export default function App() {
         persistClosedTradeRef.current(closed);
       }
 
-      // No replay histórico, sinais são avaliados no fechamento do candle.
-      // Pausar no primeiro sinal confirmado evita que a oportunidade de decisão
-      // dependa da velocidade escolhida ou do tamanho do lote processado por frame.
+      // Sinais são informativos: o replay deve continuar sem interrupção.
       if (
         dataMode !== "replay" ||
         trainingSession?.status !== "ACTIVE" ||
@@ -264,9 +262,8 @@ export default function App() {
         authorization.id !== previousSignalId &&
         !usedSignalIdsRef.current.has(authorization.id)
       ) {
-        pauseReplayRef.current?.();
         setFeedback(
-          `Novo sinal de ${sideLabel(authorization.side)} confirmado no fechamento do candle. Replay pausado para você avaliar a entrada.`,
+          `Sinal de ${sideLabel(authorization.side)} confirmado no fechamento do candle. A reprodução continua normalmente.`,
         );
       }
     },
