@@ -114,6 +114,13 @@ function formatTradeDateTime(value: string, part: "date" | "time"): string {
   }).format(parsed);
 }
 
+function marketClockSeconds(value: string | null | undefined): number | null {
+  if (!value) return null;
+  const match = /(?:T| )(\\d{2}):(\\d{2})(?::(\\d{2}))?/.exec(value);
+  if (!match) return null;
+  return Number(match[1]) * 3600 + Number(match[2]) * 60 + Number(match[3] ?? 0);
+}
+
 function initialTheme(): ThemeMode {
   try {
     const stored = localStorage.getItem(THEME_KEY);
@@ -341,6 +348,15 @@ export default function App() {
   const lastCandle = visibleCandles[visibleCandles.length - 1];
   const lastPrice = lastCandle?.close ?? 0;
   const trainingActive = trainingSession?.status === "ACTIVE";
+  const sessionCountdownSeconds = useMemo(() => {
+    if (!trainingActive || !trainingSession) return null;
+    const end = marketClockSeconds(trainingSession.endTime);
+    const current = marketClockSeconds(currentReplayTrade?.timestamp) ??
+      marketClockSeconds(trainingSession.startTime);
+    if (end === null || current === null) return null;
+    const remaining = end - current;
+    return Math.max(0, remaining < 0 ? remaining + 24 * 60 * 60 : remaining);
+  }, [trainingActive, trainingSession, currentReplayTrade?.timestamp]);
   const examActive = Boolean(
     trainingActive && trainingSession?.mode === "EXAM",
   );
@@ -1015,7 +1031,7 @@ export default function App() {
       );
       // A confirmação do sinal pausa o replay para a decisão; ao executar a ordem,
       // a reprodução retoma automaticamente com a posição sendo monitorada.
-      if (dataMode === "replay" && replay.session && !replay.finished && !stopIncidentRef.current) {
+      if (dataMode === "replay" && replay.session && !replay.finished) {
         replay.setPlaying(true);
       }
     } catch (error) {
@@ -1057,7 +1073,6 @@ export default function App() {
   }
 
   function adjustOcoFromChart(kind: "stop" | "target", rawPrice: number, mode: "position" | "draft") {
-    if (stopIncidentRef.current) return;
     const rounded = roundPriceToTick(asset, rawPrice);
     try {
       if (mode === "position" && position) {
@@ -1207,14 +1222,6 @@ export default function App() {
 
           const demoCandles = createDemoCandles(plan.asset);
           setSimulationPlan(plan);
-          setFullSessionReplayPath("");
-          setStopTrainingEnabled(false);
-          stopIncidentRef.current = false;
-          setStopTrainingIncident(null);
-          setStopAnalysisCandles([]);
-          setStopAnalysisEvaluation(null);
-          setStopAnalysisScenario(null);
-          setStopAnalysisError(null);
           setAsset(plan.asset);
           setDataMode("demo");
           setCatalogMatches([]);
@@ -1278,7 +1285,7 @@ export default function App() {
         summary={trainingSummary}
         events={trainingEvents}
         mode={trainingMode}
-        startingBalanceBRL={executionSettings.disciplinedTrainingStartingBalanceBRL ?? (stopTrainingEnabled ? executionSettings.stopTrainingStartingBalanceBRL ?? null : null)}
+        startingBalanceBRL={executionSettings.disciplinedTrainingStartingBalanceBRL ?? null}
         onModeChange={setTrainingMode}
         canStart={
           Boolean(simulationPlan) &&
@@ -1291,8 +1298,6 @@ export default function App() {
             ? "Aguarde a inicialização da sessão."
             : !replay.session
               ? "Carregue o replay do pregão-alvo antes de iniciar."
-              : stopTrainingEnabled && !((executionSettings.stopTrainingStartingBalanceBRL ?? 0) > 0)
-              ? "Configure o capital do Treinamento de Stops em Configurações para ativar essa modalidade."
               : null
         }
         replayLoaded={Boolean(replay.session)}
@@ -1308,6 +1313,7 @@ export default function App() {
         speed={replay.speed}
         processed={replay.processed}
         currentTimestamp={replay.currentTimestamp}
+        countdownSeconds={sessionCountdownSeconds}
         finished={replay.finished}
         busy={replay.busy}
         onPlayPause={() => replay.setPlaying(!replay.playing)}
