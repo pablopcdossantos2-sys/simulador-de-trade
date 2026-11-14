@@ -115,7 +115,11 @@ export function calculateSessionPerformance(
     scopedEvents
       .filter(
         (event) =>
-          event.type === "TRADE_OPENED" && Boolean(event.signalId),
+          event.type === "TRADE_OPENED" &&
+          Boolean(event.signalId) &&
+          !event.signalId?.startsWith("ma52-reentry:") &&
+          !event.signalId?.startsWith("stop-cooldown-reentry:") &&
+          !event.signalId?.startsWith("MA52_REENTRY_"),
       )
       .map((event) => event.signalId as string),
   );
