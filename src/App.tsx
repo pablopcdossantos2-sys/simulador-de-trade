@@ -116,7 +116,7 @@ function formatTradeDateTime(value: string, part: "date" | "time"): string {
 
 function marketClockSeconds(value: string | null | undefined): number | null {
   if (!value) return null;
-  const match = /(?:T| )(\\d{2}):(\\d{2})(?::(\\d{2}))?/.exec(value);
+  const match = /(?:T| )(\d{2}):(\d{2})(?::(\d{2}))?/.exec(value);
   if (!match) return null;
   return Number(match[1]) * 3600 + Number(match[2]) * 60 + Number(match[3] ?? 0);
 }
@@ -1029,8 +1029,7 @@ export default function App() {
       setFeedback(
         `${sideLabel(side)} aberta em ${money.format(orderEntry)} com OCO obrigatório ativo.${useReentry ? reentryAuthorization?.method === "STOP_COOLDOWN" ? " Reentrada autorizada após dez candles fechados desde o stop." : " Reentrada autorizada pelo toque posterior na MME 52." : ""}`,
       );
-      // A confirmação do sinal pausa o replay para a decisão; ao executar a ordem,
-      // a reprodução retoma automaticamente com a posição sendo monitorada.
+      // Após a entrada, a reprodução continua com a posição sendo monitorada.
       if (dataMode === "replay" && replay.session && !replay.finished) {
         replay.setPlaying(true);
       }
