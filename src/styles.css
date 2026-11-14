@@ -3506,3 +3506,195 @@ td {
 @media (max-width: 700px) {
   .history-actions { align-items: stretch; flex-direction: column; }
 }
+
+
+/* Treinamento específico de Stops */
+.stop-training-panel {
+  margin-top: 16px;
+  padding: 20px;
+}
+.stop-training-status {
+  border: 1px solid #40556c;
+  border-radius: 999px;
+  padding: 7px 11px;
+  color: #9aacc0;
+  font-size: .75rem;
+  font-weight: 800;
+}
+.stop-training-status.active {
+  border-color: #2f6b4f;
+  background: #0d271b;
+  color: #9fe0bc;
+}
+.stop-training-status.violated {
+  border-color: #a94350;
+  background: #32161e;
+  color: #ffd5d9;
+}
+.stop-training-setup {
+  display: grid;
+  gap: 9px;
+  max-width: 520px;
+  margin-top: 14px;
+}
+.stop-training-setup label,
+.full-session-source label {
+  color: #a9bdd1;
+  font-size: .82rem;
+  font-weight: 800;
+}
+.stop-training-setup input,
+.full-session-source input {
+  width: 100%;
+  min-height: 42px;
+  padding: 9px 12px;
+  border: 1px solid #344b64;
+  border-radius: 9px;
+  background: #0b1726;
+  color: #dce9f5;
+}
+.stop-training-setup small,
+.full-session-source small {
+  color: #8298ad;
+  line-height: 1.45;
+}
+.stop-training-enabled-note {
+  margin: 0;
+  color: #9fe0bc;
+  font-size: .84rem;
+}
+.stop-training-incident,
+.stop-analysis-status,
+.stop-bankruptcy-warning {
+  display: grid;
+  gap: 7px;
+  margin-top: 14px;
+  padding: 14px;
+  border: 1px solid #a94350;
+  border-radius: 11px;
+  background: #29151c;
+  color: #f0c6cb;
+  line-height: 1.5;
+}
+.stop-training-incident strong { color: #ffd6da; }
+.stop-training-incident p { margin: 3px 0 0; }
+.stop-analysis-status {
+  border-color: #4a6d8d;
+  background: #102337;
+  color: #c8d9e8;
+}
+.stop-analysis-status.error { border-color: #a94350; background: #29151c; }
+.stop-scenario-results {
+  margin-top: 16px;
+  padding-top: 15px;
+  border-top: 1px solid #34485f;
+}
+.stop-scenario-heading,
+.stop-chart-heading {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: flex-start;
+}
+.stop-scenario-heading > div,
+.stop-chart-heading {
+  display: grid;
+  gap: 4px;
+}
+.stop-scenario-heading small,
+.stop-chart-heading small {
+  color: #8298ad;
+  font-size: .75rem;
+}
+.stop-scenario-heading > span { font-size: .8rem; font-weight: 900; }
+.stop-scenario-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 9px;
+  margin-top: 13px;
+}
+.stop-scenario-grid > div {
+  display: grid;
+  gap: 4px;
+  padding: 11px 12px;
+  border: 1px solid #2e435b;
+  border-radius: 10px;
+  background: #0b1726;
+}
+.stop-scenario-grid span {
+  color: #8298ad;
+  font-size: .68rem;
+  text-transform: uppercase;
+}
+.stop-scenario-grid strong { color: #dce9f5; font-size: .95rem; }
+.stop-scenario-note,
+.stop-bankruptcy-warning {
+  margin: 12px 0 0;
+  font-size: .79rem;
+}
+.stop-bankruptcy-warning { border-color: #a94350; }
+.stop-full-session-chart {
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid #34485f;
+}
+.full-session-source {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+  width: 100%;
+}
+:root[data-theme="light"] .stop-training-status {
+  border-color: #c5d4e1;
+  color: #536b81;
+}
+:root[data-theme="light"] .stop-training-status.active {
+  border-color: #98cbb0;
+  background: #eaf7f0;
+  color: #266b4e;
+}
+:root[data-theme="light"] .stop-training-status.violated {
+  border-color: #d5a0a5;
+  background: #fff0f1;
+  color: #8c2f39;
+}
+:root[data-theme="light"] .stop-training-setup label,
+:root[data-theme="light"] .full-session-source label { color: #31516e; }
+:root[data-theme="light"] .stop-training-setup input,
+:root[data-theme="light"] .full-session-source input {
+  border-color: #c8d7e4;
+  background: #fff;
+  color: #2d465d;
+}
+:root[data-theme="light"] .stop-training-setup small,
+:root[data-theme="light"] .full-session-source small,
+:root[data-theme="light"] .stop-scenario-heading small,
+:root[data-theme="light"] .stop-chart-heading small,
+:root[data-theme="light"] .stop-scenario-grid span { color: #687f94; }
+:root[data-theme="light"] .stop-training-incident,
+:root[data-theme="light"] .stop-bankruptcy-warning {
+  border-color: #d5a0a5;
+  background: #fff0f1;
+  color: #7f303a;
+}
+:root[data-theme="light"] .stop-training-incident strong { color: #7f303a; }
+:root[data-theme="light"] .stop-analysis-status {
+  border-color: #b6cadb;
+  background: #eef5fa;
+  color: #31516e;
+}
+:root[data-theme="light"] .stop-analysis-status.error { border-color: #d5a0a5; background: #fff0f1; }
+:root[data-theme="light"] .stop-scenario-results,
+:root[data-theme="light"] .stop-full-session-chart { border-top-color: #d1dce6; }
+:root[data-theme="light"] .stop-scenario-grid > div {
+  border-color: #cbd9e5;
+  background: #f5f8fb;
+}
+:root[data-theme="light"] .stop-scenario-grid strong { color: #2d465d; }
+@media (max-width: 760px) {
+  .stop-scenario-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .stop-scenario-heading { flex-direction: column; }
+}
+@media (max-width: 480px) {
+  .stop-scenario-grid { grid-template-columns: 1fr; }
+}
