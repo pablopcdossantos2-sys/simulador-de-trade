@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { InfoTip } from "./InfoTip";
 import { saveExecutionSettings } from "../services/executionSettings";
+import { loadSignalAlertSettings, saveSignalAlertSettings } from "../services/signalAlerts";
 import type { ExecutionSettings, IntrabarPolicy } from "../types";
 
 interface Props {
@@ -34,6 +35,7 @@ export function ExecutionSettingsPanel({ settings, cloudOpacity, onCloudOpacityS
   const [slippage, setSlippage] = useState(String(settings.slippageTicksPerSide));
   const [intrabarPolicy, setIntrabarPolicy] = useState<IntrabarPolicy>(settings.intrabarPolicy);
   const [disciplineBalance, setDisciplineBalance] = useState(formatOptionalBalance(settings.disciplinedTrainingStartingBalanceBRL));
+  const [signalAlerts, setSignalAlerts] = useState(loadSignalAlertSettings);
   const [feedback, setFeedback] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -159,6 +161,40 @@ export function ExecutionSettingsPanel({ settings, cloudOpacity, onCloudOpacityS
             <input type="number" min="0.01" step="0.01" value={disciplineBalance} onChange={(event) => setDisciplineBalance(event.target.value)} placeholder="Não configurado" />
           </label>
         </div>
+      </div>
+
+      <div className="execution-settings-capitals">
+        <div className="capital-heading">
+          <h3>Alertas sonoros de sinais</h3>
+          <InfoTip label="Como funcionam os alertas">O simulador pode emitir um som diferente quando um novo sinal de compra ou venda é confirmado. Os alertas são locais e podem ser ativados ou desativados separadamente.</InfoTip>
+        </div>
+        <div className="signal-alert-options">
+          <label>
+            <input
+              type="checkbox"
+              checked={signalAlerts.buyEnabled}
+              onChange={(event) => {
+                const next = { ...signalAlerts, buyEnabled: event.target.checked };
+                setSignalAlerts(next);
+                saveSignalAlertSettings(next);
+              }}
+            />
+            Som para sinal de compra
+          </label>
+          <label>
+            <input
+              type="checkbox"
+              checked={signalAlerts.sellEnabled}
+              onChange={(event) => {
+                const next = { ...signalAlerts, sellEnabled: event.target.checked };
+                setSignalAlerts(next);
+                saveSignalAlertSettings(next);
+              }}
+            />
+            Som para sinal de venda
+          </label>
+        </div>
+        <small>Os sons são emitidos quando um novo sinal é confirmado durante a simulação ou replay.</small>
       </div>
 
       <div className="cost-source-help">
