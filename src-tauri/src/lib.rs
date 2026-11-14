@@ -790,7 +790,8 @@ fn list_session_trades(
                 t.cost_per_contract_round_trip_brl, t.opened_at, t.status,
                 t.exit_price, t.exit_reason, t.closed_at, t.result_points,
                 t.gross_result_brl, t.operational_costs_brl, t.net_result_brl,
-                t.post_trade_note, t.entry_context_json, t.intrabar_policy
+                t.post_trade_note, t.entry_context_json, t.intrabar_policy,
+                t.initial_stop_loss
             FROM trades t
             INNER JOIN training_events e
                 ON e.trade_id = t.id
