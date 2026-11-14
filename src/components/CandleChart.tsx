@@ -426,6 +426,11 @@ export function CandleChart({
         {crosshair && crosshairX !== null && <>
           <line x1={crosshairX} x2={crosshairX} y1={PLOT_TOP} y2={VOLUME_BOTTOM} className="crosshair-line" />
           <line x1={PLOT_LEFT} x2={PLOT_RIGHT} y1={crosshair.y} y2={crosshair.y} className="crosshair-line" />
+          <g className="crosshair-readout">
+            <rect x={PLOT_RIGHT - 190} y={PLOT_BOTTOM - 42} width="184" height="36" rx="6" />
+            <text x={PLOT_RIGHT - 180} y={PLOT_BOTTOM - 27}>Preço: {formatPrice(max - ((crosshair.y - PLOT_TOP) / (PLOT_BOTTOM - PLOT_TOP)) * range, asset)}</text>
+            <text x={PLOT_RIGHT - 180} y={PLOT_BOTTOM - 13}>Horário: {formatTime(hoveredCandle?.timestamp ?? lastCandle.timestamp)}</text>
+          </g>
         </>}
 
         {uniqueTimeLabelIndices.map((idx) => <text key={"time-label-" + visible[idx].index}
