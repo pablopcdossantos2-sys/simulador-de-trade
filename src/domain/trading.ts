@@ -422,3 +422,17 @@ export function signalAllows(
       signal.side === side,
   );
 }
+
+
+export const STOP_REENTRY_COOLDOWN_CANDLES = 10;
+
+export function canReenterAfterStop(
+  exitReason: Trade["exitReason"],
+  stoppedAtCandleIndex: number,
+  latestClosedCandleIndex: number,
+): boolean {
+  return exitReason === "STOP"
+    && Number.isInteger(stoppedAtCandleIndex)
+    && Number.isInteger(latestClosedCandleIndex)
+    && latestClosedCandleIndex - stoppedAtCandleIndex >= STOP_REENTRY_COOLDOWN_CANDLES;
+}
