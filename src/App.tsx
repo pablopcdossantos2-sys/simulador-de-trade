@@ -397,8 +397,7 @@ export default function App() {
 
   useEffect(() => {
     loadTrades()
-      .then(setTrades)
-      .catch(() => setFeedback("Não foi possível carregar o histórico local."));
+      .then(setTrades)      .catch(() => setFeedback("Não foi possível carregar o histórico local."));
 
     loadExecutionSettings()
       .then(setExecutionSettings)
@@ -710,11 +709,6 @@ export default function App() {
       return;
     }
     const startingBalanceBRL = disciplinedBalance ?? (stopTrainingEnabled ? stopTrainingBalance : null);
-    if (startingBalanceBRL === null || !Number.isFinite(startingBalanceBRL) || startingBalanceBRL <= 0) {
-      setFeedback("Configure o capital do treino em Configurações.");
-      return;
-    }
-
     if (!simulationPlan || !replay.session || !planIsReady(catalogMatches)) {
       setFeedback(
         "Carregue um replay compatível e complete todos os dados do plano antes de iniciar o treino.",
@@ -797,8 +791,7 @@ export default function App() {
 
     const endedAfterStopViolation = stopIncidentRef.current;
     if (position && !endedAfterStopViolation) {
-      setFeedback(
-        "Encerre a posição aberta antes de finalizar a sessão de treino.",
+      setFeedback(        "Encerre a posição aberta antes de finalizar a sessão de treino.",
       );
       return;
     }
@@ -1197,8 +1190,7 @@ export default function App() {
     setDeletingHistory(true);
     try {
       await deleteAllTrades();
-      setTrades([]);
-      setTrainingEvents((current) => current.filter((event) => event.type !== "TRADE_OPENED" && event.type !== "TRADE_CLOSED"));
+      setTrades([]);      setTrainingEvents((current) => current.filter((event) => event.type !== "TRADE_OPENED" && event.type !== "TRADE_CLOSED"));
       setSessionHistoryRefreshKey((value) => value + 1);
       setFeedback("Histórico de operações apagado. Sessões e eventos disciplinares/técnicos foram preservados.");
     } catch (error) {
@@ -1367,18 +1359,15 @@ export default function App() {
           planIsReady(catalogMatches) &&
           Boolean(replay.session) &&
           !startingTraining &&
-          ((executionSettings.disciplinedTrainingStartingBalanceBRL ?? 0) > 0 ||
-            (stopTrainingEnabled && (executionSettings.stopTrainingStartingBalanceBRL ?? 0) > 0))
         }
         startBlockedReason={
           startingTraining
             ? "Aguarde a inicialização da sessão."
             : !replay.session
               ? "Carregue o replay do pregão-alvo antes de iniciar."
-              : !((executionSettings.disciplinedTrainingStartingBalanceBRL ?? 0) > 0 ||
-                  (stopTrainingEnabled && (executionSettings.stopTrainingStartingBalanceBRL ?? 0) > 0))
-                ? "O capital do Treino disciplinado ainda não foi configurado. Informe o saldo inicial em Configurações para liberar o início."
-                : null
+              : stopTrainingEnabled && !((executionSettings.stopTrainingStartingBalanceBRL ?? 0) > 0)
+              ? "Configure o capital do Treinamento de Stops em Configurações para ativar essa modalidade."
+              : null
         }
         replayLoaded={Boolean(replay.session)}
         onOpenSettings={() => setActiveArea("CONFIGURACOES")}
@@ -1597,8 +1586,7 @@ export default function App() {
               );
             }
           }}
-        />
-      </details>
+        />      </details>
       </section>
 
       <section className="app-area stop-training-area" hidden={activeArea !== "TREINO_STOPS"}>
