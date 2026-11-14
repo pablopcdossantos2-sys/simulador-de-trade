@@ -112,6 +112,18 @@ export async function loadTrades(): Promise<Trade[]> {
   return trades.map(normalizeTrade);
 }
 
+export async function deleteAllDatabaseData(): Promise<void> {
+  if (isTauriRuntime()) {
+    await invoke("delete_all_database_data");
+    return;
+  }
+
+  localStorage.removeItem(STORAGE_KEY);
+  localStorage.removeItem(SESSION_STORAGE_KEY);
+  localStorage.removeItem(EVENT_STORAGE_KEY);
+  localStorage.removeItem("simulador-de-trade:execution-settings");
+}
+
 export async function deleteAllTrades(): Promise<void> {
   if (isTauriRuntime()) {
     await invoke("delete_all_trades");
