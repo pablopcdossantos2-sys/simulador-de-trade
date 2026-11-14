@@ -230,6 +230,33 @@ h2 {
   background: #122034;
 }
 
+.chart-shell-maximized {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 14px 20px 18px;
+  overflow: auto;
+  border: 0;
+  border-radius: 0;
+  background: #091321;
+  box-shadow: 0 0 0 100vmax rgba(0, 0, 0, 0.92);
+}
+.chart-shell-maximized .chart {
+  flex: 1 1 auto;
+  width: 100%;
+  height: calc(100vh - 210px);
+  min-height: 360px;
+  max-height: calc(100vh - 210px);
+  aspect-ratio: auto;
+}
+.chart-shell-maximized .chart-toolbar { padding-top: 0; }
+.chart-shell-maximized .chart-context-note { margin-bottom: 0; }
+.chart-shell-maximized .chart-controls .info-tip { margin-right: 4px; }
+.replay-countdown strong { color: #f2d17b; }
+
 .chart-shell {
   margin-top: 14px;
   overflow: hidden;
@@ -710,16 +737,7 @@ td {
   filter: brightness(1.08);
 }
 
-.order-actions button.locked {
-  opacity: 0.42;
-  filter: saturate(0.45);
-}
-
-.order-actions button.locked:hover {
-  opacity: 0.58;
-}
-
-.modal-backdrop {
+.order-actions button.modal-backdrop {
   position: fixed;
   inset: 0;
   z-index: 1000;
