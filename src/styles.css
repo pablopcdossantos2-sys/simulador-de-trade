@@ -738,7 +738,7 @@ td {
   filter: brightness(1.08);
 }
 
-.order-actions button.modal-backdrop {
+.modal-backdrop {
   position: fixed;
   inset: 0;
   z-index: 1000;
