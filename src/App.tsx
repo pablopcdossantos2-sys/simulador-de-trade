@@ -1593,6 +1593,7 @@ export default function App() {
         <h2 className="area-title">Treinamento de Stops</h2>
         <StopTrainingPanel
           asset={asset}
+          cloudOpacity={cloudOpacity}
           startingBalanceBRL={executionSettings.stopTrainingStartingBalanceBRL ?? null}
           enabled={stopTrainingEnabled}
           trainingActive={trainingActive}
