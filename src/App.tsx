@@ -1338,7 +1338,16 @@ export default function App() {
           }
 
           if (replay.session) {
-            await replay.unload();
+            try {
+              await replay.unload();
+            } catch (error) {
+              setFeedback(
+                error instanceof Error
+                  ? `Não foi possível descarregar o replay atual: ${error.message}`
+                  : "Não foi possível descarregar o replay atual. O plano anterior foi mantido.",
+              );
+              return;
+            }
           }
 
           const demoCandles = createDemoCandles(plan.asset);
@@ -1367,6 +1376,7 @@ export default function App() {
           setTrainingEvents([]);
           setTrainingMode("FREE");
           activeSignalRef.current = null;
+          lastSeenReplaySignalRef.current = null;
           usedSignalIdsRef.current = new Set();
           ignoredSignalIdsRef.current = new Set();
           lastSuggestedSignalIdRef.current = null;
