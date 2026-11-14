@@ -186,12 +186,15 @@ export function CandleChart({
     if (chartPan) {
       const deltaX = x - chartPan.startX;
       const deltaY = yValue - chartPan.startY;
-      const nextOffset = chartPan.startOffset + Math.round(deltaX / Math.max(xStep, 1));
-      setPanOffset(Math.max(0, Math.min(Math.max(0, allCandles.length - visibleBars), nextOffset)));
-      setPanPriceOffset(chartPan.startPriceOffset + (deltaY / (PLOT_BOTTOM - PLOT_TOP)) * chartPan.range);
-      setCrosshair(null);
-      didDragRef.current = true;
-      return;
+      if (Math.abs(deltaX) > 3 || Math.abs(deltaY) > 3) {
+        const nextOffset = chartPan.startOffset + Math.round(deltaX / Math.max(xStep, 1));
+        setPanOffset(Math.max(0, Math.min(Math.max(0, allCandles.length - visibleBars), nextOffset)));
+        setPanPriceOffset(chartPan.startPriceOffset + (deltaY / (PLOT_BOTTOM - PLOT_TOP)) * chartPan.range);
+        setCrosshair(null);
+        setIsPanning(true);
+        didDragRef.current = true;
+        return;
+      }
     }
 
     const axisDrag = axisDragRef.current;
@@ -251,9 +254,7 @@ export function CandleChart({
       event.preventDefault();
     } else if (!fitAllCandles && x >= PLOT_LEFT && x <= PLOT_RIGHT && yValue >= PLOT_TOP && yValue <= VOLUME_BOTTOM) {
       chartPanRef.current = { startX: x, startY: yValue, startOffset: panOffset, startPriceOffset: panPriceOffset, range };
-      setIsPanning(true);
       setCrosshair(null);
-      didDragRef.current = true;
       event.preventDefault();
     }
   }
