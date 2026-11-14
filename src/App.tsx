@@ -1358,7 +1358,7 @@ export default function App() {
           Boolean(simulationPlan) &&
           planIsReady(catalogMatches) &&
           Boolean(replay.session) &&
-          !startingTraining &&
+          !startingTraining
         }
         startBlockedReason={
           startingTraining
