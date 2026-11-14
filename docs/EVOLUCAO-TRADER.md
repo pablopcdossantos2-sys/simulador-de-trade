@@ -86,7 +86,9 @@ Dimensões utilizadas:
 - zona do indicador na entrada: verde, vermelha ou sem zona ativa;
 - posição do preço em relação à VWAP: acima, abaixo ou próximo (até 2 ticks);
 - proporção do corpo do candle de entrada em relação ao seu range: pequeno (menos de 25%), intermediário (25% a menos de 60%) ou dominante (60% ou mais);
-- amplitude do candle de entrada em relação à média dos até 10 candles anteriores: expandida (1,5 vez ou mais), comprimida (0,7 vez ou menos) ou próxima da média. Essa dimensão exige pelo menos 5 candles anteriores válidos.
+- amplitude do candle de entrada em relação à média dos até 10 candles anteriores: expandida (1,5 vez ou mais), comprimida (0,7 vez ou menos) ou próxima da média. Essa dimensão exige pelo menos 5 candles anteriores válidos;
+- distância do stop em relação à média dos ranges anteriores: menor que 1 range médio, entre 1 e 2 ou igual/maior que 2. Também exige pelo menos 5 candles anteriores válidos;
+- relação risco/retorno planejada, calculada pela distância entre entrada, stop e alvo, em faixas de 2,0 a menos de 2,5, de 2,5 a menos de 3,5, 3,5 ou mais e abaixo de 2,0 (para registros históricos que não sigam a validação atual).
 
 ### Como ler as associações
 
