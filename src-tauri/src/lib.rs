@@ -2105,7 +2105,7 @@ fn derived_paths(
     ))
 }
 
-pub(super) fn unique_temp_path(output_path: &Path, suffix: &str) -> PathBuf {
+pub(crate) fn unique_temp_path(output_path: &Path, suffix: &str) -> PathBuf {
     let nonce = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap_or_default()
