@@ -3868,3 +3868,26 @@ td {
 .cloud-opacity-input output { min-width: 48px; color: #dce9f5; font-variant-numeric: tabular-nums; text-align: right; }
 :root[data-theme="light"] .cloud-opacity-control { color: #31516e; }
 :root[data-theme="light"] .cloud-opacity-input output { color: #2d465d; }
+
+
+/* Leitura precisa do cursor no gráfico */
+.crosshair-readout rect {
+  fill: #102238;
+  stroke: #6b8eae;
+  stroke-width: 1;
+  opacity: .96;
+}
+.crosshair-readout text {
+  fill: #f0f6fc;
+  font-size: 11px;
+  font-weight: 750;
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+}
+:root[data-theme="light"] .crosshair-readout rect {
+  fill: #ffffff;
+  stroke: #7898b5;
+}
+:root[data-theme="light"] .crosshair-readout text {
+  fill: #203d58;
+}
