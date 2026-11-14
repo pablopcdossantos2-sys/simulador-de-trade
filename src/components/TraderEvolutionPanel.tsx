@@ -437,8 +437,7 @@ export function TraderEvolutionPanel({ refreshKey }: Props) {
 
         {reviewContextInsights.associations.length === 0 ? (
           <div className="review-context-empty">
-            Ainda não há uma situação com frequência pelo menos 10 pontos percentuais acima da base geral e amostra mínima de 3 operações.
-            Continue registrando as avaliações para que possíveis associações possam ser observadas.
+            Nenhuma associação contextual atingiu os critérios mínimos até agora.
           </div>
         ) : (
           <div className="review-context-list">
