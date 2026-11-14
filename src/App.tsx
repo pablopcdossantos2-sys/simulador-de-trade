@@ -1095,7 +1095,7 @@ export default function App() {
     // Preenche apenas campos ainda vazios; não sobrescreve a preparação do usuário.
     if (!stopDistance.trim()) setStopDistance(String(distance.stop));
     if (!targetDistance.trim()) setTargetDistance(String(distance.target));
-    setFeedback(`Entrada ${sideLabel(authorizedSideForChart)} posicionada em ${money.format(entry)}. Arraste as linhas de Stop e Alvo no gráfico; o mínimo 1:2 será validado antes de aceitar a ordem.`);
+    setFeedback(`Entrada ${sideLabel(authorizedSideForChart)} posicionada em ${money.format(entry)}. Arraste somente a linha de Alvo no gráfico; o Stop permanece fixo e o mínimo 1:2 será validado antes de aceitar a ordem.`);
   }
 
   function adjustOcoFromChart(_kind: "target", rawPrice: number, mode: "position" | "draft") {
