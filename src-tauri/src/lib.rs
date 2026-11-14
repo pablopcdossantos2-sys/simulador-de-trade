@@ -3303,9 +3303,9 @@ mod tests {
 
         initialize_database(&connection).unwrap();
 
-        let (contracts, requested, gross, net, note, context, policy): (i64, f64, f64, f64, String, Option<String>, String) = connection
+        let (contracts, requested, gross, net, note, context, policy, initial_stop): (i64, f64, f64, f64, String, Option<String>, String, f64) = connection
             .query_row(
-                "SELECT contracts, requested_entry, gross_result_brl, net_result_brl, post_trade_note, entry_context_json, intrabar_policy FROM trades WHERE id = 'legacy-1'",
+                "SELECT contracts, requested_entry, gross_result_brl, net_result_brl, post_trade_note, entry_context_json, intrabar_policy, initial_stop_loss FROM trades WHERE id = 'legacy-1'",
                 [],
                 |row| Ok((
                     row.get(0)?,
@@ -3315,6 +3315,7 @@ mod tests {
                     row.get(4)?,
                     row.get(5)?,
                     row.get(6)?,
+                    row.get(7)?,
                 )),
             )
             .unwrap();
@@ -3326,6 +3327,28 @@ mod tests {
         assert_eq!(note, "");
         assert!(context.is_none());
         assert_eq!(policy, "STOP_FIRST");
+        assert!((initial_stop - 129900.0).abs() < 1e-9);
+    }
+
+    #[test]
+    fn atomic_replace_does_not_touch_user_owned_previous_file() {
+        use std::time::{SystemTime, UNIX_EPOCH};
+        let nonce = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos();
+        let directory = std::env::temp_dir().join(format!("simulador-atomic-replace-{nonce}"));
+        fs::create_dir_all(&directory).unwrap();
+        let output = directory.join("meus.json");
+        let temp = directory.join("meus.tmp");
+        let user_previous = output.with_extension("replay.previous");
+        fs::write(&output, "old").unwrap();
+        fs::write(&temp, "new").unwrap();
+        fs::write(&user_previous, "arquivo do usuário").unwrap();
+
+        replace_file_safely(&temp, &output).unwrap();
+
+        assert_eq!(fs::read_to_string(&output).unwrap(), "new");
+        assert_eq!(fs::read_to_string(&user_previous).unwrap(), "arquivo do usuário");
+        assert!(!temp.exists());
+        let _ = fs::remove_dir_all(directory);
     }
 
     #[test]
