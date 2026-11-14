@@ -921,6 +921,40 @@ fn delete_all_trades(state: tauri::State<'_, DbState>) -> Result<(), String> {
 }
 
 #[tauri::command]
+fn delete_all_database_data(state: tauri::State<'_, DbState>) -> Result<(), String> {
+    let mut connection = state.0.lock().map_err(|error| error.to_string())?;
+    let transaction = connection
+        .transaction()
+        .map_err(|error| error.to_string())?;
+
+    // Remove primeiro os registros dependentes para respeitar as chaves estrangeiras.
+    transaction.execute("DELETE FROM training_events", [])
+        .map_err(|error| error.to_string())?;
+    transaction.execute("DELETE FROM trades", [])
+        .map_err(|error| error.to_string())?;
+    transaction.execute("DELETE FROM training_sessions", [])
+        .map_err(|error| error.to_string())?;
+    transaction.execute("DELETE FROM execution_settings", [])
+        .map_err(|error| error.to_string())?;
+
+    // Mantém uma linha válida de configurações, restaurada aos padrões do aplicativo.
+    transaction.execute(
+        r#"
+        INSERT INTO execution_settings (
+            id, cost_per_contract_round_trip_brl, cost_win_round_trip_brl,
+            cost_wdo_round_trip_brl, slippage_ticks_per_side, intrabar_policy,
+            disciplined_training_starting_balance_brl, stop_training_starting_balance_brl
+        )
+        VALUES (1, 0.50, 0.50, 2.12, 0, 'STOP_FIRST', NULL, NULL)
+        "#,
+        [],
+    ).map_err(|error| error.to_string())?;
+
+    transaction.commit().map_err(|error| error.to_string())?;
+    Ok(())
+}
+
+#[tauri::command]
 fn list_trades(state: tauri::State<'_, DbState>) -> Result<Vec<TradeRecord>, String> {
     let connection = state.0.lock().map_err(|error| error.to_string())?;
     let mut statement = connection
@@ -3366,6 +3400,7 @@ pub fn run() {
             list_trades,
             list_all_trades,
             delete_all_trades,
+            delete_all_database_data,
             export_backup,
             import_backup,
             write_report_export,
