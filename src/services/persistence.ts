@@ -80,6 +80,7 @@ function normalizeTrade(raw: Trade): Trade {
   return {
     ...raw,
     requestedEntry,
+    initialStopLoss: Number.isFinite(raw.initialStopLoss) ? raw.initialStopLoss : raw.stopLoss,
     contracts,
     slippageTicksPerSide,
     costPerContractRoundTripBRL,
