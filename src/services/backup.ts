@@ -7,6 +7,7 @@ export interface BackupSummary {
   trades: number;
   sessions: number;
   events: number;
+  replays?: number;
 }
 
 export function backupAvailable(): boolean {
