@@ -1068,7 +1068,8 @@ fn query_backup_sessions(
             r#"
             SELECT
                 id, asset, trade_date, start_time, end_time,
-                timeframe_minutes, warmup_bars, mode, started_at, ended_at, status
+                timeframe_minutes, warmup_bars, mode, started_at, ended_at, status,
+                starting_balance_brl
             FROM training_sessions
             ORDER BY started_at ASC, id ASC
             "#,
@@ -1089,6 +1090,7 @@ fn query_backup_sessions(
                 started_at: row.get(8)?,
                 ended_at: row.get(9)?,
                 status: row.get(10)?,
+                starting_balance_brl: row.get(11)?,
             })
         })
         .map_err(|error| error.to_string())?;
