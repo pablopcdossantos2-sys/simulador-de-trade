@@ -48,6 +48,9 @@ function resultAt(
   startingBalanceBRL: number,
 ): Pick<StopWideningScenario, "exitPrice" | "netResultBRL" | "finalBalanceBRL"> {
   const exitPrice = effectiveExitPrice(position, triggerPrice, outcome);
+  if (!Number.isFinite(exitPrice) || exitPrice <= 0 || !isPriceOnTick(position.asset, exitPrice)) {
+    throw new Error("O preço de saída após slippage é inválido ou incompatível com o tick do ativo.");
+  }
   const gross = grossResultBRL(
     position.asset,
     pointsFor(position.side, position.entry, exitPrice),
@@ -92,8 +95,9 @@ export function simulateStopWideningScenario(input: {
   if (!Number.isFinite(lastObservedPrice) || lastObservedPrice <= 0) {
     throw new Error("Não há preço válido para iniciar a análise contrafactual.");
   }
-  if (!lastObservedTimestamp.trim()) {
-    throw new Error("Informe o horário do último preço observado.");
+  const lastObservedTime = Date.parse(lastObservedTimestamp);
+  if (!lastObservedTimestamp.trim() || !Number.isFinite(lastObservedTime)) {
+    throw new Error("Informe um horário válido para o último preço observado.");
   }
   if (!Number.isInteger(position.contracts) || position.contracts <= 0) {
     throw new Error("A quantidade de contratos precisa ser um inteiro maior que zero.");
@@ -137,6 +141,7 @@ export function simulateStopWideningScenario(input: {
   const adjustments: StopWideningAdjustment[] = [];
 
   let previousSequence = position.openedReplaySequence ?? -1;
+  let previousTradeTime = lastObservedTime;
   for (const trade of tradesAfterViolation) {
     if (trade.sequence <= (position.openedReplaySequence ?? -1)) continue;
     if (trade.asset !== position.asset) {
@@ -149,11 +154,17 @@ export function simulateStopWideningScenario(input: {
         !isPriceOnTick(position.asset, trade.price)) {
       throw new Error("O replay contém preço inválido ou incompatível com o tick do ativo.");
     }
-    if (!Number.isFinite(trade.quantity) || trade.quantity < 0 || !trade.timestamp.trim()) {
+    const tradeTime = Date.parse(trade.timestamp);
+    if (!Number.isFinite(trade.quantity) || trade.quantity <= 0 ||
+        !trade.timestamp.trim() || !Number.isFinite(tradeTime)) {
       throw new Error("O replay contém quantidade ou horário inválido.");
+    }
+    if (tradeTime < previousTradeTime) {
+      throw new Error("Os horários dos negócios do replay não podem retroceder em relação ao último preço observado.");
     }
 
     previousSequence = trade.sequence;
+    previousTradeTime = tradeTime;
     processedTrades += 1;
     lastPrice = trade.price;
     lastTimestamp = trade.timestamp;
