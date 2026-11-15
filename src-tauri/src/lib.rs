@@ -212,7 +212,7 @@ struct BackupExportDocument<'a> {
 impl Serialize for BackupExportDocument<'_> {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where S: serde::Serializer {
-        let mut document = serializer.serialize_struct("BackupExportDocument", 9)?;
+        let mut document = serializer.serialize_struct("BackupExportDocument", 10)?;
         document.serialize_field("format", &self.bundle.format)?;
         document.serialize_field("schemaVersion", &self.bundle.schema_version)?;
         document.serialize_field("appVersion", &self.bundle.app_version)?;
@@ -220,6 +220,7 @@ impl Serialize for BackupExportDocument<'_> {
         document.serialize_field("trades", &self.bundle.trades)?;
         document.serialize_field("trainingSessions", &self.bundle.training_sessions)?;
         document.serialize_field("trainingEvents", &self.bundle.training_events)?;
+        document.serialize_field("usageSessions", &self.bundle.usage_sessions)?;
         document.serialize_field("executionSettings", &self.bundle.execution_settings)?;
         document.serialize_field("replayFiles", &self.replay_files)?;
         document.end()
@@ -3462,6 +3463,7 @@ mod tests {
             trades: Vec::new(),
             training_sessions: Vec::new(),
             training_events: Vec::new(),
+            usage_sessions: Vec::new(),
             execution_settings: settings,
         };
 
@@ -3510,6 +3512,7 @@ mod tests {
             trades: Vec::new(),
             training_sessions: Vec::new(),
             training_events: Vec::new(),
+            usage_sessions: Vec::new(),
             execution_settings: ExecutionSettingsRecord {
                 cost_per_contract_round_trip_brl: 0.0,
                 cost_win_round_trip_brl: Some(0.5),
