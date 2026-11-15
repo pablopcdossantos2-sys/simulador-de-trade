@@ -1346,10 +1346,10 @@ mod tests {
 
         let events = read_next_replay_batch(&mut session, 500).unwrap();
         assert_eq!(events.len(), 120);
-        assert_eq!(events.front().unwrap().timestamp, "2026-10-07T09:00:00");
-        assert_eq!(events.back().unwrap().timestamp, "2026-10-07T09:01:59");
-        assert_eq!(events.front().unwrap().price, 130000.0);
-        assert_eq!(events.back().unwrap().price, 130010.0);
+        assert_eq!(events.first().unwrap().timestamp, "2026-10-07T09:00:00");
+        assert_eq!(events.last().unwrap().timestamp, "2026-10-07T09:01:59");
+        assert_eq!(events.first().unwrap().price, 130000.0);
+        assert_eq!(events.last().unwrap().price, 130010.0);
         assert!(events.iter().all(|event| event.price >= 129950.0 && event.price <= 130050.0));
         assert!((events.iter().map(|event| event.quantity).sum::<f64>() - 1200.0).abs() < 1e-8);
 
@@ -1380,10 +1380,10 @@ mod tests {
         let events = read_next_replay_batch(&mut session, 5000).unwrap();
 
         assert_eq!(events.len(), 240);
-        assert_eq!(events.front().unwrap().timestamp, "2026-10-07T09:00:00");
+        assert_eq!(events.first().unwrap().timestamp, "2026-10-07T09:00:00");
         assert_eq!(events[119].timestamp, "2026-10-07T09:01:59");
         assert_eq!(events[120].timestamp, "2026-10-07T09:06:00");
-        assert_eq!(events.back().unwrap().timestamp, "2026-10-07T09:07:59");
+        assert_eq!(events.last().unwrap().timestamp, "2026-10-07T09:07:59");
         assert!(events.windows(2).all(|pair| pair[0].timestamp < pair[1].timestamp));
         assert!(events.iter().all(|event| {
             !(event.timestamp.as_str() >= "2026-10-07T09:02:00"
