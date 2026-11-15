@@ -10,6 +10,8 @@ export interface ProfitPreparationResult {
   sourceRows: number;
   keptRows: number;
   discardedRows: number;
+  discardedOutsideWindowRows: number;
+  incompleteM1CandlesDropped: number;
   sourceBytes: number;
   outputBytes: number;
   reductionPct: number;
