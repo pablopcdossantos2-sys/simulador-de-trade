@@ -27,6 +27,7 @@ pub struct ReplaySession {
     session_start: Option<String>,
     session_end: Option<String>,
     pending_error: Option<String>,
+    last_timestamp: Option<NaiveDateTime>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -258,7 +259,7 @@ fn open_session(path: &Path) -> Result<(ReplaySession, ReplaySessionInfo), Strin
     Ok((ReplaySession {
         reader, source_path: path.to_path_buf(), data_start, symbol, asset, format,
         sequence: 0, pending_synthetic: VecDeque::new(), finished: false,
-        session_start, session_end, pending_error: None,
+        session_start, session_end, pending_error: None, last_timestamp: None,
     }, info))
 }
 
@@ -523,6 +524,7 @@ fn rewind_session(session: &mut ReplaySession) -> Result<(), String> {
     session.pending_synthetic.clear();
     session.finished = false;
     session.pending_error = None;
+    session.last_timestamp = None;
     Ok(())
 }
 
@@ -629,7 +631,21 @@ fn read_next_replay_batch(session: &mut ReplaySession, max_events: usize) -> Res
     let limit = max_events.clamp(1, 5000);
     let mut result = Vec::with_capacity(limit);
     while result.len() < limit {
-        if let Some(event) = session.pending_synthetic.pop_front() { result.push(event); continue; }
+        if let Some(event) = session.pending_synthetic.pop_front() {
+            let timestamp = parse_replay_timestamp(&event.timestamp)?;
+            if session.last_timestamp.is_some_and(|previous| timestamp < previous) {
+                let error = format!(
+                    "Replay fora de ordem cronológica: {} vem antes do negócio anterior.",
+                    event.timestamp
+                );
+                if result.is_empty() { return Err(error); }
+                session.pending_error = Some(error);
+                break;
+            }
+            session.last_timestamp = Some(timestamp);
+            result.push(event);
+            continue;
+        }
         let mut line = String::new();
         let read = session.reader.read_line(&mut line).map_err(|error| error.to_string())?;
         if read == 0 { session.finished = true; break; }
@@ -857,6 +873,36 @@ mod tests {
         assert_eq!(next.len(), 1);
         assert_eq!(next[0].sequence, 2);
         assert_eq!(next[0].price, 130010.0);
+
+        let _ = std::fs::remove_file(path);
+    }
+
+    #[test]
+    fn rejects_out_of_order_replay_events_without_reordering_the_stream() {
+        use std::io::Write;
+        use std::time::{SystemTime, UNIX_EPOCH};
+
+        let unique = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos();
+        let path = std::env::temp_dir().join(format!("simulador-trade-replay-order-{unique}.csv"));
+        {
+            let mut file = File::create(&path).unwrap();
+            writeln!(file, "symbol,timestamp,source_row,price,quantity").unwrap();
+            writeln!(file, "WINV26,2026-10-07T09:00:02,1,130000,1").unwrap();
+            writeln!(file, "WINV26,2026-10-07T09:00:01,2,130005,1").unwrap();
+            writeln!(file, "WINV26,2026-10-07T09:00:03,3,130010,1").unwrap();
+        }
+
+        let (mut session, _) = open_session(&path).unwrap();
+        let first = read_next_replay_batch(&mut session, 5000).unwrap();
+        assert_eq!(first.len(), 1);
+        assert_eq!(first[0].timestamp, "2026-10-07T09:00:02");
+
+        let error = read_next_replay_batch(&mut session, 5000).unwrap_err();
+        assert!(error.contains("fora de ordem cronológica"));
+
+        let remaining = read_next_replay_batch(&mut session, 5000).unwrap();
+        assert_eq!(remaining.len(), 1);
+        assert_eq!(remaining[0].timestamp, "2026-10-07T09:00:03");
 
         let _ = std::fs::remove_file(path);
     }
