@@ -4145,7 +4145,7 @@ mod tests {
 
         initialize_database(&connection).unwrap();
 
-        let (contracts, requested, gross, net, note, context, policy, initial_stop): (i64, f64, f64, f64, String, Option<String>, String, f64) = connection
+        let (contracts, requested, gross, net, note, review, context, policy, initial_stop): (i64, f64, f64, f64, String, Option<String>, Option<String>, String, f64) = connection
             .query_row(
                 "SELECT contracts, requested_entry, gross_result_brl, net_result_brl, post_trade_note, review_json, entry_context_json, intrabar_policy, initial_stop_loss FROM trades WHERE id = 'legacy-1'",
                 [],
@@ -4158,6 +4158,7 @@ mod tests {
                     row.get(5)?,
                     row.get(6)?,
                     row.get(7)?,
+                    row.get(8)?,
                 )),
             )
             .unwrap();
@@ -4167,6 +4168,7 @@ mod tests {
         assert!((gross - 30.0).abs() < 1e-9);
         assert!((net - 30.0).abs() < 1e-9);
         assert_eq!(note, "");
+        assert!(review.is_none());
         assert!(context.is_none());
         assert_eq!(policy, "STOP_FIRST");
         assert!((initial_stop - 129900.0).abs() < 1e-9);
