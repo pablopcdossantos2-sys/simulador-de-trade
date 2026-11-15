@@ -107,6 +107,9 @@ fn parse_replay_line(line: &str, asset: &str, sequence: u64) -> Result<ReplayTra
         ));
     }
 
+    let timestamp = fields[1].trim();
+    parse_replay_timestamp(timestamp)?;
+
     let source_row = fields[2]
         .trim()
         .parse::<u64>()
@@ -129,7 +132,7 @@ fn parse_replay_line(line: &str, asset: &str, sequence: u64) -> Result<ReplayTra
 
     Ok(ReplayTradeRecord {
         asset: asset.to_string(),
-        timestamp: fields[1].trim().to_string(),
+        timestamp: timestamp.to_string(),
         source_row,
         sequence,
         price,
@@ -259,14 +262,26 @@ fn open_session(path: &Path) -> Result<(ReplaySession, ReplaySessionInfo), Strin
     }, info))
 }
 
+/// Interpreta timestamps como relógio local do mercado: offsets/Z são aceitos
+/// para interoperabilidade, mas não deslocam o horário informado no arquivo.
 fn parse_replay_timestamp(raw: &str) -> Result<NaiveDateTime, String> {
+    let value = raw.trim();
+
+    // RFC 3339 cobre sufixo Z, offsets ±HH:MM e frações de segundo.
+    if let Ok(timestamp) = chrono::DateTime::parse_from_rfc3339(value) {
+        return Ok(timestamp.naive_local());
+    }
+
+    // Também aceita separador com espaço, mantendo a semântica de relógio local.
     for format in [
+        "%Y-%m-%d %H:%M:%S%.f%:z",
+        "%Y-%m-%d %H:%M:%S%:z",
         "%Y-%m-%dT%H:%M:%S%.f",
         "%Y-%m-%dT%H:%M:%S",
         "%Y-%m-%d %H:%M:%S%.f",
         "%Y-%m-%d %H:%M:%S",
     ] {
-        if let Ok(value) = NaiveDateTime::parse_from_str(raw.trim(), format) {
+        if let Ok(value) = NaiveDateTime::parse_from_str(value, format) {
             return Ok(value);
         }
     }
@@ -736,6 +751,32 @@ mod tests {
         assert_eq!(row.source_row, 431);
         assert_eq!(row.price, 130000.0);
         assert_eq!(row.quantity, 12.0);
+    }
+
+    #[test]
+    fn parses_fractional_market_timestamps_without_losing_precision() {
+        let timestamp = parse_replay_timestamp("2026-10-07T09:00:00.123456789").unwrap();
+        assert_eq!(timestamp.nanosecond(), 123_456_789);
+    }
+
+    #[test]
+    fn accepts_timezone_suffix_without_shifting_market_wall_clock() {
+        let utc = parse_replay_timestamp("2026-10-07T09:00:00Z").unwrap();
+        let offset = parse_replay_timestamp("2026-10-07T09:00:00.125-03:00").unwrap();
+        assert_eq!(utc.format("%Y-%m-%dT%H:%M:%S").to_string(), "2026-10-07T09:00:00");
+        assert_eq!(offset.hour(), 9);
+        assert_eq!(offset.minute(), 0);
+        assert_eq!(offset.nanosecond(), 125_000_000);
+    }
+
+    #[test]
+    fn rejects_invalid_tick_timestamp_before_replay() {
+        let result = parse_replay_line(
+            "WINV26,2026-02-30T09:00:00,1,130000,1",
+            "WINFUT",
+            0,
+        );
+        assert!(result.unwrap_err().contains("Timestamp inválido"));
     }
 
     #[test]
