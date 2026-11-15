@@ -3400,9 +3400,9 @@ fn process_profit_m2_candle_file(
         let _m1_guard = TempFileGuard(m1_temp.clone());
         let file = File::create(&m1_temp).map_err(|error| error.to_string())?;
         let mut writer = BufWriter::with_capacity(1024 * 1024, file);
-        writer.write_all(b"symbol,timestamp,source_row,open,high,low,close,volume,timeframe_minutes\\n").map_err(|error| error.to_string())?;
+        writer.write_all(b"symbol,timestamp,source_row,open,high,low,close,volume,timeframe_minutes\n").map_err(|error| error.to_string())?;
         for row in &m1_rows {
-            let line = format!("{},{},{},{},{},{},{},{},1\\n", csv_escape(&symbol), row.timestamp.format("%Y-%m-%dT%H:%M:%S"), row.source_row, row.open, row.high, row.low, row.close, row.volume);
+            let line = format!("{},{},{},{},{},{},{},{},1\n", csv_escape(&symbol), row.timestamp.format("%Y-%m-%dT%H:%M:%S"), row.source_row, row.open, row.high, row.low, row.close, row.volume);
             writer.write_all(line.as_bytes()).map_err(|error| error.to_string())?;
         }
         writer.flush().map_err(|error| error.to_string())?;
@@ -3445,9 +3445,9 @@ fn process_profit_m2_candle_file(
         "purpose": "Simulador de Trade — replay de candles M2 WINFUT/WDOFUT",
         "dataMode": "CANDLES_M2_SYNTHETIC",
         "sourceTimeframeMinutes": result.source_timeframe_minutes,
-        "preservedM1File": result.m1_output_path,
-        "preservedM1Rows": result.m1_kept_rows,
-        "preservedM1Bytes": result.m1_output_bytes,
+        "preservedM1File": &result.m1_output_path,
+        "preservedM1Rows": &result.m1_kept_rows,
+        "preservedM1Bytes": &result.m1_output_bytes,
         "timezone": "America/Sao_Paulo",
         "sourceTradeDate": selected_date.format("%Y-%m-%d").to_string(),
         "window": { "startInclusive": result.session_start.clone(), "endExclusive": result.session_end.clone() },
@@ -3702,7 +3702,7 @@ mod tests {
         fs::create_dir_all(&root).unwrap();
         let replay_path = root.join("WINV26.replay.csv");
         let metadata_path = root.join("WINV26.meta.json");
-        let replay = b"timestamp;price\\n2026-11-14 09:00:00;130000\\n";
+        let replay = b"timestamp;price\n2026-11-14 09:00:00;130000\n";
         let metadata = br#"{"summary":{"symbol":"WINFUT"}}"#;
         fs::write(&replay_path, replay).unwrap();
         fs::write(&metadata_path, metadata).unwrap();
