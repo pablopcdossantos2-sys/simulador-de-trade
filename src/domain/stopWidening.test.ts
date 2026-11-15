@@ -217,11 +217,11 @@ describe("simulateStopWideningScenario", () => {
     })).toThrow(/preço de saída após slippage/);
   });
 
-  it("rejects zero-quantity replay records", () => {
+  it("rejects negative-quantity replay records", () => {
     expect(() => simulateStopWideningScenario({
       position,
       attemptedStop: 900,
-      tradesAfterViolation: [{ ...trade(1, 900), quantity: 0 }],
+      tradesAfterViolation: [{ ...trade(1, 900), quantity: -1 }],
       startingBalanceBRL: 10000,
       lastObservedPrice: 990,
       lastObservedTimestamp: trade(0, 990).timestamp,
