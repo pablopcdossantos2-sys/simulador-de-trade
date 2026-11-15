@@ -658,8 +658,10 @@ fn expand_m2_candle(candle: &ReplayCandleRecord, asset: &str, sequence_start: u6
         let timestamp = start + Duration::seconds(second as i64);
         // Distribuição por diferenças cumulativas: quantidades inteiras de contratos
         // permanecem inteiras e o total do candle é conservado sem arredondamento acumulado.
-        let quantity_before = (candle.volume * second as f64 / 120.0).floor();
-        let quantity_after = (candle.volume * (second + 1) as f64 / 120.0).floor();
+        // Divide antes de multiplicar para evitar overflow intermediário em volumes
+        // finitos muito grandes (volume * segundo poderia virar infinito).
+        let quantity_before = (candle.volume / 120.0 * second as f64).floor();
+        let quantity_after = (candle.volume / 120.0 * (second + 1) as f64).floor();
         let quantity = if second == 119 {
             candle.volume - quantity_before
         } else {
@@ -1309,6 +1311,26 @@ mod tests {
             event.quantity >= 0.0
                 && (event.quantity - event.quantity.round()).abs() < 1e-8
         }));
+    }
+
+    #[test]
+    fn synthetic_m2_large_finite_volume_keeps_all_allocations_finite() {
+        let candle = ReplayCandleRecord {
+            timestamp: "2026-10-07T09:00:00".to_string(),
+            source_row: 44,
+            open: 130000.0,
+            high: 130050.0,
+            low: 129950.0,
+            close: 130010.0,
+            volume: 1.0e308,
+        };
+
+        let events = expand_m2_candle(&candle, "WINFUT", 740).unwrap();
+        assert_eq!(events.len(), 120);
+        assert!(events.iter().all(|event| event.quantity.is_finite() && event.quantity >= 0.0));
+        let total = events.iter().map(|event| event.quantity).sum::<f64>();
+        assert!(total.is_finite());
+        assert!((total / candle.volume - 1.0).abs() < 1e-12);
     }
 
     #[test]
