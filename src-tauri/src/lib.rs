@@ -2995,7 +2995,7 @@ fn process_profit_m2_candle_file(
     emit_progress(app, operation_id, source_bytes, source_bytes, source_rows, kept_rows);
     Ok(result)
 }
-#
+#[tauri::command]
 async fn prepare_profit_replay_file(
     app: tauri::AppHandle,
     operation_id: String,
