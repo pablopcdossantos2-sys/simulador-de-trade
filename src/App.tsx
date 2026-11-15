@@ -78,6 +78,7 @@ import {
 } from "./services/executionSettings";
 import { loadWarmupCandles } from "./services/replayData";
 import { startUsageTracking } from "./services/usageTracking";
+import { readErrorMessage } from "./services/readErrorMessage";
 import type {
   Asset,
   ExecutionSettings,
@@ -425,12 +426,12 @@ export default function App() {
 
   useEffect(() => {
     loadTrades()
-      .then(setTrades)      .catch(() => setFeedback("Não foi possível carregar o histórico local."));
+      .then(setTrades)      .catch((error) => setFeedback(readErrorMessage(error, "Não foi possível carregar o histórico local.")));
 
     loadExecutionSettings()
       .then(setExecutionSettings)
-      .catch(() =>
-        setFeedback("Não foi possível carregar as configurações de execução."),
+      .catch((error) =>
+        setFeedback(readErrorMessage(error, "Não foi possível carregar as configurações de execução.")),
       );
   }, []);
 
@@ -740,9 +741,7 @@ export default function App() {
       );
     } catch (error) {
       setFeedback(
-        error instanceof Error
-          ? error.message
-          : "Falha ao preparar o histórico anterior do indicador.",
+        readErrorMessage(error, "Falha ao preparar o histórico anterior do indicador."),
       );
     } finally {
       setLoadingReplay(false);
@@ -839,10 +838,8 @@ export default function App() {
     await Promise.all([
       saveTrainingSession(session),
       saveTrainingEvent(startedEvent),
-    ]).catch(() =>
-      setFeedback(
-        "O treino foi iniciado, mas houve falha ao persistir parte dos metadados.",
-      ),
+    ]).catch((error) =>
+      setFeedback(readErrorMessage(error, "O treino foi iniciado, mas houve falha ao persistir parte dos metadados.")),
     );
 
     setFeedback(
@@ -875,10 +872,8 @@ export default function App() {
         side: pendingSignal.side,
       });
       finalEvents.push(ignored);
-      void saveTrainingEvent(ignored).catch(() =>
-        setFeedback(
-          "O sinal ignorado foi registrado na sessão, mas não pôde ser persistido.",
-        ),
+      void saveTrainingEvent(ignored).catch((error) =>
+        setFeedback(readErrorMessage(error, "O sinal ignorado foi registrado na sessão, mas não pôde ser persistido.")),
       );
     }
     activeSignalRef.current = null;
@@ -897,10 +892,8 @@ export default function App() {
     await Promise.all([
       saveTrainingSession(ended),
       saveTrainingEvent(endedEvent),
-    ]).catch(() =>
-      setFeedback(
-        "A sessão foi encerrada, mas houve falha ao persistir parte do resumo.",
-      ),
+    ]).catch((error) =>
+      setFeedback(readErrorMessage(error, "A sessão foi encerrada, mas houve falha ao persistir parte do resumo.")),
     );
 
     setSessionHistoryRefreshKey((value) => value + 1);
@@ -942,9 +935,7 @@ export default function App() {
       );
     } catch (error) {
       const reason =
-        error instanceof Error
-          ? error.message
-          : "Não foi possível encerrar a posição a mercado.";
+        readErrorMessage(error, "Não foi possível encerrar a posição a mercado.");
       setFeedback(reason);
       recordTrainingEvent({
         type: "TECHNICAL_ISSUE",
@@ -968,7 +959,7 @@ export default function App() {
           : `Stop manual acionado a ${money.format(closed.exitPrice)}. Resultado: ${money.format(closed.resultPoints)} pontos.`,
       );
     } catch (error) {
-      const reason = error instanceof Error ? error.message : "Não foi possível estopar manualmente a operação.";
+      const reason = readErrorMessage(error, "Não foi possível estopar manualmente a operação.");
       setFeedback(reason);
       setRuleViolation(reason);
     }
@@ -1173,7 +1164,7 @@ export default function App() {
           : "Alvo do rascunho ajustado. A relação risco/retorno continua em pelo menos 1:2.");
       }
     } catch (error) {
-      const reason = error instanceof Error ? error.message : "Ajuste OCO inválido.";
+      const reason = readErrorMessage(error, "Ajuste OCO inválido.");
       setFeedback(reason);
       setRuleViolation(reason);
     }
@@ -1192,7 +1183,7 @@ export default function App() {
       setSessionHistoryRefreshKey((value) => value + 1);
       setFeedback("Histórico de operações apagado. Sessões e eventos disciplinares/técnicos foram preservados.");
     } catch (error) {
-      setFeedback(error instanceof Error ? error.message : "Não foi possível apagar o histórico de operações.");
+      setFeedback(readErrorMessage(error, "Não foi possível apagar o histórico de operações."));
     } finally {
       setDeletingHistory(false);
     }
@@ -1284,9 +1275,7 @@ export default function App() {
               await replay.unload();
             } catch (error) {
               setFeedback(
-                error instanceof Error
-                  ? `Não foi possível descarregar o replay atual: ${error.message}`
-                  : "Não foi possível descarregar o replay atual. O plano anterior foi mantido.",
+                readErrorMessage(error, "Não foi possível descarregar o replay atual. O plano anterior foi mantido."),
               );
               return;
             }
@@ -1593,9 +1582,7 @@ export default function App() {
               );
             } catch (error) {
               setFeedback(
-                error instanceof Error
-                  ? error.message
-                  : "O arquivo foi tratado, mas não pôde ser catalogado.",
+                readErrorMessage(error, "O arquivo foi tratado, mas não pôde ser catalogado."),
               );
             }
           }}
