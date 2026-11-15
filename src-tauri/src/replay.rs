@@ -420,6 +420,50 @@ fn push_warmup_candle(
     Ok(())
 }
 
+fn push_warmup_candle_m1(
+    candles: &mut VecDeque<WarmupCandleRecord>,
+    source: &ReplayCandleRecord,
+    timeframe_minutes: u32,
+) -> Result<(), String> {
+    // Candles M1 só podem ser agregados em timeframes pares: assim, cada
+    // candle de origem pertence integralmente a um único bucket, sem ratear
+    // OHLCV de forma artificial quando cruza uma fronteira.
+    if timeframe_minutes < 2 || timeframe_minutes % 2 != 0 {
+        return Err(
+            "Candles M1 só podem aquecer timeframes pares (M2, M4, M6, ...), pois não é possível repartir com fidelidade um candle entre buckets ímpares.".to_string(),
+        );
+    }
+
+    let timestamp = parse_replay_timestamp(&source.timestamp)?;
+    let bucket = bucket_timestamp(timestamp, timeframe_minutes)?;
+    let bucket_text = bucket.format("%Y-%m-%dT%H:%M:%S").to_string();
+
+    if let Some(last) = candles.back_mut() {
+        if last.timestamp == bucket_text {
+            let next_volume = last.volume + source.volume;
+            if !next_volume.is_finite() {
+                return Err("Volume acumulado excede o limite numérico durante o aquecimento.".to_string());
+            }
+            last.high = last.high.max(source.high);
+            last.low = last.low.min(source.low);
+            last.close = source.close;
+            last.volume = next_volume;
+            return Ok(());
+        }
+    }
+
+    candles.push_back(WarmupCandleRecord {
+        index: candles.len(),
+        timestamp: bucket_text,
+        open: source.open,
+        high: source.high,
+        low: source.low,
+        close: source.close,
+        volume: source.volume,
+    });
+    Ok(())
+}
+
 fn process_warmup_candles(
     source_paths: Vec<String>,
     timeframe_minutes: u32,
@@ -500,6 +544,16 @@ fn process_warmup_candles(
                     }
                     previous_timestamp = Some(timestamp);
                     push_warmup_trade(&mut candles, timestamp, trade.price, trade.quantity, timeframe_minutes)?;
+                    if candles.len() > max_bars { candles.pop_front(); }
+                }
+                ReplayFormat::CandlesM1 => {
+                    let candle = parse_replay_m1_candle_line(&line, &session.asset)?;
+                    let timestamp = parse_replay_timestamp(&candle.timestamp)?;
+                    if previous_timestamp.is_some_and(|previous| timestamp <= previous) {
+                        return Err("Os arquivos M1 de aquecimento precisam ter candles únicos e em ordem cronológica.".to_string());
+                    }
+                    previous_timestamp = Some(timestamp);
+                    push_warmup_candle_m1(&mut candles, &candle, timeframe_minutes)?;
                     if candles.len() > max_bars { candles.pop_front(); }
                 }
                 ReplayFormat::CandlesM2 => {
