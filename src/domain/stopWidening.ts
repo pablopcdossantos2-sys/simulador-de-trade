@@ -35,9 +35,24 @@ function parseMarketTimestamp(raw: string): number {
   const value = raw.trim();
   const match = /^(\d{4}-\d{2}-\d{2})[T ](\d{2}:\d{2}:\d{2}(?:\.\d+)?)(Z|[+-]\d{2}:?\d{2})?$/i.exec(value);
   if (!match) return Number.NaN;
+
+  // Date.parse normalizes impossible dates such as February 30, so validate
+  // the calendar and clock fields before creating the stable UTC value.
+  const [year, month, day] = match[1].split("-").map(Number);
+  const timeParts = match[2].split(":");
+  const hour = Number(timeParts[0]);
+  const minute = Number(timeParts[1]);
+  const second = Number(timeParts[2].split(".")[0]);
+  const calendarDate = new Date(`${match[1]}T00:00:00Z`);
+  if (
+    !Number.isFinite(calendarDate.getTime()) ||
+    calendarDate.toISOString().slice(0, 10) !== match[1] ||
+    hour > 23 || minute > 59 || second > 59
+  ) return Number.NaN;
+
   // Validate the supplied offset too, while deliberately preserving wall-clock time.
   if (match[3] && !Number.isFinite(Date.parse(value))) return Number.NaN;
-  return Date.parse(`${match[1]}T${match[2]}Z`);
+  return Date.parse(`${match[1]}T`${match[2]}Z`);
 }
 
 function pointsFor(side: Side, entry: number, exit: number): number {
