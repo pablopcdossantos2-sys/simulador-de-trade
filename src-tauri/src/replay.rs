@@ -1658,4 +1658,40 @@ mod tests {
 
         let _ = std::fs::remove_file(path);
     }
+
+    #[test]
+    fn rejects_mixed_contracts_across_warmup_files_even_with_same_asset_family() {
+        use std::io::Write;
+        use std::time::{SystemTime, UNIX_EPOCH};
+
+        let unique = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos();
+        let first_path = std::env::temp_dir().join(format!("simulador-warmup-contract-first-{unique}.csv"));
+        let second_path = std::env::temp_dir().join(format!("simulador-warmup-contract-second-{unique}.csv"));
+
+        {
+            let mut file = File::create(&first_path).unwrap();
+            writeln!(file, "symbol,timestamp,source_row,open,high,low,close,volume").unwrap();
+            writeln!(file, "WINV26,2026-10-07T09:00:00,1,130000,130050,129950,130010,1200").unwrap();
+        }
+        {
+            let mut file = File::create(&second_path).unwrap();
+            writeln!(file, "symbol,timestamp,source_row,open,high,low,close,volume").unwrap();
+            writeln!(file, "WINZ26,2026-10-07T09:02:00,2,130010,130060,129990,130040,900").unwrap();
+        }
+
+        let result = process_warmup_candles(
+            vec![
+                first_path.to_string_lossy().to_string(),
+                second_path.to_string_lossy().to_string(),
+            ],
+            2,
+            100,
+        );
+
+        assert!(result.unwrap_err().contains("misturam contratos diferentes"));
+
+        let _ = std::fs::remove_file(first_path);
+        let _ = std::fs::remove_file(second_path);
+    }
+
 }
