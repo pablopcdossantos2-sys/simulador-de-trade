@@ -24,6 +24,7 @@ const baseIntent: TradeIntent = {
   asset: "WINFUT",
   side: "BUY",
   entry: 130000,
+  marketPrice: 130000,
   contracts: 2,
   execution: {
     costPerContractRoundTripBRL: 1,
@@ -104,6 +105,18 @@ describe("regras de entrada", () => {
     ).toThrow(/slippage/i);
   });
 
+  it("aceita entrada a até um tick do último preço de mercado", () => {
+    expect(() => validateTradeIntent({ ...baseIntent, entry: 130005 })).not.toThrow();
+  });
+
+  it("bloqueia entrada distante do último preço de mercado", () => {
+    expect(() => validateTradeIntent({ ...baseIntent, entry: 130010 })).toThrow(/no máximo 1 tick/i);
+  });
+
+  it("bloqueia entrada sem preço de mercado válido", () => {
+    expect(() => validateTradeIntent({ ...baseIntent, marketPrice: 0 })).toThrow(/último preço de mercado válido/i);
+  });
+
   it("aceita compra com sinal e OCO válidos", () => {
     expect(() => validateTradeIntent(baseIntent)).not.toThrow();
   });
@@ -133,6 +146,7 @@ describe("regras de entrada", () => {
       ...baseIntent,
       asset: "WDOFUT",
       entry: 5200,
+      marketPrice: 5200,
       signal: { ...buySignal, id: "signal-wdo", asset: "WDOFUT", price: 5200 },
       oco: { stopLoss: 5190, target: 5225 },
       execution: {
@@ -452,6 +466,7 @@ describe("regras e execução SELL", () => {
     asset: "WINFUT",
     side: "SELL",
     entry: 130000,
+    marketPrice: 130000,
     contracts: 2,
     execution: {
       costPerContractRoundTripBRL: 1,
