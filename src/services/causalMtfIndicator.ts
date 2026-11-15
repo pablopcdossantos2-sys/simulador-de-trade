@@ -108,14 +108,17 @@ function aggregate(previous: CausalMtfSnapshot["aggregatedBar"] | null, candle: 
 /**
  * Calcula médias de um timeframe superior a partir de candles fechados do gráfico.
  *
- * O snapshot de cada candle usa somente candles presentes até aquele índice. A barra
- * MTF em formação é recalculada com o OHLCV parcial conhecido naquele instante; ela
- * nunca recebe candles posteriores. As médias são reiniciadas a cada dia de pregão.
+ * Cada snapshot usa somente candles disponíveis até aquele índice. O histórico das
+ * barras MTF concluídas é preservado entre pregões para permitir o aquecimento de
+ * médias longas, como a EMA 200. A barra corrente é recalculada com o OHLCV conhecido
+ * naquele instante e nunca recebe candles posteriores.
  *
- * Como 2 não divide 15, um candle M2 pode atravessar a fronteira de uma barra M15.
- * Sem dados tick a tick não é possível repartir seu OHLCV com exatidão. Para manter
- * causalidade, o candle M2 inteiro é incorporado quando já está fechado; portanto,
- * a barra MTF pode ficar disponível com atraso de até um candle M2.
+ * Limitação da fonte M2: como 2 não divide 15, um candle pode atravessar a fronteira
+ * M15. O candle inteiro é atribuído ao bucket em que seu timestamp começa; seu OHLCV
+ * não é repartido entre buckets. Assim, a barra pode conter movimento posterior à
+ * fronteira e só fica disponível quando o candle M2 fecha. Isso é causal, mas não é
+ * uma reconstrução exata da barra M15. Para exatidão, é necessário replay de negócios
+ * reais ou de candles M1 com distribuição temporal compatível.
  */
 export function calculateCausalMtfAverages(
   candles: Candle[],
