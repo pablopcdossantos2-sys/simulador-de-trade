@@ -164,6 +164,15 @@ struct ReplayBackupFile {
     metadata_content_base64: String,
 }
 
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct BackupImportDocument {
+    #[serde(flatten)]
+    bundle: BackupBundle,
+    #[serde(default)]
+    replay_files: Vec<ReplayBackupFile>,
+}
+
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 struct BackupSummary {
@@ -223,6 +232,44 @@ fn decode_base64(input: &str) -> Result<Vec<u8>, String> {
     Ok(output)
 }
 
+/// Valida a codificação Base64 sem alocar um segundo buffer do tamanho do replay.
+fn validate_base64(input: &str) -> Result<(), String> {
+    let bytes = input.as_bytes();
+    if bytes.len() % 4 != 0 {
+        return Err("Conteúdo de replay inválido no backup.".to_string());
+    }
+    for (index, chunk) in bytes.chunks_exact(4).enumerate() {
+        let final_chunk = index + 1 == bytes.len() / 4;
+        if value_base64(chunk[0]).is_none() || value_base64(chunk[1]).is_none() {
+            return Err("Conteúdo de replay inválido no backup.".to_string());
+        }
+        match (chunk[2], chunk[3]) {
+            (b'=', b'=') if final_chunk => {}
+            (b'=', _) => return Err("Conteúdo de replay inválido no backup.".to_string()),
+            (_, b'=') if final_chunk => {
+                if value_base64(chunk[2]).is_none() { return Err("Conteúdo de replay inválido no backup.".to_string()); }
+            }
+            (_, _) => {
+                if value_base64(chunk[2]).is_none() || value_base64(chunk[3]).is_none() {
+                    return Err("Conteúdo de replay inválido no backup.".to_string());
+                }
+            }
+        }
+    }
+    Ok(())
+}
+
+fn value_base64(byte: u8) -> Option<u8> {
+    match byte {
+        b'A'..=b'Z' => Some(byte - b'A'),
+        b'a'..=b'z' => Some(byte - b'a' + 26),
+        b'0'..=b'9' => Some(byte - b'0' + 52),
+        b'+' => Some(62),
+        b'/' => Some(63),
+        _ => None,
+    }
+}
+
 fn collect_replay_backup_files(app: &tauri::AppHandle) -> Result<Vec<ReplayBackupFile>, String> {
     let entries = catalog::list_replay_catalog(app.clone())?;
     let mut files = Vec::new();
@@ -253,27 +300,82 @@ fn validate_replay_backup_files(files: &[ReplayBackupFile]) -> Result<(), String
         if name != Some(file.output_file_name.as_str()) || !file.output_file_name.ends_with(".replay.csv") {
             return Err("O backup contém um nome de arquivo de replay inválido.".to_string());
         }
-        let _ = decode_base64(&file.replay_content_base64)?;
-        let _ = decode_base64(&file.metadata_content_base64)?;
+        // Não decodifica o CSV inteiro na etapa de validação: isso duplicava centenas de MB
+        // em memória antes mesmo de a restauração começar.
+        validate_base64(&file.replay_content_base64)?;
+        let metadata_bytes = decode_base64(&file.metadata_content_base64)?;
+        let metadata: Value = serde_json::from_slice(&metadata_bytes)
+            .map_err(|error| format!("Metadados de replay inválidos no backup: {error}"))?;
+        let summary = metadata.get("summary").ok_or_else(|| "Metadados de replay sem resumo.".to_string())?;
+        let symbol = summary.get("symbol").and_then(Value::as_str).unwrap_or_default();
+        if !(symbol.starts_with("WIN") || symbol.starts_with("WDO"))
+            || summary.get("firstTimestamp").and_then(Value::as_str).is_none()
+            || metadata.get("window").and_then(|window| window.get("startInclusive")).and_then(Value::as_str).is_none()
+            || metadata.get("window").and_then(|window| window.get("endExclusive")).and_then(Value::as_str).is_none()
+        {
+            return Err("Os metadados do replay não possuem os campos necessários para catalogação.".to_string());
+        }
     }
     Ok(())
 }
 
-fn restore_replay_backup_files(app: &tauri::AppHandle, files: &[ReplayBackupFile]) -> Result<(), String> {
-    if files.is_empty() { return Ok(()); }
+fn rollback_restored_replay_files(app: &tauri::AppHandle, paths: &[PathBuf]) {
+    for path in paths { let _ = fs::remove_file(path); }
+    let _ = catalog::prune_missing_replay_catalog(app.clone());
+}
+
+fn restore_replay_backup_files(app: &tauri::AppHandle, files: &[ReplayBackupFile]) -> Result<Vec<PathBuf>, String> {
+    if files.is_empty() { return Ok(Vec::new()); }
     let data_dir = app.path().app_data_dir().map_err(|error| error.to_string())?;
     let replay_dir = data_dir.join("replays");
     fs::create_dir_all(&replay_dir).map_err(|error| error.to_string())?;
-    for file in files {
-        let output_path = replay_dir.join(&file.output_file_name);
-        let metadata_path = output_path.with_extension("meta.json");
-        let replay_bytes = decode_base64(&file.replay_content_base64)?;
-        let metadata_bytes = decode_base64(&file.metadata_content_base64)?;
-        fs::write(&output_path, replay_bytes).map_err(|error| error.to_string())?;
-        fs::write(&metadata_path, metadata_bytes).map_err(|error| error.to_string())?;
-        catalog::register_replay_file(app.clone(), output_path.to_string_lossy().to_string())?;
+    let nonce = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default().as_nanos();
+    let mut restored_paths = Vec::new();
+
+    let result = (|| -> Result<(), String> {
+        for (index, file) in files.iter().enumerate() {
+            let output_name = format!("restore-{nonce}-{index:04}-{}", file.output_file_name);
+            let output_path = replay_dir.join(output_name);
+            let metadata_path = output_path.with_extension("meta.json");
+            let replay_temp = output_path.with_file_name(format!(".restore-{nonce}-{index:04}.replay.tmp"));
+            let metadata_temp = output_path.with_file_name(format!(".restore-{nonce}-{index:04}.meta.tmp"));
+            let replay_bytes = decode_base64(&file.replay_content_base64)?;
+            let metadata_bytes = decode_base64(&file.metadata_content_base64)?;
+
+            let write_pair = (|| -> Result<(), String> {
+                let mut replay_file = File::create(&replay_temp).map_err(|error| error.to_string())?;
+                replay_file.write_all(&replay_bytes).map_err(|error| error.to_string())?;
+                replay_file.sync_all().map_err(|error| error.to_string())?;
+                let mut metadata_file = File::create(&metadata_temp).map_err(|error| error.to_string())?;
+                metadata_file.write_all(&metadata_bytes).map_err(|error| error.to_string())?;
+                metadata_file.sync_all().map_err(|error| error.to_string())?;
+                replace_file_safely(&replay_temp, &output_path)?;
+                replace_file_safely(&metadata_temp, &metadata_path)?;
+                Ok(())
+            })();
+            if write_pair.is_err() {
+                let _ = fs::remove_file(&replay_temp);
+                let _ = fs::remove_file(&metadata_temp);
+                let _ = fs::remove_file(&output_path);
+                let _ = fs::remove_file(&metadata_path);
+                return write_pair;
+            }
+            restored_paths.push(output_path.clone());
+            restored_paths.push(metadata_path);
+        }
+
+        for path in restored_paths.iter().filter(|path| path.extension().is_some_and(|ext| ext == "csv")) {
+            catalog::register_replay_file(app.clone(), path.to_string_lossy().to_string())?;
+        }
+        Ok(())
+    })();
+
+    if let Err(error) = result {
+        rollback_restored_replay_files(app, &restored_paths);
+        return Err(format!("Não foi possível restaurar os arquivos de replay: {error}"));
     }
-    Ok(())
+    Ok(restored_paths)
 }
 
 #[derive(Debug, Clone)]
@@ -1647,13 +1749,13 @@ fn import_backup(
         return Err("O backup excede o limite de 500 MB.".to_string());
     }
 
-    let raw = fs::read_to_string(&path).map_err(|error| error.to_string())?;
-    let backup_value: Value = serde_json::from_str(&raw).map_err(|error| format!("Backup JSON inválido: {error}"))?;
-    let bundle: BackupBundle = serde_json::from_value(backup_value.clone()).map_err(|error| format!("Backup JSON inválido: {error}"))?;
-    let replay_files: Vec<ReplayBackupFile> = backup_value.get("replayFiles")
-        .cloned().map(serde_json::from_value).transpose()
-        .map_err(|error| format!("Lista de replays do backup inválida: {error}"))?
-        .unwrap_or_default();
+    // Desserializa diretamente do arquivo: evita manter simultaneamente String + Value
+    // clonado + structs, reduzindo bastante o pico de memória em backups grandes.
+    let backup_file = File::open(&path).map_err(|error| error.to_string())?;
+    let import_document: BackupImportDocument = serde_json::from_reader(BufReader::new(backup_file))
+        .map_err(|error| format!("Backup JSON inválido: {error}"))?;
+    let bundle = import_document.bundle;
+    let replay_files = import_document.replay_files;
 
     validate_backup_bundle(&bundle)?;
     validate_replay_backup_files(&replay_files)?;
@@ -1824,8 +1926,13 @@ fn import_backup(
         .map_err(|error| error.to_string())?;
     }
 
-    transaction.commit().map_err(|error| error.to_string())?;
-    restore_replay_backup_files(&app, &replay_files)?;
+    // Os replays são preparados e catalogados antes do commit do banco. Se qualquer
+    // arquivo falhar, a transação SQL é descartada e os arquivos já criados são removidos.
+    let restored_replay_paths = restore_replay_backup_files(&app, &replay_files)?;
+    if let Err(error) = transaction.commit() {
+        rollback_restored_replay_files(&app, &restored_replay_paths);
+        return Err(format!("Não foi possível confirmar a restauração do banco de dados: {error}"));
+    }
 
     Ok(BackupSummary {
         path: path.to_string_lossy().to_string(),
@@ -3113,6 +3220,35 @@ mod tests {
             |row| row.get(0),
         ).unwrap();
         assert_eq!(recovery_events, 1);
+    }
+
+    #[test]
+    fn base64_validation_rejects_invalid_padding_without_decoding_payload() {
+        assert!(validate_base64("YWJj").is_ok());
+        assert!(validate_base64("YQ==").is_ok());
+        assert!(validate_base64("YWI=").is_ok());
+        assert!(validate_base64("Y===").is_err());
+        assert!(validate_base64("YW=J").is_err());
+        assert!(validate_base64("YWJj=").is_err());
+    }
+
+    #[test]
+    fn backup_import_document_reads_bundle_and_replays_in_one_deserialization() {
+        let raw = r#"{
+          "format":"simulador-de-trade-backup",
+          "schemaVersion":1,
+          "appVersion":"0.1.0",
+          "exportedAt":"2026-11-14T09:00:00Z",
+          "trades":[],
+          "trainingSessions":[],
+          "trainingEvents":[],
+          "executionSettings":{"costPerContractRoundTripBRL":0,"slippageTicksPerSide":0},
+          "replayFiles":[{"outputFileName":"0000-WINV26.replay.csv","replayContentBase64":"YWJj","metadataContentBase64":"e30="}]
+        }"#;
+        let document: BackupImportDocument = serde_json::from_str(raw).unwrap();
+        assert_eq!(document.bundle.trades.len(), 0);
+        assert_eq!(document.replay_files.len(), 1);
+        assert_eq!(document.replay_files[0].output_file_name, "0000-WINV26.replay.csv");
     }
 
     #[test]
