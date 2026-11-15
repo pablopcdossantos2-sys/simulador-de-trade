@@ -376,6 +376,50 @@ fn push_warmup_trade(
     Ok(())
 }
 
+fn push_warmup_candle(
+    candles: &mut VecDeque<WarmupCandleRecord>,
+    source: &ReplayCandleRecord,
+    timeframe_minutes: u32,
+) -> Result<(), String> {
+    // Candles M2 só podem ser agregados em timeframes pares: assim, cada
+    // candle de origem pertence integralmente a um único bucket, sem ratear
+    // OHLCV de forma artificial quando cruza uma fronteira.
+    if timeframe_minutes < 2 || timeframe_minutes % 2 != 0 {
+        return Err(
+            "Candles M2 só podem aquecer timeframes pares (M2, M4, M6, ...), pois não é possível repartir com fidelidade um candle entre buckets ímpares.".to_string(),
+        );
+    }
+
+    let timestamp = parse_replay_timestamp(&source.timestamp)?;
+    let bucket = bucket_timestamp(timestamp, timeframe_minutes)?;
+    let bucket_text = bucket.format("%Y-%m-%dT%H:%M:%S").to_string();
+
+    if let Some(last) = candles.back_mut() {
+        if last.timestamp == bucket_text {
+            let next_volume = last.volume + source.volume;
+            if !next_volume.is_finite() {
+                return Err("Volume acumulado excede o limite numérico durante o aquecimento.".to_string());
+            }
+            last.high = last.high.max(source.high);
+            last.low = last.low.min(source.low);
+            last.close = source.close;
+            last.volume = next_volume;
+            return Ok(());
+        }
+    }
+
+    candles.push_back(WarmupCandleRecord {
+        index: candles.len(),
+        timestamp: bucket_text,
+        open: source.open,
+        high: source.high,
+        low: source.low,
+        close: source.close,
+        volume: source.volume,
+    });
+    Ok(())
+}
+
 fn process_warmup_candles(
     source_paths: Vec<String>,
     timeframe_minutes: u32,
@@ -459,9 +503,6 @@ fn process_warmup_candles(
                     if candles.len() > max_bars { candles.pop_front(); }
                 }
                 ReplayFormat::CandlesM2 => {
-                    if timeframe_minutes != 2 {
-                        return Err("O aquecimento baseado em OHLC precisa usar candles M2.".to_string());
-                    }
                     let candle = parse_replay_candle_line(&line, &session.asset)?;
                     let timestamp = parse_replay_timestamp(&candle.timestamp)?;
                     if let Some(previous) = previous_timestamp {
@@ -470,15 +511,7 @@ fn process_warmup_candles(
                         }
                     }
                     previous_timestamp = Some(timestamp);
-                    candles.push_back(WarmupCandleRecord {
-                        index: candles.len(),
-                        timestamp: candle.timestamp,
-                        open: candle.open,
-                        high: candle.high,
-                        low: candle.low,
-                        close: candle.close,
-                        volume: candle.volume,
-                    });
+                    push_warmup_candle(&mut candles, &candle, timeframe_minutes)?;
                     if candles.len() > max_bars { candles.pop_front(); }
                 }
             }
@@ -1512,6 +1545,58 @@ mod tests {
         assert_eq!(candles[1].index, 1);
 
         let _ = std::fs::remove_file(path);
+    }
+
+    #[test]
+    fn m2_warmup_aggregates_into_even_timeframes_without_fabricating_bars() {
+        use std::io::Write;
+        use std::time::{SystemTime, UNIX_EPOCH};
+
+        let unique = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos();
+        let path = std::env::temp_dir().join(format!("simulador-trade-warmup-m2-aggregate-{unique}.csv"));
+        {
+            let mut file = File::create(&path).unwrap();
+            writeln!(file, "symbol,timestamp,source_row,open,high,low,close,volume").unwrap();
+            writeln!(file, "WINV26,2026-10-07T09:00:00,1,130000,130010,129990,130005,100").unwrap();
+            writeln!(file, "WINV26,2026-10-07T09:02:00,2,130005,130020,130000,130015,200").unwrap();
+            writeln!(file, "WINV26,2026-10-07T09:10:00,3,130015,130030,130010,130025,300").unwrap();
+        }
+
+        let candles = process_warmup_candles(
+            vec![path.to_string_lossy().to_string()],
+            10,
+            100,
+        ).unwrap();
+
+        assert_eq!(candles.len(), 2);
+        assert_eq!(candles[0].timestamp, "2026-10-07T09:00:00");
+        assert_eq!(candles[0].open, 130000.0);
+        assert_eq!(candles[0].high, 130020.0);
+        assert_eq!(candles[0].low, 129990.0);
+        assert_eq!(candles[0].close, 130015.0);
+        assert_eq!(candles[0].volume, 300.0);
+        assert_eq!(candles[1].timestamp, "2026-10-07T09:10:00");
+        assert_eq!(candles[1].volume, 300.0);
+
+        let _ = std::fs::remove_file(path);
+    }
+
+    #[test]
+    fn m2_warmup_rejects_odd_timeframes_that_could_split_source_candles() {
+        let mut candles = VecDeque::new();
+        let source = ReplayCandleRecord {
+            timestamp: "2026-10-07T09:14:00".to_string(),
+            source_row: 1,
+            open: 130000.0,
+            high: 130010.0,
+            low: 129990.0,
+            close: 130005.0,
+            volume: 100.0,
+        };
+
+        let error = push_warmup_candle(&mut candles, &source, 15).unwrap_err();
+        assert!(error.contains("timeframes pares"));
+        assert!(candles.is_empty());
     }
 
     #[test]
