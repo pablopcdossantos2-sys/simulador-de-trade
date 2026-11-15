@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { readErrorMessage } from "../services/readErrorMessage";
 import {
   backupAvailable,
   exportBackup,
@@ -32,9 +33,7 @@ export function BackupPanel({ disabled, onImported }: Props) {
       }
     } catch (error) {
       setFeedback(
-        error instanceof Error
-          ? error.message
-          : "Não foi possível exportar o backup.",
+        readErrorMessage(error, "Não foi possível exportar o backup."),
       );
     } finally {
       setBusy(null);
@@ -63,9 +62,7 @@ export function BackupPanel({ disabled, onImported }: Props) {
       }
     } catch (error) {
       setFeedback(
-        error instanceof Error
-          ? error.message
-          : "Não foi possível importar o backup.",
+        readErrorMessage(error, "Não foi possível importar o backup."),
       );
     } finally {
       setBusy(null);
