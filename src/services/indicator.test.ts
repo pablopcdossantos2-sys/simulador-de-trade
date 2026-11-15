@@ -169,4 +169,38 @@ describe("Multi Médias - Nuvem e Sinais", () => {
     expect(result.series[1].vwap).toBeCloseTo((204 + 198 + 202) / 3, 8);
   });
 
+  it("rejeita candles fora de ordem ou timestamps duplicados", () => {
+    const adapter = new MultiMediasNuvemAdapter();
+    const candles = trendCandles(1, 3);
+    const duplicate = [candles[0], { ...candles[1], timestamp: candles[0].timestamp }];
+    const reversed = [candles[1], candles[0]];
+
+    expect(() => adapter.calculate("WINFUT", duplicate)).toThrow("ordem cronológica");
+    expect(() => adapter.calculate("WINFUT", reversed)).toThrow("ordem cronológica");
+  });
+
+  it("rejeita OHLCV inválido, mas preserva quantidade zero", () => {
+    const adapter = new MultiMediasNuvemAdapter();
+    const valid = trendCandles(1, 2);
+    const invalid = [
+      { ...valid[0], close: Number.NaN },
+      { ...valid[0], high: valid[0].low - 1 },
+      { ...valid[0], volume: -1 },
+      { ...valid[0], volume: Number.POSITIVE_INFINITY },
+    ];
+
+    for (const candle of invalid) {
+      expect(() => adapter.calculate("WINFUT", [candle])).toThrow("OHLC ou volume inválido");
+    }
+
+    expect(() => adapter.calculate("WINFUT", [{ ...valid[0], volume: 0 }])).not.toThrow();
+  });
+
+  it("rejeita períodos de média inválidos", () => {
+    expect(() => new MultiMediasNuvemAdapter({
+      ...DEFAULT_MULTI_MEDIAS_CONFIG,
+      emaFastLength: 0,
+    }).calculate("WINFUT", [])).toThrow("Configuração de períodos");
+  });
+
 });
