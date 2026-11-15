@@ -129,11 +129,15 @@ export function ExecutionSettingsPanel({ settings, cloudOpacity, onCloudOpacityS
           <input type="number" min="0" step="1" value={slippage} onChange={(event) => setSlippage(event.target.value)} />
         </label>
         <label>
-          Candle M2 ambíguo
+          Candle M2 ambíguo (sem sequência de negócios)
           <select value={intrabarPolicy} onChange={(event) => setIntrabarPolicy(event.target.value as IntrabarPolicy)}>
             <option value="STOP_FIRST">Stop primeiro</option>
             <option value="TARGET_FIRST">Alvo primeiro</option>
           </select>
+          <small>
+            Esta preferência só resolve candles OHLC que atingem Stop e Alvo no mesmo intervalo.
+            No replay negócio a negócio, vale o primeiro nível efetivamente atingido na sequência histórica.
+          </small>
         </label>
       </div>
 
