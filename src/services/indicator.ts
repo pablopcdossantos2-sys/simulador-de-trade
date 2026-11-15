@@ -42,15 +42,11 @@ function emaNext(previous: number | null, source: number, length: number): numbe
   return previous === null ? source : alpha * source + (1 - alpha) * previous;
 }
 
-function emaAt(previous: number | null, candles: Candle[], index: number, length: number): number | null {
-  // Não expõe valores provisórios antes da semente: a EMA só passa a existir
-  // quando todas as primeiras `length` barras estão disponíveis.
-  if (index < length - 1) return null;
-  // Pine inicializa a EMA com a SMA das primeiras `length` barras.
-  if (index === length - 1) {
-    return candles.slice(0, length).reduce((sum, candle) => sum + candle.close, 0) / length;
-  }
-  return previous === null ? null : emaNext(previous, candles[index].close, length);
+function emaAt(previous: number | null, candles: Candle[], index: number, length: number): number {
+  // Pine Script v5: ta.ema(close, length) começa no primeiro fechamento
+  // disponível, não na SMA das primeiras 'length' barras. A partir daí aplica
+  // alpha = 2 / (length + 1) em cada candle; não consulta dados futuros.
+  return emaNext(previous, candles[index].close, length);
 }
 
 function wmaAt(candles: Candle[], endIndex: number, length: number): number | null {
@@ -133,7 +129,7 @@ function validateIndicatorInput(config: MultiMediasConfig, candles: Candle[]): v
 
 export class MultiMediasNuvemAdapter implements IndicatorAdapter {
   readonly name = "Multi Médias - Nuvem e Sinais";
-  readonly version = "multi-medias-nuvem-v1.1.0";
+  readonly version = "multi-medias-nuvem-v1.2.0";
   readonly config: MultiMediasConfig;
 
   constructor(config: MultiMediasConfig = DEFAULT_MULTI_MEDIAS_CONFIG) {

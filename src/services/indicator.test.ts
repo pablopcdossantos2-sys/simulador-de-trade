@@ -26,7 +26,7 @@ function trendCandles(step: number, count = 80): Candle[] {
 describe("Multi Médias - Nuvem e Sinais", () => {
   it("mantém os parâmetros padrão e a versão do algoritmo", () => {
     const adapter = new MultiMediasNuvemAdapter();
-    expect(adapter.version).toBe("multi-medias-nuvem-v1.1.0");
+    expect(adapter.version).toBe("multi-medias-nuvem-v1.2.0");
     expect(DEFAULT_MULTI_MEDIAS_CONFIG).toEqual({
       wmaLength: 20,
       emaFastLength: 8,
@@ -42,7 +42,7 @@ describe("Multi Médias - Nuvem e Sinais", () => {
     const buySignals = result.signals.filter((signal) => signal.side === "BUY");
 
     expect(buySignals).toHaveLength(1);
-    expect(buySignals[0].candleIndex).toBe(51);
+    expect(buySignals[0].candleIndex).toBe(19);
     expect(result.zone).toBe("GREEN");
     expect(result.authorization?.side).toBe("BUY");
   });
@@ -78,35 +78,39 @@ describe("Multi Médias - Nuvem e Sinais", () => {
     const sellSignals = result.signals.filter((signal) => signal.side === "SELL");
 
     expect(sellSignals).toHaveLength(1);
-    expect(sellSignals[0].candleIndex).toBe(51);
+    expect(sellSignals[0].candleIndex).toBe(19);
     expect(result.zone).toBe("RED");
     expect(result.authorization?.side).toBe("SELL");
   });
 
-  it("não publica valores de EMA antes da semente e inicializa com a SMA", () => {
-    const adapter = new MultiMediasNuvemAdapter();
+  it("inicializa MMEs no primeiro fechamento conforme ta.ema do Pine v5", () => {
     const candles = trendCandles(5, 60);
-    const result = adapter.calculate("WINFUT", candles);
+    const result = new MultiMediasNuvemAdapter().calculate("WINFUT", candles);
+    const firstClose = candles[0].close;
+    const secondClose = candles[1].close;
 
-    expect(result.series[0].ema8).toBeNull();
-    expect(result.series[6].ema8).toBeNull();
-    expect(result.series[7].ema8).toBeCloseTo(
-      candles.slice(0, 8).reduce((sum, candle) => sum + candle.close, 0) / 8,
-      10,
-    );
+    expect(result.series[0].ema8).toBe(firstClose);
+    expect(result.series[0].ema52).toBe(firstClose);
+    expect(result.series[1].ema8).toBeCloseTo(firstClose + (secondClose - firstClose) * 2 / 9, 10);
+    expect(result.series[1].ema52).toBeCloseTo(firstClose + (secondClose - firstClose) * 2 / 53, 10);
 
-    expect(result.series[50].ema52).toBeNull();
-    expect(result.series[51].ema52).toBeCloseTo(
+    // A referência do Pine não retarda a EMA para esperar 8 ou 52 barras.
+    expect(result.series[6].ema8).not.toBeNull();
+    expect(result.series[50].ema52).not.toBeNull();
+    expect(result.series[51].ema52).not.toBeCloseTo(
       candles.slice(0, 52).reduce((sum, candle) => sum + candle.close, 0) / 52,
-      10,
+      3,
     );
   });
 
-  it("não autoriza sinais antes da inicialização da MME 52", () => {
+  it("só considera sinais após a primeira MMP20 disponível", () => {
     const adapter = new MultiMediasNuvemAdapter();
-    const result = adapter.calculate("WINFUT", trendCandles(5, 40));
-    expect(result.signals).toHaveLength(0);
-    expect(result.authorization).toBeNull();
+    const beforeWma = adapter.calculate("WINFUT", trendCandles(5, 19));
+    expect(beforeWma.signals).toHaveLength(0);
+    expect(beforeWma.authorization).toBeNull();
+
+    const afterWma = adapter.calculate("WINFUT", trendCandles(5, 20));
+    expect(afterWma.signals.map((signal) => signal.candleIndex)).toEqual([19]);
   });
 
   it("calcula a MMP 20 ponderando mais os candles recentes", () => {

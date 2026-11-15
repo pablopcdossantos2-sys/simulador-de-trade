@@ -5,7 +5,7 @@ import {
 } from "../fixtures/indicatorV1";
 import { MultiMediasNuvemAdapter } from "./indicator";
 
-describe("regressão do indicador v1.1", () => {
+describe("regressão do indicador v1.2 — EMA conforme Pine v5", () => {
   it("mantém sinais e valores golden da versão 1.1.0", () => {
     const adapter = new MultiMediasNuvemAdapter();
     const result = adapter.calculate(
