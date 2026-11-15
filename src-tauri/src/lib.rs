@@ -2,7 +2,7 @@ mod catalog;
 mod profit_index;
 mod replay;
 
-use chrono::{DateTime, NaiveDate, NaiveDateTime, NaiveTime, Timelike, Utc};
+use chrono::{DateTime, Duration, NaiveDate, NaiveDateTime, NaiveTime, Timelike, Utc};
 use encoding_rs::WINDOWS_1252;
 use rusqlite::{params, Connection};
 use serde::ser::{SerializeSeq, SerializeStruct};
