@@ -28,6 +28,7 @@ pub struct ReplaySession {
     session_end: Option<String>,
     pending_error: Option<String>,
     last_timestamp: Option<NaiveDateTime>,
+    last_m2_candle_timestamp: Option<NaiveDateTime>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -260,6 +261,7 @@ fn open_session(path: &Path) -> Result<(ReplaySession, ReplaySessionInfo), Strin
         reader, source_path: path.to_path_buf(), data_start, symbol, asset, format,
         sequence: 0, pending_synthetic: VecDeque::new(), finished: false,
         session_start, session_end, pending_error: None, last_timestamp: None,
+        last_m2_candle_timestamp: None,
     }, info))
 }
 
@@ -525,6 +527,7 @@ fn rewind_session(session: &mut ReplaySession) -> Result<(), String> {
     session.finished = false;
     session.pending_error = None;
     session.last_timestamp = None;
+    session.last_m2_candle_timestamp = None;
     Ok(())
 }
 
@@ -656,8 +659,16 @@ fn read_next_replay_batch(session: &mut ReplaySession, max_events: usize) -> Res
                 session.pending_synthetic.push_back(record);
             }),
             ReplayFormat::CandlesM2 => parse_replay_candle_line(&line, &session.asset).and_then(|candle| {
+                let timestamp = parse_replay_timestamp(&candle.timestamp)?;
+                if session.last_m2_candle_timestamp.is_some_and(|previous| timestamp <= previous) {
+                    return Err(format!(
+                        "Replay M2 com candles duplicados ou fora de ordem cronológica: {}.",
+                        candle.timestamp
+                    ));
+                }
                 let events = expand_m2_candle(&candle, &session.asset, session.sequence)?;
                 session.sequence += 120;
+                session.last_m2_candle_timestamp = Some(timestamp);
                 session.pending_synthetic = events;
                 Ok(())
             }),
@@ -1124,6 +1135,47 @@ mod tests {
         assert!(result.unwrap_err().contains("candles únicos"));
 
         let _ = std::fs::remove_file(path);
+    }
+
+    #[test]
+    fn rejects_duplicate_m2_candles_during_replay_without_rejecting_equal_tick_timestamps() {
+        use std::io::Write;
+        use std::time::{SystemTime, UNIX_EPOCH};
+
+        let unique = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos();
+        let m2_path = std::env::temp_dir().join(format!("simulador-trade-replay-duplicate-m2-{unique}.csv"));
+        {
+            let mut file = File::create(&m2_path).unwrap();
+            writeln!(file, "symbol,timestamp,source_row,open,high,low,close,volume").unwrap();
+            writeln!(file, "WINV26,2026-10-07T09:00:00,1,130000,130050,129950,130010,1200").unwrap();
+            writeln!(file, "WINV26,2026-10-07T09:00:00,2,130010,130060,129990,130040,900").unwrap();
+            writeln!(file, "WINV26,2026-10-07T09:02:00,3,130040,130070,130000,130050,800").unwrap();
+        }
+
+        let (mut m2_session, _) = open_session(&m2_path).unwrap();
+        let first = read_next_replay_batch(&mut m2_session, 5000).unwrap();
+        assert_eq!(first.len(), 120);
+        assert!(read_next_replay_batch(&mut m2_session, 5000)
+            .unwrap_err()
+            .contains("candles duplicados"));
+        let next = read_next_replay_batch(&mut m2_session, 5000).unwrap();
+        assert_eq!(next.len(), 120);
+        assert_eq!(next.first().unwrap().timestamp, "2026-10-07T09:02:00");
+
+        let tick_path = std::env::temp_dir().join(format!("simulador-trade-replay-equal-ticks-{unique}.csv"));
+        {
+            let mut file = File::create(&tick_path).unwrap();
+            writeln!(file, "symbol,timestamp,source_row,price,quantity").unwrap();
+            writeln!(file, "WINV26,2026-10-07T09:00:00,1,130000,1").unwrap();
+            writeln!(file, "WINV26,2026-10-07T09:00:00,2,130005,1").unwrap();
+        }
+        let (mut tick_session, _) = open_session(&tick_path).unwrap();
+        let ticks = read_next_replay_batch(&mut tick_session, 5000).unwrap();
+        assert_eq!(ticks.len(), 2);
+        assert_eq!(ticks[0].timestamp, ticks[1].timestamp);
+
+        let _ = std::fs::remove_file(m2_path);
+        let _ = std::fs::remove_file(tick_path);
     }
 
     #[test]
