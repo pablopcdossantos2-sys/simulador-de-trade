@@ -3300,7 +3300,7 @@ mod tests {
         let replay_path = root.join("WINV26.replay.csv");
         let metadata_path = root.join("WINV26.meta.json");
         let replay = b"timestamp;price\\n2026-11-14 09:00:00;130000\\n";
-        let metadata = b"{\\"summary\\":{\\"symbol\\":\\"WINFUT\\"}}";
+        let metadata = br#"{"summary":{"symbol":"WINFUT"}}"#;
         fs::write(&replay_path, replay).unwrap();
         fs::write(&metadata_path, metadata).unwrap();
 
