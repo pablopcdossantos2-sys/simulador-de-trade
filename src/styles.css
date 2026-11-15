@@ -4283,3 +4283,36 @@ td {
   }
   .available-replay-item button { width: 100%; }
 }
+
+
+/* Visão geral dos sistemas de trading */
+.trading-systems-page { display: grid; gap: 16px; }
+.trading-systems-intro { padding: 22px; }
+.trading-systems-intro h2 { margin-bottom: 8px; }
+.trading-systems-intro p { margin: 0; color: #93a8bf; line-height: 1.55; }
+.trading-system-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; align-items: stretch; }
+.trading-system-card { min-width: 0; padding: 22px; }
+.trading-system-heading { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 14px; }
+.trading-system-index { display: block; margin-bottom: 7px; color: #7daed8; font-size: .7rem; font-weight: 800; letter-spacing: .12em; }
+.trading-system-heading h3 { margin: 0; font-size: 1.16rem; }
+.trading-system-status { flex: 0 0 auto; padding: 6px 9px; border: 1px solid #38516a; border-radius: 999px; color: #b6c8da; background: #13253a; font-size: .72rem; font-weight: 750; }
+.trading-system-status.available { border-color: #316c50; color: #9de0b9; background: #10291f; }
+.trading-system-status.planned { border-color: #775b34; color: #e5c38f; background: #2a2115; }
+.trading-system-summary { min-height: 52px; color: #aabbd0; line-height: 1.55; }
+.trading-system-indicators { display: flex; flex-wrap: wrap; gap: 7px; margin: 14px 0 18px; }
+.trading-system-indicators span { padding: 6px 9px; border: 1px solid #2a4059; border-radius: 8px; background: #101f32; color: #c6d7e8; font-size: .78rem; font-weight: 700; }
+.trading-system-card h4 { margin: 16px 0 7px; font-size: .88rem; color: #d8e5f2; }
+.trading-system-card ul { margin: 0; padding-left: 19px; color: #aebfd1; line-height: 1.55; }
+.trading-system-card li + li { margin-top: 5px; }
+.trading-system-footnote { margin: 18px 0 0; padding-top: 13px; border-top: 1px solid #273b52; color: #8fa4bb; font-size: .82rem; line-height: 1.55; }
+:root[data-theme="light"] .trading-systems-intro p,
+:root[data-theme="light"] .trading-system-summary,
+:root[data-theme="light"] .trading-system-card ul,
+:root[data-theme="light"] .trading-system-footnote { color: #526a80; }
+:root[data-theme="light"] .trading-system-status { border-color: #c5d5e2; background: #edf3f8; color: #486078; }
+:root[data-theme="light"] .trading-system-status.available { border-color: #a6d2b8; background: #edf8f1; color: #286442; }
+:root[data-theme="light"] .trading-system-status.planned { border-color: #dec69e; background: #fbf4e8; color: #785626; }
+:root[data-theme="light"] .trading-system-indicators span { border-color: #cad9e5; background: #f2f6f9; color: #35516b; }
+:root[data-theme="light"] .trading-system-card h4 { color: #29445d; }
+:root[data-theme="light"] .trading-system-footnote { border-color: #d9e3eb; }
+@media (max-width: 900px) { .trading-system-grid { grid-template-columns: 1fr; } .trading-system-summary { min-height: 0; } }
