@@ -482,6 +482,99 @@ struct ProfitCandleRow {
     volume: f64,
 }
 
+fn aggregate_m1_candles(
+    rows: Vec<ProfitCandleRow>,
+) -> Result<(Vec<ProfitCandleRow>, usize), String> {
+    let mut buckets: Vec<(NaiveDateTime, Vec<ProfitCandleRow>)> = Vec::new();
+
+    for row in rows {
+        let aligned_minute = row.timestamp.minute() - (row.timestamp.minute() % 2);
+        let bucket = row.timestamp
+            .with_minute(aligned_minute)
+            .and_then(|value| value.with_second(0))
+            .and_then(|value| value.with_nanosecond(0))
+            .ok_or_else(|| "Não foi possível alinhar o candle M1 ao intervalo M2.".to_string())?;
+
+        if let Some((last_bucket, bucket_rows)) = buckets.last_mut() {
+            if *last_bucket == bucket {
+                bucket_rows.push(row);
+                continue;
+            }
+        }
+        buckets.push((bucket, vec![row]));
+    }
+
+    let last_bucket_index = buckets.len().saturating_sub(1);
+    let mut aggregated = Vec::with_capacity(buckets.len());
+    let mut incomplete_edge_candles = 0;
+
+    for (index, (bucket, mut pair)) in buckets.into_iter().enumerate() {
+        pair.sort_by_key(|row| row.timestamp);
+
+        if pair.len() == 1 && (index == 0 || index == last_bucket_index) {
+            // Um arquivo pode começar ou terminar no meio de um par M2.
+            // Não invente o minuto ausente: descarte somente essas bordas.
+            incomplete_edge_candles += 1;
+            continue;
+        }
+
+        if pair.len() != 2 {
+            return Err(format!(
+                "Par M2 incompleto em {}: eram esperados os candles M1 de {} e {}. Verifique se há minutos ausentes no arquivo.",
+                bucket.format("%H:%M"),
+                bucket.format("%H:%M"),
+                (bucket + Duration::minutes(1)).format("%H:%M"),
+            ));
+        }
+
+        let expected_second = bucket + Duration::minutes(1);
+        if pair[0].timestamp != bucket || pair[1].timestamp != expected_second {
+            return Err(format!(
+                "Par M2 desalinhado em {}: eram esperados candles M1 em {} e {}, mas foram encontrados {} e {}.",
+                bucket.format("%H:%M"),
+                bucket.format("%H:%M"),
+                expected_second.format("%H:%M"),
+                pair[0].timestamp.format("%H:%M"),
+                pair[1].timestamp.format("%H:%M"),
+            ));
+        }
+
+        if let Some(previous) = aggregated.last() {
+            let previous: &ProfitCandleRow = previous;
+            if bucket != previous.timestamp + Duration::minutes(2) {
+                return Err(format!(
+                    "Há minutos M1 ausentes entre {} e {}. O simulador não criará candles artificiais para preencher essa lacuna.",
+                    previous.timestamp.format("%H:%M"),
+                    bucket.format("%H:%M"),
+                ));
+            }
+        }
+
+        let first = &pair[0];
+        let second = &pair[1];
+        let volume = first.volume + second.volume;
+        if !volume.is_finite() {
+            return Err(format!("Volume agregado não finito em {}.", bucket.format("%H:%M")));
+        }
+
+        aggregated.push(ProfitCandleRow {
+            timestamp: bucket,
+            source_row: first.source_row,
+            open: first.open,
+            high: first.high.max(second.high),
+            low: first.low.min(second.low),
+            close: second.close,
+            volume,
+        });
+    }
+
+    if aggregated.is_empty() {
+        return Err("Não há pares M1 completos suficientes para formar candles M2.".to_string());
+    }
+
+    Ok((aggregated, incomplete_edge_candles))
+}
+
 fn column_exists(
     connection: &Connection,
     table: &str,
@@ -3023,7 +3116,7 @@ fn process_profit_replay_file(
         source_order,
         source_rows,
         kept_rows,
-        discarded_rows: source_rows.saturating_sub(kept_rows),
+        discarded_rows: discarded_m2_rows,
         source_bytes,
         output_bytes,
         reduction_pct,
@@ -3222,46 +3315,24 @@ fn process_profit_m2_candle_file(
         ));
     }
 
-    let mut m2_rows: Vec<ProfitCandleRow> = Vec::new();
-    if source_is_m1 {
-        for row in selected_rows {
-            let minute = row.timestamp.minute() - (row.timestamp.minute() % 2);
-            let bucket = row.timestamp
-                .with_minute(minute)
-                .and_then(|value| value.with_second(0))
-                .and_then(|value| value.with_nanosecond(0))
-                .ok_or_else(|| "Não foi possível alinhar o candle M1 ao intervalo M2.".to_string())?;
-            if let Some(last) = m2_rows.last_mut() {
-                if last.timestamp == bucket {
-                    last.high = last.high.max(row.high);
-                    last.low = last.low.min(row.low);
-                    last.close = row.close;
-                    last.volume += row.volume;
-                    continue;
-                }
-            }
-            m2_rows.push(ProfitCandleRow {
-                timestamp: bucket,
-                source_row: row.source_row,
-                open: row.open,
-                high: row.high,
-                low: row.low,
-                close: row.close,
-                volume: row.volume,
-            });
-        }
+    let (m2_rows, incomplete_m1_candles_dropped) = if source_is_m1 {
+        aggregate_m1_candles(selected_rows)?
     } else {
+        let mut preserved = Vec::with_capacity(selected_rows.len());
         for row in selected_rows {
             if row.timestamp.minute() % 2 != 0 {
                 return Err(format!("O arquivo mistura intervalos M1/M2. Candle desalinhado em {}.", row.timestamp));
             }
-            m2_rows.push(row);
+            preserved.push(row);
         }
-    }
+        (preserved, 0)
+    };
+    let total_m2_rows = m2_rows.len() as u64;
 
     let rows: Vec<ProfitCandleRow> = m2_rows.into_iter()
         .filter(|row| row.timestamp.time() >= window_start && row.timestamp.time() < window_end)
         .collect();
+    let discarded_m2_rows = total_m2_rows.saturating_sub(rows.len() as u64);
     if rows.is_empty() {
         return Err(format!(
             "Nenhum candle M2 entre {} e {} foi encontrado em {}.",
@@ -3338,8 +3409,12 @@ fn process_profit_m2_candle_file(
         "sourceOrder": &result.source_order,
         "canonicalOrder": "ASCENDING",
         "aggregation": if source_is_m1 {
-            "M2: abertura do primeiro M1, máxima/mínima do par, fechamento do segundo M1 e soma da quantidade"
-        } else { "Fonte M2: candles preservados sem agregação" },
+            format!(
+                "M2: abertura do primeiro M1, máxima/mínima do par, fechamento do segundo M1 e soma da quantidade. {} candle(s) M1 incompleto(s) nas bordas foram descartados.",
+                incomplete_m1_candles_dropped
+            )
+        } else { "Fonte M2: candles preservados sem agregação".to_string() },
+        "incompleteM1CandlesDropped": incomplete_m1_candles_dropped,
         "syntheticMovement": {
             "enabled": true,
             "secondsPerCandle": 120,
@@ -4393,6 +4468,103 @@ mod tests {
 
         let _ = fs::remove_dir_all(root);
     }
+    #[test]
+    fn m1_pairs_aggregate_to_m2_and_drop_only_incomplete_edges() {
+        let date = NaiveDate::from_ymd_opt(2026, 11, 10).unwrap();
+        let candle = |minute: u32, source_row: u64, open: f64, high: f64, low: f64, close: f64, volume: f64| {
+            ProfitCandleRow {
+                timestamp: date.and_hms_opt(9, minute, 0).unwrap(),
+                source_row,
+                open,
+                high,
+                low,
+                close,
+                volume,
+            }
+        };
+
+        let (m2, dropped) = aggregate_m1_candles(vec![
+            candle(0, 5, 100.0, 110.0, 95.0, 105.0, 12.0),
+            candle(1, 4, 105.0, 115.0, 100.0, 110.0, 18.0),
+            candle(2, 3, 110.0, 120.0, 105.0, 115.0, 20.0),
+            candle(3, 2, 115.0, 125.0, 108.0, 120.0, 22.0),
+            candle(4, 1, 120.0, 130.0, 115.0, 125.0, 9.0),
+        ]).unwrap();
+
+        assert_eq!(m2.len(), 2);
+        assert_eq!(dropped, 1);
+        assert_eq!(m2[0].timestamp, date.and_hms_opt(9, 0, 0).unwrap());
+        assert_eq!(m2[0].source_row, 5);
+        assert_eq!(m2[0].open, 100.0);
+        assert_eq!(m2[0].high, 115.0);
+        assert_eq!(m2[0].low, 95.0);
+        assert_eq!(m2[0].close, 110.0);
+        assert_eq!(m2[0].volume, 30.0);
+        assert_eq!(m2[1].open, 110.0);
+        assert_eq!(m2[1].high, 125.0);
+        assert_eq!(m2[1].low, 105.0);
+        assert_eq!(m2[1].close, 120.0);
+        assert_eq!(m2[1].volume, 42.0);
+    }
+
+    #[test]
+    fn m1_aggregation_rejects_missing_interior_minute() {
+        let date = NaiveDate::from_ymd_opt(2026, 11, 10).unwrap();
+        let candle = |minute: u32| ProfitCandleRow {
+            timestamp: date.and_hms_opt(9, minute, 0).unwrap(),
+            source_row: minute as u64,
+            open: 100.0,
+            high: 105.0,
+            low: 95.0,
+            close: 100.0,
+            volume: 1.0,
+        };
+
+        let error = aggregate_m1_candles(vec![
+            candle(0), candle(1), candle(2), candle(4), candle(5),
+        ]).unwrap_err();
+        assert!(error.contains("Par M2 incompleto"));
+    }
+
+    #[test]
+    fn m1_aggregation_skips_incomplete_first_and_last_buckets() {
+        let date = NaiveDate::from_ymd_opt(2026, 11, 10).unwrap();
+        let candle = |minute: u32| ProfitCandleRow {
+            timestamp: date.and_hms_opt(9, minute, 0).unwrap(),
+            source_row: minute as u64,
+            open: 100.0,
+            high: 105.0,
+            low: 95.0,
+            close: 100.0,
+            volume: 1.0,
+        };
+
+        let (m2, dropped) = aggregate_m1_candles(vec![
+            candle(1), candle(2), candle(3), candle(4),
+        ]).unwrap();
+        assert_eq!(m2.len(), 1);
+        assert_eq!(m2[0].timestamp, date.and_hms_opt(9, 2, 0).unwrap());
+        assert_eq!(dropped, 2);
+    }
+
+    #[test]
+    fn profit_export_header_prefers_quantity_over_financial_volume() {
+        let header = parse_delimited_line(
+            "Ativo;Data;Hora;Abertura;Máximo;Mínimo;Fechamento;Volume;Quantidade",
+            ';',
+        );
+        let layout = detect_candle_layout(&header).unwrap();
+        assert_eq!(layout.symbol_idx, Some(0));
+        assert_eq!(layout.open_idx, 3);
+        assert_eq!(layout.high_idx, 4);
+        assert_eq!(layout.low_idx, 5);
+        assert_eq!(layout.close_idx, 6);
+        assert_eq!(layout.volume_idx, 8);
+        assert_eq!(normalize_profit_number("174.290").unwrap(), "174290");
+        assert_eq!(normalize_profit_number("1.128.350.531,00").unwrap(), "1128350531.00");
+        assert_eq!(normalize_profit_number("32.379").unwrap(), "32379");
+    }
+
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
