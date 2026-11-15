@@ -1097,42 +1097,61 @@ export default function App() {
     // Preenche apenas campos ainda vazios; não sobrescreve a preparação do usuário.
     if (!stopDistance.trim()) setStopDistance(String(distance.stop));
     if (!targetDistance.trim()) setTargetDistance(String(distance.target));
-    setFeedback(`Entrada ${sideLabel(authorizedSideForChart)} posicionada em ${money.format(entry)}. Arraste somente a linha de Alvo no gráfico; o Stop permanece fixo e o mínimo 1:2 será validado antes de aceitar a ordem.`);
+    setFeedback(`Entrada ${sideLabel(authorizedSideForChart)} posicionada em ${money.format(entry)}. Arraste a linha de Alvo ou aproxime o Stop da entrada para reduzir o risco; o mínimo 1:2 será validado antes de aceitar a ordem.`);
   }
 
-  function adjustOcoFromChart(_kind: "target", rawPrice: number, mode: "position" | "draft") {
+  function adjustOcoFromChart(kind: "stop" | "target", rawPrice: number, mode: "position" | "draft") {
     const rounded = roundPriceToTick(asset, rawPrice);
     try {
       if (mode === "position" && position) {
-        const nextStop = position.stopLoss;
-        const nextTarget = rounded;
         const marketPrice = dataMode === "replay"
           ? currentReplayTrade?.price ?? lastPrice
           : lastPrice;
+        const nextStop = kind === "stop" ? rounded : position.stopLoss;
+        const nextTarget = kind === "target" ? rounded : position.target;
         if (!isPriceOnTick(asset, nextStop) || !isPriceOnTick(asset, nextTarget)) {
           throw new TradingRuleError(`Stop e alvo precisam respeitar o tick de ${tickSizeFor(asset)} do ativo.`);
         }
-        if (position.side === "BUY") {
-          if (nextStop >= marketPrice) throw new TradingRuleError("O stop de uma compra precisa permanecer abaixo do preço atual.");
+        if (kind === "stop") {
+          const riskReduced = position.side === "BUY"
+            ? nextStop > position.stopLoss && nextStop < marketPrice
+            : nextStop < position.stopLoss && nextStop > marketPrice;
+          if (!riskReduced) {
+            throw new TradingRuleError(position.side === "BUY"
+              ? "Para reduzir o risco de uma compra, mova o Stop somente para cima, sem alcançar o preço atual."
+              : "Para reduzir o risco de uma venda, mova o Stop somente para baixo, sem alcançar o preço atual.");
+          }
+        } else if (position.side === "BUY") {
           if (nextTarget <= Math.max(position.entry, marketPrice)) throw new TradingRuleError("O alvo de uma compra precisa permanecer acima da entrada e do preço atual.");
-        } else {
-          if (nextStop <= marketPrice) throw new TradingRuleError("O stop de uma venda precisa permanecer acima do preço atual.");
-          if (nextTarget >= Math.min(position.entry, marketPrice)) throw new TradingRuleError("O alvo de uma venda precisa permanecer abaixo da entrada e do preço atual.");
+        } else if (nextTarget >= Math.min(position.entry, marketPrice)) {
+          throw new TradingRuleError("O alvo de uma venda precisa permanecer abaixo da entrada e do preço atual.");
         }
         const updated = { ...position, stopLoss: nextStop, target: nextTarget };
         positionRef.current = updated;
         setPosition(updated);
-        setFeedback(`Alvo ajustado para ${money.format(rounded)}.`);
+        setFeedback(kind === "stop"
+          ? `Stop ajustado para ${money.format(rounded)}. O risco da posição foi reduzido.`
+          : `Alvo ajustado para ${money.format(rounded)}.`);
         return;
       }
       if (mode === "draft" && draftEntryPrice !== null && draftSide) {
         const current = ocoLevelsFromDistances(asset, draftSide, draftEntryPrice, Number(stopDistance), Number(targetDistance));
-        const nextStop = current.stopLoss;
-        const nextTarget = rounded;
+        const nextStop = kind === "stop" ? rounded : current.stopLoss;
+        const nextTarget = kind === "target" ? rounded : current.target;
+        if (kind === "stop") {
+          const riskReduced = draftSide === "BUY"
+            ? nextStop > current.stopLoss && nextStop < draftEntryPrice
+            : nextStop < current.stopLoss && nextStop > draftEntryPrice;
+          if (!riskReduced) {
+            throw new TradingRuleError("No rascunho, o Stop só pode ser aproximado da entrada, sem ultrapassá-la.");
+          }
+        }
         validateOcoOrder(asset, draftSide, draftEntryPrice, nextStop, nextTarget);
         setStopDistance(String(Math.abs(draftEntryPrice - nextStop)));
         setTargetDistance(String(Math.abs(nextTarget - draftEntryPrice)));
-        setFeedback(`Alvo do rascunho ajustado. A relação risco/retorno continua em pelo menos 1:2.`);
+        setFeedback(kind === "stop"
+          ? "Stop do rascunho ajustado para reduzir o risco. A relação risco/retorno mínimo de 1:2 foi preservada."
+          : "Alvo do rascunho ajustado. A relação risco/retorno continua em pelo menos 1:2.");
       }
     } catch (error) {
       const reason = error instanceof Error ? error.message : "Ajuste OCO inválido.";
