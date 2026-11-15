@@ -1256,6 +1256,18 @@ mod tests {
     }
 
     #[test]
+    fn replay_timestamps_preserve_market_wall_clock_and_validate_offsets() {
+        let local = parse_replay_timestamp("2026-10-13T09:00:00").unwrap();
+        let with_offset = parse_replay_timestamp("2026-10-13T09:00:00+03:00").unwrap();
+        let with_z = parse_replay_timestamp("2026-10-13T09:00:00Z").unwrap();
+
+        assert_eq!(with_offset, local);
+        assert_eq!(with_z, local);
+        assert!(parse_replay_timestamp("2026-10-13T09:00:00+99:99").is_err());
+        assert!(parse_replay_timestamp("2026-02-30T09:00:00").is_err());
+    }
+
+    #[test]
     fn buckets_non_divisor_timeframes_continuously_from_midnight() {
         let cases = [
             ("2026-10-13T09:44:59", "2026-10-13T09:00:00"),
