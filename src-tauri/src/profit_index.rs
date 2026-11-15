@@ -778,6 +778,8 @@ pub(super) fn try_process_indexed_profit_replay_file(
         source_rows: window.source_rows,
         kept_rows,
         discarded_rows: window.source_rows.saturating_sub(kept_rows),
+        discarded_outside_window_rows: window.source_rows.saturating_sub(kept_rows),
+        incomplete_m1_candles_dropped: 0,
         source_bytes,
         output_bytes,
         reduction_pct,
