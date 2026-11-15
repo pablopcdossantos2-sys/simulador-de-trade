@@ -24,11 +24,11 @@
 A fonte disponível no Profit é o histórico de candles M1 (1 minuto). O aplicativo deve manter os CSVs brutos intactos e agregar pares cronológicos de candles M1 em candles M2 derivados, com uma linha por candle. Não exigir nem presumir que o Profit exporte M2.
 
 - [x] Definir formato canônico OHLCV M2.
-- [ ] Detectar cabeçalhos OHLCV M1, delimitadores e formatos de data/preço do Profit a partir de amostras reais.
-- [ ] Validar ativo/contrato, janela horária, grade M1, OHLC, volume e tick do instrumento.
-- [ ] Agregar M1 em M2: abertura do primeiro minuto, máxima/mínima extremas, fechamento do segundo minuto e volume somado.
-- [ ] Definir e validar o alinhamento dos pares M1, tratamento de minutos ausentes e candle M1 final incompleto.
-- [ ] Preparar um replay compacto por pregão a partir dos candles M1 agregados, sem manter negócios tick a tick.
+- [x] Detectar cabeçalhos OHLCV M1, delimitadores e formatos de data/preço do Profit a partir de amostras reais WIN.
+- [x] Validar ativo/contrato, janela horária, grade M1, OHLC, volume e tick do instrumento (testes automatizados e amostras WIN).
+- [x] Agregar M1 em M2: abertura do primeiro minuto, máxima/mínima extremas, fechamento do segundo minuto e quantidade negociada somada.
+- [x] Definir e validar o alinhamento dos pares M1, rejeição de lacunas internas e descarte de candles M1 incompletos nas bordas.
+- [x] Preparar um replay compacto por pregão a partir dos candles M1 agregados, sem manter negócios tick a tick.
 - [x] Aquecer o indicador diretamente com candles M2 anteriores, sem desenhá-los.
 - [x] Manter compatibilidade de leitura com arquivos legados de negócios individuais.
 - [ ] Validar a importação contra amostras reais de CSV M1 exportadas pelo Profit para WIN e WDO.
@@ -103,7 +103,7 @@ A estrutura e os critérios de avaliação serão definidos com o usuário antes
 - [x] Testes de regras de execução, replay, calendário e indicador.
 - [x] Dependências frontend e Rust travadas no repositório.
 - [x] CI para testes, build frontend e verificações Rust.
-- [ ] Testes automatizados de importação OHLCV M2 com fixtures WIN e WDO.
+- [ ] Testes automatizados de importação OHLCV M2 com fixtures WIN e WDO (há cobertura WIN; falta fixture WDO).
 - [ ] Testes de replay sintético de uma sessão completa.
 - [ ] Testes de repetibilidade após fechar, reiniciar e reabrir a mesma sessão.
 - [ ] Validar a performance de memória e CPU com um pregão completo.
