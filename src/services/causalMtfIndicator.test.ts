@@ -85,6 +85,46 @@ describe("calculateCausalMtfAverages", () => {
     expect(result[2].averages.M1).toBeNull();
   });
 
+  it("rejects malformed market timestamps instead of silently dropping candles", () => {
+    const candles = [
+      candle(0, "2026-11-10T09:00:00", 100),
+      candle(1, "2026-11-10T09:61:00", 101),
+    ];
+
+    expect(() => calculateCausalMtfAverages(candles, config)).toThrow(
+      "Timestamp de mercado inválido",
+    );
+  });
+
+  it("rejects duplicate or out-of-order candles", () => {
+    const duplicate = [
+      candle(0, "2026-11-10T09:00:00", 100),
+      candle(1, "2026-11-10T09:00:00", 101),
+    ];
+    const reversed = [
+      candle(0, "2026-11-10T09:02:00", 100),
+      candle(1, "2026-11-10T09:00:00", 101),
+    ];
+
+    expect(() => calculateCausalMtfAverages(duplicate, config)).toThrow(
+      "ordem cronológica",
+    );
+    expect(() => calculateCausalMtfAverages(reversed, config)).toThrow(
+      "ordem cronológica",
+    );
+  });
+
+  it("rejects invalid session and fractional timeframe settings", () => {
+    expect(() => calculateCausalMtfAverages([], {
+      ...config,
+      sessionStartHour: 24,
+    })).toThrow("Configuração de timeframe");
+    expect(() => calculateCausalMtfAverages([], {
+      ...config,
+      chartTimeframeMinutes: 2.5,
+    })).toThrow("Configuração de timeframe");
+  });
+
   it("preserves zero-volume candles without adding volume to the forming MTF bar", () => {
     const candles = [
       { ...candle(0, "2026-11-10T09:00:00", 100), volume: 0 },
