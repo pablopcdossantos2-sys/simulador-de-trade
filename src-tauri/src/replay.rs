@@ -1185,6 +1185,44 @@ mod tests {
     }
 
     #[test]
+    fn m2_replay_preserves_market_gaps_without_fabricating_events() {
+        use std::io::Write;
+        use std::time::{SystemTime, UNIX_EPOCH};
+
+        let unique = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let path = std::env::temp_dir().join(format!("simulador-trade-m2-market-gap-{unique}.csv"));
+        {
+            let mut file = File::create(&path).unwrap();
+            writeln!(file, "symbol,timestamp,source_row,open,high,low,close,volume").unwrap();
+            writeln!(file, "WINV26,2026-10-07T09:00:00,1,130000,130050,129950,130010,1200").unwrap();
+            writeln!(file, "WINV26,2026-10-07T09:06:00,2,130010,130060,129990,130040,900").unwrap();
+        }
+
+        let (mut session, _) = open_session(&path).unwrap();
+        let events = read_next_replay_batch(&mut session, 5000).unwrap();
+
+        assert_eq!(events.len(), 240);
+        assert_eq!(events.first().unwrap().timestamp, "2026-10-07T09:00:00");
+        assert_eq!(events[119].timestamp, "2026-10-07T09:01:59");
+        assert_eq!(events[120].timestamp, "2026-10-07T09:06:00");
+        assert_eq!(events.last().unwrap().timestamp, "2026-10-07T09:07:59");
+        assert!(events.windows(2).all(|pair| pair[0].timestamp < pair[1].timestamp));
+        assert!(events.iter().all(|event| {
+            !(event.timestamp.as_str() >= "2026-10-07T09:02:00"
+                && event.timestamp.as_str() < "2026-10-07T09:06:00")
+        }));
+        assert!(events.windows(2).all(|pair| pair[1].sequence == pair[0].sequence + 1));
+
+        let end = read_next_replay_batch(&mut session, 5000).unwrap();
+        assert!(end.is_empty());
+        assert!(session.finished);
+        let _ = std::fs::remove_file(path);
+    }
+
+    #[test]
     fn m2_replay_is_independent_of_batch_size_and_reset_rewinds_deterministically() {
         use std::io::Write;
         use std::time::{SystemTime, UNIX_EPOCH};
