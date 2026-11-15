@@ -51,7 +51,7 @@ function parseMarketTimestamp(raw: string): number {
 
   // Validate the supplied offset too, while deliberately preserving wall-clock time.
   if (match[3] && !Number.isFinite(Date.parse(value))) return Number.NaN;
-  return Date.parse(`${match[1]}T`${match[2]}Z`);
+  return Date.parse(`${match[1]}T${match[2]}Z`);
 }
 
 function pointsFor(side: Side, entry: number, exit: number): number {
