@@ -1435,4 +1435,72 @@ mod tests {
         let _ = std::fs::remove_file(path);
     }
 
+
+    #[test]
+    fn rejects_out_of_order_warmup_data_across_file_boundaries() {
+        use std::io::Write;
+        use std::time::{SystemTime, UNIX_EPOCH};
+
+        let unique = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos();
+        let first_path = std::env::temp_dir().join(format!("simulador-warmup-order-first-{unique}.csv"));
+        let second_path = std::env::temp_dir().join(format!("simulador-warmup-order-second-{unique}.csv"));
+
+        {
+            let mut file = File::create(&first_path).unwrap();
+            writeln!(file, "symbol,timestamp,source_row,open,high,low,close,volume").unwrap();
+            writeln!(file, "WINV26,2026-10-07T09:02:00,1,130000,130050,129950,130010,1200").unwrap();
+        }
+        {
+            let mut file = File::create(&second_path).unwrap();
+            writeln!(file, "symbol,timestamp,source_row,open,high,low,close,volume").unwrap();
+            writeln!(file, "WINV26,2026-10-07T09:00:00,2,130010,130060,129990,130040,900").unwrap();
+        }
+
+        let result = process_warmup_candles(
+            vec![
+                first_path.to_string_lossy().to_string(),
+                second_path.to_string_lossy().to_string(),
+            ],
+            2,
+            100,
+        );
+        assert!(result.unwrap_err().contains("únicos e em ordem cronológica"));
+
+        let _ = std::fs::remove_file(first_path);
+        let _ = std::fs::remove_file(second_path);
+    }
+
+    #[test]
+    fn rejects_out_of_order_tick_warmup_data_across_file_boundaries() {
+        use std::io::Write;
+        use std::time::{SystemTime, UNIX_EPOCH};
+
+        let unique = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos();
+        let first_path = std::env::temp_dir().join(format!("simulador-tick-warmup-order-first-{unique}.csv"));
+        let second_path = std::env::temp_dir().join(format!("simulador-tick-warmup-order-second-{unique}.csv"));
+
+        {
+            let mut file = File::create(&first_path).unwrap();
+            writeln!(file, "symbol,timestamp,source_row,price,quantity").unwrap();
+            writeln!(file, "WINV26,2026-10-07T09:02:00,1,130000,2").unwrap();
+        }
+        {
+            let mut file = File::create(&second_path).unwrap();
+            writeln!(file, "symbol,timestamp,source_row,price,quantity").unwrap();
+            writeln!(file, "WINV26,2026-10-07T09:00:00,2,130005,3").unwrap();
+        }
+
+        let result = process_warmup_candles(
+            vec![
+                first_path.to_string_lossy().to_string(),
+                second_path.to_string_lossy().to_string(),
+            ],
+            2,
+            100,
+        );
+        assert!(result.unwrap_err().contains("não estão em ordem cronológica"));
+
+        let _ = std::fs::remove_file(first_path);
+        let _ = std::fs::remove_file(second_path);
+    }
 }
