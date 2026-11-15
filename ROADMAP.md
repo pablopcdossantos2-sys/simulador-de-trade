@@ -42,6 +42,7 @@ A fonte disponível no Profit é o histórico de candles M1 (1 minuto). O aplica
 - [x] Começar na abertura, terminar no fechamento e respeitar máxima/mínima.
 - [x] Respeitar o tick do WIN e do WDO.
 - [x] Usar semente determinística por candle para que o replay seja repetível.
+- [x] Testar a recuperação do replay M2 após candle duplicado, preservando o lote válido anterior e retomando no próximo candle correto.
 - [x] Distribuir o volume OHLCV ao longo dos segundos simulados.
 - [ ] Comparar a sensação visual do percurso com o movimento esperado no gráfico e ajustar a intensidade da aleatoriedade sem extrapolar o OHLC.
 - [ ] Validar o efeito da trajetória sintética sobre acionamentos de stop/alvo e relatórios.
