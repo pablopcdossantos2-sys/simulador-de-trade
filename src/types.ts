@@ -156,6 +156,8 @@ export interface TradeIntent {
   asset: Asset;
   side: Side;
   entry: number;
+  /** Último preço efetivamente observado no momento do envio da ordem. */
+  marketPrice: number;
   contracts: number;
   execution: ExecutionSettings;
   candleIndex: number;
