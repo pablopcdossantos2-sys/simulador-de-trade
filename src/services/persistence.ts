@@ -31,15 +31,12 @@ function decodePostTradeNote(value: string): { note: string; review?: TradeRevie
   }
 }
 
-function serializeTrade(trade: Trade): Omit<Trade, "review"> {
-  const { review, ...stored } = trade;
-  if (!review) return stored;
+function serializeTrade(trade: Trade): Trade {
+  // Revisões passam a ser persistidas no campo próprio. A leitura ainda
+  // reconhece o marcador legado para migrar localStorage sem perda de dados.
   return {
-    ...stored,
-    postTradeNote: REVIEW_STORAGE_MARKER + JSON.stringify({
-      note: trade.postTradeNote ?? "",
-      review,
-    }),
+    ...trade,
+    postTradeNote: trade.postTradeNote ?? "",
   };
 }
 
