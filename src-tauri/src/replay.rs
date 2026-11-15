@@ -537,7 +537,7 @@ fn process_warmup_candles(
 
         if let Some(format) = expected_format {
             if format != session.format {
-                return Err("Não misture arquivos de aquecimento de negócios tick a tick e candles M2.".to_string());
+                return Err("Não misture arquivos de aquecimento de negócios tick a tick, candles M1 e candles M2.".to_string());
             }
         } else {
             expected_format = Some(session.format);
@@ -2112,6 +2112,90 @@ mod tests {
         assert_eq!(events.front().unwrap().sequence, 100);
         assert_eq!(events.back().unwrap().sequence, 159);
         assert_eq!(events.back().unwrap().timestamp, "2026-10-07T09:00:59");
+    }
+
+
+    #[test]
+    fn m1_session_reads_batches_preserves_gaps_and_window_metadata() {
+        use std::io::Write;
+        use std::time::{SystemTime, UNIX_EPOCH};
+        let unique = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos();
+        let path = std::env::temp_dir().join(format!("simulador-m1-session-{unique}.replay.csv"));
+        let metadata_path = path.with_extension("meta.json");
+        {
+            let mut file = File::create(&path).unwrap();
+            writeln!(file, "symbol,timestamp,source_row,open,high,low,close,volume,timeframe_minutes").unwrap();
+            writeln!(file, "WINV26,2026-10-07T09:00:00,1,130000,130020,129990,130010,17,1").unwrap();
+            writeln!(file, "WINV26,2026-10-07T09:04:00,2,130010,130025,130000,130015,9,1").unwrap();
+        }
+        std::fs::write(&metadata_path, r#"{"window":{"startInclusive":"09:00:00","endExclusive":"12:00:00"}}"#).unwrap();
+        let (mut session, info) = open_session(&path).unwrap();
+        assert_eq!(info.mode, "CANDLES_M1_SYNTHETIC");
+        assert_eq!(info.session_start.as_deref(), Some("09:00:00"));
+        assert_eq!(info.session_end.as_deref(), Some("12:00:00"));
+        let first = read_next_replay_batch(&mut session, 61).unwrap();
+        assert_eq!(first.len(), 61);
+        assert_eq!(first[0].timestamp, "2026-10-07T09:00:00");
+        assert_eq!(first[59].timestamp, "2026-10-07T09:00:59");
+        assert_eq!(first[60].timestamp, "2026-10-07T09:04:00");
+        assert_eq!(first[60].sequence, 60);
+        let rest = read_next_replay_batch(&mut session, 5000).unwrap();
+        assert_eq!(rest.len(), 59);
+        assert_eq!(rest.last().unwrap().timestamp, "2026-10-07T09:04:59");
+        assert_eq!(first.iter().chain(rest.iter()).map(|event| event.quantity).sum::<f64>(), 26.0);
+        assert!(read_next_replay_batch(&mut session, 100).unwrap().is_empty());
+        rewind_session(&mut session).unwrap();
+        let replayed = read_next_replay_batch(&mut session, 61).unwrap();
+        assert_eq!(replayed.iter().map(|event| (&event.timestamp, event.price, event.quantity)).collect::<Vec<_>>(),
+                   first.iter().map(|event| (&event.timestamp, event.price, event.quantity)).collect::<Vec<_>>());
+        let _ = std::fs::remove_file(path);
+        let _ = std::fs::remove_file(metadata_path);
+    }
+
+    #[test]
+    fn m1_warmup_supports_m3_without_inventing_missing_buckets() {
+        use std::io::Write;
+        use std::time::{SystemTime, UNIX_EPOCH};
+        let unique = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos();
+        let path = std::env::temp_dir().join(format!("simulador-m1-warmup-{unique}.replay.csv"));
+        {
+            let mut file = File::create(&path).unwrap();
+            writeln!(file, "symbol,timestamp,source_row,open,high,low,close,volume,timeframe_minutes").unwrap();
+            writeln!(file, "WINV26,2026-10-07T09:00:00,1,130000,130010,129990,130005,10,1").unwrap();
+            writeln!(file, "WINV26,2026-10-07T09:01:00,2,130005,130020,130000,130010,20,1").unwrap();
+            writeln!(file, "WINV26,2026-10-07T09:03:00,3,130010,130025,130005,130015,30,1").unwrap();
+            writeln!(file, "WINV26,2026-10-07T09:12:00,4,130015,130030,130010,130020,40,1").unwrap();
+        }
+        let candles = process_warmup_candles(vec![path.to_string_lossy().to_string()], 3, 100).unwrap();
+        assert_eq!(candles.len(), 3);
+        assert_eq!(candles.iter().map(|candle| candle.timestamp.as_str()).collect::<Vec<_>>(),
+                   vec!["2026-10-07T09:00:00", "2026-10-07T09:03:00", "2026-10-07T09:12:00"]);
+        assert_eq!(candles[0].open, 130000.0);
+        assert_eq!(candles[0].high, 130020.0);
+        assert_eq!(candles[0].low, 129990.0);
+        assert_eq!(candles[0].close, 130010.0);
+        assert_eq!(candles[0].volume, 30.0);
+        assert_eq!(candles[1].volume, 30.0);
+        assert_eq!(candles[2].index, 2);
+        let _ = std::fs::remove_file(path);
+    }
+
+    #[test]
+    fn m1_warmup_rejects_duplicate_candles_across_files() {
+        use std::io::Write;
+        use std::time::{SystemTime, UNIX_EPOCH};
+        let unique = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos();
+        let first = std::env::temp_dir().join(format!("simulador-m1-duplicate-a-{unique}.replay.csv"));
+        let second = std::env::temp_dir().join(format!("simulador-m1-duplicate-b-{unique}.replay.csv"));
+        for path in [&first, &second] {
+            let mut file = File::create(path).unwrap();
+            writeln!(file, "symbol,timestamp,source_row,open,high,low,close,volume,timeframe_minutes").unwrap();
+            writeln!(file, "WINV26,2026-10-07T09:00:00,1,130000,130010,129990,130005,10,1").unwrap();
+        }
+        let result = process_warmup_candles(vec![first.to_string_lossy().to_string(), second.to_string_lossy().to_string()], 2, 100);
+        assert!(result.unwrap_err().contains("únicos e em ordem cronológica"));
+        let _ = std::fs::remove_file(first);
+        let _ = std::fs::remove_file(second);
     }
 
     #[test]

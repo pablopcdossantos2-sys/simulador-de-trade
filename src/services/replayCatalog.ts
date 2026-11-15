@@ -12,6 +12,7 @@ export interface ReplayCatalogEntry {
   firstTimestamp: string | null;
   lastTimestamp: string | null;
   fileBytes: number;
+  dataMode?: "CANDLES_M1_SYNTHETIC" | "CANDLES_M2_SYNTHETIC" | "TICK_LEGACY" | null;
   exists: boolean;
 }
 

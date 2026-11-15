@@ -123,7 +123,7 @@ export function ReplayCatalogPanel({
                     {match.entry
                       ? match.status === "CONTRACT_MISMATCH"
                         ? `${match.entry.symbol} disponível, mas o pregão-alvo usa outro contrato.`
-                        : `${match.entry.symbol} · ${match.entry.sessionStart}–${match.entry.sessionEnd}`
+                        : `${match.entry.symbol} · ${match.entry.dataMode === "CANDLES_M1_SYNTHETIC" ? "M1" : match.entry.dataMode === "CANDLES_M2_SYNTHETIC" ? "M2" : "legado"} · ${match.entry.sessionStart}–${match.entry.sessionEnd}`
                       : "Trate e catalogue um arquivo compatível do Profit Ultra."}
                   </small>
                 </div>

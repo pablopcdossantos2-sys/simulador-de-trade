@@ -61,7 +61,7 @@ export function PlanDataPreparationPanel({ plan, matches, onCatalogUpdated }: Pr
       const next = { ...current };
       for (const requirement of plan.dataRequirements) {
         const key = keyFor(requirement.role, requirement.date);
-        next[key] ??= { sourcePath: "", sourceTimeframeMinutes: 2, status: "idle", message: "", progress: 0 };
+        next[key] ??= { sourcePath: "", sourceTimeframeMinutes: 1, status: "idle", message: "", progress: 0 };
       }
       return next;
     });
@@ -76,7 +76,7 @@ export function PlanDataPreparationPanel({ plan, matches, onCatalogUpdated }: Pr
     setRows((current) => ({
       ...current,
       [key]: {
-        ...(current[key] ?? { sourcePath: "", sourceTimeframeMinutes: 2, status: "idle", message: "", progress: 0 }),
+        ...(current[key] ?? { sourcePath: "", sourceTimeframeMinutes: 1, status: "idle", message: "", progress: 0 }),
         ...patch,
       },
     }));
@@ -95,7 +95,7 @@ export function PlanDataPreparationPanel({ plan, matches, onCatalogUpdated }: Pr
         filters: [{ name: "Arquivo CSV", extensions: ["csv"] }],
       });
       if (!selected || Array.isArray(selected)) return;
-      setRows((current) => ({ ...current, [key]: { ...(current[key] ?? { sourcePath: "", sourceTimeframeMinutes: 2, status: "idle", message: "", progress: 0 }), sourcePath: selected, status: "idle", message: "", progress: 0 } }));
+      setRows((current) => ({ ...current, [key]: { ...(current[key] ?? { sourcePath: "", sourceTimeframeMinutes: 1, status: "idle", message: "", progress: 0 }), sourcePath: selected, status: "idle", message: "", progress: 0 } }));
     } catch (error) {
       updateRow(key, {
         status: "error",
@@ -122,7 +122,7 @@ export function PlanDataPreparationPanel({ plan, matches, onCatalogUpdated }: Pr
         (progress: ProfitPreparationProgress) => updateRow(key, { progress: progress.percent }),
         plan.asset,
         match.requirement.date,
-        rows[key]?.sourceTimeframeMinutes ?? 2,
+        rows[key]?.sourceTimeframeMinutes ?? 1,
       );
       const entry = await registerReplayFile(result.outputPath);
       if (entry.tradeDate !== match.requirement.date) {
@@ -133,10 +133,13 @@ export function PlanDataPreparationPanel({ plan, matches, onCatalogUpdated }: Pr
         });
         return false;
       }
+      if (result.m1OutputPath) {
+        await registerReplayFile(result.m1OutputPath);
+      }
       updateRow(key, {
         status: "done",
         progress: 100,
-        message: `${entry.symbol}: ${result.keptRows.toLocaleString("pt-BR")} candles M2 preparados a partir de M${result.sourceTimeframeMinutes} (${(result.outputBytes / 1024).toFixed(1)} KB).`,
+        message: `${entry.symbol}: ${result.keptRows.toLocaleString("pt-BR")} candles M2 preparados${result.m1OutputPath ? " e replay M1 original catalogado" : ""}.`,
       });
       onCatalogUpdated();
       return true;
@@ -175,7 +178,7 @@ export function PlanDataPreparationPanel({ plan, matches, onCatalogUpdated }: Pr
 
       <div className="plan-data-help">
         <InfoTip label="Sobre os arquivos do Profit">
-          Selecione o timeframe real do CSV antes de preparar. Um único arquivo histórico pode conter várias datas; o sistema separa o pregão solicitado e converte M1 em M2 quando necessário. Não inferimos o timeframe pelos timestamps, pois lacunas podem tornar essa inferência ambígua.
+          Selecione o timeframe real do CSV antes de preparar. Um único arquivo histórico pode conter várias datas; o sistema separa o pregão solicitado e gera M2 e preserva M1 para replay sintético. Não inferimos o timeframe pelos timestamps, pois lacunas podem tornar essa inferência ambígua.
         </InfoTip>
       </div>
 
@@ -201,7 +204,7 @@ export function PlanDataPreparationPanel({ plan, matches, onCatalogUpdated }: Pr
                 <div className="plan-data-input">
                   <label>
                     Timeframe do CSV
-                    <select value={row?.sourceTimeframeMinutes ?? 2} onChange={(event) => updateRow(key, { sourceTimeframeMinutes: Number(event.target.value) as 1 | 2 })} disabled={processing || row?.status === "working"}>
+                    <select value={row?.sourceTimeframeMinutes ?? 1} onChange={(event) => updateRow(key, { sourceTimeframeMinutes: Number(event.target.value) as 1 | 2 })} disabled={processing || row?.status === "working"}>
                       <option value={1}>M1</option>
                       <option value={2}>M2</option>
                     </select>
@@ -226,7 +229,7 @@ export function PlanDataPreparationPanel({ plan, matches, onCatalogUpdated }: Pr
                       onClick={() => void processMatch(match)}
                       disabled={processing || row?.status === "working" || !(row?.sourcePath ?? "").trim()}
                     >
-                      {row?.status === "working" ? "Preparando..." : "Preparar M2"}
+                      {row?.status === "working" ? "Preparando..." : "Preparar replay"}
                     </button>
                   </div>
                 </div>

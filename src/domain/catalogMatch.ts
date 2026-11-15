@@ -48,7 +48,10 @@ function bestCoverage(
     .sort((a, b) => {
       const aSpan = minutes(a.sessionEnd) - minutes(a.sessionStart);
       const bSpan = minutes(b.sessionEnd) - minutes(b.sessionStart);
-      return aSpan - bSpan;
+      const fidelityRank = (entry: ReplayCatalogEntry) =>
+        entry.dataMode === "TICK_LEGACY" ? 0 :
+        entry.dataMode === "CANDLES_M1_SYNTHETIC" ? 1 : 2;
+      return aSpan - bSpan || fidelityRank(a) - fidelityRank(b);
     });
 }
 

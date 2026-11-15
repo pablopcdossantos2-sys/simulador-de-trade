@@ -3471,6 +3471,36 @@ fn process_profit_m2_candle_file(
     });
     fs::write(&metadata_path, serde_json::to_string_pretty(&metadata).map_err(|error| error.to_string())?)
         .map_err(|error| error.to_string())?;
+    // M1 preservado precisa de metadados próprios para a validação do plano.
+    if let Some(m1_path) = &m1_output_path {
+        let mut m1_metadata = metadata.clone();
+        m1_metadata["purpose"] = json!("Simulador de Trade — replay M1");
+        m1_metadata["dataMode"] = json!("CANDLES_M1_SYNTHETIC");
+        m1_metadata["sourceTimeframeMinutes"] = json!(1);
+        m1_metadata["fields"] = json!(["symbol", "timestamp", "source_row", "open", "high", "low", "close", "volume", "timeframe_minutes"]);
+        m1_metadata["aggregation"] = json!("M1 original preservado sem agregação nem preenchimento de lacunas.");
+        m1_metadata["incompleteM1CandlesDropped"] = json!(0);
+        m1_metadata["syntheticMovement"] = json!({
+            "enabled": true,
+            "secondsPerCandle": 60,
+            "deterministicPerCandle": true,
+            "note": "Movimentos intermediários sintéticos, sem ticks históricos."
+        });
+        let summary = &mut m1_metadata["summary"];
+        summary["outputPath"] = json!(m1_path.to_string_lossy().to_string());
+        summary["outputBytes"] = json!(m1_output_bytes);
+        summary["keptRows"] = json!(m1_rows.len());
+        summary["firstTimestamp"] = json!(m1_rows.first().map(|row| row.timestamp.format("%Y-%m-%dT%H:%M:%S").to_string()));
+        summary["lastTimestamp"] = json!(m1_rows.last().map(|row| row.timestamp.format("%Y-%m-%dT%H:%M:%S").to_string()));
+        summary["dataMode"] = json!("CANDLES_M1_SYNTHETIC");
+        summary["sourceTimeframeMinutes"] = json!(1);
+        summary["discardedRows"] = json!(source_rows.saturating_sub(m1_rows.len() as u64));
+        summary["discardedOutsideWindowRows"] = json!(source_rows.saturating_sub(m1_rows.len() as u64));
+        summary["incompleteM1CandlesDropped"] = json!(0);
+        summary["reductionPct"] = json!(if source_bytes == 0 { 0.0 } else { ((1.0 - m1_output_bytes.unwrap_or(0) as f64 / source_bytes as f64) * 100.0).max(0.0) });
+        fs::write(m1_path.with_extension("meta.json"), serde_json::to_string_pretty(&m1_metadata).map_err(|error| error.to_string())?)
+            .map_err(|error| error.to_string())?;
+    }
     emit_progress(app, operation_id, source_bytes, source_bytes, source_rows, kept_rows);
     Ok(result)
 }

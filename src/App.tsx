@@ -1358,7 +1358,6 @@ export default function App() {
       <ReplayLoadPanel
         path={replay.path}
         timeframeMinutes={replayTimeframeMinutes}
-        onPathChange={replay.setPath}
         session={replay.session}
         playing={replay.playing}
         busy={replay.busy || loadingReplay}
@@ -1603,6 +1602,7 @@ export default function App() {
           onPrepared={async (result) => {
             try {
               await registerReplayFile(result.outputPath);
+              if (result.m1OutputPath) await registerReplayFile(result.m1OutputPath);
               setCatalogRefreshKey((value) => value + 1);
               setFeedback(
                 "Arquivo tratado e adicionado ao catálogo local de dados.",

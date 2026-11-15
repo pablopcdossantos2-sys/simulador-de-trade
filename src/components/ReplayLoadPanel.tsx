@@ -4,7 +4,6 @@ import { InfoTip } from "./InfoTip";
 interface Props {
   path: string;
   timeframeMinutes: number;
-  onPathChange: (value: string) => void;
   session: ReplaySessionInfo | null;
   playing: boolean;
   busy: boolean;
@@ -15,7 +14,6 @@ interface Props {
 export function ReplayLoadPanel({
   path,
   timeframeMinutes,
-  onPathChange,
   session,
   playing,
   busy,
@@ -45,13 +43,8 @@ export function ReplayLoadPanel({
 
       <div className="replay-load-row">
         <label>
-          Arquivo tratado (.replay.csv)
-          <input
-            value={path}
-            onChange={(event) => onPathChange(event.target.value)}
-            placeholder="Arquivo .replay.csv"
-            disabled={playing || trainingActive}
-          />
+          Arquivo do pregão-alvo selecionado pelo catálogo
+          <input value={path} readOnly placeholder="Prepare os dados necessários ao plano" />
         </label>
         <button type="button" onClick={onLoad} disabled={busy || playing || trainingActive}>
           {busy ? "Carregando..." : "Carregar replay"}

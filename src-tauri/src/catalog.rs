@@ -17,6 +17,8 @@ pub struct ReplayCatalogEntry {
     pub first_timestamp: Option<String>,
     pub last_timestamp: Option<String>,
     pub file_bytes: u64,
+    #[serde(default)]
+    pub data_mode: Option<String>,
     pub exists: bool,
 }
 
@@ -55,7 +57,15 @@ fn load_catalog(app: &tauri::AppHandle) -> Result<Vec<ReplayCatalogEntry>, Strin
         return Ok(Vec::new());
     }
 
-    serde_json::from_str(&raw).map_err(|error| error.to_string())
+    let mut entries: Vec<ReplayCatalogEntry> = serde_json::from_str(&raw).map_err(|error| error.to_string())?;
+    for entry in &mut entries {
+        if entry.data_mode.is_none() {
+            if let Ok((_, metadata)) = read_metadata(Path::new(&entry.output_path)) {
+                entry.data_mode = metadata.get("dataMode").and_then(Value::as_str).map(ToOwned::to_owned);
+            }
+        }
+    }
+    Ok(entries)
 }
 
 #[cfg(windows)]
@@ -185,6 +195,7 @@ fn build_entry(output_path: &Path) -> Result<ReplayCatalogEntry, String> {
         first_timestamp,
         last_timestamp,
         file_bytes,
+        data_mode: metadata.get("dataMode").and_then(Value::as_str).map(ToOwned::to_owned),
         exists: true,
     })
 }

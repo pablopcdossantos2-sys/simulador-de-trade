@@ -36,7 +36,7 @@ export function DataPreparationPanel({
   const [sourcePath, setSourcePath] = useState("");
   const [sessionStart, setSessionStart] = useState("09:00");
   const [sessionEnd, setSessionEnd] = useState("12:00");
-  const [sourceTimeframeMinutes, setSourceTimeframeMinutes] = useState<1 | 2>(2);
+  const [sourceTimeframeMinutes, setSourceTimeframeMinutes] = useState<1 | 2>(1);
   const [status, setStatus] = useState("idle");
   const [message, setMessage] = useState(
     "O arquivo bruto permanece intacto. Informe o timeframe real do CSV para evitar inferências incorretas.",
@@ -107,7 +107,7 @@ export function DataPreparationPanel({
 
       <div className="data-preparation-help">
         <InfoTip label="Formato dos arquivos aceitos">
-          Exporte do Profit as colunas Ativo/Contrato, Data, Hora, Abertura, Máxima, Mínima, Fechamento e Quantidade. Se houver Volume Financeiro e Quantidade, o sistema utiliza Quantidade. O replay M2 gera uma trajetória sintética dentro de cada candle; não representa negócios históricos tick a tick. Arquivos antigos de negócios individuais continuam aceitos para compatibilidade.
+          Exporte do Profit as colunas Ativo/Contrato, Data, Hora, Abertura, Máxima, Mínima, Fechamento e Quantidade. Se houver Volume Financeiro e Quantidade, o sistema utiliza Quantidade. O replay M1 ou M2 gera trajetórias sintéticas dentro de cada candle; não representa negócios históricos tick a tick. Arquivos antigos de negócios individuais continuam aceitos para compatibilidade.
         </InfoTip>
       </div>
 
@@ -187,7 +187,7 @@ export function DataPreparationPanel({
             <strong>{(result.dataMode === "CANDLES_M2_SYNTHETIC" ? result.discardedOutsideWindowRows : result.discardedRows).toLocaleString("pt-BR")}</strong>
           </div>
           {result.dataMode === "CANDLES_M2_SYNTHETIC" && result.sourceTimeframeMinutes === 1 && (
-            <p className="preparation-note">A sequência original M1 também foi preservada em um arquivo separado. O replay M1 ainda não está habilitado; por enquanto, o arquivo principal continua sendo M2.</p>
+            <p className="preparation-note">A sequência M1 original também foi preservada para replay sintético com 60 observações por minuto. Esses movimentos não são ticks reais.</p>
           )}
           {result.m1OutputPath && (
             <>
@@ -196,7 +196,7 @@ export function DataPreparationPanel({
                 <strong>{(result.m1KeptRows ?? 0).toLocaleString("pt-BR")}</strong>
               </div>
               <div className="result-path">
-                <span>Arquivo M1 preservado (ainda não reproduzível)</span>
+                <span>Arquivo M1 para replay sintético</span>
                 <strong>{result.m1OutputPath}</strong>
               </div>
             </>
