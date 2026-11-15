@@ -162,6 +162,20 @@ describe("simulateStopWideningScenario", () => {
     })).toThrow(/horários dos negócios/);
   });
 
+  it("compares offset timestamps as market wall-clock time, independent of PC timezone", () => {
+    expect(() => simulateStopWideningScenario({
+      position,
+      attemptedStop: 900,
+      tradesAfterViolation: [{
+        ...trade(1, 900),
+        timestamp: "2026-11-13T08:59:59Z",
+      }],
+      startingBalanceBRL: 10000,
+      lastObservedPrice: 990,
+      lastObservedTimestamp: "2026-11-13T09:00:00+03:00",
+    })).toThrow(/horários dos negócios/);
+  });
+
   it("rejects an exit price made impossible by excessive slippage", () => {
     expect(() => simulateStopWideningScenario({
       position: { ...position, slippageTicksPerSide: 181 },
