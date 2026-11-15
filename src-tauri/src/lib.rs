@@ -762,7 +762,7 @@ fn recover_abandoned_training_sessions(
         let mut statement = transaction.prepare(
             "SELECT id FROM training_sessions WHERE status = 'ACTIVE'",
         )?;
-        let rows = statement.query_map([], |row| row.get::<_, String>(0))?)?;
+        let rows = statement.query_map([], |row| row.get::<_, String>(0))?;
         rows.collect::<rusqlite::Result<Vec<_>>>()?
     };
 
