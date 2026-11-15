@@ -418,7 +418,22 @@ export function CandleChart({
           const previous = visible[idx];
           const currentPoint = pointMap.get(candle.index);
           const previousPoint = pointMap.get(previous.index);
-          if (!currentPoint || !previousPoint || currentPoint.zone === "NONE" || currentPoint.zone !== previousPoint.zone) return null;
+          if (
+            !currentPoint ||
+            !previousPoint ||
+            currentPoint.zone === "NONE" ||
+            currentPoint.zone !== previousPoint.zone ||
+            currentPoint.ema8 === null ||
+            previousPoint.ema8 === null ||
+            currentPoint.ema52 === null ||
+            previousPoint.ema52 === null ||
+            ![
+              currentPoint.ema8,
+              previousPoint.ema8,
+              currentPoint.ema52,
+              previousPoint.ema52,
+            ].every(Number.isFinite)
+          ) return null;
           const x0 = xForIndex(idx);
           const x1 = xForIndex(idx + 1);
           const points = [
