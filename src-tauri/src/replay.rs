@@ -12,7 +12,7 @@ pub struct ReplayState(pub Mutex<Option<ReplaySession>>);
 pub struct ReplayAnalysisState(pub Mutex<Option<ReplaySession>>);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum ReplayFormat { Ticks, CandlesM2 }
+enum ReplayFormat { Ticks, CandlesM1, CandlesM2 }
 
 const MAX_WARMUP_BARS: usize = 100_000;
 
@@ -201,6 +201,46 @@ fn parse_replay_candle_line(line: &str, asset: &str) -> Result<ReplayCandleRecor
     Ok(ReplayCandleRecord { timestamp, source_row, open, high, low, close, volume })
 }
 
+fn parse_replay_m1_candle_line(line: &str, asset: &str) -> Result<ReplayCandleRecord, String> {
+    let fields: Vec<&str> = line.trim_end_matches(|ch| ch == '\r' || ch == '\n').split(',').collect();
+    if fields.len() != 9 {
+        return Err(format!("Linha M1 inválida: esperadas 9 colunas, encontradas {}.", fields.len()));
+    }
+    if fields[8].trim() != "1" { return Err("O arquivo M1 contém timeframe_minutes diferente de 1.".to_string()); }
+    let expected_asset = parse_asset(fields[0])?;
+    if expected_asset != asset {
+        return Err(format!("O arquivo M1 mistura famílias de ativos ({asset} e {expected_asset})."));
+    }
+    let source_row = fields[2].trim().parse::<u64>()
+        .map_err(|_| "source_row inválido no arquivo M1.".to_string())?;
+    let number = |index: usize, label: &str| -> Result<f64, String> {
+        let value = fields[index].trim().parse::<f64>()
+            .map_err(|_| format!("{label} inválido no arquivo M1."))?;
+        if !value.is_finite() { return Err(format!("{label} não finito no arquivo M1.")); }
+        Ok(value)
+    };
+    let open = number(3, "Abertura")?;
+    let high = number(4, "Máxima")?;
+    let low = number(5, "Mínima")?;
+    let close = number(6, "Fechamento")?;
+    let volume = number(7, "Volume")?;
+    if open <= 0.0 || high <= 0.0 || low <= 0.0 || close <= 0.0 || volume < 0.0 {
+        return Err("Os preços OHLC precisam ser positivos e o volume não pode ser negativo.".to_string());
+    }
+    if high < low || high < open || high < close || low > open || low > close {
+        return Err("Candle M1 inválido: máxima/mínima incompatíveis com OHLC.".to_string());
+    }
+    for (label, price) in [("Abertura", open), ("Máxima", high), ("Mínima", low), ("Fechamento", close)] {
+        validate_asset_tick(asset, price, label)?;
+    }
+    let timestamp = fields[1].trim().to_string();
+    let parsed = parse_replay_timestamp(&timestamp)?;
+    if parsed.second() != 0 || parsed.nanosecond() != 0 {
+        return Err(format!("O timestamp {timestamp} não representa a abertura de um candle M1."));
+    }
+    Ok(ReplayCandleRecord { timestamp, source_row, open, high, low, close, volume })
+}
+
 
 fn validate_header(header: &str) -> Result<(), String> {
     if header.trim_end_matches(|ch| ch == '\r' || ch == '\n')
@@ -250,6 +290,7 @@ fn open_session(path: &Path) -> Result<(ReplaySession, ReplaySessionInfo), Strin
             validate_header(&header)?;
             ReplayFormat::Ticks
         }
+        "symbol,timestamp,source_row,open,high,low,close,volume,timeframe_minutes" => ReplayFormat::CandlesM1,
         "symbol,timestamp,source_row,open,high,low,close,volume" => ReplayFormat::CandlesM2,
         _ => return Err("Formato de replay inválido. São aceitos negócios legados ou OHLCV M2.".to_string()),
     };
@@ -262,23 +303,25 @@ fn open_session(path: &Path) -> Result<(ReplaySession, ReplaySessionInfo), Strin
         break candidate;
     };
     let first_fields: Vec<&str> = first_line.trim_end_matches(|ch| ch == '\r' || ch == '\n').split(',').collect();
-    let expected_columns = if format == ReplayFormat::Ticks { 5 } else { 8 };
+    let expected_columns = match format { ReplayFormat::Ticks => 5, ReplayFormat::CandlesM1 => 9, ReplayFormat::CandlesM2 => 8 };
     if first_fields.len() != expected_columns { return Err("Primeira linha de replay inválida.".to_string()); }
     let symbol = first_fields[0].trim().to_string();
     let asset = parse_asset(&symbol)?.to_string();
     match format {
         ReplayFormat::Ticks => { parse_replay_line(&first_line, &asset, 0)?; }
+        ReplayFormat::CandlesM1 => { parse_replay_m1_candle_line(&first_line, &asset)?; }
         ReplayFormat::CandlesM2 => { parse_replay_candle_line(&first_line, &asset)?; }
     }
     reader.seek(SeekFrom::Start(data_start)).map_err(|error| error.to_string())?;
     let (session_start, session_end) = read_replay_window(path);
-    let synthetic = format == ReplayFormat::CandlesM2;
+    let synthetic = matches!(format, ReplayFormat::CandlesM1 | ReplayFormat::CandlesM2);
+    let source_timeframe_minutes = match format { ReplayFormat::CandlesM1 => Some(1), ReplayFormat::CandlesM2 => Some(2), ReplayFormat::Ticks => None };
     let info = ReplaySessionInfo {
         source_path: path.to_string_lossy().to_string(),
         symbol: symbol.clone(), asset: asset.clone(), finished: false,
         session_start: session_start.clone(), session_end: session_end.clone(),
-        mode: if synthetic { "CANDLES_M2_SYNTHETIC" } else { "TICK_LEGACY" }.to_string(),
-        synthetic, source_timeframe_minutes: if synthetic { Some(2) } else { None },
+        mode: match format { ReplayFormat::CandlesM1 => "CANDLES_M1_SYNTHETIC", ReplayFormat::CandlesM2 => "CANDLES_M2_SYNTHETIC", ReplayFormat::Ticks => "TICK_LEGACY" }.to_string(),
+        synthetic, source_timeframe_minutes,
     };
     Ok((ReplaySession {
         reader, source_path: path.to_path_buf(), data_start, symbol, asset, format,
@@ -425,15 +468,6 @@ fn push_warmup_candle_m1(
     source: &ReplayCandleRecord,
     timeframe_minutes: u32,
 ) -> Result<(), String> {
-    // Candles M1 só podem ser agregados em timeframes pares: assim, cada
-    // candle de origem pertence integralmente a um único bucket, sem ratear
-    // OHLCV de forma artificial quando cruza uma fronteira.
-    if timeframe_minutes < 2 || timeframe_minutes % 2 != 0 {
-        return Err(
-            "Candles M1 só podem aquecer timeframes pares (M2, M4, M6, ...), pois não é possível repartir com fidelidade um candle entre buckets ímpares.".to_string(),
-        );
-    }
-
     let timestamp = parse_replay_timestamp(&source.timestamp)?;
     let bucket = bucket_timestamp(timestamp, timeframe_minutes)?;
     let bucket_text = bucket.format("%Y-%m-%dT%H:%M:%S").to_string();
@@ -766,6 +800,51 @@ fn expand_m2_candle(candle: &ReplayCandleRecord, asset: &str, sequence_start: u6
     Ok(events)
 }
 
+fn expand_m1_candle(candle: &ReplayCandleRecord, asset: &str, sequence_start: u64) -> Result<VecDeque<ReplayTradeRecord>, String> {
+    let tick = tick_size(asset)?;
+    let to_tick = |price: f64| -> Result<i64, String> {
+        let steps = price / tick;
+        let rounded = steps.round();
+        if (steps - rounded).abs() > 1e-7 { return Err(format!("Preço {price} fora do tick válido de {tick} para {asset}.")); }
+        Ok(rounded as i64)
+    };
+    let open = to_tick(candle.open)?;
+    let high = to_tick(candle.high)?;
+    let low = to_tick(candle.low)?;
+    let close = to_tick(candle.close)?;
+    let high_second = 18 + (stable_seed(&format!("{}|{}|m1-high", asset, candle.timestamp)) % 10) as usize;
+    let low_second = 38 + (stable_seed(&format!("{}|{}|m1-low", asset, candle.timestamp)) % 10) as usize;
+    let (first_second, first_price, second_second, second_price) =
+        if stable_seed(&candle.timestamp) % 2 == 0 { (high_second, high, low_second, low) } else { (low_second, low, high_second, high) };
+    let waypoints = [(0usize, open), (first_second, first_price), (second_second, second_price), (59usize, close)];
+    let mut prices = [open; 60];
+    for pair in waypoints.windows(2) {
+        let (start, from) = pair[0];
+        let (end, to) = pair[1];
+        let distance = end.saturating_sub(start);
+        for step in 0..=distance {
+            let progress = if distance == 0 { 1.0 } else { step as f64 / distance as f64 };
+            prices[start + step] = (from as f64 + (to - from) as f64 * progress).round() as i64;
+        }
+    }
+    let start = parse_replay_timestamp(&candle.timestamp)?;
+    let mut events = VecDeque::with_capacity(60);
+    for second in 0..60 {
+        let before = (candle.volume / 60.0 * second as f64).floor();
+        let after = (candle.volume / 60.0 * (second + 1) as f64).floor();
+        let quantity = if second == 59 { candle.volume - before } else { after - before };
+        events.push_back(ReplayTradeRecord {
+            asset: asset.to_string(),
+            timestamp: (start + Duration::seconds(second as i64)).format("%Y-%m-%dT%H:%M:%S").to_string(),
+            source_row: candle.source_row,
+            sequence: sequence_start + second as u64,
+            price: prices[second] as f64 * tick,
+            quantity,
+        });
+    }
+    Ok(events)
+}
+
 fn read_next_replay_batch(session: &mut ReplaySession, max_events: usize) -> Result<Vec<ReplayTradeRecord>, String> {
     if let Some(error) = session.pending_error.take() { return Err(error); }
     if session.finished && session.pending_synthetic.is_empty() { return Ok(Vec::new()); }
@@ -795,6 +874,15 @@ fn read_next_replay_batch(session: &mut ReplaySession, max_events: usize) -> Res
             ReplayFormat::Ticks => parse_replay_line(&line, &session.asset, session.sequence).map(|record| {
                 session.sequence += 1;
                 session.pending_synthetic.push_back(record);
+            }),
+            ReplayFormat::CandlesM1 => parse_replay_m1_candle_line(&line, &session.asset).and_then(|candle| {
+                let timestamp = parse_replay_timestamp(&candle.timestamp)?;
+                if session.last_m2_candle_timestamp.is_some_and(|previous| timestamp <= previous) { return Err(format!("Replay M1 com candles duplicados ou fora de ordem cronológica: {}.", candle.timestamp)); }
+                let events = expand_m1_candle(&candle, &session.asset, session.sequence)?;
+                session.sequence += 60;
+                session.last_m2_candle_timestamp = Some(timestamp);
+                session.pending_synthetic = events;
+                Ok(())
             }),
             ReplayFormat::CandlesM2 => parse_replay_candle_line(&line, &session.asset).and_then(|candle| {
                 let timestamp = parse_replay_timestamp(&candle.timestamp)?;
@@ -851,9 +939,9 @@ pub fn reset_replay_session(
         finished: false,
         session_start: session.session_start.clone(),
         session_end: session.session_end.clone(),
-        mode: if session.format == ReplayFormat::CandlesM2 { "CANDLES_M2_SYNTHETIC" } else { "TICK_LEGACY" }.to_string(),
-        synthetic: session.format == ReplayFormat::CandlesM2,
-        source_timeframe_minutes: if session.format == ReplayFormat::CandlesM2 { Some(2) } else { None },
+        mode: match session.format { ReplayFormat::CandlesM1 => "CANDLES_M1_SYNTHETIC", ReplayFormat::CandlesM2 => "CANDLES_M2_SYNTHETIC", ReplayFormat::Ticks => "TICK_LEGACY" }.to_string(),
+        synthetic: matches!(session.format, ReplayFormat::CandlesM1 | ReplayFormat::CandlesM2),
+        source_timeframe_minutes: match session.format { ReplayFormat::CandlesM1 => Some(1), ReplayFormat::CandlesM2 => Some(2), ReplayFormat::Ticks => None },
     })
 }
 
