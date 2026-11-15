@@ -62,6 +62,40 @@ describe("avanço manual por candle", () => {
     expect(continuedCount).toBe(1);
   });
 
+  it("continua o mesmo candle quando o limite real de 5.000 eventos divide seus 120 segundos", () => {
+    const events = Array.from({ length: 5_100 }, (_, second) => {
+      const timestamp = new Date(
+        Date.UTC(2026, 9, 7, 9, 0, second),
+      ).toISOString().slice(0, 19);
+      return trade(timestamp, second + 1);
+    });
+
+    // 5.000 não é divisível por 120: o 41º candle termina no bloco seguinte.
+    const candleStartIndex = 41 * 120;
+    const targetTimestamp = events[candleStartIndex].timestamp;
+    const finalEventsOfFirstBlock = events.slice(candleStartIndex, 5_000);
+    const firstEventsOfSecondBlock = events.slice(5_000);
+
+    const firstCount = countTradesToCandleBoundary(
+      finalEventsOfFirstBlock,
+      null,
+      2,
+      targetTimestamp,
+    );
+    const continuedCount = countTradesToCandleBoundary(
+      firstEventsOfSecondBlock,
+      null,
+      2,
+      targetTimestamp,
+    );
+
+    expect(firstCount).toBe(80);
+    expect(continuedCount).toBe(40);
+    expect(
+      firstEventsOfSecondBlock[continuedCount].timestamp,
+    ).toBe("2026-10-07T10:24:00");
+  });
+
   it("funciona quando a fronteira coincide com o primeiro negócio da fila", () => {
     expect(
       countTradesToCandleBoundary(
