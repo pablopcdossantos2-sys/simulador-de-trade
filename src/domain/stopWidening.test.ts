@@ -176,6 +176,22 @@ describe("simulateStopWideningScenario", () => {
     })).toThrow(/horários dos negócios/);
   });
 
+  it("rejects malformed offsets and impossible calendar dates", () => {
+    for (const timestamp of [
+      "2026-11-13T09:00:00+99:99",
+      "2026-02-30T09:00:00",
+    ]) {
+      expect(() => simulateStopWideningScenario({
+        position,
+        attemptedStop: 900,
+        tradesAfterViolation: [],
+        startingBalanceBRL: 10000,
+        lastObservedPrice: 990,
+        lastObservedTimestamp: timestamp,
+      })).toThrow(/horário válido/);
+    }
+  });
+
   it("rejects an exit price made impossible by excessive slippage", () => {
     expect(() => simulateStopWideningScenario({
       position: { ...position, slippageTicksPerSide: 181 },
