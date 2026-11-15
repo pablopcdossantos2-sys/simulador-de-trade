@@ -65,6 +65,7 @@ import {
   deleteAllDatabaseData,
   deleteAllTrades,
   loadTrades,
+  saveClosedTrade,
   saveTrade,
   saveTrainingEvent,
   saveTrainingSession,
@@ -455,24 +456,47 @@ export default function App() {
     setDraftSide(null);
     positionRef.current = null;
     setPosition(null);
+
+    const closureEvent = trainingSession?.status === "ACTIVE"
+      ? createTrainingEvent({
+          sessionId: trainingSession.id,
+          type: "TRADE_CLOSED",
+          marketTimestamp: closed.closedAt,
+          signalId: closed.signalId,
+          side: closed.side,
+          tradeId: closed.id,
+          reason: closed.exitReason,
+        })
+      : null;
+    const persistedTrade = closureEvent
+      ? { ...closed, sessionId: closureEvent.sessionId }
+      : closed;
+
     setTrades((current) => [
-      closed,
-      ...current.filter((trade) => trade.id !== closed.id),
+      persistedTrade,
+      ...current.filter((trade) => trade.id !== persistedTrade.id),
     ]);
+    if (closureEvent) {
+      setTrainingEvents((current) => [...current, closureEvent]);
+    }
+
     setFeedback(
       examActive
         ? "Operação encerrada. O resultado será revelado ao final da prova."
         : closed.exitReason === "TARGET"
-          ? `Alvo acionado. ${money.format(closed.resultPoints)} pts · líquido R$ ${money.format(closed.netResultBRL)}.`
-          : `Stop atingido. ${money.format(closed.resultPoints)} pts · líquido R$ ${money.format(closed.netResultBRL)}.`,
+          ? \`Alvo acionado. \${money.format(closed.resultPoints)} pts · líquido R$ \${money.format(closed.netResultBRL)}.\`
+          : \`Stop atingido. \${money.format(closed.resultPoints)} pts · líquido R$ \${money.format(closed.netResultBRL)}.\`,
     );
-    void saveTrade(closed).catch((error) => {
-      const reason =
-        error instanceof Error
-          ? error.message
-          : "Falha ao salvar o histórico local da operação.";
+
+    const persistence = closureEvent
+      ? saveClosedTrade(persistedTrade, closureEvent)
+      : saveTrade(persistedTrade);
+    void persistence.catch((error) => {
+      const reason = error instanceof Error
+        ? error.message
+        : "Falha ao salvar o histórico local da operação.";
       setFeedback(
-        "A operação foi encerrada, mas houve falha ao salvar o histórico local.",
+        "A operação foi encerrada, mas não foi possível salvar conjuntamente a operação e seu vínculo com a sessão.",
       );
       recordTrainingEvent({
         type: "TECHNICAL_ISSUE",
@@ -480,15 +504,6 @@ export default function App() {
         reason,
         tradeId: closed.id,
       });
-    });
-
-    recordTrainingEvent({
-      type: "TRADE_CLOSED",
-      marketTimestamp: closed.closedAt,
-      signalId: closed.signalId,
-      side: closed.side,
-      tradeId: closed.id,
-      reason: closed.exitReason,
     });
   }
 
