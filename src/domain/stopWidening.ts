@@ -25,6 +25,19 @@ export interface StopWideningScenario {
   adjustments: StopWideningAdjustment[];
 }
 
+/**
+ * Interpreta timestamps como relógio local do mercado, igual ao backend Rust.
+ * O Profit fornece horários de pregão; offsets/Z não devem deslocar o relógio
+ * informado. A conversão para UTC é apenas uma representação numérica estável
+ * para comparar os componentes de data/hora, independentemente do fuso do PC.
+ */
+function parseMarketTimestamp(raw: string): number {
+  const value = raw.trim();
+  const match = /^(\\d{4}-\\d{2}-\\d{2})[T ](\\d{2}:\\d{2}:\\d{2}(?:\\.\\d+)?)(?:Z|[+-]\\d{2}:?\\d{2})?$/i.exec(value);
+  if (!match) return Number.NaN;
+  return Date.parse(`${match[1]}T${match[2]}Z`);
+}
+
 function pointsFor(side: Side, entry: number, exit: number): number {
   return side === "BUY" ? exit - entry : entry - exit;
 }
@@ -95,7 +108,7 @@ export function simulateStopWideningScenario(input: {
   if (!Number.isFinite(lastObservedPrice) || lastObservedPrice <= 0) {
     throw new Error("Não há preço válido para iniciar a análise contrafactual.");
   }
-  const lastObservedTime = Date.parse(lastObservedTimestamp);
+  const lastObservedTime = parseMarketTimestamp(lastObservedTimestamp);
   if (!lastObservedTimestamp.trim() || !Number.isFinite(lastObservedTime)) {
     throw new Error("Informe um horário válido para o último preço observado.");
   }
@@ -154,7 +167,7 @@ export function simulateStopWideningScenario(input: {
         !isPriceOnTick(position.asset, trade.price)) {
       throw new Error("O replay contém preço inválido ou incompatível com o tick do ativo.");
     }
-    const tradeTime = Date.parse(trade.timestamp);
+    const tradeTime = parseMarketTimestamp(trade.timestamp);
     if (!Number.isFinite(trade.quantity) || trade.quantity <= 0 ||
         !trade.timestamp.trim() || !Number.isFinite(tradeTime)) {
       throw new Error("O replay contém quantidade ou horário inválido.");
