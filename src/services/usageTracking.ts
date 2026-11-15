@@ -1,3 +1,5 @@
+import { invoke } from "@tauri-apps/api/core";
+
 export interface UsageSessionRecord {
   id: string;
   startedAt: string;
@@ -15,9 +17,14 @@ let heartbeat: number | null = null;
 let currentSessionId: string | null = null;
 let lastTickAt = 0;
 let wasActive = false;
+let sessionsCache: UsageSessionRecord[] = [];
 const listeners = new Set<() => void>();
 
-function readSessions(): UsageSessionRecord[] {
+function isDesktop(): boolean {
+  return typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
+}
+
+function readLegacySessions(): UsageSessionRecord[] {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return [];
@@ -25,20 +32,48 @@ function readSessions(): UsageSessionRecord[] {
     return Array.isArray(parsed) ? parsed.filter((item) =>
       item && typeof item.id === "string" &&
       typeof item.startedAt === "string" &&
-      Number.isFinite(item.activeSeconds),
+      typeof item.lastActiveAt === "string" &&
+      Number.isFinite(item.activeSeconds) && item.activeSeconds >= 0,
     ) : [];
   } catch {
     return [];
   }
 }
 
-function writeSessions(sessions: UsageSessionRecord[]): void {
+function saveLegacySessions(): void {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(sessions));
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(sessionsCache));
   } catch {
-    // A falta de espaço ou a indisponibilidade do armazenamento não deve impedir o uso do simulador.
+    // O histórico não deve impedir o uso do simulador se o armazenamento estiver indisponível.
   }
+}
+
+function notify(): void {
   listeners.forEach((listener) => listener());
+}
+
+function replaceCache(sessions: UsageSessionRecord[]): void {
+  sessionsCache = sessions;
+  notify();
+}
+
+function persistSession(record: UsageSessionRecord): void {
+  const index = sessionsCache.findIndex((item) => item.id === record.id);
+  if (index >= 0) sessionsCache[index] = record;
+  else sessionsCache.push(record);
+
+  if (!isDesktop()) {
+    saveLegacySessions();
+    notify();
+    return;
+  }
+
+  // O cache da interface é atualizado imediatamente; o SQLite recebe apenas a sessão alterada.
+  notify();
+  void invoke("save_usage_session", { session: record }).catch(() => {
+    // Mantém uma cópia local de contingência se o banco estiver temporariamente indisponível.
+    saveLegacySessions();
+  });
 }
 
 function isWindowActive(): boolean {
@@ -52,7 +87,7 @@ function makeId(): string {
 }
 
 export function loadUsageSessions(): UsageSessionRecord[] {
-  return readSessions().sort((a, b) => a.startedAt.localeCompare(b.startedAt));
+  return [...sessionsCache].sort((a, b) => a.startedAt.localeCompare(b.startedAt));
 }
 
 export function subscribeUsageSessions(listener: () => void): () => void {
@@ -63,92 +98,113 @@ export function subscribeUsageSessions(listener: () => void): () => void {
 export function startUsageTracking(): void {
   if (typeof window === "undefined" || heartbeat !== null) return;
 
-  const now = new Date();
-  const sessions = readSessions();
-  let storedId: string | null = null;
+  // Sentinel impede duas inicializações concorrentes antes de o primeiro await terminar.
+  heartbeat = -1;
 
-  try {
-    storedId = sessionStorage.getItem(CURRENT_SESSION_KEY);
-  } catch {
-    // O rastreamento continua funcionando sem sessionStorage.
-  }
-
-  let current = storedId
-    ? sessions.find((item) => item.id === storedId && item.endedAt === null)
-    : undefined;
-
-  if (!current) {
-    // Se o aplicativo foi encerrado inesperadamente, fecha o registro anterior
-    // no último heartbeat confirmado, sem inventar tempo de uso.
-    for (const item of sessions) {
-      if (item.endedAt === null) item.endedAt = item.lastActiveAt || item.startedAt;
-    }
-
-    current = {
-      id: makeId(),
-      startedAt: now.toISOString(),
-      endedAt: null,
-      lastActiveAt: now.toISOString(),
-      activeSeconds: 0,
-    };
-    sessions.push(current);
-
-    try {
-      sessionStorage.setItem(CURRENT_SESSION_KEY, current.id);
-    } catch {
-      // O ID em memória evita duplicidade durante a vida desta instância.
-    }
-    writeSessions(sessions);
-  }
-
-  currentSessionId = current.id;
-  lastTickAt = Date.now();
-  wasActive = isWindowActive();
-
-  const flush = (finish = false): void => {
-    if (!currentSessionId) return;
-    const timestamp = Date.now();
-    const elapsed = Math.max(0, Math.min(timestamp - lastTickAt, MAX_COUNTED_DELTA_MS));
-    const records = readSessions();
-    const record = records.find((item) => item.id === currentSessionId);
-    if (!record) return;
-
-    if (wasActive) record.activeSeconds += elapsed / 1000;
-    record.lastActiveAt = new Date(timestamp).toISOString();
-    if (finish) record.endedAt = record.lastActiveAt;
-
-    writeSessions(records);
-    lastTickAt = timestamp;
-    wasActive = finish ? false : isWindowActive();
-
-    if (finish) {
-      currentSessionId = null;
+  const initialize = async (): Promise<void> => {
+    let sessions: UsageSessionRecord[] = [];
+    if (isDesktop()) {
       try {
-        sessionStorage.removeItem(CURRENT_SESSION_KEY);
+        sessions = await invoke<UsageSessionRecord[]>("list_usage_sessions");
+        if (sessions.length === 0) {
+          const legacy = readLegacySessions();
+          if (legacy.length > 0) {
+            // Migração única do histórico legado do WebView para o SQLite.
+            for (const session of legacy) {
+              await invoke("save_usage_session", { session });
+            }
+            sessions = legacy;
+          }
+        }
+        try { localStorage.removeItem(STORAGE_KEY); } catch { /* Migração concluída no SQLite. */ }
       } catch {
-        // Sem ação adicional necessária.
+        sessions = readLegacySessions();
       }
+    } else {
+      sessions = readLegacySessions();
     }
-  };
+    replaceCache(sessions);
 
-  const onFocus = (): void => {
+    const now = new Date();
+    let storedId: string | null = null;
+    try {
+      storedId = sessionStorage.getItem(CURRENT_SESSION_KEY);
+    } catch {
+      // O rastreamento continua funcionando sem sessionStorage.
+    }
+
+    let current = storedId
+      ? sessionsCache.find((item) => item.id === storedId && item.endedAt === null)
+      : undefined;
+
+    if (!current) {
+      // Fecha sessões abandonadas no último heartbeat confirmado, sem inventar tempo.
+      for (const item of sessionsCache) {
+        if (item.endedAt === null) {
+          persistSession({ ...item, endedAt: item.lastActiveAt || item.startedAt });
+        }
+      }
+
+      current = {
+        id: makeId(),
+        startedAt: now.toISOString(),
+        endedAt: null,
+        lastActiveAt: now.toISOString(),
+        activeSeconds: 0,
+      };
+      try { sessionStorage.setItem(CURRENT_SESSION_KEY, current.id); } catch { /* ID mantido em memória. */ }
+      persistSession(current);
+    }
+
+    currentSessionId = current.id;
     lastTickAt = Date.now();
     wasActive = isWindowActive();
-  };
-  const onBlur = (): void => {
-    flush();
-    wasActive = false;
-  };
-  const onVisibilityChange = (): void => {
-    flush();
-    wasActive = isWindowActive();
-    lastTickAt = Date.now();
-  };
-  const onPageHide = (): void => flush(true);
 
-  window.addEventListener("focus", onFocus);
-  window.addEventListener("blur", onBlur);
-  document.addEventListener("visibilitychange", onVisibilityChange);
-  window.addEventListener("pagehide", onPageHide);
-  heartbeat = window.setInterval(() => flush(), HEARTBEAT_MS);
+    const flush = (finish = false): void => {
+      if (!currentSessionId) return;
+      const timestamp = Date.now();
+      const elapsed = Math.max(0, Math.min(timestamp - lastTickAt, MAX_COUNTED_DELTA_MS));
+      const record = sessionsCache.find((item) => item.id === currentSessionId);
+      if (!record) return;
+
+      persistSession({
+        ...record,
+        activeSeconds: record.activeSeconds + (wasActive ? elapsed / 1000 : 0),
+        lastActiveAt: new Date(timestamp).toISOString(),
+        endedAt: finish ? new Date(timestamp).toISOString() : null,
+      });
+      lastTickAt = timestamp;
+      wasActive = finish ? false : isWindowActive();
+
+      if (finish) {
+        currentSessionId = null;
+        try { sessionStorage.removeItem(CURRENT_SESSION_KEY); } catch { /* Sem ação adicional. */ }
+      }
+    };
+
+    const onFocus = (): void => {
+      lastTickAt = Date.now();
+      wasActive = isWindowActive();
+    };
+    const onBlur = (): void => {
+      flush();
+      wasActive = false;
+    };
+    const onVisibilityChange = (): void => {
+      flush();
+      wasActive = isWindowActive();
+      lastTickAt = Date.now();
+    };
+    const onPageHide = (): void => flush(true);
+
+    window.addEventListener("focus", onFocus);
+    window.addEventListener("blur", onBlur);
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    window.addEventListener("pagehide", onPageHide);
+    heartbeat = window.setInterval(() => flush(), HEARTBEAT_MS);
+  };
+
+  void initialize().catch(() => {
+    heartbeat = null;
+  });
 }
