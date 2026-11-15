@@ -1028,6 +1028,9 @@ export default function App() {
           asset,
           side,
           entry: orderEntry,
+          marketPrice: dataMode === "replay"
+            ? currentReplayTrade?.price ?? lastPrice
+            : lastPrice,
           contracts: Number(contracts),
           execution: executionSettings,
           candleIndex: lastCandle.index,
@@ -1098,7 +1101,7 @@ export default function App() {
     // Preenche apenas campos ainda vazios; não sobrescreve a preparação do usuário.
     if (!stopDistance.trim()) setStopDistance(String(distance.stop));
     if (!targetDistance.trim()) setTargetDistance(String(distance.target));
-    setFeedback(`Entrada ${sideLabel(authorizedSideForChart)} posicionada em ${money.format(entry)}. Arraste a linha de Alvo ou aproxime o Stop da entrada para reduzir o risco; o mínimo 1:2 será validado antes de aceitar a ordem.`);
+    setFeedback(`Entrada ${sideLabel(authorizedSideForChart)} preparada em ${money.format(entry)}. Para enviar, o preço precisa permanecer a no máximo 1 tick do mercado; o mínimo 1:2 também será validado.`);
   }
 
   function adjustOcoFromChart(kind: "stop" | "target", rawPrice: number, mode: "position" | "draft") {
