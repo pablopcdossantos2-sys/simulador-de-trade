@@ -179,13 +179,16 @@ export function DataPreparationPanel({
             <strong>{result.symbol || "Não identificado"}</strong>
           </div>
           <div>
-            <span>{result.dataMode === "CANDLES_M2_SYNTHETIC" ? "Candles M2 preservados" : "Negócios preservados"}</span>
+            <span>{result.dataMode === "CANDLES_M2_SYNTHETIC" ? (result.sourceTimeframeMinutes === 1 ? "Candles M2 gerados a partir de M1" : "Candles M2 preservados") : "Negócios preservados"}</span>
             <strong>{result.keptRows.toLocaleString("pt-BR")}</strong>
           </div>
           <div>
             <span>{result.dataMode === "CANDLES_M2_SYNTHETIC" ? "Candles M2 fora da janela" : "Negócios descartados"}</span>
             <strong>{(result.dataMode === "CANDLES_M2_SYNTHETIC" ? result.discardedOutsideWindowRows : result.discardedRows).toLocaleString("pt-BR")}</strong>
           </div>
+          {result.dataMode === "CANDLES_M2_SYNTHETIC" && result.sourceTimeframeMinutes === 1 && (
+            <p className="preparation-note">A origem era M1, mas este arquivo de replay contém candles M2 agregados. A sequência M1 original ainda não é reproduzida; para análises que dependem de cada minuto, aguarde a implementação do replay M1.</p>
+          )}
           {result.dataMode === "CANDLES_M2_SYNTHETIC" && result.sourceTimeframeMinutes === 1 && (
             <div>
               <span>Candles M1 incompletos descartados</span>
