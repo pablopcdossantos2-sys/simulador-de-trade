@@ -128,6 +128,20 @@ describe("replay por timeframe", () => {
     });
   });
 
+  it("produz exatamente os mesmos candles que o agregador imutável", () => {
+    const trades = [
+      trade("2026-10-07T09:00:00", 130000, 2, 1),
+      trade("2026-10-07T09:00:31", 130015, 4, 2),
+      trade("2026-10-07T09:01:59", 129990, 1, 3),
+      trade("2026-10-07T09:02:00", 130005, 3, 4),
+      trade("2026-10-07T09:04:59", 130020, 2, 5),
+      trade("2026-10-07T09:06:00", 130010, 5, 6),
+    ];
+    const mutable: ReturnType<typeof buildReplayCandles> = [];
+    for (const item of trades) applyReplayTradeInPlace(mutable, item, 120);
+    expect(mutable).toEqual(buildReplayCandles(trades, 120));
+  });
+
   it("mantém quantidade negociada para permitir VWAP", () => {
     const candles = buildReplayCandles([
       trade("2026-10-07T09:00:00-03:00", 130000, 100),
