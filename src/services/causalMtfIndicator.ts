@@ -164,6 +164,7 @@ export function calculateCausalMtfAverages(
     currentBar = aggregate(currentBar, candle);
     const closeTime = parsed.minute + config.chartTimeframeMinutes;
     const closeTimestamp = formatMarketMinute(parsed.day, closeTime);
+    const bucketEnd = sessionStart + (bucket + 1) * config.indicatorTimeframeMinutes;
     const values = [...dailyCloses, currentBar.close];
     const averages: Record<string, number | null> = {};
 
@@ -178,7 +179,7 @@ export function calculateCausalMtfAverages(
       timestamp: candle.timestamp,
       availableAt: closeTimestamp,
       indicatorBarStart: currentBarStart,
-      indicatorBarIsForming: true,
+      indicatorBarIsForming: closeTime < bucketEnd,
       averages,
       sourceClose: currentBar.close,
       aggregatedBar: { ...currentBar },
