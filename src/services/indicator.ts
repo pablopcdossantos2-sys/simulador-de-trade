@@ -9,6 +9,7 @@ import type {
 } from "../types";
 import {
   marketDateKey,
+  marketTimestampOrdinalMs,
   marketIsoWeekKey,
   marketMonthKey,
   marketYearKey,
@@ -99,6 +100,37 @@ function zoneAuthorization(
  * A VWAP é calculada com HLC3 * volume e reiniciada conforme a ancoragem.
  * No replay real, o agrupamento de "Session" será ligado ao timezone/sessão da B3.
  */
+function validateIndicatorInput(config: MultiMediasConfig, candles: Candle[]): void {
+  if (
+    !Number.isInteger(config.wmaLength) || config.wmaLength < 1 ||
+    !Number.isInteger(config.emaFastLength) || config.emaFastLength < 1 ||
+    !Number.isInteger(config.emaSlowLength) || config.emaSlowLength < 1 ||
+    !["Session", "Week", "Month", "Year"].includes(config.vwapAnchor)
+  ) {
+    throw new Error("Configuração de períodos ou ancoragem da VWAP inválida.");
+  }
+
+  let previousTimestamp = Number.NEGATIVE_INFINITY;
+  for (const candle of candles) {
+    const timestamp = marketTimestampOrdinalMs(candle.timestamp);
+    if (timestamp <= previousTimestamp) {
+      throw new Error("Os candles do indicador devem estar em ordem cronológica, sem timestamps duplicados.");
+    }
+    previousTimestamp = timestamp;
+
+    const prices = [candle.open, candle.high, candle.low, candle.close];
+    if (
+      prices.some((price) => !Number.isFinite(price)) ||
+      !Number.isFinite(candle.volume) ||
+      candle.volume < 0 ||
+      candle.high < Math.max(candle.open, candle.close, candle.low) ||
+      candle.low > Math.min(candle.open, candle.close, candle.high)
+    ) {
+      throw new Error("O candle contém OHLC ou volume inválido para o indicador.");
+    }
+  }
+}
+
 export class MultiMediasNuvemAdapter implements IndicatorAdapter {
   readonly name = "Multi Médias - Nuvem e Sinais";
   readonly version = "multi-medias-nuvem-v1.1.0";
@@ -109,6 +141,7 @@ export class MultiMediasNuvemAdapter implements IndicatorAdapter {
   }
 
   calculate(asset: Asset, candles: Candle[], signalScope = "market"): IndicatorEvaluation {
+    validateIndicatorInput(this.config, candles);
     const series: IndicatorPoint[] = [];
     const signals: IndicatorSignal[] = [];
 
