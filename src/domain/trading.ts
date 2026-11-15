@@ -138,6 +138,17 @@ export function validateTradeIntent(intent: TradeIntent): void {
 
   validateExecutionSettings(intent);
 
+  if (!isFinitePrice(intent.marketPrice)) {
+    throw new TradingRuleError("Não há um último preço de mercado válido para validar a entrada.");
+  }
+  const entryDistance = Math.abs(entry - intent.marketPrice);
+  const maximumEntryDistance = tickSizeFor(asset);
+  if (entryDistance > maximumEntryDistance + 1e-9) {
+    throw new TradingRuleError(
+      `Entrada bloqueada: o preço escolhido está a ${entryDistance.toLocaleString("pt-BR")} pontos do mercado. A entrada precisa ficar a no máximo 1 tick (${maximumEntryDistance.toLocaleString("pt-BR")} pontos) do último preço observado. Reposicione a entrada no gráfico.`,
+    );
+  }
+
   if (!signal && !intent.reentryAuthorized) {
     throw new TradingRuleError(
       "Nenhuma operação pode ser aberta sem sinal ativo ou autorização válida de reentrada pela MME 52.",
