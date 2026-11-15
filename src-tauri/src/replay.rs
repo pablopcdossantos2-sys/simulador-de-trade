@@ -1028,6 +1028,32 @@ mod tests {
     }
 
     #[test]
+    fn rejects_m2_rows_with_invalid_ohlc_bounds_or_volume() {
+        let invalid_open = parse_replay_candle_line(
+            "WINV26,2026-10-07T09:00:00,17,130100,130050,129950,130010,1200",
+            "WINFUT",
+        );
+        assert!(invalid_open.unwrap_err().contains("máxima/mínima incompatíveis"));
+
+        let invalid_close = parse_replay_candle_line(
+            "WINV26,2026-10-07T09:00:00,17,130000,130050,129950,130100,1200",
+            "WINFUT",
+        );
+        assert!(invalid_close.unwrap_err().contains("máxima/mínima incompatíveis"));
+
+        for volume in ["-1", "NaN", "inf", "-inf"] {
+            let row = format!(
+                "WINV26,2026-10-07T09:00:00,17,130000,130050,129950,130010,{volume}"
+            );
+            let error = parse_replay_candle_line(&row, "WINFUT").unwrap_err();
+            assert!(
+                error.contains("Volume") || error.contains("OHLC"),
+                "volume {volume} deveria ser rejeitado, recebeu: {error}"
+            );
+        }
+    }
+
+    #[test]
     fn rejects_m2_prices_outside_the_asset_tick_size() {
         let invalid_win = parse_replay_candle_line(
             "WINV26,2026-10-07T09:00:00,17,130000,130052,129950,130010,1200\n",
