@@ -677,6 +677,9 @@ td {
   color: #ff7181;
 }
 
+.legend-mtf { color: #c6a0ff; }
+.legend-mtf::before { background: repeating-linear-gradient(90deg, currentColor 0 5px, transparent 5px 8px); }
+
 .indicator-wma-line,
 .indicator-vwap-line,
 .indicator-ema8-line,
@@ -706,6 +709,31 @@ td {
   stroke: #f36375;
   stroke-width: 1.4;
 }
+
+.chart-mtf-readout {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 4px 2px;
+  color: #c6a0ff;
+  font-size: 0.72rem;
+  font-variant-numeric: tabular-nums;
+}
+.chart-mtf-readout strong { color: #d9c4ff; }
+.mtf-value { white-space: nowrap; }
+.indicator-mtf-m1-line, .indicator-mtf-m2-line, .indicator-mtf-m3-line, .indicator-mtf-m4-line {
+  fill: none;
+  stroke-width: 1.35;
+  stroke-dasharray: 5 4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+}
+.indicator-mtf-m1-line { stroke: #d9a7ff; }
+.indicator-mtf-m2-line { stroke: #b58cff; }
+.indicator-mtf-m3-line { stroke: #9872e8; }
+.indicator-mtf-m4-line { stroke: #7758c8; }
 
 .indicator-cloud-green {
   fill: rgb(71, 220, 133);
