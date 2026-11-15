@@ -1105,4 +1105,43 @@ mod tests {
         assert_eq!(candles[0].volume, 5.0);
         assert_eq!(candles[1].open, 130005.0);
     }
+
+    #[test]
+    fn rejects_out_of_order_m2_candles_without_reordering_the_stream() {
+        use std::io::Write;
+        use std::time::{SystemTime, UNIX_EPOCH};
+
+        let unique = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos();
+        let path = std::env::temp_dir().join(format!("simulador-trade-m2-order-{unique}.csv"));
+        {
+            let mut file = File::create(&path).unwrap();
+            writeln!(file, "symbol,timestamp,source_row,open,high,low,close,volume").unwrap();
+            writeln!(file, "WINV26,2026-10-07T09:02:00,1,130000,130050,129950,130010,1200").unwrap();
+            writeln!(file, "WINV26,2026-10-07T09:00:00,2,130010,130060,129990,130040,900").unwrap();
+        }
+
+        let (mut session, info) = open_session(&path).unwrap();
+        assert!(info.synthetic);
+
+        // O candle válido é entregue antes de o leitor alcançar a linha fora de ordem.
+        let first = read_next_replay_batch(&mut session, 5000).unwrap();
+        assert_eq!(first.len(), 120);
+        assert_eq!(first.first().unwrap().timestamp, "2026-10-07T09:02:00");
+        assert_eq!(first.last().unwrap().timestamp, "2026-10-07T09:03:59");
+
+        let error = read_next_replay_batch(&mut session, 5000).unwrap_err();
+        assert!(error.contains("fora de ordem cronológica"));
+
+        // O reset deve limpar o timestamp anterior e o erro pendente.
+        rewind_session(&mut session).unwrap();
+        let replayed = read_next_replay_batch(&mut session, 5000).unwrap();
+        assert_eq!(replayed.len(), 120);
+        assert_eq!(replayed.first().unwrap().timestamp, "2026-10-07T09:02:00");
+        assert!(read_next_replay_batch(&mut session, 5000)
+            .unwrap_err()
+            .contains("fora de ordem cronológica"));
+
+        let _ = std::fs::remove_file(path);
+    }
+
 }
