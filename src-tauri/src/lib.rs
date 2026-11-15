@@ -3706,6 +3706,7 @@ mod tests {
             trades: Vec::new(),
             training_sessions: Vec::new(),
             training_events: Vec::new(),
+            usage_sessions: Vec::new(),
             execution_settings: ExecutionSettingsRecord {
                 cost_per_contract_round_trip_brl: -1.0,
                 cost_win_round_trip_brl: None,
