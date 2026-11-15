@@ -72,7 +72,7 @@ describe("calculateCausalMtfAverages", () => {
     expect(sameSnapshotInFullReplay).toEqual(firstSnapshot);
   });
 
-  it("resets daily average history at the next trading day", () => {
+  it("preserves completed M15 bars across trading days for EMA warmup", () => {
     const candles = [
       candle(0, "2026-11-10T09:00:00", 100),
       candle(1, "2026-11-10T09:16:00", 110),
@@ -82,7 +82,7 @@ describe("calculateCausalMtfAverages", () => {
     const result = calculateCausalMtfAverages(candles, config);
 
     expect(result[1].averages.M1).toBe(105);
-    expect(result[2].averages.M1).toBeNull();
+    expect(result[2].averages.M1).toBe(155);
   });
 
   it("rejects malformed market timestamps instead of silently dropping candles", () => {
