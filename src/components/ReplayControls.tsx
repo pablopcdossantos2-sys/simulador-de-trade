@@ -153,7 +153,7 @@ export function ReplayControls({
           <div className="replay-note replay-note-help">
             <InfoTip label="Como funciona o replay">
               O ritmo controla o relógio do mercado: em 10×, dois minutos simulados correspondem a aproximadamente 12 segundos reais. {session.synthetic
-                ? "Cada candle M2 usa os OHLCV históricos como limites e produz uma trajetória pseudoaleatória determinística, com até 120 preços por candle M2, um preço por segundo simulado. Esses preços não são negócios históricos nem reconstruções do fluxo real; o caminho é apenas uma hipótese visual e de execução para treinamento."
+                ? "Cada candle M2 usa os OHLCV históricos como limites e produz uma trajetória pseudoaleatória determinística com 120 preços, um por segundo simulado. A quantidade total do candle é distribuída igualmente entre esses 120 segundos; essa distribuição não representa o fluxo histórico de negócios. Os preços e as quantidades por segundo não são negócios históricos nem reconstruções do fluxo real: são uma hipótese visual e de execução para treinamento."
                 : "Este arquivo legado contém eventos de negócios individuais e preserva sua sequência histórica."} O botão +1 candle avança até a próxima fronteira do candle do gráfico ({timeframeMinutes} min), sem revelar o candle seguinte.
             </InfoTip>
           </div>
