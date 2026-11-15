@@ -14,7 +14,8 @@ export const REPLAY_INTERVAL_SECONDS = 120;
  * no agrupamento da VWAP quando o app roda em outro fuso.
  *
  * Pré-condição: os ReplayTrade precisam chegar em ordem cronológica.
- * Arquivos DESCENDING serão reordenados pelo leitor antes de alcançar este motor.
+ * O leitor Rust rejeita arquivos fora de ordem; não reordena grandes arquivos
+ * em memória para preservar o consumo sequencial e evitar picos de RAM.
  */
 export function applyReplayTrade(
   candles: Candle[],
