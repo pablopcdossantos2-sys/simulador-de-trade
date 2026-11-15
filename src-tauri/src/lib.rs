@@ -81,6 +81,16 @@ struct TrainingSessionRecord {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+struct UsageSessionRecord {
+    id: String,
+    started_at: String,
+    ended_at: Option<String>,
+    last_active_at: String,
+    active_seconds: f64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 struct TrainingEventRecord {
     id: String,
     session_id: String,
@@ -154,6 +164,8 @@ struct BackupBundle {
     trades: Vec<TradeRecord>,
     training_sessions: Vec<TrainingSessionRecord>,
     training_events: Vec<TrainingEventRecord>,
+    #[serde(default)]
+    usage_sessions: Vec<UsageSessionRecord>,
     execution_settings: ExecutionSettingsRecord,
 }
 
@@ -231,6 +243,7 @@ struct BackupSummary {
     trades: usize,
     sessions: usize,
     events: usize,
+    usage_sessions: usize,
     replays: usize,
 }
 
@@ -487,11 +500,11 @@ fn column_exists(
 fn initialize_database(connection: &Connection) -> rusqlite::Result<()> {
     let current_schema_version: i64 =
         connection.query_row("PRAGMA user_version", [], |row| row.get(0))?;
-    if current_schema_version > 9 {
+    if current_schema_version > 10 {
         return Err(rusqlite::Error::SqliteFailure(
             rusqlite::ffi::Error::new(rusqlite::ffi::SQLITE_SCHEMA),
             Some(format!(
-                "O banco está na versão {current_schema_version}, mais nova que esta versão do aplicativo (9). Atualize o Simulador de Trade."
+                "O banco está na versão {current_schema_version}, mais nova que esta versão do aplicativo (10). Atualize o Simulador de Trade."
             )),
         ));
     }
@@ -565,6 +578,17 @@ fn initialize_database(connection: &Connection) -> rusqlite::Result<()> {
 
             CREATE INDEX IF NOT EXISTS idx_training_events_session
             ON training_events(session_id, timestamp ASC);
+
+            CREATE TABLE IF NOT EXISTS usage_sessions (
+                id TEXT PRIMARY KEY NOT NULL,
+                started_at TEXT NOT NULL,
+                ended_at TEXT,
+                last_active_at TEXT NOT NULL,
+                active_seconds REAL NOT NULL CHECK(active_seconds >= 0)
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_usage_sessions_started_at
+            ON usage_sessions(started_at DESC);
 
             CREATE TABLE IF NOT EXISTS execution_settings (
                 id INTEGER PRIMARY KEY NOT NULL CHECK(id = 1),
@@ -735,7 +759,7 @@ fn initialize_database(connection: &Connection) -> rusqlite::Result<()> {
     }
 
     connection.execute_batch(
-        "CREATE INDEX IF NOT EXISTS idx_trades_session ON trades(session_id, closed_at ASC); PRAGMA user_version = 9;",
+        "CREATE INDEX IF NOT EXISTS idx_trades_session ON trades(session_id, closed_at ASC); PRAGMA user_version = 10;",
     )?;
     Ok(())
 }
@@ -1050,6 +1074,36 @@ fn save_training_session(
 }
 
 #[tauri::command]
+fn save_usage_session(
+    state: tauri::State<'_, DbState>,
+    session: UsageSessionRecord,
+) -> Result<(), String> {
+    validate_usage_session(&session)?;
+    let connection = state.0.lock().map_err(|error| error.to_string())?;
+    connection.execute(
+        r#"INSERT INTO usage_sessions (id, started_at, ended_at, last_active_at, active_seconds)
+           VALUES (?1, ?2, ?3, ?4, ?5)
+           ON CONFLICT(id) DO UPDATE SET
+             started_at = excluded.started_at,
+             ended_at = excluded.ended_at,
+             last_active_at = excluded.last_active_at,
+             active_seconds = excluded.active_seconds"#,
+        params![session.id, session.started_at, session.ended_at, session.last_active_at, session.active_seconds],
+    ).map_err(|error| error.to_string())?;
+    connection.execute(
+        "DELETE FROM usage_sessions WHERE datetime(COALESCE(ended_at, last_active_at, started_at)) < datetime('now', '-365 days')",
+        [],
+    ).map_err(|error| error.to_string())?;
+    Ok(())
+}
+
+#[tauri::command]
+fn list_usage_sessions(state: tauri::State<'_, DbState>) -> Result<Vec<UsageSessionRecord>, String> {
+    let connection = state.0.lock().map_err(|error| error.to_string())?;
+    query_backup_usage_sessions(&connection)
+}
+
+#[tauri::command]
 fn save_training_event(
     state: tauri::State<'_, DbState>,
     event: TrainingEventRecord,
@@ -1276,6 +1330,8 @@ fn delete_all_database_data(state: tauri::State<'_, DbState>) -> Result<(), Stri
     transaction.execute("DELETE FROM training_sessions", [])
         .map_err(|error| error.to_string())?;
     transaction.execute("DELETE FROM execution_settings", [])
+        .map_err(|error| error.to_string())?;
+    transaction.execute("DELETE FROM usage_sessions", [])
         .map_err(|error| error.to_string())?;
 
     // Mantém uma linha válida de configurações, restaurada aos padrões do aplicativo.
@@ -1542,6 +1598,20 @@ fn query_backup_events(
         .map_err(|error| error.to_string())
 }
 
+fn query_backup_usage_sessions(connection: &Connection) -> Result<Vec<UsageSessionRecord>, String> {
+    let mut statement = connection.prepare(
+        "SELECT id, started_at, ended_at, last_active_at, active_seconds FROM usage_sessions ORDER BY started_at ASC, id ASC"
+    ).map_err(|error| error.to_string())?;
+    let rows = statement.query_map([], |row| Ok(UsageSessionRecord {
+        id: row.get(0)?,
+        started_at: row.get(1)?,
+        ended_at: row.get(2)?,
+        last_active_at: row.get(3)?,
+        active_seconds: row.get(4)?,
+    })).map_err(|error| error.to_string())?;
+    rows.collect::<Result<Vec<_>, _>>().map_err(|error| error.to_string())
+}
+
 fn query_backup_execution_settings(
     connection: &Connection,
 ) -> Result<ExecutionSettingsRecord, String> {
@@ -1596,6 +1666,20 @@ fn create_pre_restore_backup(connection: &Connection) -> Result<Option<PathBuf>,
     Ok(Some(backup))
 }
 
+fn validate_usage_session(session: &UsageSessionRecord) -> Result<(), String> {
+    if session.id.trim().is_empty()
+        || session.started_at.trim().is_empty()
+        || session.last_active_at.trim().is_empty()
+        || !session.active_seconds.is_finite()
+        || session.active_seconds < 0.0
+        || session.active_seconds > 31_536_000.0
+        || session.ended_at.as_ref().is_some_and(|value| value.trim().is_empty())
+    {
+        return Err("O backup contém uma sessão de uso inválida.".to_string());
+    }
+    Ok(())
+}
+
 fn validate_backup_bundle(bundle: &BackupBundle) -> Result<(), String> {
     if bundle.format != "simulador-de-trade-backup" {
         return Err(
@@ -1609,6 +1693,13 @@ fn validate_backup_bundle(bundle: &BackupBundle) -> Result<(), String> {
             "Versão de backup não suportada: {}.",
             bundle.schema_version
         ));
+    }
+
+    if bundle.usage_sessions.len() > 20_000 {
+        return Err("O backup contém sessões de uso demais (limite: 20.000).".to_string());
+    }
+    for session in &bundle.usage_sessions {
+        validate_usage_session(session)?;
     }
 
     let settings = &bundle.execution_settings;
@@ -1670,6 +1761,14 @@ fn validate_backup_bundle(bundle: &BackupBundle) -> Result<(), String> {
     }
 
     // Valida as referências antes de iniciar qualquer substituição de dados.
+    for usage in &bundle.usage_sessions {
+        transaction.execute(
+            r#"INSERT INTO usage_sessions (id, started_at, ended_at, last_active_at, active_seconds)
+               VALUES (?1, ?2, ?3, ?4, ?5) ON CONFLICT(id) DO NOTHING"#,
+            params![usage.id, usage.started_at, usage.ended_at, usage.last_active_at, usage.active_seconds],
+        ).map_err(|error| error.to_string())?;
+    }
+
     for event in &bundle.training_events {
         if !matches!(
             event.r#type.as_str(),
@@ -1724,6 +1823,7 @@ fn export_backup(
     let trades = query_backup_trades(&connection)?;
     let sessions = query_backup_sessions(&connection)?;
     let events = query_backup_events(&connection)?;
+    let usage_sessions = query_backup_usage_sessions(&connection)?;
     let settings = query_backup_execution_settings(&connection)?;
     drop(connection);
     let replay_sources = collect_replay_backup_sources(&app)?;
@@ -1736,6 +1836,7 @@ fn export_backup(
         trades,
         training_sessions: sessions,
         training_events: events,
+        usage_sessions,
         execution_settings: settings,
     };
 
@@ -1774,6 +1875,7 @@ fn export_backup(
         trades: bundle.trades.len(),
         sessions: bundle.training_sessions.len(),
         events: bundle.training_events.len(),
+        usage_sessions: bundle.usage_sessions.len(),
         replays: replay_sources.len(),
     })
 }
@@ -1833,6 +1935,8 @@ fn import_backup(
         transaction.execute("DELETE FROM trades", [])
             .map_err(|error| error.to_string())?;
         transaction.execute("DELETE FROM training_sessions", [])
+            .map_err(|error| error.to_string())?;
+        transaction.execute("DELETE FROM usage_sessions", [])
             .map_err(|error| error.to_string())?;
     }
 
@@ -1997,6 +2101,7 @@ fn import_backup(
         trades: bundle.trades.len(),
         sessions: bundle.training_sessions.len(),
         events: bundle.training_events.len(),
+        usage_sessions: bundle.usage_sessions.len(),
         replays: replay_files.len(),
     })
 }
@@ -4096,6 +4201,8 @@ pub fn run() {
             save_execution_settings,
             save_training_session,
             save_training_event,
+            save_usage_session,
+            list_usage_sessions,
             list_training_sessions,
             list_training_events,
             list_all_training_events,
