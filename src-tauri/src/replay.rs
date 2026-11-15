@@ -965,19 +965,19 @@ mod tests {
     #[test]
     fn rejects_m2_prices_outside_the_asset_tick_size() {
         let invalid_win = parse_replay_candle_line(
-            "WINV26,2026-10-07T09:00:00,17,130000,130052,129950,130010,1200\\n",
+            "WINV26,2026-10-07T09:00:00,17,130000,130052,129950,130010,1200\n",
             "WINFUT",
         );
         assert!(invalid_win.unwrap_err().contains("tick válido de 5"));
 
         let invalid_wdo = parse_replay_candle_line(
-            "WDOV26,2026-10-07T09:00:00,17,5200.25,5202.0,5199.0,5201.5,1200\\n",
+            "WDOV26,2026-10-07T09:00:00,17,5200.25,5202.0,5199.0,5201.5,1200\n",
             "WDOFUT",
         );
         assert!(invalid_wdo.unwrap_err().contains("tick válido de 0.5"));
 
         let valid_wdo = parse_replay_candle_line(
-            "WDOV26,2026-10-07T09:00:00,17,5200.0,5202.0,5199.0,5201.5,1200\\n",
+            "WDOV26,2026-10-07T09:00:00,17,5200.0,5202.0,5199.0,5201.5,1200\n",
             "WDOFUT",
         );
         assert!(valid_wdo.is_ok());
