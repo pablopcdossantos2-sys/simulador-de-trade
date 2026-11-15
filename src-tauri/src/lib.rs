@@ -664,7 +664,7 @@ fn persist_closed_trade_and_event(
         || event.trade_id.as_deref() != Some(trade.id.as_str()) {
         return Err("Operação e evento de fechamento incompatíveis.".to_string());
     }
-    if trade.session_id.as_deref().is_some_and(|id| id != event.session_id) {
+    if trade.session_id.as_deref().is_some_and(|id| id != event.session_id.as_str()) {
         return Err("A operação e o evento pertencem a sessões diferentes.".to_string());
     }
     let transaction = connection.transaction().map_err(|error| error.to_string())?;
