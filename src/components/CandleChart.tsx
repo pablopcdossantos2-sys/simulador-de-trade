@@ -342,7 +342,7 @@ export function CandleChart({
         </div>
         <div className="chart-controls" aria-label="Controles de zoom do gráfico">
           <InfoTip label="Como interagir com o gráfico" className="chart-info-tip">
-            <p>Clique em um preço do gráfico para posicionar a entrada. Arraste a área dos candles para mover o gráfico; somente a linha de Alvo pode ser arrastada para ajustar a OCO. O Stop permanece fixo.</p>
+            <p>Clique em um preço do gráfico para posicionar a entrada. Arraste a área dos candles para mover o gráfico. A linha de Alvo pode ser ajustada; o Stop só pode ser movido na direção favorável à operação, reduzindo o risco, e nunca em direção contrária.</p>
             <p>Os candles anteriores são apenas contexto visual; o replay continua revelando somente os negócios do pregão selecionado.</p>
           </InfoTip>
           {fitAllCandles ? (
