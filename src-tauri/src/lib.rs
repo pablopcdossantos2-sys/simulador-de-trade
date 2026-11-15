@@ -3381,6 +3381,64 @@ async fn prepare_profit_replay_file(
 #[cfg(test)]
 mod tests {
     #[test]
+    fn legacy_trade_reviews_are_migrated_out_of_post_trade_notes() {
+        let connection = Connection::open_in_memory().unwrap();
+        connection.execute_batch(
+            "CREATE TABLE trades (id TEXT PRIMARY KEY, post_trade_note TEXT NOT NULL, review_json TEXT);"
+        ).unwrap();
+        let review = json!({
+            "tradeId": "trade-legacy",
+            "reviewedAt": "2026-11-14T12:00:00Z",
+            "entryExecution": "PLANNED",
+            "stopDiscipline": "RESPECTED",
+            "targetDiscipline": "RESPECTED",
+            "ruleAdherence": "ALL",
+            "emotionalInterference": "NONE",
+            "lesson": "Aguardar confirmação"
+        });
+        let legacy_note = format!(
+            "{}{}",
+            LEGACY_REVIEW_MARKER,
+            serde_json::to_string(&json!({ "note": "Minha anotação", "review": review })).unwrap()
+        );
+        connection.execute(
+            "INSERT INTO trades (id, post_trade_note) VALUES (?1, ?2)",
+            params!["trade-legacy", legacy_note],
+        ).unwrap();
+
+        migrate_legacy_trade_reviews(&connection).unwrap();
+
+        let (note, review_json): (String, String) = connection.query_row(
+            "SELECT post_trade_note, review_json FROM trades WHERE id = 'trade-legacy'",
+            [],
+            |row| Ok((row.get(0)?, row.get(1)?)),
+        ).unwrap();
+        let stored_review: Value = serde_json::from_str(&review_json).unwrap();
+        assert_eq!(note, "Minha anotação");
+        assert_eq!(stored_review["tradeId"], "trade-legacy");
+        assert_eq!(stored_review["lesson"], "Aguardar confirmação");
+
+        // A migração é idempotente: uma segunda execução não altera os dados.
+        migrate_legacy_trade_reviews(&connection).unwrap();
+        let count: i64 = connection.query_row(
+            "SELECT COUNT(*) FROM trades WHERE post_trade_note LIKE 'simulador-de-trade:trade-review:v1:%'",
+            [],
+            |row| row.get(0),
+        ).unwrap();
+        assert_eq!(count, 0);
+    }
+
+    #[test]
+    fn invalid_legacy_review_marker_is_preserved_as_plain_note() {
+        let (note, review) = split_legacy_trade_review(
+            "simulador-de-trade:trade-review:v1:{invalid",
+            None,
+        );
+        assert_eq!(note, "simulador-de-trade:trade-review:v1:{invalid");
+        assert!(review.is_none());
+    }
+
+    #[test]
     fn usage_sessions_are_persisted_and_included_in_backup_queries() {
         let connection = Connection::open_in_memory().unwrap();
         initialize_database(&connection).unwrap();
