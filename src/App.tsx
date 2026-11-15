@@ -341,6 +341,7 @@ export default function App() {
       if (
         point.candleIndex <= lastClosedTradeMarker.candleIndex ||
         point.zone !== requiredZone ||
+        point.ema52 === null ||
         !Number.isFinite(point.ema52)
       ) return false;
       const candle = candleByIndex.get(point.candleIndex);
