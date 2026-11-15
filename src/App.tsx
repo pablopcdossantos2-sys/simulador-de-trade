@@ -809,8 +809,7 @@ export default function App() {
       return;
     }
 
-    setCandles([]);
-    candlesRef.current = [];
+    replaceCandles([]);
     setCurrentReplayTrade(null);
     positionRef.current = null;
     setPosition(null);
