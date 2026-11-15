@@ -2995,5 +2995,805 @@ fn process_profit_m2_candle_file(
     emit_progress(app, operation_id, source_bytes, source_bytes, source_rows, kept_rows);
     Ok(result)
 }
-#[tauri::command]
+#
 async fn prepare_profit_replay_file(
+    app: tauri::AppHandle,
+    operation_id: String,
+    source_path: String,
+    session_start: String,
+    session_end: String,
+    expected_asset: Option<String>,
+    target_date: Option<String>,
+) -> Result<ProfitPreparationResult, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let source = PathBuf::from(source_path.trim().trim_matches('"'));
+        // O caminho M2 é a opção principal: não indexa nem percorre negócios tick a tick.
+        if detect_candle_csv_header(&source)? {
+            return process_profit_m2_candle_file(
+                &app,
+                &operation_id,
+                &source_path,
+                &session_start,
+                &session_end,
+                expected_asset.as_deref(),
+                target_date.as_deref(),
+            );
+        }
+
+        // Compatibilidade com arquivos antigos de negócios individuais.
+        if let Some(result) = profit_index::try_process_indexed_profit_replay_file(
+            &app, &operation_id, &source_path, &session_start, &session_end,
+        )? {
+            return Ok(result);
+        }
+
+        process_profit_replay_file(
+            &app, &operation_id, &source_path, &session_start, &session_end,
+        )
+    })
+    .await
+    .map_err(|error| error.to_string())?
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn replay_backup_base64_round_trip_preserves_bytes() {
+        for bytes in [b"".as_slice(), b"f".as_slice(), b"fo".as_slice(), b"foo".as_slice(), b"replay csv data".as_slice()] {
+            assert_eq!(decode_base64(&encode_base64(bytes)).unwrap(), bytes);
+        }
+    }
+
+
+    use super::*;
+
+    #[test]
+    fn startup_recovers_abandoned_training_sessions_transactionally() {
+        let mut connection = Connection::open_in_memory().unwrap();
+        initialize_database(&connection).unwrap();
+
+        connection.execute(
+            r#"
+            INSERT INTO training_sessions (
+                id, asset, trade_date, start_time, end_time,
+                timeframe_minutes, warmup_bars, mode, started_at, ended_at, status
+            )
+            VALUES
+                ('active-session', 'WINFUT', '2026-11-14', '09:00', '12:00',
+                 2, 260, 'EXAM', '2026-11-14T09:00:00Z', NULL, 'ACTIVE'),
+                ('ended-session', 'WDOFUT', '2026-11-13', '09:00', '12:00',
+                 2, 260, 'FREE', '2026-11-13T09:00:00Z', '2026-11-13T12:00:00Z', 'ENDED')
+            "#,
+            [],
+        ).unwrap();
+
+        let recovered = recover_abandoned_training_sessions(&mut connection).unwrap();
+        assert_eq!(recovered, 1);
+
+        let (status, ended_at): (String, Option<String>) = connection.query_row(
+            "SELECT status, ended_at FROM training_sessions WHERE id = 'active-session'",
+            [],
+            |row| Ok((row.get(0)?, row.get(1)?)),
+        ).unwrap();
+        assert_eq!(status, "ENDED");
+        assert!(ended_at.is_some());
+
+        let (event_type, reason): (String, Option<String>) = connection.query_row(
+            "SELECT type, reason FROM training_events WHERE session_id = 'active-session'",
+            [],
+            |row| Ok((row.get(0)?, row.get(1)?)),
+        ).unwrap();
+        assert_eq!(event_type, "SESSION_ENDED");
+        assert!(reason.unwrap().contains("automaticamente na inicialização"));
+
+        let ended_session_events: i64 = connection.query_row(
+            "SELECT COUNT(*) FROM training_events WHERE session_id = 'ended-session'",
+            [],
+            |row| row.get(0),
+        ).unwrap();
+        assert_eq!(ended_session_events, 0);
+
+        // Uma segunda inicialização não deve duplicar eventos nem reprocessar sessões.
+        assert_eq!(recover_abandoned_training_sessions(&mut connection).unwrap(), 0);
+        let recovery_events: i64 = connection.query_row(
+            "SELECT COUNT(*) FROM training_events WHERE session_id = 'active-session' AND type = 'SESSION_ENDED'",
+            [],
+            |row| row.get(0),
+        ).unwrap();
+        assert_eq!(recovery_events, 1);
+    }
+
+    #[test]
+    fn backup_schema_validation_rejects_wrong_format_and_version() {
+        let settings = ExecutionSettingsRecord {
+                cost_per_contract_round_trip_brl: 0.0,
+                cost_win_round_trip_brl: None,
+                cost_wdo_round_trip_brl: None,
+                slippage_ticks_per_side: 0,
+                intrabar_policy: "STOP_FIRST".to_string(),
+                disciplined_training_starting_balance_brl: None,
+                stop_training_starting_balance_brl: None,
+            };
+
+        let mut bundle = BackupBundle {
+            format: "simulador-de-trade-backup".to_string(),
+            schema_version: 1,
+            app_version: "0.1.0".to_string(),
+            exported_at: "2026-10-16T18:00:00Z".to_string(),
+            trades: Vec::new(),
+            training_sessions: Vec::new(),
+            training_events: Vec::new(),
+            execution_settings: settings,
+        };
+
+        assert!(validate_backup_bundle(&bundle).is_ok());
+
+        bundle.format = "outro-formato".to_string();
+        assert!(validate_backup_bundle(&bundle).is_err());
+
+        bundle.format = "simulador-de-trade-backup".to_string();
+        bundle.schema_version = 2;
+        assert!(validate_backup_bundle(&bundle).is_err());
+    }
+
+    #[test]
+    fn old_backup_without_intrabar_policy_defaults_to_stop_first() {
+        let raw = r#"{
+          "format": "simulador-de-trade-backup",
+          "schemaVersion": 1,
+          "appVersion": "0.1.0",
+          "exportedAt": "2026-10-16T18:00:00Z",
+          "trades": [],
+          "trainingSessions": [],
+          "trainingEvents": [],
+          "executionSettings": {
+            "costPerContractRoundTripBRL": 0,
+            "slippageTicksPerSide": 0
+          }
+        }"#;
+
+        let restored: BackupBundle = serde_json::from_str(raw).unwrap();
+        assert_eq!(
+            restored.execution_settings.intrabar_policy,
+            "STOP_FIRST"
+        );
+        assert_eq!(restored.execution_settings.disciplined_training_starting_balance_brl, None);
+        assert_eq!(restored.execution_settings.stop_training_starting_balance_brl, None);
+    }
+
+    #[test]
+    fn backup_json_round_trip_preserves_training_capitals() {
+        let bundle = BackupBundle {
+            format: "simulador-de-trade-backup".to_string(),
+            schema_version: 1,
+            app_version: "0.1.0".to_string(),
+            exported_at: "2026-11-14T09:00:00Z".to_string(),
+            trades: Vec::new(),
+            training_sessions: Vec::new(),
+            training_events: Vec::new(),
+            execution_settings: ExecutionSettingsRecord {
+                cost_per_contract_round_trip_brl: 0.0,
+                cost_win_round_trip_brl: Some(0.5),
+                cost_wdo_round_trip_brl: Some(2.12),
+                slippage_ticks_per_side: 0,
+                intrabar_policy: "STOP_FIRST".to_string(),
+                disciplined_training_starting_balance_brl: Some(2500.0),
+                stop_training_starting_balance_brl: Some(1000.0),
+            },
+        };
+        let restored: BackupBundle = serde_json::from_str(&serde_json::to_string(&bundle).unwrap()).unwrap();
+        assert_eq!(restored.execution_settings.disciplined_training_starting_balance_brl, Some(2500.0));
+        assert_eq!(restored.execution_settings.stop_training_starting_balance_brl, Some(1000.0));
+    }
+
+    #[test]
+    fn backup_json_round_trip_preserves_entry_context() {
+        let trade = TradeRecord {
+            id: "backup-trade".to_string(),
+            asset: "WINFUT".to_string(),
+            side: "BUY".to_string(),
+            signal_id: "signal-1".to_string(),
+            requested_entry: 130000.0,
+            entry: 130000.0,
+            stop_loss: 129900.0,
+            initial_stop_loss: 129900.0,
+            target: 130150.0,
+            contracts: 1,
+            slippage_ticks_per_side: 0,
+            cost_per_contract_round_trip_brl: 0.0,
+            opened_at: "2026-10-14T09:00:00".to_string(),
+            status: "CLOSED".to_string(),
+            exit_price: 130150.0,
+            exit_reason: "TARGET".to_string(),
+            closed_at: "2026-10-14T09:10:00".to_string(),
+            result_points: 150.0,
+            gross_result_brl: 30.0,
+            operational_costs_brl: 0.0,
+            net_result_brl: 30.0,
+            post_trade_note: "Execução disciplinada".to_string(),
+            entry_context: Some(json!({
+                "indicatorVersion": "multi-medias-nuvem-v1.0.0",
+                "zone": "GREEN"
+            })),
+            intrabar_policy: "STOP_FIRST".to_string(),
+        };
+
+        let bundle = BackupBundle {
+            format: "simulador-de-trade-backup".to_string(),
+            schema_version: 1,
+            app_version: "0.1.0".to_string(),
+            exported_at: "2026-10-16T18:00:00Z".to_string(),
+            trades: vec![trade],
+            training_sessions: Vec::new(),
+            training_events: Vec::new(),
+            execution_settings: ExecutionSettingsRecord {
+                cost_per_contract_round_trip_brl: 0.0,
+                cost_win_round_trip_brl: None,
+                cost_wdo_round_trip_brl: None,
+                slippage_ticks_per_side: 0,
+                intrabar_policy: "STOP_FIRST".to_string(),
+                disciplined_training_starting_balance_brl: None,
+                stop_training_starting_balance_brl: None,
+            },
+        };
+
+        let raw = serde_json::to_string(&bundle).unwrap();
+        let restored: BackupBundle = serde_json::from_str(&raw).unwrap();
+
+        assert_eq!(restored.trades.len(), 1);
+        assert_eq!(
+            restored.trades[0].entry_context.as_ref().unwrap()["indicatorVersion"],
+            "multi-medias-nuvem-v1.0.0"
+        );
+        assert_eq!(
+            restored.trades[0].post_trade_note,
+            "Execução disciplinada"
+        );
+    }
+
+    #[test]
+    fn report_export_path_adds_expected_extension() {
+        let path = report_export_path("relatorio-sessao", "json").unwrap();
+        assert_eq!(
+            path.extension().and_then(|value| value.to_str()),
+            Some("json")
+        );
+
+        assert!(report_export_path("relatorio.csv", "json").is_err());
+        assert!(report_export_path("relatorio.json", "xml").is_err());
+    }
+
+    #[test]
+    fn writes_report_export_to_disk() {
+        use std::time::{SystemTime, UNIX_EPOCH};
+
+        let unique = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let root = std::env::temp_dir().join(format!(
+            "simulador-trade-report-{unique}"
+        ));
+        fs::create_dir_all(&root).unwrap();
+        let destination = root.join("sessao");
+
+        let written = write_report_export(
+            destination.to_string_lossy().to_string(),
+            "{\"ok\":true}".to_string(),
+            "json".to_string(),
+        )
+        .unwrap();
+
+        let written_path = PathBuf::from(written);
+        assert!(written_path.exists());
+        assert_eq!(
+            fs::read_to_string(&written_path).unwrap(),
+            "{\"ok\":true}"
+        );
+
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn configurable_training_window_is_start_inclusive_end_exclusive() {
+        let (start, end) = validate_training_window("09:00", "12:00").unwrap();
+
+        assert!(in_training_window(
+            NaiveTime::from_hms_opt(9, 0, 0).unwrap(),
+            start,
+            end
+        ));
+        assert!(in_training_window(
+            NaiveTime::from_hms_opt(11, 59, 59).unwrap(),
+            start,
+            end
+        ));
+        assert!(!in_training_window(
+            NaiveTime::from_hms_opt(8, 59, 59).unwrap(),
+            start,
+            end
+        ));
+        assert!(!in_training_window(
+            NaiveTime::from_hms_opt(12, 0, 0).unwrap(),
+            start,
+            end
+        ));
+    }
+
+    #[test]
+    fn rejects_invalid_training_windows() {
+        assert!(validate_training_window("12:00", "09:00").is_err());
+        assert!(validate_training_window("09:00", "09:00").is_err());
+        assert!(validate_training_window("abc", "12:00").is_err());
+    }
+
+    #[test]
+    fn parses_two_digit_year_in_combined_profit_timestamp() {
+        let parsed = parse_combined_timestamp("07/10/26 09:30:15").unwrap();
+        assert_eq!(
+            parsed,
+            NaiveDate::from_ymd_opt(2026, 10, 7)
+                .unwrap()
+                .and_hms_opt(9, 30, 15)
+                .unwrap()
+        );
+    }
+
+    #[test]
+    fn parses_two_and_four_digit_profit_years_unambiguously() {
+        assert_eq!(
+            parse_date("07/10/26").unwrap(),
+            NaiveDate::from_ymd_opt(2026, 10, 7).unwrap()
+        );
+        assert_eq!(
+            parse_date("07/10/2026").unwrap(),
+            NaiveDate::from_ymd_opt(2026, 10, 7).unwrap()
+        );
+        assert!(parse_date("07/10/026").is_err());
+    }
+
+    #[test]
+    fn backup_validation_rejects_invalid_execution_values() {
+        let mut bundle = BackupBundle {
+            format: "simulador-de-trade-backup".to_string(),
+            schema_version: 1,
+            app_version: "0.1.0".to_string(),
+            exported_at: "2026-10-16T18:00:00Z".to_string(),
+            trades: Vec::new(),
+            training_sessions: Vec::new(),
+            training_events: Vec::new(),
+            execution_settings: ExecutionSettingsRecord {
+                cost_per_contract_round_trip_brl: -1.0,
+                cost_win_round_trip_brl: None,
+                cost_wdo_round_trip_brl: None,
+                slippage_ticks_per_side: 0,
+                intrabar_policy: "STOP_FIRST".to_string(),
+                disciplined_training_starting_balance_brl: None,
+                stop_training_starting_balance_brl: None,
+            },
+        };
+
+        assert!(validate_backup_bundle(&bundle).is_err());
+
+        bundle.execution_settings.cost_per_contract_round_trip_brl = 0.0;
+        bundle.execution_settings.intrabar_policy = "INVALID".to_string();
+        assert!(validate_backup_bundle(&bundle).is_err());
+    }
+
+    #[test]
+    fn profit_number_normalization_handles_brazilian_prices() {
+        assert_eq!(normalize_profit_number("205.935").unwrap(), "205935");
+        assert_eq!(normalize_profit_number("5.321,5").unwrap(), "5321.5");
+        assert_eq!(normalize_profit_number("5321.5").unwrap(), "5321.5");
+    }
+
+    #[test]
+    fn parses_profit_m1_export_for_november_12_2026() {
+        let header = "Ativo;Data;Hora;Abertura;Máximo;Mínimo;Fechamento;Volume;Quantidade";
+        let header_fields = parse_delimited_line(header, detect_delimiter(header));
+        let layout = detect_candle_layout(&header_fields)
+            .expect("o cabeçalho real do Profit deve ser reconhecido");
+
+        let row = "WINFUT;12/11/2026;18:24:00;172.825;172.850;172.770;172.770;806.932.166,00;23.352";
+        let fields = parse_delimited_line(row, ';');
+        let timestamp = row_candle_timestamp(&fields, &layout).unwrap();
+        let requested_date = parse_date("2026-11-12").unwrap();
+
+        assert_eq!(timestamp.date(), requested_date);
+        assert_eq!(timestamp.format("%Y-%m-%dT%H:%M:%S").to_string(), "2026-11-12T18:24:00");
+        assert_eq!(parse_candle_price(&fields, layout.volume_idx, 2, "quantidade").unwrap(), 23352.0);
+    }
+
+    #[test]
+    fn detects_portuguese_m2_ohlcv_header_with_semicolon_delimiter() {
+        let line = "Ativo;Data/Hora;Abertura;Máxima;Mínima;Fechamento;Volume";
+        let fields = parse_delimited_line(line, detect_delimiter(line));
+        let layout = detect_candle_layout(&fields).expect("layout M2 deveria ser reconhecido");
+
+        assert_eq!(layout.symbol_idx, Some(0));
+        assert_eq!(layout.timestamp_idx, Some(1));
+        assert_eq!(layout.open_idx, 2);
+        assert_eq!(layout.high_idx, 3);
+        assert_eq!(layout.low_idx, 4);
+        assert_eq!(layout.close_idx, 5);
+        assert_eq!(layout.volume_idx, 6);
+    }
+
+    #[test]
+    fn profit_intraday_header_prefers_volume_quantity_over_financial_volume() {
+        let header = "Ativo;Data;Abertura;Máxima;Mínima;Fechamento;Volume Financeiro;Volume Quantidade";
+        let header_fields = parse_delimited_line(header, detect_delimiter(header));
+        let layout = detect_candle_layout(&header_fields).expect("layout OHLCV deveria ser reconhecido");
+
+        assert_eq!(layout.symbol_idx, Some(0));
+        assert_eq!(layout.timestamp_idx, Some(1));
+        assert_eq!(layout.volume_idx, 7);
+
+        let row = "WINV26;14/10/2026 09:00;130000;130050;129950;130010;168365965;11117500";
+        let row_fields = parse_delimited_line(row, ';');
+        let timestamp = row_candle_timestamp(&row_fields, &layout).unwrap();
+        assert_eq!(timestamp.format("%Y-%m-%dT%H:%M:%S").to_string(), "2026-10-14T09:00:00");
+        assert_eq!(parse_candle_price(&row_fields, layout.volume_idx, 2, "volume").unwrap(), 11117500.0);
+    }
+
+    #[test]
+    fn detects_known_headerless_layouts() {
+        let eight = vec!["x".to_string(); 8];
+        let nine = vec!["x".to_string(); 9];
+
+        let a = detect_layout(&eight).unwrap();
+        let b = detect_layout(&nine).unwrap();
+
+        assert_eq!(a.price_idx, 4);
+        assert_eq!(a.quantity_idx, 5);
+        assert_eq!(b.price_idx, 5);
+        assert_eq!(b.quantity_idx, 6);
+    }
+
+    #[test]
+    fn csv_parser_keeps_quoted_delimiters() {
+        let fields = parse_delimited_line(r#"WINV26;07/10/26;"09:00:00";"5.321,5";10"#, ';');
+        assert_eq!(fields.len(), 5);
+        assert_eq!(fields[3], "5.321,5");
+    }
+
+    #[test]
+    fn trade_record_uses_expected_tauri_financial_field_name() {
+        let record = TradeRecord {
+            id: "t1".to_string(),
+            asset: "WINFUT".to_string(),
+            side: "BUY".to_string(),
+            signal_id: "s1".to_string(),
+            requested_entry: 130000.0,
+            entry: 130000.0,
+            stop_loss: 129900.0,
+            initial_stop_loss: 129900.0,
+            target: 130150.0,
+            contracts: 2,
+            slippage_ticks_per_side: 0,
+            cost_per_contract_round_trip_brl: 0.0,
+            opened_at: "2026-10-14T09:00:00".to_string(),
+            status: "CLOSED".to_string(),
+            exit_price: 130150.0,
+            exit_reason: "TARGET".to_string(),
+            closed_at: "2026-10-14T09:10:00".to_string(),
+            result_points: 150.0,
+            gross_result_brl: 60.0,
+            operational_costs_brl: 0.0,
+            net_result_brl: 60.0,
+            post_trade_note: "".to_string(),
+            entry_context: Some(json!({
+                "capturedAt": "2026-10-16T18:00:00Z",
+                "marketTimestamp": "2026-10-14T09:00:00-03:00",
+                "asset": "WINFUT",
+                "candleIndex": 10,
+                "currentPrice": 130000,
+                "zone": "GREEN",
+                "signal": {
+                    "id": "s1",
+                    "asset": "WINFUT",
+                    "side": "BUY",
+                    "candleIndex": 10,
+                    "timestamp": "2026-10-14T09:00:00-03:00",
+                    "price": 130000,
+                    "label": "Compra"
+                },
+                "candles": [],
+                "indicatorSeries": [],
+                "signals": []
+            })),
+            intrabar_policy: "STOP_FIRST".to_string(),
+        };
+
+        let value = serde_json::to_value(record).unwrap();
+        assert_eq!(value["contracts"], 2);
+        assert_eq!(value["grossResultBRL"], 60.0);
+        assert_eq!(value["netResultBRL"], 60.0);
+        assert_eq!(value["costPerContractRoundTripBRL"], 0.0);
+        assert_eq!(value["postTradeNote"], "");
+        assert_eq!(value["entryContext"]["zone"], "GREEN");
+        assert_eq!(value["entryContext"]["signal"]["id"], "s1");
+        assert!(value.get("grossResultBrl").is_none());
+    }
+
+    #[test]
+    fn migrates_legacy_trade_table_without_losing_history() {
+        let connection = Connection::open_in_memory().unwrap();
+        connection
+            .execute_batch(
+                r#"
+                CREATE TABLE trades (
+                    id TEXT PRIMARY KEY NOT NULL,
+                    asset TEXT NOT NULL,
+                    side TEXT NOT NULL,
+                    signal_id TEXT NOT NULL,
+                    entry REAL NOT NULL,
+                    stop_loss REAL NOT NULL,
+                    target REAL NOT NULL,
+                    opened_at TEXT NOT NULL,
+                    status TEXT NOT NULL,
+                    exit_price REAL NOT NULL,
+                    exit_reason TEXT NOT NULL,
+                    closed_at TEXT NOT NULL,
+                    result_points REAL NOT NULL
+                );
+
+                INSERT INTO trades (
+                    id, asset, side, signal_id, entry, stop_loss, target,
+                    opened_at, status, exit_price, exit_reason, closed_at, result_points
+                )
+                VALUES (
+                    'legacy-1', 'WINFUT', 'BUY', 'signal-1',
+                    130000, 129900, 130150,
+                    '2026-10-14T09:00:00', 'CLOSED',
+                    130150, 'TARGET', '2026-10-14T09:10:00', 150
+                );
+                "#,
+            )
+            .unwrap();
+
+        initialize_database(&connection).unwrap();
+
+        let (contracts, requested, gross, net, note, context, policy, initial_stop): (i64, f64, f64, f64, String, Option<String>, String, f64) = connection
+            .query_row(
+                "SELECT contracts, requested_entry, gross_result_brl, net_result_brl, post_trade_note, entry_context_json, intrabar_policy, initial_stop_loss FROM trades WHERE id = 'legacy-1'",
+                [],
+                |row| Ok((
+                    row.get(0)?,
+                    row.get(1)?,
+                    row.get(2)?,
+                    row.get(3)?,
+                    row.get(4)?,
+                    row.get(5)?,
+                    row.get(6)?,
+                    row.get(7)?,
+                )),
+            )
+            .unwrap();
+
+        assert_eq!(contracts, 1);
+        assert!((requested - 130000.0).abs() < 1e-9);
+        assert!((gross - 30.0).abs() < 1e-9);
+        assert!((net - 30.0).abs() < 1e-9);
+        assert_eq!(note, "");
+        assert!(context.is_none());
+        assert_eq!(policy, "STOP_FIRST");
+        assert!((initial_stop - 129900.0).abs() < 1e-9);
+    }
+
+    #[test]
+    fn atomic_replace_does_not_touch_user_owned_previous_file() {
+        use std::time::{SystemTime, UNIX_EPOCH};
+        let nonce = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos();
+        let directory = std::env::temp_dir().join(format!("simulador-atomic-replace-{nonce}"));
+        fs::create_dir_all(&directory).unwrap();
+        let output = directory.join("meus.json");
+        let temp = directory.join("meus.tmp");
+        let user_previous = output.with_extension("replay.previous");
+        fs::write(&output, "old").unwrap();
+        fs::write(&temp, "new").unwrap();
+        fs::write(&user_previous, "arquivo do usuário").unwrap();
+
+        replace_file_safely(&temp, &output).unwrap();
+
+        assert_eq!(fs::read_to_string(&output).unwrap(), "new");
+        assert_eq!(fs::read_to_string(&user_previous).unwrap(), "arquivo do usuário");
+        assert!(!temp.exists());
+        let _ = fs::remove_dir_all(directory);
+    }
+
+    #[test]
+    fn legacy_training_sessions_default_to_free_mode() {
+        let connection = Connection::open_in_memory().unwrap();
+        connection
+            .execute_batch(
+                r#"
+                CREATE TABLE training_sessions (
+                    id TEXT PRIMARY KEY NOT NULL,
+                    asset TEXT NOT NULL,
+                    trade_date TEXT NOT NULL,
+                    start_time TEXT NOT NULL,
+                    end_time TEXT NOT NULL,
+                    timeframe_minutes INTEGER NOT NULL,
+                    warmup_bars INTEGER NOT NULL,
+                    started_at TEXT NOT NULL,
+                    ended_at TEXT,
+                    status TEXT NOT NULL
+                );
+
+                INSERT INTO training_sessions (
+                    id, asset, trade_date, start_time, end_time,
+                    timeframe_minutes, warmup_bars, started_at, ended_at, status
+                )
+                VALUES (
+                    'legacy-session', 'WINFUT', '2026-10-14', '09:00', '12:00',
+                    2, 260, '2026-10-16T10:00:00Z', NULL, 'ACTIVE'
+                );
+                "#,
+            )
+            .unwrap();
+
+        initialize_database(&connection).unwrap();
+
+        let mode: String = connection
+            .query_row(
+                "SELECT mode FROM training_sessions WHERE id = 'legacy-session'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+
+        assert_eq!(mode, "FREE");
+    }
+
+    #[test]
+    fn execution_settings_use_reference_costs_per_asset() {
+        let connection = Connection::open_in_memory().unwrap();
+        initialize_database(&connection).unwrap();
+
+        let (legacy_cost, win_cost, wdo_cost, slippage, policy): (f64, f64, f64, i64, String) = connection
+            .query_row(
+                "SELECT cost_per_contract_round_trip_brl, cost_win_round_trip_brl, cost_wdo_round_trip_brl, slippage_ticks_per_side, intrabar_policy FROM execution_settings WHERE id = 1",
+                [],
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?, row.get(4)?)),
+            )
+            .unwrap();
+
+        assert_eq!(legacy_cost, 0.0);
+        assert_eq!(win_cost, 0.50);
+        assert_eq!(wdo_cost, 2.12);
+        assert_eq!(slippage, 0);
+        assert_eq!(policy, "STOP_FIRST");
+        let (discipline, stops): (Option<f64>, Option<f64>) = connection.query_row(
+            "SELECT disciplined_training_starting_balance_brl, stop_training_starting_balance_brl FROM execution_settings WHERE id = 1",
+            [],
+            |row| Ok((row.get(0)?, row.get(1)?)),
+        ).unwrap();
+        assert_eq!(discipline, None);
+        assert_eq!(stops, None);
+    }
+
+    #[test]
+    fn database_schema_contains_training_history_tables() {
+        let connection = Connection::open_in_memory().unwrap();
+        initialize_database(&connection).unwrap();
+
+        for table in [
+            "trades",
+            "training_sessions",
+            "training_events",
+            "execution_settings",
+        ] {
+            let count: i64 = connection
+                .query_row(
+                    "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = ?1",
+                    [table],
+                    |row| row.get(0),
+                )
+                .unwrap();
+            assert_eq!(count, 1, "missing table {table}");
+        }
+    }
+
+    #[test]
+    fn canonicalizes_descending_replay_without_loading_rows_into_memory() {
+        use std::time::{SystemTime, UNIX_EPOCH};
+
+        let unique = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let root = std::env::temp_dir().join(format!("simulador-trade-{unique}"));
+        fs::create_dir_all(&root).unwrap();
+
+        let temp = root.join("source.replay.tmp");
+        let output = root.join("source.replay.csv");
+        let first = b"WINV26,2026-10-07T09:00:02,20,130010,1\n";
+        let second = b"WINV26,2026-10-07T09:00:01,21,130005,2\n";
+
+        let mut bytes = Vec::new();
+        bytes.extend_from_slice(REPLAY_HEADER);
+        let first_offset = bytes.len() as u64;
+        bytes.extend_from_slice(first);
+        let second_offset = bytes.len() as u64;
+        bytes.extend_from_slice(second);
+        fs::write(&temp, bytes).unwrap();
+
+        canonicalize_replay_file(
+            &temp,
+            &output,
+            &[first_offset, second_offset],
+            "DESCENDING",
+        )
+        .unwrap();
+
+        let final_text = fs::read_to_string(&output).unwrap();
+        let lines: Vec<&str> = final_text.lines().collect();
+
+        assert_eq!(lines[0], "symbol,timestamp,source_row,price,quantity");
+        assert!(lines[1].contains("09:00:01"));
+        assert!(lines[2].contains("09:00:02"));
+        assert!(!temp.exists());
+
+        let _ = fs::remove_dir_all(root);
+    }
+}
+
+#[cfg_attr(mobile, tauri::mobile_entry_point)]
+pub fn run() {
+    tauri::Builder::default()
+        .plugin(tauri_plugin_dialog::init())
+        .setup(|app| {
+            let data_dir = app
+                .path()
+                .app_data_dir()
+                .map_err(|error| error.to_string())?;
+
+            std::fs::create_dir_all(&data_dir)?;
+            let database_path = data_dir.join("simulador-de-trade.sqlite3");
+            let mut connection = Connection::open(database_path)?;
+            initialize_database(&connection)?;
+            // Recupera sessões ACTIVE persistidas por uma execução anterior do app.
+            // A atualização e o evento de encerramento são gravados na mesma transação.
+            recover_abandoned_training_sessions(&mut connection)?;
+            app.manage(DbState(Mutex::new(connection)));
+            app.manage(ReplayState(Mutex::new(None)));
+            app.manage(ReplayAnalysisState(Mutex::new(None)));
+
+            Ok(())
+        })
+        .invoke_handler(tauri::generate_handler![
+            save_trade,
+            list_trades,
+            list_all_trades,
+            delete_all_trades,
+            delete_all_database_data,
+            export_backup,
+            import_backup,
+            write_report_export,
+            load_execution_settings,
+            save_execution_settings,
+            save_training_session,
+            save_training_event,
+            list_training_sessions,
+            list_training_events,
+            list_all_training_events,
+            list_session_trades,
+            prepare_profit_replay_file,
+            profit_index::build_profit_time_index,
+            profit_index::locate_profit_time_window,
+            replay::open_replay_file,
+            replay::next_replay_trades,
+            replay::reset_replay_session,
+            replay::close_replay_session,
+            replay::open_replay_analysis_file,
+            replay::next_replay_analysis_trades,
+            replay::close_replay_analysis_file,
+            replay::load_warmup_candles,
+            catalog::register_replay_file,
+            catalog::list_replay_catalog,
+            catalog::prune_missing_replay_catalog
+        ])
+        .run(tauri::generate_context!())
+        .expect("error while running Simulador de Trade");
+}
