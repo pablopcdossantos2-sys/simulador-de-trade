@@ -365,7 +365,7 @@ fn process_warmup_candles(
 
     // Mantém somente a janela mais recente durante a leitura, evitando que
     // arquivos longos de aquecimento consumam memória proporcional ao histórico.
-    let mut candles: VecDeque<WarmupCandleRecord> = VecDeque::with_capacity(max_bars);
+    let mut candles: VecDeque<WarmupCandleRecord> = VecDeque::new();
     let mut expected_asset: Option<String> = None;
     let mut expected_symbol: Option<String> = None;
     let mut expected_format: Option<ReplayFormat> = None;
@@ -1177,6 +1177,52 @@ mod tests {
         assert_eq!(candles[1].index, 1);
 
         let _ = std::fs::remove_file(path);
+    }
+
+    #[test]
+    fn tick_warmup_keeps_recent_bars_across_multiple_files() {
+        use std::io::Write;
+        use std::time::{SystemTime, UNIX_EPOCH};
+
+        let unique = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos();
+        let first_path = std::env::temp_dir().join(format!("simulador-trade-warmup-ticks-a-{unique}.csv"));
+        let second_path = std::env::temp_dir().join(format!("simulador-trade-warmup-ticks-b-{unique}.csv"));
+        {
+            let mut file = File::create(&first_path).unwrap();
+            writeln!(file, "symbol,timestamp,source_row,price,quantity").unwrap();
+            writeln!(file, "WINV26,2026-10-07T09:00:01,1,130000,2").unwrap();
+            writeln!(file, "WINV26,2026-10-07T09:01:59,2,130010,3").unwrap();
+        }
+        {
+            let mut file = File::create(&second_path).unwrap();
+            writeln!(file, "symbol,timestamp,source_row,price,quantity").unwrap();
+            writeln!(file, "WINV26,2026-10-07T09:02:00,3,130005,1").unwrap();
+            writeln!(file, "WINV26,2026-10-07T09:04:00,4,130015,4").unwrap();
+        }
+
+        let candles = process_warmup_candles(
+            vec![
+                first_path.to_string_lossy().to_string(),
+                second_path.to_string_lossy().to_string(),
+            ],
+            2,
+            2,
+        ).unwrap();
+
+        assert_eq!(candles.len(), 2);
+        assert_eq!(candles[0].timestamp, "2026-10-07T09:02:00");
+        assert_eq!(candles[0].open, 130005.0);
+        assert_eq!(candles[0].high, 130005.0);
+        assert_eq!(candles[0].low, 130005.0);
+        assert_eq!(candles[0].close, 130005.0);
+        assert_eq!(candles[0].volume, 1.0);
+        assert_eq!(candles[1].timestamp, "2026-10-07T09:04:00");
+        assert_eq!(candles[1].volume, 4.0);
+        assert_eq!(candles[0].index, 0);
+        assert_eq!(candles[1].index, 1);
+
+        let _ = std::fs::remove_file(first_path);
+        let _ = std::fs::remove_file(second_path);
     }
 
     #[test]
