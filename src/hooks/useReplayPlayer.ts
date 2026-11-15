@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import type { ReplayTrade } from "../types";
 import { readErrorMessage } from "../services/readErrorMessage";
 import { marketTimestampOrdinalMs } from "../domain/marketTime";
+import { countTradesToCandleBoundary } from "../domain/replayStep";
 import {
   replayMarketTimeAt,
   anchorReplayClock,
@@ -231,33 +232,34 @@ export function useReplayPlayer(
           : bucketKey(currentTimestamp, timeframeMinutes);
       let consumed = 0;
       let lastTrade: ReplayTrade | null = null;
+      let targetTimestamp: string | null = null;
 
       while (generation === generationRef.current) {
         const available = await ensureQueue(generation);
         if (!available || generation !== generationRef.current) break;
 
-        const next = queueRef.current[0];
-        if (!next) break;
+        const firstQueued = queueRef.current[0];
+        if (!firstQueued) break;
+        targetTimestamp ??= firstQueued.timestamp;
 
-        const nextBucket = bucketKey(next.timestamp, timeframeMinutes);
-        if (targetBucket === null) {
-          targetBucket = nextBucket;
+        const count = countTradesToCandleBoundary(
+          queueRef.current,
+          currentTimestamp,
+          timeframeMinutes,
+          targetTimestamp,
+        );
+        if (count === 0) break;
+
+        for (let index = 0; index < count; index += 1) {
+          const trade = queueRef.current.shift();
+          if (!trade) break;
+          onTradeRef.current(trade);
+          consumed += 1;
+          lastTrade = trade;
         }
 
-        if (nextBucket !== targetBucket && consumed > 0) {
-          break;
-        }
-
-        if (nextBucket !== targetBucket && consumed === 0) {
-          targetBucket = nextBucket;
-        }
-
-        const trade = queueRef.current.shift();
-        if (!trade) break;
-
-        onTradeRef.current(trade);
-        consumed += 1;
-        lastTrade = trade;
+        // Se o bloco terminar antes da fronteira, a próxima iteração carrega
+        // outro bloco, mantendo targetTimestamp fixo para não avançar dois candles.
       }
 
       if (lastTrade) {
