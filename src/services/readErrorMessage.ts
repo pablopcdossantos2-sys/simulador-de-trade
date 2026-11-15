@@ -3,34 +3,28 @@ export function readErrorMessage(
   error: unknown,
   fallback = "Ocorreu um erro inesperado.",
 ): string {
-  if (typeof error === "string") {
-    const message = error.trim();
-    return message || fallback;
-  }
+  const visited = new Set<object>();
 
-  if (error instanceof Error) {
-    return error.message.trim() || fallback;
-  }
+  function extract(value: unknown): string {
+    if (typeof value === "string") return value.trim();
+    if (value instanceof Error) return value.message.trim();
+    if (!value || typeof value !== "object" || visited.has(value)) return "";
+    visited.add(value);
 
-  if (error && typeof error === "object") {
-    const record = error as Record<string, unknown>;
+    const record = value as Record<string, unknown>;
     for (const key of ["message", "error", "reason", "details", "cause"]) {
-      const value = record[key];
-      if (typeof value === "string" && value.trim()) return value.trim();
-      if (value instanceof Error && value.message.trim()) return value.message.trim();
-      if (value && typeof value === "object") {
-        const nested = readErrorMessage(value, "");
-        if (nested) return nested;
-      }
+      const message = extract(record[key]);
+      if (message) return message;
     }
 
     try {
-      const serialized = JSON.stringify(error);
+      const serialized = JSON.stringify(value);
       if (serialized && serialized !== "{}") return serialized;
     } catch {
       // Mantém o fallback quando o objeto de erro não pode ser serializado.
     }
+    return "";
   }
 
-  return fallback;
+  return extract(error) || fallback;
 }
