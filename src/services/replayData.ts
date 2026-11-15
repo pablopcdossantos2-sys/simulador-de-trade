@@ -1,5 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import type { Asset, Candle, ReplayTrade } from "../types";
+import { consumeReplayBatches } from "../domain/replayAnalysis";
 
 export interface ReplaySessionInfo {
   sourcePath: string;
@@ -49,7 +50,6 @@ export async function closeReplaySession(): Promise<void> {
   await invoke("close_replay_session");
 }
 
-
 export async function loadWarmupCandles(
   sourcePaths: string[],
   timeframeMinutes: number,
@@ -63,27 +63,53 @@ export async function loadWarmupCandles(
   });
 }
 
-/**
- * Lê o mesmo arquivo por um cursor independente, preservando o ponto do replay
- * que está em andamento. Utilizado somente na análise posterior à infração.
- */
-export async function loadFullReplayTrades(sourcePath: string): Promise<ReplayTrade[]> {
-  ensureDesktop();
+const ANALYSIS_BATCH_SIZE = 5000;
+const MAX_COLLECTED_ANALYSIS_TRADES = 100_000;
+
+function normalizeAnalysisPath(sourcePath: string): string {
   const normalized = sourcePath.trim().replace(/^"(.*)"$/, "$1");
   if (!normalized) throw new Error("Arquivo completo do replay não informado.");
+  return normalized;
+}
 
+/**
+ * Percorre o arquivo por um cursor independente, sem alterar o replay ativo.
+ * Cada lote é entregue ao consumidor e pode ser descartado imediatamente.
+ */
+export async function streamFullReplayTrades(
+  sourcePath: string,
+  onBatch: (batch: ReplayTrade[]) => void | Promise<void>,
+): Promise<number> {
+  ensureDesktop();
+  const normalized = normalizeAnalysisPath(sourcePath);
   await invoke("open_replay_analysis_file", { sourcePath: normalized });
-  const trades: ReplayTrade[] = [];
+
   try {
-    while (true) {
-      const batch = await invoke<ReplayTrade[]>("next_replay_analysis_trades", {
-        maxEvents: 5000,
-      });
-      if (batch.length === 0) break;
-      trades.push(...batch);
-    }
-    return trades;
+    return await consumeReplayBatches(
+      () => invoke<ReplayTrade[]>("next_replay_analysis_trades", {
+        maxEvents: ANALYSIS_BATCH_SIZE,
+      }),
+      onBatch,
+      ANALYSIS_BATCH_SIZE,
+    );
   } finally {
     await invoke("close_replay_analysis_file");
   }
+}
+
+/**
+ * Compatibilidade com consumidores que ainda precisam de um array.
+ * A coleta é limitada; para arquivos maiores, use streamFullReplayTrades.
+ */
+export async function loadFullReplayTrades(sourcePath: string): Promise<ReplayTrade[]> {
+  const trades: ReplayTrade[] = [];
+  await streamFullReplayTrades(sourcePath, (batch) => {
+    if (trades.length + batch.length > MAX_COLLECTED_ANALYSIS_TRADES) {
+      throw new Error(
+        `A análise excede o limite de ${MAX_COLLECTED_ANALYSIS_TRADES.toLocaleString("pt-BR")} negócios em memória. Use o processamento em lotes para analisar arquivos tick a tick grandes.`,
+      );
+    }
+    trades.push(...batch);
+  });
+  return trades;
 }
