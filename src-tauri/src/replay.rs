@@ -14,6 +14,8 @@ pub struct ReplayAnalysisState(pub Mutex<Option<ReplaySession>>);
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum ReplayFormat { Ticks, CandlesM2 }
 
+const MAX_WARMUP_BARS: usize = 100_000;
+
 pub struct ReplaySession {
     reader: BufReader<File>,
     source_path: PathBuf,
@@ -374,11 +376,16 @@ fn process_warmup_candles(
     timeframe_minutes: u32,
     max_bars: usize,
 ) -> Result<Vec<WarmupCandleRecord>, String> {
-    if source_paths.is_empty() {
-        return Ok(Vec::new());
-    }
     if max_bars == 0 {
         return Err("O número máximo de candles de aquecimento precisa ser maior que zero.".to_string());
+    }
+    if max_bars > MAX_WARMUP_BARS {
+        return Err(format!(
+            "O aquecimento está limitado a {MAX_WARMUP_BARS} candles por segurança."
+        ));
+    }
+    if source_paths.is_empty() {
+        return Ok(Vec::new());
     }
 
     // Mantém somente a janela mais recente durante a leitura, evitando que
@@ -795,6 +802,15 @@ pub fn close_replay_analysis_file(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn rejects_warmup_requests_above_the_memory_safety_limit() {
+        let too_many = process_warmup_candles(Vec::new(), 2, MAX_WARMUP_BARS + 1);
+        assert!(too_many.unwrap_err().contains("limitado a 100000 candles"));
+
+        let zero = process_warmup_candles(Vec::new(), 2, 0);
+        assert!(zero.unwrap_err().contains("maior que zero"));
+    }
 
     #[test]
     fn maps_contracts_to_supported_asset_families() {
