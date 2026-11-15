@@ -419,8 +419,8 @@ fn process_warmup_candles(
                     let candle = parse_replay_candle_line(&line, &session.asset)?;
                     let timestamp = parse_replay_timestamp(&candle.timestamp)?;
                     if let Some(previous) = previous_timestamp {
-                        if timestamp < previous {
-                            return Err("Os arquivos M2 de aquecimento precisam estar em ordem cronológica.".to_string());
+                        if timestamp <= previous {
+                            return Err("Os arquivos M2 de aquecimento precisam ter candles únicos e em ordem cronológica.".to_string());
                         }
                     }
                     previous_timestamp = Some(timestamp);
@@ -1104,6 +1104,26 @@ mod tests {
         assert_eq!(candles[0].close, 130010.0);
         assert_eq!(candles[0].volume, 5.0);
         assert_eq!(candles[1].open, 130005.0);
+    }
+
+    #[test]
+    fn rejects_duplicate_m2_candles_during_warmup() {
+        use std::io::Write;
+        use std::time::{SystemTime, UNIX_EPOCH};
+
+        let unique = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos();
+        let path = std::env::temp_dir().join(format!("simulador-trade-warmup-duplicate-m2-{unique}.csv"));
+        {
+            let mut file = File::create(&path).unwrap();
+            writeln!(file, "symbol,timestamp,source_row,open,high,low,close,volume").unwrap();
+            writeln!(file, "WINV26,2026-10-07T09:00:00,1,130000,130050,129950,130010,1200").unwrap();
+            writeln!(file, "WINV26,2026-10-07T09:00:00,2,130010,130060,129990,130040,900").unwrap();
+        }
+
+        let result = process_warmup_candles(vec![path.to_string_lossy().to_string()], 2, 100);
+        assert!(result.unwrap_err().contains("candles únicos"));
+
+        let _ = std::fs::remove_file(path);
     }
 
     #[test]
