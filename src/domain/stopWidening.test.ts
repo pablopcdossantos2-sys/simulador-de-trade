@@ -103,4 +103,48 @@ describe("simulateStopWideningScenario", () => {
       lastObservedTimestamp: "2026-11-13T09:00:00",
     })).toThrow(/afastamento/);
   });
+
+  it("rejects replay trades from a different asset", () => {
+    expect(() => simulateStopWideningScenario({
+      position,
+      attemptedStop: 900,
+      tradesAfterViolation: [{ ...trade(1, 900), asset: "WDOFUT" }],
+      startingBalanceBRL: 10000,
+      lastObservedPrice: 990,
+      lastObservedTimestamp: trade(0, 990).timestamp,
+    })).toThrow(/ativo diferente/);
+  });
+
+  it("rejects duplicate or out-of-order replay sequences", () => {
+    expect(() => simulateStopWideningScenario({
+      position,
+      attemptedStop: 900,
+      tradesAfterViolation: [trade(2, 900), trade(1, 890)],
+      startingBalanceBRL: 10000,
+      lastObservedPrice: 990,
+      lastObservedTimestamp: trade(0, 990).timestamp,
+    })).toThrow(/ordem crescente/);
+  });
+
+  it("rejects prices that do not respect the asset tick", () => {
+    expect(() => simulateStopWideningScenario({
+      position,
+      attemptedStop: 900,
+      tradesAfterViolation: [trade(1, 902.5)],
+      startingBalanceBRL: 10000,
+      lastObservedPrice: 990,
+      lastObservedTimestamp: trade(0, 990).timestamp,
+    })).toThrow(/tick do ativo/);
+  });
+
+  it("rejects invalid stop/target geometry", () => {
+    expect(() => simulateStopWideningScenario({
+      position: { ...position, target: 950 },
+      attemptedStop: 900,
+      tradesAfterViolation: [],
+      startingBalanceBRL: 10000,
+      lastObservedPrice: 990,
+      lastObservedTimestamp: trade(0, 990).timestamp,
+    })).toThrow(/lados válidos/);
+  });
 });
