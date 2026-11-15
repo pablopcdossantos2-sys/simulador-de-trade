@@ -23,6 +23,11 @@ export function ReplayLoadPanel({
   onLoad,
 }: Props) {
   const finished = Boolean(session?.finished);
+  const sourceDescription = session?.mode === "CANDLES_M2_SYNTHETIC"
+    ? "Replay sintético a partir de candles M2: os preços intermediários são simulados para fins de visualização e não representam negócios/ticks reais."
+    : session?.mode === "TICK_LEGACY"
+      ? "Replay de negócios tick a tick: os registros de preço e quantidade vêm diretamente do arquivo tratado."
+      : null;
 
   return (
     <section className="replay-controls card replay-load-panel">
@@ -35,7 +40,6 @@ export function ReplayLoadPanel({
           {finished ? "Sessão concluída" : session ? "Arquivo carregado" : "Aguardando arquivo"}
         </span>
       </div>
-
 
       <div className="replay-load-row">
         <label>
@@ -51,6 +55,11 @@ export function ReplayLoadPanel({
           {busy ? "Carregando..." : "Carregar replay"}
         </button>
       </div>
+      {session && sourceDescription && (
+        <p className="replay-session-note">
+          <strong>{session.symbol}</strong> · {session.asset} — {sourceDescription}
+        </p>
+      )}
     </section>
   );
 }
