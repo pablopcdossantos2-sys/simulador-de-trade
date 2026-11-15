@@ -150,4 +150,23 @@ describe("Multi Médias - Nuvem e Sinais", () => {
 
     expect(second.vwap).toBeCloseTo((204 + 198 + 202) / 3, 8);
   });
+
+  it("ignora candles sem volume no cálculo ponderado da VWAP", () => {
+    const adapter = new MultiMediasNuvemAdapter();
+    const candles: Candle[] = [
+      {
+        index: 0, timestamp: "2026-01-02T09:00:00", open: 100,
+        high: 110, low: 90, close: 105, volume: 0,
+      },
+      {
+        index: 1, timestamp: "2026-01-02T09:02:00", open: 200,
+        high: 204, low: 198, close: 202, volume: 10,
+      },
+    ];
+
+    const result = adapter.calculate("WINFUT", candles);
+    expect(result.series[0].vwap).toBeNull();
+    expect(result.series[1].vwap).toBeCloseTo((204 + 198 + 202) / 3, 8);
+  });
+
 });

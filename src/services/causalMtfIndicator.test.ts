@@ -84,4 +84,19 @@ describe("calculateCausalMtfAverages", () => {
     expect(result[1].averages.M1).toBe(105);
     expect(result[2].averages.M1).toBeNull();
   });
+
+  it("preserves zero-volume candles without adding volume to the forming MTF bar", () => {
+    const candles = [
+      { ...candle(0, "2026-11-10T09:00:00", 100), volume: 0 },
+      { ...candle(1, "2026-11-10T09:02:00", 101), volume: 7 },
+      { ...candle(2, "2026-11-10T09:04:00", 102), volume: 0 },
+    ];
+
+    const result = calculateCausalMtfAverages(candles, config);
+    expect(result[0].aggregatedBar.volume).toBe(0);
+    expect(result[1].aggregatedBar.volume).toBe(7);
+    expect(result[2].aggregatedBar.volume).toBe(7);
+    expect(result[2].aggregatedBar.close).toBe(102);
+  });
+
 });
