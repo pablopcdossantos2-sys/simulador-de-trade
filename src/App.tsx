@@ -13,6 +13,7 @@ import { SessionHistoryPanel } from "./components/SessionHistoryPanel";
 import { ProgressOverviewPanel } from "./components/ProgressOverviewPanel";
 import { StudentProgressPanel } from "./components/StudentProgressPanel";
 import { TraderEvolutionPanel } from "./components/TraderEvolutionPanel";
+import { TradingSystemsPanel } from "./components/TradingSystemsPanel";
 import { ExecutionSettingsPanel } from "./components/ExecutionSettingsPanel";
 import { DatabaseMaintenancePanel } from "./components/DatabaseMaintenancePanel";
 import { BackupPanel } from "./components/BackupPanel";
@@ -147,7 +148,7 @@ function ocoLevelsFromDistances(asset: Asset, side: Side, entry: number, stopPoi
 }
 
 export default function App() {
-  const [activeArea, setActiveArea] = useState<"SIMULADOR" | "PREGOES" | "RESULTADOS" | "EVOLUCAO" | "MANUAL" | "CONFIGURACOES">("SIMULADOR");
+  const [activeArea, setActiveArea] = useState<"SIMULADOR" | "PREGOES" | "RESULTADOS" | "EVOLUCAO" | "SISTEMAS" | "MANUAL" | "CONFIGURACOES">("SIMULADOR");
   const [asset, setAsset] = useState<Asset>("WINFUT");
   const [dataMode, setDataMode] = useState<DataMode>("demo");
   const [candles, setCandles] = useState(() => createDemoCandles("WINFUT"));
@@ -1239,9 +1240,14 @@ export default function App() {
         <button type="button" className={activeArea === "PREGOES" ? "active" : ""} aria-current={activeArea === "PREGOES" ? "page" : undefined} onClick={() => setActiveArea("PREGOES")}>Pregões e replays</button>
         <button type="button" className={activeArea === "RESULTADOS" ? "active" : ""} aria-current={activeArea === "RESULTADOS" ? "page" : undefined} onClick={() => setActiveArea("RESULTADOS")}>Resultados</button>
         <button type="button" className={activeArea === "EVOLUCAO" ? "active" : ""} aria-current={activeArea === "EVOLUCAO" ? "page" : undefined} onClick={() => setActiveArea("EVOLUCAO")}>Evolução do Trader</button>
+        <button type="button" className={activeArea === "SISTEMAS" ? "active" : ""} aria-current={activeArea === "SISTEMAS" ? "page" : undefined} onClick={() => setActiveArea("SISTEMAS")}>Sistemas de trading</button>
         <button type="button" className={activeArea === "MANUAL" ? "active" : ""} aria-current={activeArea === "MANUAL" ? "page" : undefined} onClick={() => setActiveArea("MANUAL")}>Manual</button>
         <button type="button" className={activeArea === "CONFIGURACOES" ? "active" : ""} aria-current={activeArea === "CONFIGURACOES" ? "page" : undefined} onClick={() => setActiveArea("CONFIGURACOES")}>Configurações</button>
       </nav>
+
+      <section className="app-area" hidden={activeArea !== "SISTEMAS"}>
+        <TradingSystemsPanel />
+      </section>
 
       <section className="app-area simulator-area" hidden={activeArea !== "SIMULADOR"}>
       {/* Fluxo principal: planejar → conferir → preparar → carregar → treinar. */}
