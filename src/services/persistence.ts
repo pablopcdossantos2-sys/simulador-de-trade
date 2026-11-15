@@ -151,6 +151,22 @@ export async function saveTrade(trade: Trade): Promise<void> {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(next.map(serializeTrade)));
 }
 
+export async function saveClosedTrade(
+  trade: Trade,
+  event: TrainingEvent,
+): Promise<void> {
+  const linkedTrade = { ...trade, sessionId: event.sessionId };
+  if (isTauriRuntime()) {
+    await invoke("save_closed_trade", {
+      trade: serializeTrade(linkedTrade),
+      event,
+    });
+    return;
+  }
+
+  await saveTrade(linkedTrade);
+  await saveTrainingEvent(event);
+}
 
 export async function saveTrainingSession(
   session: TrainingSession,
