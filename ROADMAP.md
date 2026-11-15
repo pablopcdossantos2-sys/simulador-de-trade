@@ -21,17 +21,19 @@
 
 ## Fase 2 — Fonte OHLCV M2 e replay
 
-A fonte recomendada passa a ser o histórico de candles de 2 minutos exportado do Profit. O CSV bruto é mantido intacto; o aplicativo cria um arquivo derivado compacto com uma linha por candle.
+A fonte disponível no Profit é o histórico de candles M1 (1 minuto). O aplicativo deve manter os CSVs brutos intactos e agregar pares cronológicos de candles M1 em candles M2 derivados, com uma linha por candle. Não exigir nem presumir que o Profit exporte M2.
 
 - [x] Definir formato canônico OHLCV M2.
-- [x] Detectar cabeçalhos OHLCV, delimitadores e formatos de data/preço do Profit.
-- [x] Validar ativo/contrato, janela horária, grade M2, OHLC, volume e tick do instrumento.
-- [x] Preparar um replay compacto por pregão, sem manter negócios tick a tick.
+- [ ] Detectar cabeçalhos OHLCV M1, delimitadores e formatos de data/preço do Profit a partir de amostras reais.
+- [ ] Validar ativo/contrato, janela horária, grade M1, OHLC, volume e tick do instrumento.
+- [ ] Agregar M1 em M2: abertura do primeiro minuto, máxima/mínima extremas, fechamento do segundo minuto e volume somado.
+- [ ] Definir e validar o alinhamento dos pares M1, tratamento de minutos ausentes e candle M1 final incompleto.
+- [ ] Preparar um replay compacto por pregão a partir dos candles M1 agregados, sem manter negócios tick a tick.
 - [x] Aquecer o indicador diretamente com candles M2 anteriores, sem desenhá-los.
 - [x] Manter compatibilidade de leitura com arquivos legados de negócios individuais.
-- [ ] Validar a importação contra amostras reais de CSV M2 exportadas pelo Profit para WIN e WDO.
-- [ ] Confirmar o comportamento do timestamp do CSV do Profit (abertura do candle) com amostras reais.
-- [ ] Validar o ganho de tamanho dos arquivos derivados em relação aos CSVs de origem.
+- [ ] Validar a importação contra amostras reais de CSV M1 exportadas pelo Profit para WIN e WDO.
+- [ ] Confirmar o comportamento do timestamp do CSV do Profit (abertura ou fechamento do candle) com amostras reais.
+- [ ] Validar o ganho de tamanho dos arquivos M2 derivados em relação aos CSVs M1 de origem.
 - [ ] Testar o replay de pregão completo, inclusive pausas, reinício, avanço de segundo e avanço de candle.
 
 ### Movimento intrabar sintético
