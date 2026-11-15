@@ -1,4 +1,5 @@
 import type { Candle } from "../types";
+import { marketDateKey, marketTimestampOrdinalMs, parseMarketTimestamp } from "../domain/marketTime";
 
 export type MtfAverageMethod = "SMA" | "EMA" | "WMA";
 
@@ -47,13 +48,12 @@ interface MarketTimestamp {
   second: number;
 }
 
-function parseMarketTimestamp(value: string): MarketTimestamp | null {
-  const match = /^(\d{4}-\d{2}-\d{2})[T ](\d{2}):(\d{2})(?::(\d{2}))?/.exec(value);
-  if (!match) return null;
+function parseMtfTimestamp(value: string): MarketTimestamp {
+  const parsed = parseMarketTimestamp(value);
   return {
-    day: match[1],
-    minute: Number(match[2]) * 60 + Number(match[3]),
-    second: Number(match[4] ?? 0),
+    day: marketDateKey(value),
+    minute: parsed.hour * 60 + parsed.minute,
+    second: parsed.second,
   };
 }
 
@@ -122,11 +122,28 @@ export function calculateCausalMtfAverages(
   config: CausalMtfConfig = DEFAULT_CAUSAL_MTF_CONFIG,
 ): CausalMtfSnapshot[] {
   if (
-    config.chartTimeframeMinutes <= 0 ||
-    config.indicatorTimeframeMinutes <= 0 ||
+    !Number.isInteger(config.chartTimeframeMinutes) ||
+    config.chartTimeframeMinutes < 1 ||
+    !Number.isInteger(config.indicatorTimeframeMinutes) ||
+    config.indicatorTimeframeMinutes < 1 ||
+    !Number.isInteger(config.sessionStartHour) ||
+    config.sessionStartHour < 0 ||
+    config.sessionStartHour > 23 ||
+    !Number.isInteger(config.sessionStartMinute) ||
+    config.sessionStartMinute < 0 ||
+    config.sessionStartMinute > 59 ||
     config.averages.some((item) => !Number.isInteger(item.length) || item.length < 1)
   ) {
-    throw new Error("Configuração de timeframe ou período de média inválida.");
+    throw new Error("Configuração de timeframe, sessão ou período de média inválida.");
+  }
+
+  let previousTimestamp = Number.NEGATIVE_INFINITY;
+  for (const candle of candles) {
+    const timestamp = marketTimestampOrdinalMs(candle.timestamp);
+    if (timestamp <= previousTimestamp) {
+      throw new Error("Os candles do cálculo MTF devem estar em ordem cronológica, sem timestamps duplicados.");
+    }
+    previousTimestamp = timestamp;
   }
 
   const snapshots: CausalMtfSnapshot[] = [];
@@ -138,8 +155,7 @@ export function calculateCausalMtfAverages(
 
   for (let candlePosition = 0; candlePosition < candles.length; candlePosition += 1) {
     const candle = candles[candlePosition];
-    const parsed = parseMarketTimestamp(candle.timestamp);
-    if (!parsed) continue;
+    const parsed = parseMtfTimestamp(candle.timestamp);
 
     if (parsed.day !== currentDay) {
       currentDay = parsed.day;
@@ -188,7 +204,7 @@ export function calculateCausalMtfAverages(
     // A barra MTF passa a integrar o histórico diário apenas quando o próximo
     // bucket é encontrado; o valor corrente não é duplicado no aquecimento.
     const next = candles[candlePosition + 1];
-    const nextParsed = next ? parseMarketTimestamp(next.timestamp) : null;
+    const nextParsed = next ? parseMtfTimestamp(next.timestamp) : null;
     const nextBucket = nextParsed && nextParsed.day === parsed.day
       ? Math.floor((nextParsed.minute - sessionStart) / config.indicatorTimeframeMinutes)
       : Number.NaN;
