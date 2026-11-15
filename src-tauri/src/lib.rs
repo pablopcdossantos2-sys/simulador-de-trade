@@ -2482,6 +2482,21 @@ fn parse_combined_timestamp(raw: &str) -> Result<NaiveDateTime, String> {
         return Ok(value.naive_local());
     }
 
+    // Exportações do Profit também podem usar data brasileira ou separador
+    // com espaço junto de offset. Preserve o relógio local informado no CSV.
+    for format in [
+        "%d/%m/%y %H:%M:%S%.f%:z",
+        "%d/%m/%y %H:%M:%S%:z",
+        "%d/%m/%Y %H:%M:%S%.f%:z",
+        "%d/%m/%Y %H:%M:%S%:z",
+        "%Y-%m-%d %H:%M:%S%.f%:z",
+        "%Y-%m-%d %H:%M:%S%:z",
+    ] {
+        if let Ok(value) = DateTime::parse_from_str(text, format) {
+            return Ok(value.naive_local());
+        }
+    }
+
     for format in [
         "%d/%m/%y %H:%M:%S%.f",
         "%d/%m/%y %H:%M:%S",
@@ -3922,6 +3937,54 @@ mod tests {
         assert_eq!(layout.low_idx, 4);
         assert_eq!(layout.close_idx, 5);
         assert_eq!(layout.volume_idx, 6);
+    }
+
+    #[test]
+    fn parses_profit_timestamps_with_offsets_and_fractional_seconds() {
+        let brazilian = parse_combined_timestamp("14/10/2026 09:00:00.123456789-03:00").unwrap();
+        let iso = parse_combined_timestamp("2026-10-14T09:00:00.125-03:00").unwrap();
+
+        assert_eq!(brazilian.hour(), 9);
+        assert_eq!(brazilian.minute(), 0);
+        assert_eq!(brazilian.nanosecond(), 123_456_789);
+        assert_eq!(iso.hour(), 9);
+        assert_eq!(iso.minute(), 0);
+        assert_eq!(iso.nanosecond(), 125_000_000);
+    }
+
+    #[test]
+    fn parses_win_and_wdo_ohlcv_profit_fixtures_with_asset_ticks() {
+        let header = "Ativo;Data/Hora;Abertura;Máxima;Mínima;Fechamento;Volume Quantidade";
+        let header_fields = parse_delimited_line(header, detect_delimiter(header));
+        let layout = detect_candle_layout(&header_fields).expect("layout M2 deveria ser reconhecido");
+
+        let fixtures = [
+            ("WINV26;14/10/2026 09:00:00.123;130.000;130.050;129.950;130.010;12.345", "WINFUT", 5.0, 130000.0),
+            ("WDOZ26;14/10/2026 09:02:00.125;5.200,0;5.202,0;5.199,0;5.201,5;600", "WDOFUT", 0.5, 5200.0),
+        ];
+
+        for (row, asset, tick, expected_open) in fixtures {
+            let fields = parse_delimited_line(row, ';');
+            let symbol = fields[layout.symbol_idx.unwrap()].to_uppercase();
+            assert!(symbol.starts_with(if asset == "WINFUT" { "WIN" } else { "WDO" }));
+            assert_eq!(expected_candle_tick(asset).unwrap(), tick);
+
+            let timestamp = row_candle_timestamp(&fields, &layout).unwrap();
+            assert_eq!(timestamp.minute() % 2, 0);
+            let open = parse_candle_price(&fields, layout.open_idx, 2, "abertura").unwrap();
+            let high = parse_candle_price(&fields, layout.high_idx, 2, "máxima").unwrap();
+            let low = parse_candle_price(&fields, layout.low_idx, 2, "mínima").unwrap();
+            let close = parse_candle_price(&fields, layout.close_idx, 2, "fechamento").unwrap();
+            let volume = parse_candle_price(&fields, layout.volume_idx, 2, "volume").unwrap();
+
+            assert_eq!(open, expected_open);
+            assert!(high >= open && high >= close);
+            assert!(low <= open && low <= close);
+            assert!(volume > 0.0);
+            for price in [open, high, low, close] {
+                assert!(((price / tick) - (price / tick).round()).abs() < 1e-8);
+            }
+        }
     }
 
     #[test]
