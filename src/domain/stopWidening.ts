@@ -38,7 +38,6 @@ function parseMarketTimestamp(raw: string): number {
 
   // Date.parse normalizes impossible dates such as February 30, so validate
   // the calendar and clock fields before creating the stable UTC value.
-  const [year, month, day] = match[1].split("-").map(Number);
   const timeParts = match[2].split(":");
   const hour = Number(timeParts[0]);
   const minute = Number(timeParts[1]);
