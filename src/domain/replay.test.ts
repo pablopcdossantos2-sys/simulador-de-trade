@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { ReplayTrade } from "../types";
 import {
   applyReplayTrade,
+  applyReplayTradeInPlace,
   buildReplayCandles,
   REPLAY_INTERVAL_SECONDS,
 } from "./replay";
@@ -109,6 +110,22 @@ describe("replay por timeframe", () => {
         trade("2026-10-07T09:02:00-03:00", 129990),
       ),
     ).toThrow(/fora de ordem cronológica/i);
+  });
+
+  it("agrega negócios em buffer mutável sem copiar a série a cada atualização", () => {
+    const candles: ReturnType<typeof buildReplayCandles> = [];
+    applyReplayTradeInPlace(candles, trade("2026-10-07T09:00:00", 130000, 2));
+    const firstCandle = candles[0];
+    applyReplayTradeInPlace(candles, trade("2026-10-07T09:00:30", 130010, 3));
+    expect(candles[0]).toBe(firstCandle);
+    expect(candles[0]).toMatchObject({
+      open: 130000, high: 130010, low: 130000, close: 130010, volume: 5,
+    });
+    applyReplayTradeInPlace(candles, trade("2026-10-07T09:02:00", 130005, 1));
+    expect(candles).toHaveLength(2);
+    expect(candles[1]).toMatchObject({
+      index: 1, timestamp: "2026-10-07T09:02:00", open: 130005, volume: 1,
+    });
   });
 
   it("mantém quantidade negociada para permitir VWAP", () => {
