@@ -1762,18 +1762,6 @@ fn validate_backup_bundle(bundle: &BackupBundle) -> Result<(), String> {
     }
 
     // Valida as referências antes de iniciar qualquer substituição de dados.
-    for usage in &bundle.usage_sessions {
-        transaction.execute(
-            r#"INSERT INTO usage_sessions (id, started_at, ended_at, last_active_at, active_seconds)
-               VALUES (?1, ?2, ?3, ?4, ?5) ON CONFLICT(id) DO NOTHING"#,
-            params![usage.id, usage.started_at, usage.ended_at, usage.last_active_at, usage.active_seconds],
-        ).map_err(|error| error.to_string())?;
-    }
-    transaction.execute(
-        "DELETE FROM usage_sessions WHERE datetime(COALESCE(ended_at, last_active_at, started_at)) < datetime('now', '-365 days')",
-        [],
-    ).map_err(|error| error.to_string())?;
-
     for event in &bundle.training_events {
         if !matches!(
             event.r#type.as_str(),
@@ -2027,6 +2015,18 @@ fn import_backup(
             )
             .map_err(|error| error.to_string())?;
     }
+
+    for usage in &bundle.usage_sessions {
+        transaction.execute(
+            r#"INSERT INTO usage_sessions (id, started_at, ended_at, last_active_at, active_seconds)
+               VALUES (?1, ?2, ?3, ?4, ?5) ON CONFLICT(id) DO NOTHING"#,
+            params![usage.id, usage.started_at, usage.ended_at, usage.last_active_at, usage.active_seconds],
+        ).map_err(|error| error.to_string())?;
+    }
+    transaction.execute(
+        "DELETE FROM usage_sessions WHERE datetime(COALESCE(ended_at, last_active_at, started_at)) < datetime('now', '-365 days')",
+        [],
+    ).map_err(|error| error.to_string())?;
 
     for event in &bundle.training_events {
         transaction
