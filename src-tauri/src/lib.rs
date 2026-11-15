@@ -3320,6 +3320,46 @@ async fn prepare_profit_replay_file(
 #[cfg(test)]
 mod tests {
     #[test]
+    fn usage_sessions_are_persisted_and_included_in_backup_queries() {
+        let connection = Connection::open_in_memory().unwrap();
+        initialize_database(&connection).unwrap();
+        connection.execute(
+            "INSERT INTO usage_sessions (id, started_at, ended_at, last_active_at, active_seconds) VALUES (?1, ?2, ?3, ?4, ?5)",
+            params!["usage-1", "2026-11-01T10:00:00Z", "2026-11-01T11:00:00Z", "2026-11-01T11:00:00Z", 3600.0],
+        ).unwrap();
+
+        let sessions = query_backup_usage_sessions(&connection).unwrap();
+        assert_eq!(sessions.len(), 1);
+        assert_eq!(sessions[0].id, "usage-1");
+        assert_eq!(sessions[0].active_seconds, 3600.0);
+        assert_eq!(sessions[0].ended_at.as_deref(), Some("2026-11-01T11:00:00Z"));
+    }
+
+    #[test]
+    fn usage_session_validation_rejects_invalid_duration_and_identity() {
+        let valid = UsageSessionRecord {
+            id: "usage-1".to_string(),
+            started_at: "2026-11-01T10:00:00Z".to_string(),
+            ended_at: None,
+            last_active_at: "2026-11-01T10:15:00Z".to_string(),
+            active_seconds: 900.0,
+        };
+        assert!(validate_usage_session(&valid).is_ok());
+
+        let mut invalid = valid.clone();
+        invalid.active_seconds = f64::NAN;
+        assert!(validate_usage_session(&invalid).is_err());
+
+        invalid = valid.clone();
+        invalid.id = " ".to_string();
+        assert!(validate_usage_session(&invalid).is_err());
+
+        invalid = valid;
+        invalid.active_seconds = 31_536_001.0;
+        assert!(validate_usage_session(&invalid).is_err());
+    }
+
+    #[test]
     fn replay_backup_base64_round_trip_preserves_bytes() {
         for bytes in [b"".as_slice(), b"f".as_slice(), b"fo".as_slice(), b"foo".as_slice(), b"replay csv data".as_slice()] {
             assert_eq!(decode_base64(&encode_base64(bytes)).unwrap(), bytes);
