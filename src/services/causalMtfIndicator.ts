@@ -175,18 +175,21 @@ export function calculateCausalMtfAverages(
   let currentBucket = Number.NaN;
   let currentBar: CausalMtfSnapshot["aggregatedBar"] | null = null;
   let currentBarStart = "";
-  let dailyCloses: number[] = [];
+  let completedCloses: number[] = [];
 
   for (let candlePosition = 0; candlePosition < candles.length; candlePosition += 1) {
     const candle = candles[candlePosition];
     const parsed = parseMtfTimestamp(candle.timestamp);
 
     if (parsed.day !== currentDay) {
+      // Médias móveis M15 são contínuas entre pregões. Fecha a última barra
+      // disponível do dia anterior e preserva o histórico para o aquecimento.
+      if (currentBar) completedCloses.push(currentBar.close);
       currentDay = parsed.day;
       currentBucket = Number.NaN;
       currentBar = null;
       currentBarStart = "";
-      dailyCloses = [];
+
     }
 
     const sessionStart = config.sessionStartHour * 60 + config.sessionStartMinute;
@@ -208,7 +211,7 @@ export function calculateCausalMtfAverages(
     const bucketEnd = sessionStart + (bucket + 1) * config.indicatorTimeframeMinutes;
     const bucketEndTimestamp = formatMarketMinute(parsed.day, bucketEnd);
     const bucketEndOrdinal = marketTimestampOrdinalMs(bucketEndTimestamp);
-    const values = [...dailyCloses, currentBar.close];
+    const values = [...completedCloses, currentBar.close];
     const averages: Record<string, number | null> = {};
 
     for (const item of config.averages) {
@@ -236,7 +239,7 @@ export function calculateCausalMtfAverages(
       ? Math.floor((nextParsed.minute - sessionStart) / config.indicatorTimeframeMinutes)
       : Number.NaN;
     if (nextBucket !== bucket) {
-      dailyCloses.push(currentBar.close);
+      completedCloses.push(currentBar.close);
       currentBar = null;
     }
   }
