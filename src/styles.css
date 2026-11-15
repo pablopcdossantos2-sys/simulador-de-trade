@@ -3859,6 +3859,31 @@ td {
 
 .catalog-title, .capital-heading { display: flex; align-items: center; gap: 9px; }
 .catalog-footnote, .cost-source-help { display: flex; justify-content: flex-end; margin-top: 8px; }
+.replay-synthetic-warning {
+  margin: 12px 0 0;
+  padding: 11px 13px;
+  border: 1px solid #806333;
+  border-left-width: 3px;
+  border-radius: 9px;
+  background: #241e13;
+  color: #e2c995;
+  font-size: 0.78rem;
+  line-height: 1.5;
+}
+.replay-synthetic-warning strong {
+  display: block;
+  margin-bottom: 3px;
+  color: #f0d9a8;
+}
+:root[data-theme="light"] .replay-synthetic-warning {
+  border-color: #d7bd82;
+  background: #fff8e9;
+  color: #69562e;
+}
+:root[data-theme="light"] .replay-synthetic-warning strong {
+  color: #59451f;
+}
+
 .replay-note-help { display: flex; justify-content: flex-end; }
 
 
