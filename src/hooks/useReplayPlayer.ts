@@ -24,14 +24,6 @@ const CHUNK_SIZE = 5000;
 // Se houver backlog, o relógio continua acumulando tempo e o próximo frame recupera.
 const MAX_TRADES_PER_FRAME = 20_000;
 
-function bucketKey(
-  timestamp: string,
-  timeframeMinutes: number,
-): number {
-  const candleMs = timeframeMinutes * 60 * 1000;
-  return Math.floor(marketTimestampOrdinalMs(timestamp) / candleMs);
-}
-
 export function useReplayPlayer(
   onTrade: (trade: ReplayTrade) => void,
   timeframeMinutes = 2,
@@ -226,10 +218,6 @@ export function useReplayPlayer(
     setPlaying(false);
 
     try {
-      let targetBucket =
-        currentTimestamp === null
-          ? null
-          : bucketKey(currentTimestamp, timeframeMinutes);
       let consumed = 0;
       let lastTrade: ReplayTrade | null = null;
       let targetTimestamp: string | null = null;
