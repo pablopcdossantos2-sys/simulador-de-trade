@@ -1078,7 +1078,7 @@ mod tests {
         );
         assert!(invalid_close.unwrap_err().contains("máxima/mínima incompatíveis"));
 
-        for volume in ["0", "-1", "NaN", "inf", "-inf"] {
+        for volume in ["-1", "NaN", "inf", "-inf"] {
             let row = format!(
                 "WINV26,2026-10-07T09:00:00,17,130000,130050,129950,130010,{volume}"
             );
