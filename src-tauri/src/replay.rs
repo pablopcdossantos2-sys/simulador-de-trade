@@ -1240,6 +1240,44 @@ mod tests {
     }
 
     #[test]
+    fn synthetic_m2_quantity_is_conserved_across_each_minute() {
+        let candle = ReplayCandleRecord {
+            timestamp: "2026-10-07T09:00:00".to_string(),
+            source_row: 42,
+            open: 130000.0,
+            high: 130050.0,
+            low: 129950.0,
+            close: 130010.0,
+            volume: 1000.0,
+        };
+
+        let events = expand_m2_candle(&candle, "WINFUT", 500).unwrap();
+        let first_minute_volume = events
+            .iter()
+            .take(60)
+            .map(|event| event.quantity)
+            .sum::<f64>();
+        let second_minute_volume = events
+            .iter()
+            .skip(60)
+            .map(|event| event.quantity)
+            .sum::<f64>();
+
+        assert_eq!(events.len(), 120);
+        assert_eq!(events[0].timestamp, "2026-10-07T09:00:00");
+        assert_eq!(events[59].timestamp, "2026-10-07T09:00:59");
+        assert_eq!(events[60].timestamp, "2026-10-07T09:01:00");
+        assert_eq!(events[119].timestamp, "2026-10-07T09:01:59");
+        assert!((first_minute_volume - 500.0).abs() < 1e-8);
+        assert!((second_minute_volume - 500.0).abs() < 1e-8);
+        assert!(events.iter().all(|event| {
+            event.source_row == candle.source_row
+                && event.quantity.is_finite()
+                && event.quantity > 0.0
+        }));
+    }
+
+    #[test]
     fn synthetic_wdo_path_uses_half_point_ticks() {
         let candle = ReplayCandleRecord {
             timestamp: "2026-10-07T09:00:00".to_string(),
