@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { readErrorMessage } from "../services/readErrorMessage";
 import { InfoTip } from "./InfoTip";
 import { saveExecutionSettings } from "../services/executionSettings";
 import { loadSignalAlertSettings, saveSignalAlertSettings } from "../services/signalAlerts";
@@ -100,7 +101,7 @@ export function ExecutionSettingsPanel({ settings, cloudOpacity, onCloudOpacityS
       onCloudOpacitySaved(opacity);
       setFeedback("Configurações salvas.");
     } catch (error) {
-      setFeedback(error instanceof Error ? error.message : "Não foi possível salvar as configurações.");
+      setFeedback(readErrorMessage(error, "Não foi possível salvar as configurações."));
     } finally {
       setSaving(false);
     }
