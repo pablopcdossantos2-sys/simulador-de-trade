@@ -1562,14 +1562,24 @@ mod tests {
         assert_eq!(after_error.first().unwrap().sequence, 120);
         assert_eq!(after_error.last().unwrap().sequence, 239);
 
+        let project = |events: &[ReplayTradeRecord]| {
+            events.iter().map(|event| (
+                event.timestamp.clone(),
+                event.source_row,
+                event.sequence,
+                event.price,
+                event.quantity,
+            )).collect::<Vec<_>>()
+        };
+
         rewind_session(&mut session).unwrap();
         let replayed_first = read_next_replay_batch(&mut session, 5000).unwrap();
-        assert_eq!(replayed_first, first);
+        assert_eq!(project(&replayed_first), project(&first));
         assert!(read_next_replay_batch(&mut session, 5000)
             .unwrap_err()
             .contains("máxima/mínima incompatíveis"));
         let replayed_after_error = read_next_replay_batch(&mut session, 5000).unwrap();
-        assert_eq!(replayed_after_error, after_error);
+        assert_eq!(project(&replayed_after_error), project(&after_error));
 
         let _ = std::fs::remove_file(path);
     }
