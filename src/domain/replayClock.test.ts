@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
+  anchorReplayClock,
   replayMarketTimeAt,
   reanchorReplayClock,
+  resumeReplayClock,
 } from "./replayClock";
 
 describe("relógio da reprodução", () => {
@@ -24,6 +26,30 @@ describe("relógio da reprodução", () => {
     expect(changed.wallTimeMs).toBe(1_100);
     expect(changed.speed).toBe(10);
     expect(replayMarketTimeAt(changed, 1_200)).toBe(8_000);
+  });
+
+  it("pausa e retoma sem contabilizar o tempo parado", () => {
+    const playing = { marketTimeMs: 10_000, wallTimeMs: 1_000, speed: 2 };
+    const paused = reanchorReplayClock(playing, 1_500);
+    expect(paused.marketTimeMs).toBe(11_000);
+
+    // A retomada ocorre muito depois, mas preserva exatamente o instante da pausa.
+    const resumed = resumeReplayClock(paused, 9_000);
+    expect(resumed.marketTimeMs).toBe(11_000);
+    expect(replayMarketTimeAt(resumed, 9_500)).toBe(12_000);
+  });
+
+  it("permite alterar a velocidade durante a pausa sem salto temporal", () => {
+    const paused = { marketTimeMs: 30_000, wallTimeMs: 2_000, speed: 2 };
+    const resumed = resumeReplayClock(paused, 20_000, 5);
+    expect(resumed.marketTimeMs).toBe(30_000);
+    expect(replayMarketTimeAt(resumed, 20_200)).toBe(31_000);
+  });
+
+  it("reancora no instante de mercado após avanço manual", () => {
+    const afterManualStep = anchorReplayClock(75_000, 5_000, 10);
+    expect(replayMarketTimeAt(afterManualStep, 5_000)).toBe(75_000);
+    expect(replayMarketTimeAt(afterManualStep, 5_100)).toBe(76_000);
   });
 
   it("não retrocede o relógio quando recebe um instante anterior à âncora", () => {

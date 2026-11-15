@@ -31,3 +31,21 @@ export function reanchorReplayClock(
     speed,
   };
 }
+
+/** Retoma o relógio sem contabilizar o intervalo em que a reprodução ficou pausada. */
+export function resumeReplayClock(
+  anchor: ReplayClockAnchor,
+  wallTimeMs: number,
+  speed = anchor.speed,
+): ReplayClockAnchor {
+  return { ...anchor, wallTimeMs, speed };
+}
+
+/** Cria uma nova âncora após um avanço manual ou posicionamento do replay. */
+export function anchorReplayClock(
+  marketTimeMs: number,
+  wallTimeMs: number,
+  speed: number,
+): ReplayClockAnchor {
+  return { marketTimeMs, wallTimeMs, speed };
+}

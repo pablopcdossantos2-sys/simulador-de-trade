@@ -4,7 +4,9 @@ import { readErrorMessage } from "../services/readErrorMessage";
 import { marketTimestampOrdinalMs } from "../domain/marketTime";
 import {
   replayMarketTimeAt,
+  anchorReplayClock,
   reanchorReplayClock,
+  resumeReplayClock,
   type ReplayClockAnchor,
 } from "../domain/replayClock";
 import {
@@ -65,11 +67,11 @@ export function useReplayPlayer(
   function setPlaying(next: boolean) {
     if (next && !playingRef.current && clockRef.current) {
       // Pausas não consomem tempo de mercado.
-      clockRef.current = {
-        ...clockRef.current,
-        wallTimeMs: performance.now(),
-        speed: speedRef.current,
-      };
+      clockRef.current = resumeReplayClock(
+        clockRef.current,
+        performance.now(),
+        speedRef.current,
+      );
     }
     playingRef.current = next;
     setPlayingState(next);
@@ -82,7 +84,7 @@ export function useReplayPlayer(
     if (clock) {
       clockRef.current = playingRef.current
         ? reanchorReplayClock(clock, now, next)
-        : { ...clock, wallTimeMs: now, speed: next };
+        : resumeReplayClock(clock, now, next);
     }
     speedRef.current = next;
     setSpeedState(next);
@@ -182,11 +184,11 @@ export function useReplayPlayer(
     // Avanços manuais devem servir de ponto de partida para a próxima reprodução.
     if (!playingRef.current) {
       const now = performance.now();
-      clockRef.current = {
-        marketTimeMs: marketTimestampOrdinalMs(trade.timestamp),
-        wallTimeMs: now,
-        speed: speedRef.current,
-      };
+      clockRef.current = anchorReplayClock(
+        marketTimestampOrdinalMs(trade.timestamp),
+        now,
+        speedRef.current,
+      );
     }
   }
 
@@ -261,11 +263,11 @@ export function useReplayPlayer(
       if (lastTrade) {
         setProcessed((value) => value + consumed);
         setCurrentTimestamp(lastTrade.timestamp);
-        clockRef.current = {
-          marketTimeMs: marketTimestampOrdinalMs(lastTrade.timestamp),
-          wallTimeMs: performance.now(),
-          speed: speedRef.current,
-        };
+        clockRef.current = anchorReplayClock(
+          marketTimestampOrdinalMs(lastTrade.timestamp),
+          performance.now(),
+          speedRef.current,
+        );
         onBatchRef.current?.(lastTrade);
       }
 
