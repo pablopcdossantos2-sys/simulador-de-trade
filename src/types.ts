@@ -125,6 +125,8 @@ export interface TradeReview {
 
 export interface Trade {
   id: string;
+  /** Sessão à qual a operação fechada pertence, quando originada em um treino. */
+  sessionId?: string | null;
   asset: Asset;
   side: Side;
   signalId: string;
