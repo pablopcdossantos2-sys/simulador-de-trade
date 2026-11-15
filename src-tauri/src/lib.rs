@@ -4565,6 +4565,19 @@ mod tests {
         assert_eq!(normalize_profit_number("32.379").unwrap(), "32379");
     }
 
+    #[test]
+    fn wdo_profit_candle_uses_half_point_tick() {
+        let tick = expected_candle_tick("WDOFUT").unwrap();
+        assert_eq!(tick, 0.5);
+
+        for price in [5_000.0, 5_000.5, 5_001.0] {
+            assert!(((price / tick) - (price / tick).round()).abs() <= 1e-7);
+        }
+        let invalid_price = 5_000.25;
+        assert!(((invalid_price / tick) - (invalid_price / tick).round()).abs() > 1e-7);
+        assert_eq!(expected_candle_tick("WINFUT").unwrap(), 5.0);
+    }
+
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
