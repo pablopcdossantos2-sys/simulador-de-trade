@@ -125,6 +125,48 @@ describe("calculateCausalMtfAverages", () => {
     })).toThrow("Configuração de timeframe");
   });
 
+  it("preserves seconds when calculating candle availability and MTF boundary crossing", () => {
+    const candles = [
+      candle(0, "2026-11-10T09:14:30", 100),
+      candle(1, "2026-11-10T09:16:30", 101),
+    ];
+
+    const result = calculateCausalMtfAverages(candles, config);
+    expect(result[0].availableAt).toBe("2026-11-10T09:16:30");
+    expect(result[0].indicatorBarIsForming).toBe(false);
+    expect(result[1].availableAt).toBe("2026-11-10T09:18:30");
+    expect(result[1].indicatorBarIsForming).toBe(true);
+  });
+
+  it("rejects non-finite prices, invalid OHLC ranges and negative volume", () => {
+    const invalidCandles: Candle[] = [
+      { ...candle(0, "2026-11-10T09:00:00", 100), close: Number.NaN },
+      { ...candle(0, "2026-11-10T09:00:00", 100), high: 99 },
+      { ...candle(0, "2026-11-10T09:00:00", 100), volume: -1 },
+      { ...candle(0, "2026-11-10T09:00:00", 100), volume: Number.POSITIVE_INFINITY },
+    ];
+
+    for (const invalid of invalidCandles) {
+      expect(() => calculateCausalMtfAverages([invalid], config)).toThrow(
+        "OHLC ou volume inválido",
+      );
+    }
+  });
+
+  it("rejects duplicate MTF average identifiers", () => {
+    const invalidConfig: CausalMtfConfig = {
+      ...config,
+      averages: [
+        { id: "M1", method: "SMA", length: 2, enabled: true },
+        { id: "M1", method: "EMA", length: 3, enabled: true },
+      ],
+    };
+
+    expect(() => calculateCausalMtfAverages([], invalidConfig)).toThrow(
+      "identificadores duplicados",
+    );
+  });
+
   it("preserves zero-volume candles without adding volume to the forming MTF bar", () => {
     const candles = [
       { ...candle(0, "2026-11-10T09:00:00", 100), volume: 0 },
