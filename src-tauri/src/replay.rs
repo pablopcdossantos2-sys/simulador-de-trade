@@ -92,6 +92,23 @@ fn parse_asset(symbol: &str) -> Result<&'static str, String> {
     }
 }
 
+fn asset_tick_size(asset: &str) -> Result<f64, String> {
+    match asset {
+        "WINFUT" => Ok(5.0),
+        "WDOFUT" => Ok(0.5),
+        _ => Err(format!("Ativo não suportado para replay: {asset}.")),
+    }
+}
+
+fn validate_asset_tick(asset: &str, price: f64, label: &str) -> Result<(), String> {
+    let tick = asset_tick_size(asset)?;
+    let ticks = price / tick;
+    if (ticks - ticks.round()).abs() > 1e-7 {
+        return Err(format!("{label} {price} fora do tick válido de {tick} para {asset}."));
+    }
+    Ok(())
+}
+
 fn parse_replay_line(line: &str, asset: &str, sequence: u64) -> Result<ReplayTradeRecord, String> {
     let fields: Vec<&str> = line.trim_end_matches(|ch| ch == '\r' || ch == '\n').split(',').collect();
     if fields.len() != 5 {
@@ -128,6 +145,7 @@ fn parse_replay_line(line: &str, asset: &str, sequence: u64) -> Result<ReplayTra
     if !price.is_finite() || price <= 0.0 {
         return Err("Preço inválido no arquivo tratado.".to_string());
     }
+    validate_asset_tick(asset, price, "Preço")?;
     if !quantity.is_finite() || quantity <= 0.0 {
         return Err("Quantidade inválida no arquivo tratado.".to_string());
     }
@@ -170,16 +188,8 @@ fn parse_replay_candle_line(line: &str, asset: &str) -> Result<ReplayCandleRecor
     if high < low || high < open || high < close || low > open || low > close {
         return Err("Candle M2 inválido: máxima/mínima incompatíveis com OHLC.".to_string());
     }
-    let tick = match asset {
-        "WINFUT" => 5.0,
-        "WDOFUT" => 0.5,
-        _ => return Err(format!("Ativo não suportado para replay M2: {asset}.")),
-    };
     for (label, price) in [("Abertura", open), ("Máxima", high), ("Mínima", low), ("Fechamento", close)] {
-        let ticks = price / tick;
-        if (ticks - ticks.round()).abs() > 1e-7 {
-            return Err(format!("{label} {price} fora do tick válido de {tick} para {asset}."));
-        }
+        validate_asset_tick(asset, price, label)?;
     }
     let timestamp = fields[1].trim().to_string();
     let parsed = parse_replay_timestamp(&timestamp)?;
@@ -927,6 +937,37 @@ mod tests {
         assert_eq!(remaining[0].timestamp, "2026-10-07T09:00:03");
 
         let _ = std::fs::remove_file(path);
+    }
+
+    #[test]
+    fn validates_tick_prices_for_win_and_wdo_trade_rows() {
+        let valid_win = parse_replay_line(
+            "WINV26,2026-10-07T09:00:00,1,130005,1\\n",
+            "WINFUT",
+            0,
+        );
+        assert!(valid_win.is_ok());
+
+        let invalid_win = parse_replay_line(
+            "WINV26,2026-10-07T09:00:00,1,130002,1\\n",
+            "WINFUT",
+            0,
+        );
+        assert!(invalid_win.unwrap_err().contains("tick válido de 5"));
+
+        let valid_wdo = parse_replay_line(
+            "WDOV26,2026-10-07T09:00:00,1,5200.5,1\\n",
+            "WDOFUT",
+            0,
+        );
+        assert!(valid_wdo.is_ok());
+
+        let invalid_wdo = parse_replay_line(
+            "WDOV26,2026-10-07T09:00:00,1,5200.25,1\\n",
+            "WDOFUT",
+            0,
+        );
+        assert!(invalid_wdo.unwrap_err().contains("tick válido de 0.5"));
     }
 
     #[test]
