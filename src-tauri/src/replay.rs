@@ -328,7 +328,7 @@ fn push_warmup_trade(
     let bucket = bucket_timestamp(timestamp, timeframe_minutes)?;
     let bucket_text = bucket.format("%Y-%m-%dT%H:%M:%S").to_string();
 
-    if let Some(last) = candles.last_mut() {
+    if let Some(last) = candles.back_mut() {
         if last.timestamp == bucket_text {
             last.high = last.high.max(price);
             last.low = last.low.min(price);
