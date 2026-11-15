@@ -2024,6 +2024,8 @@ fn import_backup(
             .map(serde_json::to_string)
             .transpose()
             .map_err(|error| error.to_string())?;
+        let (post_trade_note, review_json) =
+            split_legacy_trade_review(&trade.post_trade_note, trade.review.as_ref());
 
         transaction
             .execute(
@@ -2036,7 +2038,7 @@ fn import_backup(
                     operational_costs_brl, net_result_brl, post_trade_note,
                     review_json, entry_context_json, intrabar_policy, initial_stop_loss, session_id
                 )
-                VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23, ?24, ?25)
+                VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23, ?24, ?25, ?26)
                 ON CONFLICT(id) DO NOTHING
                 "#,
                 params![
@@ -2060,7 +2062,8 @@ fn import_backup(
                     trade.gross_result_brl,
                     trade.operational_costs_brl,
                     trade.net_result_brl,
-                    trade.post_trade_note,
+                    post_trade_note,
+                    review_json,
                     entry_context_json,
                     trade.intrabar_policy,
                     if trade.initial_stop_loss > 0.0 { trade.initial_stop_loss } else { trade.stop_loss },
