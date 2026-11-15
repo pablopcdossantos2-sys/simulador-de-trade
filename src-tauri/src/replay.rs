@@ -2198,6 +2198,34 @@ mod tests {
         let _ = std::fs::remove_file(second);
     }
 
+
+    #[test]
+    fn wdo_real_m1_sample_streams_sixty_observations_per_minute_without_changing_volume() {
+        use std::io::Write;
+        use std::time::{SystemTime, UNIX_EPOCH};
+        let unique = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos();
+        let path = std::env::temp_dir().join(format!("simulador-wdo-real-m1-{unique}.replay.csv"));
+        {
+            let mut file = File::create(&path).unwrap();
+            writeln!(file, "symbol,timestamp,source_row,open,high,low,close,volume,timeframe_minutes").unwrap();
+            writeln!(file, "WDOFUT,2026-11-03T18:28:00,3,5519,5520.5,5518.5,5519.5,241,1").unwrap();
+            writeln!(file, "WDOFUT,2026-11-03T18:29:00,2,5519,5519.5,5518,5519,557,1").unwrap();
+        }
+        let (mut session, info) = open_session(&path).unwrap();
+        assert_eq!(info.asset, "WDOFUT");
+        assert_eq!(info.mode, "CANDLES_M1_SYNTHETIC");
+        let events = read_next_replay_batch(&mut session, 5000).unwrap();
+        assert_eq!(events.len(), 120);
+        assert_eq!(events[0].timestamp, "2026-11-03T18:28:00");
+        assert_eq!(events[119].timestamp, "2026-11-03T18:29:59");
+        assert_eq!(events.iter().map(|event| event.quantity).sum::<f64>(), 798.0);
+        assert!(events.iter().all(|event| ((event.price / 0.5) - (event.price / 0.5).round()).abs() < 1e-8));
+        assert_eq!(events[..60].iter().map(|event| event.price).fold(f64::NEG_INFINITY, f64::max), 5520.5);
+        assert_eq!(events[60..].iter().map(|event| event.price).fold(f64::INFINITY, f64::min), 5518.0);
+        assert!(read_next_replay_batch(&mut session, 100).unwrap().is_empty());
+        let _ = std::fs::remove_file(path);
+    }
+
     #[test]
     fn expands_zero_volume_m1_without_inventing_quantity() {
         let candle = parse_replay_m1_candle_line(

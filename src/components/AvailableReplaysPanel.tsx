@@ -77,6 +77,7 @@ export function AvailableReplaysPanel({ refreshKey }: Props) {
                 <span className="available-replay-window">{entry.sessionStart}–{entry.sessionEnd}</span>
               </div>
               <small>{entry.symbol} · {entry.dataMode === "CANDLES_M1_SYNTHETIC" ? "M1 sintético" : entry.dataMode === "CANDLES_M2_SYNTHETIC" ? "M2 sintético" : "Formato legado"} · {formatBytes(entry.fileBytes)}</small>
+              <small>Primeiro/último registro: {entry.firstTimestamp?.slice(11, 16) ?? "?"}–{entry.lastTimestamp?.slice(11, 16) ?? "?"} (janela configurada: {entry.sessionStart}–{entry.sessionEnd})</small>
               <small className="available-replay-filename">{entry.outputPath.split(/[\\/]/).pop()}</small>
             </div>
           </article>

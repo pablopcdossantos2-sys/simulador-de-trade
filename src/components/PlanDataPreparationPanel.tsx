@@ -178,7 +178,7 @@ export function PlanDataPreparationPanel({ plan, matches, onCatalogUpdated }: Pr
 
       <div className="plan-data-help">
         <InfoTip label="Sobre os arquivos do Profit">
-          Selecione o timeframe real do CSV antes de preparar. Um único arquivo histórico pode conter várias datas; o sistema separa o pregão solicitado e gera M2 e preserva M1 para replay sintético. Não inferimos o timeframe pelos timestamps, pois lacunas podem tornar essa inferência ambígua.
+          Selecione o timeframe real do CSV antes de preparar. Um único arquivo histórico pode conter várias datas; o sistema separa o pregão solicitado, gera M2 e preserva o M1 para replay sintético. Confira o início e o fim reais dos registros: podem diferir da janela escolhida. Rótulos WINFUT/WDOFUT de série contínua não identificam o vencimento específico. Não inferimos o timeframe pelos timestamps.
         </InfoTip>
       </div>
 

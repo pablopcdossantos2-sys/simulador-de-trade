@@ -4673,6 +4673,48 @@ mod tests {
         assert_eq!(normalize_profit_number("32.379").unwrap(), "32379");
     }
 
+
+    #[test]
+    fn real_profit_wdo_m1_pair_uses_quantity_and_aggregates_descending_export() {
+        // Trecho representativo do CSV WDOFUT de 03/11/2026, como exportado
+        // pelo Profit (CP1252, separador ;, preços brasileiros, ordem decrescente).
+        let header = "Ativo;Data;Hora;Abertura;Máximo;Mínimo;Fechamento;Volume;Quantidade";
+        let layout = detect_candle_layout(&parse_delimited_line(header, ';')).unwrap();
+        assert_eq!(layout.volume_idx, 8); // Quantidade, não volume financeiro.
+        let samples = [
+            "WDOFUT;03/11/2026;18:29:00;5.519,000;5.519,500;5.518,000;5.519,000;30.739.375,00;557",
+            "WDOFUT;03/11/2026;18:28:00;5.519,000;5.520,500;5.518,500;5.519,500;13.301.285,00;241",
+        ];
+        let mut candles = Vec::new();
+        for (index, raw) in samples.iter().enumerate() {
+            let fields = parse_delimited_line(raw, ';');
+            let timestamp = row_candle_timestamp(&fields, &layout).unwrap();
+            let number = |column, label| parse_candle_price(&fields, column, (index + 2) as u64, label).unwrap();
+            let candle = ProfitCandleRow {
+                timestamp,
+                source_row: (index + 2) as u64,
+                open: number(layout.open_idx, "abertura"),
+                high: number(layout.high_idx, "máxima"),
+                low: number(layout.low_idx, "mínima"),
+                close: number(layout.close_idx, "fechamento"),
+                volume: number(layout.volume_idx, "quantidade"),
+            };
+            for price in [candle.open, candle.high, candle.low, candle.close] {
+                assert!((price / 0.5 - (price / 0.5).round()).abs() < 1e-8);
+            }
+            candles.push(candle);
+        }
+        let (m2, dropped) = aggregate_m1_candles(candles).unwrap();
+        assert_eq!(dropped, 0);
+        assert_eq!(m2.len(), 1);
+        assert_eq!(m2[0].timestamp.format("%H:%M:%S").to_string(), "18:28:00");
+        assert_eq!(m2[0].open, 5519.0);
+        assert_eq!(m2[0].high, 5520.5);
+        assert_eq!(m2[0].low, 5518.0);
+        assert_eq!(m2[0].close, 5519.0);
+        assert_eq!(m2[0].volume, 798.0);
+    }
+
     #[test]
     fn wdo_profit_candle_uses_half_point_tick() {
         let tick = expected_candle_tick("WDOFUT").unwrap();
