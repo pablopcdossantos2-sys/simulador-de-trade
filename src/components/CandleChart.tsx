@@ -514,8 +514,8 @@ export function CandleChart({
         {wmaPath && <path d={wmaPath} className="indicator-wma-line" />}
         {vwapPath && <path d={vwapPath} className="indicator-vwap-line" />}
         {ema8Path && <path d={ema8Path} className="indicator-ema8-line" />}
-        {ema52Path && <path d={ema52Path} className="indicator-ema52-line" />
-        {mtfPaths.map(({ id, path }) => path && <path key={id} d={path} className={`indicator-mtf-${id.toLowerCase()}-line`} />)}}
+        {ema52Path && <path d={ema52Path} className="indicator-ema52-line" />}
+        {mtfPaths.map(({ id, path }) => path && <path key={id} d={path} className={`indicator-mtf-${id.toLowerCase()}-line`} />)}
 
         {position && <>
           <PriceLine y={y(position.entry)} label={"Entrada " + formatPrice(position.entry, asset)} className="entry-line" />
