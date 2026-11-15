@@ -172,7 +172,7 @@ Cada candle M2 histórico é expandido em até 120 preços sintéticos, um por s
 
 **Esses preços não são negócios históricos.** O OHLCV não informa a sequência verdadeira entre abertura, máxima, mínima e fechamento. Portanto, o caminho intrabar é uma hipótese de treinamento; não deve ser usado para afirmar o instante real de um toque de preço.
 
-O volume do candle também é distribuído uniformemente entre os segundos. Assim, a VWAP enquanto o candle está em formação é aproximada e não reproduz a distribuição real de negócios.
+A quantidade do candle é distribuída entre os 120 segundos por diferenças cumulativas, conservando o total e evitando contratos fracionários quando a origem contém quantidade inteira. Alguns segundos podem ter quantidade zero. A VWAP durante a formação continua aproximada e não reproduz a distribuição real de negócios.
 
 Quando stop e alvo estão dentro da faixa do mesmo candle M2, a ordem em que os níveis são tocados depende da trajetória sintética. Interprete esses resultados como cenário de simulação, não como reprodução histórica tick a tick.
 
