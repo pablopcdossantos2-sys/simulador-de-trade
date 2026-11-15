@@ -58,6 +58,8 @@ export function useReplayPlayer(
   }, [onBatch]);
 
   function setPlaying(next: boolean) {
+    // Evita iniciar o loop automático durante um avanço manual ainda em andamento.
+    if (next && steppingRef.current) return;
     if (next && !playingRef.current && clockRef.current) {
       // Pausas não consomem tempo de mercado.
       clockRef.current = resumeReplayClock(
@@ -189,6 +191,7 @@ export function useReplayPlayer(
     if (!session || finished || steppingRef.current) return null;
     const generation = generationRef.current;
     steppingRef.current = true;
+    setBusy(true);
 
     try {
       const available = await ensureQueue(generation);
@@ -208,6 +211,7 @@ export function useReplayPlayer(
       return null;
     } finally {
       steppingRef.current = false;
+      if (generation === generationRef.current) setBusy(false);
     }
   }
 
@@ -215,6 +219,7 @@ export function useReplayPlayer(
     if (!session || finished || steppingRef.current) return 0;
     const generation = generationRef.current;
     steppingRef.current = true;
+    setBusy(true);
     setPlaying(false);
 
     let consumed = 0;
@@ -286,6 +291,7 @@ export function useReplayPlayer(
       return published;
     } finally {
       steppingRef.current = false;
+      if (generation === generationRef.current) setBusy(false);
     }
   }
 

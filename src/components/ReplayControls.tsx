@@ -106,7 +106,7 @@ export function ReplayControls({
               type="button"
               className="replay-primary"
               onClick={onPlayPause}
-              disabled={finished || locked}
+              disabled={finished || busy || locked}
             >
               {playing ? "Pausar" : "Reproduzir"}
             </button>
