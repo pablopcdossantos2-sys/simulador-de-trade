@@ -338,12 +338,20 @@ fn push_warmup_trade(
     let bucket = bucket_timestamp(timestamp, timeframe_minutes)?;
     let bucket_text = bucket.format("%Y-%m-%dT%H:%M:%S").to_string();
 
+    if !price.is_finite() || price <= 0.0 || !quantity.is_finite() || quantity <= 0.0 {
+        return Err("Negócio inválido durante o aquecimento: preço e quantidade precisam ser positivos e finitos.".to_string());
+    }
+
     if let Some(last) = candles.back_mut() {
         if last.timestamp == bucket_text {
+            let next_volume = last.volume + quantity;
+            if !next_volume.is_finite() {
+                return Err("Volume acumulado excede o limite numérico durante o aquecimento.".to_string());
+            }
             last.high = last.high.max(price);
             last.low = last.low.min(price);
             last.close = price;
-            last.volume += quantity;
+            last.volume = next_volume;
             return Ok(());
         }
     }
@@ -1188,6 +1196,26 @@ mod tests {
         assert_eq!(candles[0].close, 130010.0);
         assert_eq!(candles[0].volume, 5.0);
         assert_eq!(candles[1].open, 130005.0);
+    }
+
+    #[test]
+    fn warmup_rejects_non_finite_accumulated_volume_without_mutating_candle() {
+        let mut candles = VecDeque::new();
+        let timestamp = parse_replay_timestamp("2026-10-13T09:00:01").unwrap();
+        push_warmup_trade(&mut candles, timestamp, 130000.0, f64::MAX, 2).unwrap();
+
+        let result = push_warmup_trade(
+            &mut candles,
+            parse_replay_timestamp("2026-10-13T09:01:00").unwrap(),
+            130005.0,
+            f64::MAX,
+            2,
+        );
+
+        assert!(result.unwrap_err().contains("Volume acumulado"));
+        assert_eq!(candles.len(), 1);
+        assert_eq!(candles[0].volume, f64::MAX);
+        assert_eq!(candles[0].close, 130000.0);
     }
 
     #[test]
