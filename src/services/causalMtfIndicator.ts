@@ -1,5 +1,5 @@
 import type { Candle } from "../types";
-import { marketDateKey, marketTimestampOrdinalMs, parseMarketTimestamp } from "../domain/marketTime";
+import { marketDateKey, marketTimestampFromOrdinalMs, marketTimestampOrdinalMs, parseMarketTimestamp } from "../domain/marketTime";
 
 export type MtfAverageMethod = "SMA" | "EMA" | "WMA";
 
@@ -138,12 +138,36 @@ export function calculateCausalMtfAverages(
   }
 
   let previousTimestamp = Number.NEGATIVE_INFINITY;
+  const averageIds = new Set<string>();
+  for (const item of config.averages) {
+    if (
+      !["M1", "M2", "M3", "M4"].includes(item.id) ||
+      !["SMA", "EMA", "WMA"].includes(item.method) ||
+      typeof item.enabled !== "boolean" ||
+      averageIds.has(item.id)
+    ) {
+      throw new Error("Configuração das médias MTF inválida ou com identificadores duplicados.");
+    }
+    averageIds.add(item.id);
+  }
+
   for (const candle of candles) {
     const timestamp = marketTimestampOrdinalMs(candle.timestamp);
     if (timestamp <= previousTimestamp) {
       throw new Error("Os candles do cálculo MTF devem estar em ordem cronológica, sem timestamps duplicados.");
     }
     previousTimestamp = timestamp;
+
+    const prices = [candle.open, candle.high, candle.low, candle.close];
+    if (
+      prices.some((price) => !Number.isFinite(price)) ||
+      !Number.isFinite(candle.volume) ||
+      candle.volume < 0 ||
+      candle.high < Math.max(candle.open, candle.close, candle.low) ||
+      candle.low > Math.min(candle.open, candle.close, candle.high)
+    ) {
+      throw new Error("O candle contém OHLC ou volume inválido para o cálculo MTF.");
+    }
   }
 
   const snapshots: CausalMtfSnapshot[] = [];
@@ -178,9 +202,12 @@ export function calculateCausalMtfAverages(
     }
 
     currentBar = aggregate(currentBar, candle);
-    const closeTime = parsed.minute + config.chartTimeframeMinutes;
-    const closeTimestamp = formatMarketMinute(parsed.day, closeTime);
+    const candleCloseOrdinal =
+      marketTimestampOrdinalMs(candle.timestamp) + config.chartTimeframeMinutes * 60_000;
+    const closeTimestamp = marketTimestampFromOrdinalMs(candleCloseOrdinal);
     const bucketEnd = sessionStart + (bucket + 1) * config.indicatorTimeframeMinutes;
+    const bucketEndTimestamp = formatMarketMinute(parsed.day, bucketEnd);
+    const bucketEndOrdinal = marketTimestampOrdinalMs(bucketEndTimestamp);
     const values = [...dailyCloses, currentBar.close];
     const averages: Record<string, number | null> = {};
 
@@ -195,7 +222,7 @@ export function calculateCausalMtfAverages(
       timestamp: candle.timestamp,
       availableAt: closeTimestamp,
       indicatorBarStart: currentBarStart,
-      indicatorBarIsForming: closeTime < bucketEnd,
+      indicatorBarIsForming: candleCloseOrdinal < bucketEndOrdinal,
       averages,
       sourceClose: currentBar.close,
       aggregatedBar: { ...currentBar },
