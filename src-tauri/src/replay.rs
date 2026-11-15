@@ -511,6 +511,18 @@ pub fn open_replay_file(
     Ok(info)
 }
 
+fn rewind_session(session: &mut ReplaySession) -> Result<(), String> {
+    session
+        .reader
+        .seek(SeekFrom::Start(session.data_start))
+        .map_err(|error| error.to_string())?;
+    session.sequence = 0;
+    session.pending_synthetic.clear();
+    session.finished = false;
+    session.pending_error = None;
+    Ok(())
+}
+
 fn stable_seed(value: &str) -> u64 {
     let mut hash = 0xcbf29ce484222325_u64;
     for byte in value.as_bytes() { hash ^= *byte as u64; hash = hash.wrapping_mul(0x100000001b3); }
@@ -662,14 +674,7 @@ pub fn reset_replay_session(
         .as_mut()
         .ok_or_else(|| "Nenhum arquivo de replay está aberto.".to_string())?;
 
-    session
-        .reader
-        .seek(SeekFrom::Start(session.data_start))
-        .map_err(|error| error.to_string())?;
-    session.sequence = 0;
-    session.pending_synthetic.clear();
-    session.finished = false;
-    session.pending_error = None;
+    rewind_session(session)?;
 
     Ok(ReplaySessionInfo {
         source_path: session.source_path.to_string_lossy().to_string(),
@@ -966,11 +971,7 @@ mod tests {
         };
         assert_eq!(project(&actual), project(&expected));
 
-        chunked.reader.seek(SeekFrom::Start(chunked.data_start)).unwrap();
-        chunked.sequence = 0;
-        chunked.pending_synthetic.clear();
-        chunked.finished = false;
-        chunked.pending_error = None;
+        rewind_session(&mut chunked).unwrap();
         let replayed = read_next_replay_batch(&mut chunked, 5000).unwrap();
         assert_eq!(project(&replayed), project(&expected));
 
