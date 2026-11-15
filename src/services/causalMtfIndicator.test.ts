@@ -58,6 +58,51 @@ describe("calculateCausalMtfAverages", () => {
     expect(result[8].availableAt).toBe("2026-11-10T09:18:00");
   });
 
+  it("assigns a boundary-crossing M2 candle wholly to the bucket where it starts", () => {
+    const candles = [
+      {
+        ...candle(0, "2026-11-10T09:14:00", 100),
+        open: 98,
+        high: 105,
+        low: 97,
+        close: 100,
+        volume: 12,
+      },
+      {
+        ...candle(1, "2026-11-10T09:16:00", 110),
+        open: 100,
+        high: 112,
+        low: 99,
+        close: 110,
+        volume: 7,
+      },
+    ];
+
+    const result = calculateCausalMtfAverages(candles, config);
+
+    // O candle 09:14 fecha às 09:16, mas seu OHLCV inteiro permanece no bucket 09:00.
+    expect(result[0].indicatorBarStart).toBe("2026-11-10T09:00:00");
+    expect(result[0].availableAt).toBe("2026-11-10T09:16:00");
+    expect(result[0].indicatorBarIsForming).toBe(false);
+    expect(result[0].aggregatedBar).toEqual({
+      open: 98,
+      high: 105,
+      low: 97,
+      close: 100,
+      volume: 12,
+    });
+
+    // O candle seguinte inicia o bucket 09:15, sem carregar OHLCV do candle anterior.
+    expect(result[1].indicatorBarStart).toBe("2026-11-10T09:15:00");
+    expect(result[1].aggregatedBar).toEqual({
+      open: 100,
+      high: 112,
+      low: 99,
+      close: 110,
+      volume: 7,
+    });
+  });
+
   it("does not allow later candles to change an earlier snapshot", () => {
     const prefix = [
       candle(0, "2026-11-10T09:00:00", 100),
