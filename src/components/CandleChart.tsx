@@ -210,6 +210,8 @@ export function CandleChart({
     ? visible.find((candle) => candle.index === crosshair.candleIndex) ?? null
     : null;
   const readoutCandle = hoveredCandle ?? lastCandle;
+  const readoutMtfSnapshot = mtfMap.get(readoutCandle.timestamp) ??
+    (readoutCandle.source === "target" ? mtfSnapshots.at(-1) : undefined);
   const targetStartIndex = visible.findIndex((candle) => candle.source === "target");
   const hasVisibleContext = visible.some((candle) => candle.source === "context");
   const labelCount = Math.min(6, visible.length);
@@ -378,7 +380,7 @@ export function CandleChart({
         <div className="chart-mtf-readout" aria-label="Médias móveis do timeframe de 15 minutos">
           <strong>M15</strong>
           {(["M1", "M2", "M3", "M4"] as const).map((id) => {
-            const value = mtfMap.get(readoutCandle.timestamp)?.averages[id] ?? null;
+            const value = readoutMtfSnapshot?.averages[id] ?? null;
             return <span key={id} className={`mtf-value mtf-${id.toLowerCase()}`}>
               {id}: {value === null ? "—" : formatPrice(value, asset)}
             </span>;
