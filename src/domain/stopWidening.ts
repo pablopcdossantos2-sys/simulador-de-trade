@@ -33,8 +33,10 @@ export interface StopWideningScenario {
  */
 function parseMarketTimestamp(raw: string): number {
   const value = raw.trim();
-  const match = /^(\d{4}-\d{2}-\d{2})[T ](\d{2}:\d{2}:\d{2}(?:\.\d+)?)(?:Z|[+-]\d{2}:?\d{2})?$/i.exec(value);
+  const match = /^(\d{4}-\d{2}-\d{2})[T ](\d{2}:\d{2}:\d{2}(?:\.\d+)?)(Z|[+-]\d{2}:?\d{2})?$/i.exec(value);
   if (!match) return Number.NaN;
+  // Validate the supplied offset too, while deliberately preserving wall-clock time.
+  if (match[3] && !Number.isFinite(Date.parse(value))) return Number.NaN;
   return Date.parse(`${match[1]}T${match[2]}Z`);
 }
 
