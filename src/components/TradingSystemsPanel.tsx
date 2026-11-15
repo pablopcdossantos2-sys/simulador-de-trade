@@ -3,7 +3,7 @@ export function TradingSystemsPanel() {
     <section className="trading-systems-page">
       <header className="trading-systems-intro card">
         <h2>Sistemas de trading disponíveis</h2>
-        <p>Conheça a lógica, os indicadores e os critérios de cada sistema antes de utilizá-lo nos treinamentos.</p>
+        <p>Conheça a lógica, os indicadores e os critérios de cada sistema antes de utilizá-los nos treinamentos.</p>
       </header>
 
       <div className="trading-system-grid">
@@ -40,19 +40,25 @@ export function TradingSystemsPanel() {
             </div>
             <span className="trading-system-status planned">Em implementação</span>
           </div>
-          <p className="trading-system-summary">Indicador multi-timeframe que combina até quatro médias configuráveis, VWAP e TPV para classificar o contexto do mercado.</p>
+          <p className="trading-system-summary">Sistema de contexto multi-timeframe. A base de agregação causal já está sendo preparada para calcular as médias de 15 minutos a partir do replay de 2 minutos, sem utilizar candles futuros.</p>
           <div className="trading-system-indicators">
-            <span>Até 4 médias</span><span>VWAP MTF</span><span>TPV</span><span>ATR e ângulos</span>
+            <span>Gráfico M2</span><span>Médias M15</span><span>VWAP MTF</span><span>TPV</span><span>ATR e ângulos</span>
           </div>
-          <h4>Características principais</h4>
+          <h4>Configuração inicial definida</h4>
           <ul>
-            <li>Médias SMA, EMA ou WMA, com períodos e tempos gráficos configuráveis.</li>
-            <li>Filtros de angulação, alinhamento das médias, posição em relação à VWAP e direção do TPV.</li>
-            <li>Fundo e candles em verde, vermelho ou cinza, conforme a unanimidade dos filtros ativos.</li>
-            <li>Intensidade visual da tendência em três níveis, conforme a angulação média.</li>
-            <li>Opções de fidelidade histórica do TradingView ou cálculo causal, sem olhar o futuro.</li>
+            <li>Gráfico principal de 2 minutos e timeframe de contexto de 15 minutos.</li>
+            <li>Modo causal, sem lookahead: cada atualização considera somente os candles de 2 minutos já disponíveis naquele ponto do replay.</li>
+            <li>Quatro médias EMA, com períodos iniciais 8, 20, 50 e 200; fonte de preço de fechamento e reinício diário.</li>
+            <li>VWAP MTF, TPV, filtros de angulação e alinhamento serão incorporados conforme a especificação do indicador.</li>
           </ul>
-          <p className="trading-system-footnote">A especificação deste indicador define estados de contexto (alta, baixa ou neutro), mas não define sinais de entrada, saída ou envio de ordens. Essas regras precisam ser estabelecidas separadamente para o treinamento.</p>
+          <h4>Autorização operacional</h4>
+          <ul>
+            <li>Fundo verde: autoriza somente operações compradas.</li>
+            <li>Fundo vermelho: autoriza somente operações vendidas.</li>
+            <li>Fundo cinza: não autoriza novas operações.</li>
+            <li>A entrada será posicionada manualmente pelo usuário no gráfico. O sistema não abrirá operações nem criará gatilhos automáticos.</li>
+          </ul>
+          <p className="trading-system-footnote">A agregação M2 → M15 utiliza candles completos de 2 minutos. Como 2 não divide 15, um candle M2 pode atravessar a fronteira de um candle M15; sem os negócios individuais não é possível repartir seu OHLCV com exatidão. Para preservar a causalidade, ele só é incorporado depois de fechado, podendo atrasar a atualização do contexto em até um candle M2.</p>
         </article>
       </div>
     </section>
