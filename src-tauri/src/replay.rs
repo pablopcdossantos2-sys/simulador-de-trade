@@ -319,7 +319,7 @@ fn bucket_timestamp(
 }
 
 fn push_warmup_trade(
-    candles: &mut Vec<WarmupCandleRecord>,
+    candles: &mut VecDeque<WarmupCandleRecord>,
     timestamp: NaiveDateTime,
     price: f64,
     quantity: f64,
@@ -339,7 +339,7 @@ fn push_warmup_trade(
     }
 
     let index = candles.len();
-    candles.push(WarmupCandleRecord {
+    candles.push_back(WarmupCandleRecord {
         index,
         timestamp: bucket_text,
         open: price,
@@ -363,7 +363,9 @@ fn process_warmup_candles(
         return Err("O número máximo de candles de aquecimento precisa ser maior que zero.".to_string());
     }
 
-    let mut candles: Vec<WarmupCandleRecord> = Vec::new();
+    // Mantém somente a janela mais recente durante a leitura, evitando que
+    // arquivos longos de aquecimento consumam memória proporcional ao histórico.
+    let mut candles: VecDeque<WarmupCandleRecord> = VecDeque::with_capacity(max_bars);
     let mut expected_asset: Option<String> = None;
     let mut expected_symbol: Option<String> = None;
     let mut expected_format: Option<ReplayFormat> = None;
@@ -424,6 +426,7 @@ fn process_warmup_candles(
                     }
                     previous_timestamp = Some(timestamp);
                     push_warmup_trade(&mut candles, timestamp, trade.price, trade.quantity, timeframe_minutes)?;
+                    if candles.len() > max_bars { candles.pop_front(); }
                 }
                 ReplayFormat::CandlesM2 => {
                     if timeframe_minutes != 2 {
@@ -437,7 +440,7 @@ fn process_warmup_candles(
                         }
                     }
                     previous_timestamp = Some(timestamp);
-                    candles.push(WarmupCandleRecord {
+                    candles.push_back(WarmupCandleRecord {
                         index: candles.len(),
                         timestamp: candle.timestamp,
                         open: candle.open,
@@ -446,16 +449,13 @@ fn process_warmup_candles(
                         close: candle.close,
                         volume: candle.volume,
                     });
+                    if candles.len() > max_bars { candles.pop_front(); }
                 }
             }
         }
     }
 
-    if candles.len() > max_bars {
-        let keep_from = candles.len() - max_bars;
-        candles = candles.split_off(keep_from);
-    }
-
+    let mut candles: Vec<WarmupCandleRecord> = candles.into_iter().collect();
     for (index, candle) in candles.iter_mut().enumerate() {
         candle.index = index;
     }
