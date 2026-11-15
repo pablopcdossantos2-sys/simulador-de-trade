@@ -93,6 +93,20 @@ describe("simulateStopWideningScenario", () => {
     expect(result.finalBalanceBRL).toBe(10020);
   });
 
+  it("accepts zero-quantity synthetic price observations", () => {
+    const result = simulateStopWideningScenario({
+      position,
+      attemptedStop: 900,
+      tradesAfterViolation: [{ ...trade(1, 900), quantity: 0 }],
+      startingBalanceBRL: 10000,
+      lastObservedPrice: 990,
+      lastObservedTimestamp: trade(0, 990).timestamp,
+    });
+    expect(result.outcome).toBe("SESSION_END");
+    expect(result.widenedTimes).toBe(1);
+    expect(result.processedTrades).toBe(1);
+  });
+
   it("rejects a stop movement that reduces risk", () => {
     expect(() => simulateStopWideningScenario({
       position,
