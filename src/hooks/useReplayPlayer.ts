@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { ReplayTrade } from "../types";
+import { readErrorMessage } from "../services/readErrorMessage";
 import { marketTimestampOrdinalMs } from "../domain/marketTime";
 import {
   replayMarketTimeAt,
@@ -119,7 +120,7 @@ export function useReplayPlayer(
     } catch (reason) {
       if (generation === generationRef.current) {
         setSession(null);
-        setError(reason instanceof Error ? reason.message : String(reason));
+        setError(readErrorMessage(reason));
       }
       return null;
     } finally {
@@ -200,7 +201,7 @@ export function useReplayPlayer(
     } catch (reason) {
       if (generation === generationRef.current) {
         setPlaying(false);
-        setError(reason instanceof Error ? reason.message : String(reason));
+        setError(readErrorMessage(reason));
       }
       return null;
     } finally {
@@ -251,7 +252,7 @@ export function useReplayPlayer(
       return consumed;
     } catch (reason) {
       if (generation === generationRef.current) {
-        setError(reason instanceof Error ? reason.message : String(reason));
+        setError(readErrorMessage(reason));
       }
       return 0;
     } finally {
@@ -281,7 +282,7 @@ export function useReplayPlayer(
       return true;
     } catch (reason) {
       if (generation === generationRef.current) {
-        setError(reason instanceof Error ? reason.message : String(reason));
+        setError(readErrorMessage(reason));
       }
       return false;
     } finally {
@@ -417,7 +418,7 @@ export function useReplayPlayer(
       } catch (reason) {
         if (generation === generationRef.current) {
           setPlaying(false);
-          setError(reason instanceof Error ? reason.message : String(reason));
+          setError(readErrorMessage(reason));
         }
       }
     }
