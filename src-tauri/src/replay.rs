@@ -1524,4 +1524,53 @@ mod tests {
         let _ = std::fs::remove_file(first_path);
         let _ = std::fs::remove_file(second_path);
     }
+
+    #[test]
+    fn m2_replay_recovers_after_invalid_candle_and_reset_is_deterministic() {
+        use std::io::Write;
+        use std::time::{SystemTime, UNIX_EPOCH};
+
+        let unique = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let path = std::env::temp_dir()
+            .join(format!("simulador-trade-m2-recovery-{unique}.csv"));
+        {
+            let mut file = File::create(&path).unwrap();
+            writeln!(file, "symbol,timestamp,source_row,open,high,low,close,volume").unwrap();
+            writeln!(file, "WINV26,2026-10-07T09:00:00,1,130000,130050,129950,130010,1200").unwrap();
+            // A segunda linha tem máxima abaixo da abertura e deve ser rejeitada.
+            writeln!(file, "WINV26,2026-10-07T09:02:00,2,130010,129900,129990,130040,900").unwrap();
+            writeln!(file, "WINV26,2026-10-07T09:04:00,3,130040,130070,130000,130050,800").unwrap();
+        }
+
+        let (mut session, _) = open_session(&path).unwrap();
+
+        let first = read_next_replay_batch(&mut session, 5000).unwrap();
+        assert_eq!(first.len(), 120);
+        assert_eq!(first.first().unwrap().sequence, 0);
+        assert_eq!(first.last().unwrap().sequence, 119);
+
+        let error = read_next_replay_batch(&mut session, 5000).unwrap_err();
+        assert!(error.contains("máxima/mínima incompatíveis"));
+
+        // A linha inválida não deve corromper o cursor nem consumir sequência.
+        let after_error = read_next_replay_batch(&mut session, 5000).unwrap();
+        assert_eq!(after_error.len(), 120);
+        assert_eq!(after_error.first().unwrap().timestamp, "2026-10-07T09:04:00");
+        assert_eq!(after_error.first().unwrap().sequence, 120);
+        assert_eq!(after_error.last().unwrap().sequence, 239);
+
+        rewind_session(&mut session).unwrap();
+        let replayed_first = read_next_replay_batch(&mut session, 5000).unwrap();
+        assert_eq!(replayed_first, first);
+        assert!(read_next_replay_batch(&mut session, 5000)
+            .unwrap_err()
+            .contains("máxima/mínima incompatíveis"));
+        let replayed_after_error = read_next_replay_batch(&mut session, 5000).unwrap();
+        assert_eq!(replayed_after_error, after_error);
+
+        let _ = std::fs::remove_file(path);
+    }
 }
