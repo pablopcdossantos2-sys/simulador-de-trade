@@ -653,17 +653,25 @@ fn expand_m2_candle(candle: &ReplayCandleRecord, asset: &str, sequence_start: u6
         fill_random_bridge(&mut prices, pair[0].0, pair[1].0, pair[0].1, pair[1].1, low_tick, high_tick, &mut random);
     }
     let start = parse_replay_timestamp(&candle.timestamp)?;
-    let per_second_volume = candle.volume / 120.0;
     let mut events = VecDeque::with_capacity(120);
     for second in 0..120 {
         let timestamp = start + Duration::seconds(second as i64);
+        // Distribuição por diferenças cumulativas: quantidades inteiras de contratos
+        // permanecem inteiras e o total do candle é conservado sem arredondamento acumulado.
+        let quantity_before = (candle.volume * second as f64 / 120.0).floor();
+        let quantity_after = (candle.volume * (second + 1) as f64 / 120.0).floor();
+        let quantity = if second == 119 {
+            candle.volume - quantity_before
+        } else {
+            quantity_after - quantity_before
+        };
         events.push_back(ReplayTradeRecord {
             asset: asset.to_string(),
             timestamp: timestamp.format("%Y-%m-%dT%H:%M:%S").to_string(),
             source_row: candle.source_row,
             sequence: sequence_start + second as u64,
             price: prices[second] as f64 * tick,
-            quantity: per_second_volume,
+            quantity,
         });
     }
     Ok(events)
@@ -1273,7 +1281,33 @@ mod tests {
         assert!(events.iter().all(|event| {
             event.source_row == candle.source_row
                 && event.quantity.is_finite()
-                && event.quantity > 0.0
+                && event.quantity >= 0.0
+                && (event.quantity - event.quantity.round()).abs() < 1e-8
+        }));
+    }
+
+    #[test]
+    fn synthetic_m2_low_volume_is_allocated_as_whole_contracts() {
+        let candle = ReplayCandleRecord {
+            timestamp: "2026-10-07T09:00:00".to_string(),
+            source_row: 43,
+            open: 130000.0,
+            high: 130050.0,
+            low: 129950.0,
+            close: 130010.0,
+            volume: 17.0,
+        };
+
+        let events = expand_m2_candle(&candle, "WINFUT", 620).unwrap();
+        let allocated = events.iter().filter(|event| event.quantity > 0.0).count();
+        let total = events.iter().map(|event| event.quantity).sum::<f64>();
+
+        assert_eq!(events.len(), 120);
+        assert_eq!(allocated, 17);
+        assert_eq!(total, 17.0);
+        assert!(events.iter().all(|event| {
+            event.quantity >= 0.0
+                && (event.quantity - event.quantity.round()).abs() < 1e-8
         }));
     }
 
