@@ -86,6 +86,51 @@ export function applyReplayTrade(
   ];
 }
 
+/**
+ * Variante mutável para o motor de replay em alta velocidade.
+ * O chamador trabalha em um buffer próprio e publica uma cópia no fim de cada frame,
+ * evitando copiar toda a série de candles a cada negócio recebido.
+ */
+export function applyReplayTradeInPlace(
+  candles: Candle[],
+  trade: ReplayTrade,
+  intervalSeconds = REPLAY_INTERVAL_SECONDS,
+): Candle[] {
+  if (intervalSeconds <= 0) throw new Error("O intervalo do replay precisa ser maior que zero.");
+  if (!Number.isFinite(trade.price) || trade.price <= 0) throw new Error("Preço de replay inválido.");
+  if (!Number.isFinite(trade.quantity) || trade.quantity < 0) throw new Error("Quantidade de replay inválida.");
+
+  const bucketTimestamp = bucketMarketTimestamp(trade.timestamp, intervalSeconds);
+  const bucketOrdinal = marketTimestampOrdinalMs(bucketTimestamp);
+  const last = candles.at(-1);
+
+  if (!last) {
+    candles.push({
+      index: 0, timestamp: bucketTimestamp, open: trade.price,
+      high: trade.price, low: trade.price, close: trade.price, volume: trade.quantity,
+    });
+    return candles;
+  }
+
+  if (bucketOrdinal < marketTimestampOrdinalMs(last.timestamp)) {
+    throw new Error("ReplayTrade fora de ordem cronológica. O leitor precisa normalizar a sequência antes da formação dos candles.");
+  }
+
+  if (last.timestamp === bucketTimestamp) {
+    last.high = Math.max(last.high, trade.price);
+    last.low = Math.min(last.low, trade.price);
+    last.close = trade.price;
+    last.volume += trade.quantity;
+    return candles;
+  }
+
+  candles.push({
+    index: last.index + 1, timestamp: bucketTimestamp, open: trade.price,
+    high: trade.price, low: trade.price, close: trade.price, volume: trade.quantity,
+  });
+  return candles;
+}
+
 export function buildReplayCandles(
   trades: ReplayTrade[],
   intervalSeconds = REPLAY_INTERVAL_SECONDS,
