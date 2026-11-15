@@ -1404,6 +1404,35 @@ mod tests {
     }
 
     #[test]
+    fn warmup_preserves_market_gaps_without_inserting_empty_candles() {
+        use std::io::Write;
+        use std::time::{SystemTime, UNIX_EPOCH};
+
+        let unique = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos();
+        let path = std::env::temp_dir().join(format!("simulador-trade-warmup-market-gap-{unique}.csv"));
+        {
+            let mut file = File::create(&path).unwrap();
+            writeln!(file, "symbol,timestamp,source_row,open,high,low,close,volume").unwrap();
+            writeln!(file, "WINV26,2026-10-07T09:00:00,1,130000,130050,129950,130010,1200").unwrap();
+            writeln!(file, "WINV26,2026-10-07T10:00:00,2,130010,130060,129990,130040,900").unwrap();
+        }
+
+        let candles = process_warmup_candles(
+            vec![path.to_string_lossy().to_string()],
+            2,
+            100,
+        ).unwrap();
+
+        assert_eq!(candles.len(), 2);
+        assert_eq!(candles[0].timestamp, "2026-10-07T09:00:00");
+        assert_eq!(candles[1].timestamp, "2026-10-07T10:00:00");
+        assert_eq!(candles[0].volume, 1200.0);
+        assert_eq!(candles[1].volume, 900.0);
+
+        let _ = std::fs::remove_file(path);
+    }
+
+    #[test]
     fn rejects_duplicate_m2_candles_during_warmup() {
         use std::io::Write;
         use std::time::{SystemTime, UNIX_EPOCH};
