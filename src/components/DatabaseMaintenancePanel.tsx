@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { readErrorMessage } from "../services/readErrorMessage";
 
 interface Props {
   disabled: boolean;
@@ -21,7 +22,7 @@ export function DatabaseMaintenancePanel({ disabled, onDeleteAll }: Props) {
       await onDeleteAll();
       setFeedback("Todos os dados do banco foram apagados. As configurações de execução foram restauradas aos valores iniciais.");
     } catch (error) {
-      setFeedback(error instanceof Error ? error.message : "Não foi possível apagar o banco de dados.");
+      setFeedback(readErrorMessage(error, "Não foi possível apagar o banco de dados."));
     } finally {
       setBusy(false);
     }
