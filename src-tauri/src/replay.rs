@@ -942,28 +942,28 @@ mod tests {
     #[test]
     fn validates_tick_prices_for_win_and_wdo_trade_rows() {
         let valid_win = parse_replay_line(
-            "WINV26,2026-10-07T09:00:00,1,130005,1\\n",
+            "WINV26,2026-10-07T09:00:00,1,130005,1\n",
             "WINFUT",
             0,
         );
         assert!(valid_win.is_ok());
 
         let invalid_win = parse_replay_line(
-            "WINV26,2026-10-07T09:00:00,1,130002,1\\n",
+            "WINV26,2026-10-07T09:00:00,1,130002,1\n",
             "WINFUT",
             0,
         );
         assert!(invalid_win.unwrap_err().contains("tick válido de 5"));
 
         let valid_wdo = parse_replay_line(
-            "WDOV26,2026-10-07T09:00:00,1,5200.5,1\\n",
+            "WDOV26,2026-10-07T09:00:00,1,5200.5,1\n",
             "WDOFUT",
             0,
         );
         assert!(valid_wdo.is_ok());
 
         let invalid_wdo = parse_replay_line(
-            "WDOV26,2026-10-07T09:00:00,1,5200.25,1\\n",
+            "WDOV26,2026-10-07T09:00:00,1,5200.25,1\n",
             "WDOFUT",
             0,
         );
