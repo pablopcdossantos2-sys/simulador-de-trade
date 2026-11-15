@@ -48,6 +48,8 @@ describe("calculateCausalMtfAverages", () => {
     expect(result).toHaveLength(candles.length);
     expect(result[0].aggregatedBar.close).toBe(100);
     expect(result[7].aggregatedBar.close).toBe(107);
+    expect(result[7].indicatorBarIsForming).toBe(false);
+    expect(result[8].indicatorBarIsForming).toBe(true);
     expect(result[8].aggregatedBar.close).toBe(200);
     expect(result[9].aggregatedBar.close).toBe(202);
     expect(result[8].averages.M1).toBe(153.5);
