@@ -1015,6 +1015,15 @@ mod tests {
     }
 
     #[test]
+    fn rejects_m2_row_with_fractional_second_timestamp() {
+        let result = parse_replay_candle_line(
+            "WINV26,2026-10-07T09:00:00.001,17,130000,130050,129950,130010,1200",
+            "WINFUT",
+        );
+        assert!(result.unwrap_err().contains("abertura de um candle M2"));
+    }
+
+    #[test]
     fn rejects_m2_row_with_timestamp_off_two_minute_grid() {
         let result = parse_replay_candle_line(
             "WINV26,2026-10-07T09:01:00,17,130000,130050,129950,130010,1200\n",
