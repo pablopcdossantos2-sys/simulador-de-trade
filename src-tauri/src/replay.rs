@@ -323,9 +323,14 @@ fn bucket_timestamp(
         return Err("Timeframe de aquecimento inválido.".to_string());
     }
 
-    let minute = timestamp.minute();
-    let bucket_minute = minute - (minute % timeframe_minutes);
-    let time = NaiveTime::from_hms_opt(timestamp.hour(), bucket_minute, 0)
+    // Calcula a fronteira a partir da meia-noite, não reinicia o ciclo
+    // a cada hora. Isso também funciona para timeframes que não dividem 60.
+    let minutes_since_midnight = timestamp.hour() * 60 + timestamp.minute();
+    let bucket_start = minutes_since_midnight
+        - (minutes_since_midnight % timeframe_minutes);
+    let hour = bucket_start / 60;
+    let minute = bucket_start % 60;
+    let time = NaiveTime::from_hms_opt(hour, minute, 0)
         .ok_or_else(|| "Falha ao calcular início do candle.".to_string())?;
     Ok(NaiveDateTime::new(timestamp.date(), time))
 }
@@ -1202,6 +1207,22 @@ mod tests {
         let events = expand_m2_candle(&candle, "WDOFUT", 0).unwrap();
         assert_eq!(events.len(), 120);
         assert!(events.iter().all(|event| ((event.price / 0.5) - (event.price / 0.5).round()).abs() < 1e-8));
+    }
+
+    #[test]
+    fn buckets_non_divisor_timeframes_continuously_from_midnight() {
+        let cases = [
+            ("2026-10-13T09:44:59", "2026-10-13T09:00:00"),
+            ("2026-10-13T09:45:00", "2026-10-13T09:45:00"),
+            ("2026-10-13T10:00:00", "2026-10-13T09:45:00"),
+            ("2026-10-13T10:30:00", "2026-10-13T10:30:00"),
+        ];
+
+        for (input, expected) in cases {
+            let timestamp = parse_replay_timestamp(input).unwrap();
+            let bucket = bucket_timestamp(timestamp, 45).unwrap();
+            assert_eq!(bucket.format("%Y-%m-%dT%H:%M:%S").to_string(), expected);
+        }
     }
 
     #[test]
