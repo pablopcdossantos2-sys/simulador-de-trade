@@ -1,24 +1,10 @@
-name: Windows desktop build
+name: Windows release packaging
 
 on:
   workflow_dispatch:
   push:
-    branches:
-      - main
     tags:
       - "v*"
-    paths:
-      - ".github/workflows/windows-build.yml"
-      - "src/**"
-      - "src-tauri/src/**"
-      - "src-tauri/tauri.conf.json"
-      - "src-tauri/Cargo.toml"
-      - "src-tauri/Cargo.lock"
-      - "index.html"
-      - "vite.config.ts"
-      - "tsconfig*.json"
-      - "package.json"
-      - "package-lock.json"
 
 permissions:
   contents: write
