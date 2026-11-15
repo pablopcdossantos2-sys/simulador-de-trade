@@ -184,8 +184,8 @@ fn parse_replay_candle_line(line: &str, asset: &str) -> Result<ReplayCandleRecor
     let low = number(5, "Mínima")?;
     let close = number(6, "Fechamento")?;
     let volume = number(7, "Volume")?;
-    if open <= 0.0 || high <= 0.0 || low <= 0.0 || close <= 0.0 || volume < 0.0 {
-        return Err("OHLC precisa ser positivo e o volume não pode ser negativo.".to_string());
+    if open <= 0.0 || high <= 0.0 || low <= 0.0 || close <= 0.0 || volume <= 0.0 {
+        return Err("OHLC e volume precisam ser positivos; volume zero não pode gerar negócios sintéticos.".to_string());
     }
     if high < low || high < open || high < close || low > open || low > close {
         return Err("Candle M2 inválido: máxima/mínima incompatíveis com OHLC.".to_string());
@@ -1046,13 +1046,13 @@ mod tests {
         );
         assert!(invalid_close.unwrap_err().contains("máxima/mínima incompatíveis"));
 
-        for volume in ["-1", "NaN", "inf", "-inf"] {
+        for volume in ["0", "-1", "NaN", "inf", "-inf"] {
             let row = format!(
                 "WINV26,2026-10-07T09:00:00,17,130000,130050,129950,130010,{volume}"
             );
             let error = parse_replay_candle_line(&row, "WINFUT").unwrap_err();
             assert!(
-                error.contains("Volume") || error.contains("OHLC"),
+                error.contains("volume") || error.contains("Volume") || error.contains("OHLC"),
                 "volume {volume} deveria ser rejeitado, recebeu: {error}"
             );
         }
