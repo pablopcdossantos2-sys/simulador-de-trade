@@ -114,6 +114,47 @@ function validateEffectiveRiskReward(intent: TradeIntent, executedEntry: number)
   }
 }
 
+/** Valida alterações OCO durante uma posição aberta usando o risco ainda exposto pelo stop ativo. */
+export function validatePositionOco(
+  position: Position,
+  stopLoss: number,
+  target: number,
+): void {
+  if (!isFinitePrice(stopLoss) || !isFinitePrice(target)) {
+    throw new TradingRuleError("Stop loss e alvo devem possuir preços válidos.");
+  }
+  if (!isPriceOnTick(position.asset, stopLoss) || !isPriceOnTick(position.asset, target)) {
+    throw new TradingRuleError(`Stop e alvo precisam respeitar o incremento mínimo de ${tickSizeFor(position.asset)} do ativo.`);
+  }
+  if (position.side === "BUY" ? stopLoss >= target : stopLoss <= target) {
+    throw new TradingRuleError("O Stop não pode alcançar ou ultrapassar o alvo.");
+  }
+
+  const slip = position.slippageTicksPerSide * tickSizeFor(position.asset);
+  const stopExecution = position.side === "BUY" ? stopLoss - slip : stopLoss + slip;
+  const riskPoints = position.side === "BUY"
+    ? position.entry - stopExecution
+    : stopExecution - position.entry;
+  const rewardPoints = position.side === "BUY"
+    ? target - position.entry
+    : position.entry - target;
+  const riskBRL = grossResultBRL(position.asset, Math.max(0, riskPoints), 1)
+    + position.costPerContractRoundTripBRL;
+  const rewardBRL = grossResultBRL(position.asset, rewardPoints, 1)
+    - position.costPerContractRoundTripBRL;
+
+  if (rewardPoints <= 0 || rewardBRL <= 0) {
+    throw new TradingRuleError("O alvo precisa permanecer além da entrada e cobrir os custos operacionais.");
+  }
+  // Stop no breakeven ou em lucro elimina o risco financeiro positivo da posição.
+  if (riskPoints <= 0) return;
+  if (rewardBRL + 1e-9 < riskBRL * 2) {
+    throw new TradingRuleError(
+      `Ajuste OCO bloqueado: o alvo precisa manter pelo menos 1:2 em relação ao risco ainda exposto. Risco efetivo: R$ ${riskBRL.toFixed(2)}; retorno efetivo: R$ ${rewardBRL.toFixed(2)}.`,
+    );
+  }
+}
+
 export function validateTradeIntent(intent: TradeIntent): void {
   const {
     signal,
