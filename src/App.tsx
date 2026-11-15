@@ -63,6 +63,10 @@ import {
 import { useReplayPlayer } from "./hooks/useReplayPlayer";
 import { indicator } from "./services/indicator";
 import {
+  calculateCausalMtfAverages,
+  DEFAULT_CAUSAL_MTF_CONFIG,
+} from "./services/causalMtfIndicator";
+import {
   deleteAllDatabaseData,
   deleteAllTrades,
   loadTrades,
@@ -320,6 +324,13 @@ export default function App() {
   const indicatorEvaluation = useMemo(
     () => indicator.calculate(asset, indicatorCandles, trainingSession?.id ?? "preview"),
     [asset, indicatorCandles, trainingSession?.id],
+  );
+  const mtfSnapshots = useMemo(
+    () => calculateCausalMtfAverages(indicatorCandles, {
+      ...DEFAULT_CAUSAL_MTF_CONFIG,
+      chartTimeframeMinutes: replayTimeframeMinutes,
+    }),
+    [indicatorCandles, replayTimeframeMinutes],
   );
   const signal = indicatorEvaluation.authorization;
   const signalAlreadyUsed = Boolean(
@@ -1429,6 +1440,7 @@ export default function App() {
               candles={visibleCandles}
               contextCandles={warmupCandles}
               evaluation={indicatorEvaluation}
+              mtfSnapshots={mtfSnapshots}
               position={position}
               asset={asset}
               draftOrder={draftOrder}
