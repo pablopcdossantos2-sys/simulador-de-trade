@@ -184,8 +184,8 @@ fn parse_replay_candle_line(line: &str, asset: &str) -> Result<ReplayCandleRecor
     let low = number(5, "Mínima")?;
     let close = number(6, "Fechamento")?;
     let volume = number(7, "Volume")?;
-    if open <= 0.0 || high <= 0.0 || low <= 0.0 || close <= 0.0 || volume <= 0.0 {
-        return Err("OHLC e volume precisam ser positivos; volume zero não pode gerar negócios sintéticos.".to_string());
+    if open <= 0.0 || high <= 0.0 || low <= 0.0 || close <= 0.0 || volume < 0.0 {
+        return Err("Os preços OHLC precisam ser positivos e o volume não pode ser negativo.".to_string());
     }
     if high < low || high < open || high < close || low > open || low > close {
         return Err("Candle M2 inválido: máxima/mínima incompatíveis com OHLC.".to_string());
@@ -847,6 +847,19 @@ mod tests {
         assert_eq!(row.source_row, 431);
         assert_eq!(row.price, 130000.0);
         assert_eq!(row.quantity, 12.0);
+    }
+
+    #[test]
+    fn accepts_zero_volume_m2_candles_and_generates_zero_quantity_observations() {
+        let candle = parse_replay_candle_line(
+            "WINV26,2026-10-07T09:00:00,12,130000,130000,130000,130000,0",
+            "WINFUT",
+        ).unwrap();
+
+        let events = expand_m2_candle(&candle, "WINFUT", 0).unwrap();
+        assert_eq!(events.len(), 120);
+        assert!(events.iter().all(|event| event.quantity == 0.0));
+        assert!(events.iter().all(|event| event.price == 130000.0));
     }
 
     #[test]
