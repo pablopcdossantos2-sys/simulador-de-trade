@@ -205,6 +205,13 @@ export default function App() {
   const positionRef = useRef<Position | null>(null);
   const candlesRef = useRef(candles);
   const replayBatchOpenRef = useRef(false);
+  const replaceCandles = (next: typeof candles) => {
+    // Atualiza ref e estado juntos. Evita que um efeito atrasado restaure
+    // uma referência antiga enquanto o próximo frame já está sendo agregado.
+    candlesRef.current = next;
+    replayBatchOpenRef.current = false;
+    setCandles(next);
+  };
   const persistClosedTradeRef = useRef<(trade: Trade) => void>(() => undefined);
   const protectNextAutoFeedbackRef = useRef(false);
 
@@ -271,9 +278,8 @@ export default function App() {
   );
 
   const flushReplayBatch = useCallback((lastTrade: ReplayTrade) => {
-    setCandles(candlesRef.current);
+    replaceCandles(candlesRef.current);
     setCurrentReplayTrade(lastTrade);
-    replayBatchOpenRef.current = false;
   }, []);
 
   const replay = useReplayPlayer(
@@ -285,10 +291,6 @@ export default function App() {
   useEffect(() => {
     positionRef.current = position;
   }, [position]);
-
-  useEffect(() => {
-    candlesRef.current = candles;
-  }, [candles]);
 
   const visibleCandles = useMemo(() => {
     if (dataMode !== "replay") return candles;
@@ -450,7 +452,8 @@ export default function App() {
   useEffect(() => {
     if (dataMode !== "demo") return;
     const timer = window.setInterval(() => {
-      setCandles((current) => [...current, nextDemoCandle(asset, current)]);
+      const current = candlesRef.current;
+      replaceCandles([...current, nextDemoCandle(asset, current)]);
     }, 1500);
 
     return () => window.clearInterval(timer);
@@ -671,7 +674,7 @@ export default function App() {
     setDraftEntryPrice(null);
     setDraftSide(null);
     setAsset(next);
-    setCandles(createDemoCandles(next));
+    replaceCandles(createDemoCandles(next));
     setPosition(null);
     setStopDistance("");
     setTargetDistance("");
@@ -728,8 +731,7 @@ export default function App() {
 
       setDataMode("replay");
       setAsset(info.asset);
-      setCandles([]);
-      candlesRef.current = [];
+      replaceCandles([]);
       setCurrentReplayTrade(null);
       positionRef.current = null;
       setPosition(null);
@@ -764,8 +766,7 @@ export default function App() {
       setFeedback("Não foi possível reiniciar o replay.");
       return;
     }
-    setCandles([]);
-    candlesRef.current = [];
+    replaceCandles([]);
     setCurrentReplayTrade(null);
     positionRef.current = null;
     setPosition(null);
@@ -1298,8 +1299,7 @@ export default function App() {
           setDataMode("demo");
           setCatalogMatches([]);
           setWarmupCandles([]);
-          setCandles(demoCandles);
-          candlesRef.current = demoCandles;
+          replaceCandles(demoCandles);
           setCurrentReplayTrade(null);
           positionRef.current = null;
           setPosition(null);
