@@ -752,6 +752,61 @@ fn save_execution_settings(
 
     Ok(())
 }
+/// Finaliza, de forma transacional, sessões que ficaram ACTIVE após o encerramento
+/// inesperado do aplicativo. O evento preserva no histórico o motivo da finalização.
+fn recover_abandoned_training_sessions(
+    connection: &mut Connection,
+) -> rusqlite::Result<usize> {
+    let transaction = connection.transaction()?;
+    let active_session_ids = {
+        let mut statement = transaction.prepare(
+            "SELECT id FROM training_sessions WHERE status = 'ACTIVE'",
+        )?;
+        statement
+            .query_map([], |row| row.get::<_, String>(0))?
+            .collect::<rusqlite::Result<Vec<_>>>()?
+    };
+
+    if active_session_ids.is_empty() {
+        transaction.commit()?;
+        return Ok(0);
+    }
+
+    let recovered_at = Utc::now().to_rfc3339();
+    let reason = "Sessão encerrada automaticamente na inicialização porque o aplicativo foi fechado antes do encerramento formal.";
+
+    let mut recovered = 0;
+    for session_id in active_session_ids {
+        let changed = transaction.execute(
+            "UPDATE training_sessions SET status = 'ENDED', ended_at = ?1 WHERE id = ?2 AND status = 'ACTIVE'",
+            params![recovered_at, session_id],
+        )?;
+
+        if changed == 0 {
+            continue;
+        }
+
+        let event_id = format!(
+            "session-recovery-{session_id}-{}",
+            Utc::now().timestamp_nanos_opt().unwrap_or_default()
+        );
+        transaction.execute(
+            r#"
+            INSERT INTO training_events (
+                id, session_id, type, timestamp, market_timestamp,
+                signal_id, side, reason, trade_id
+            )
+            VALUES (?1, ?2, 'SESSION_ENDED', ?3, NULL, NULL, NULL, ?4, NULL)
+            "#,
+            params![event_id, session_id, recovered_at, reason],
+        )?;
+        recovered += 1;
+    }
+
+    transaction.commit()?;
+    Ok(recovered)
+}
+
 #[tauri::command]
 fn save_training_session(
     state: tauri::State<'_, DbState>,
@@ -2994,6 +3049,62 @@ mod tests {
     use super::*;
 
     #[test]
+    fn startup_recovers_abandoned_training_sessions_transactionally() {
+        let mut connection = Connection::open_in_memory().unwrap();
+        initialize_database(&connection).unwrap();
+
+        connection.execute(
+            r#"
+            INSERT INTO training_sessions (
+                id, asset, trade_date, start_time, end_time,
+                timeframe_minutes, warmup_bars, mode, started_at, ended_at, status
+            )
+            VALUES
+                ('active-session', 'WINFUT', '2026-11-14', '09:00', '12:00',
+                 2, 260, 'EXAM', '2026-11-14T09:00:00Z', NULL, 'ACTIVE'),
+                ('ended-session', 'WDOFUT', '2026-11-13', '09:00', '12:00',
+                 2, 260, 'FREE', '2026-11-13T09:00:00Z', '2026-11-13T12:00:00Z', 'ENDED')
+            "#,
+            [],
+        ).unwrap();
+
+        let recovered = recover_abandoned_training_sessions(&mut connection).unwrap();
+        assert_eq!(recovered, 1);
+
+        let (status, ended_at): (String, Option<String>) = connection.query_row(
+            "SELECT status, ended_at FROM training_sessions WHERE id = 'active-session'",
+            [],
+            |row| Ok((row.get(0)?, row.get(1)?)),
+        ).unwrap();
+        assert_eq!(status, "ENDED");
+        assert!(ended_at.is_some());
+
+        let (event_type, reason): (String, Option<String>) = connection.query_row(
+            "SELECT type, reason FROM training_events WHERE session_id = 'active-session'",
+            [],
+            |row| Ok((row.get(0)?, row.get(1)?)),
+        ).unwrap();
+        assert_eq!(event_type, "SESSION_ENDED");
+        assert!(reason.unwrap().contains("automaticamente na inicialização"));
+
+        let ended_session_events: i64 = connection.query_row(
+            "SELECT COUNT(*) FROM training_events WHERE session_id = 'ended-session'",
+            [],
+            |row| row.get(0),
+        ).unwrap();
+        assert_eq!(ended_session_events, 0);
+
+        // Uma segunda inicialização não deve duplicar eventos nem reprocessar sessões.
+        assert_eq!(recover_abandoned_training_sessions(&mut connection).unwrap(), 0);
+        let recovery_events: i64 = connection.query_row(
+            "SELECT COUNT(*) FROM training_events WHERE session_id = 'active-session' AND type = 'SESSION_ENDED'",
+            [],
+            |row| row.get(0),
+        ).unwrap();
+        assert_eq!(recovery_events, 1);
+    }
+
+    #[test]
     fn backup_schema_validation_rejects_wrong_format_and_version() {
         let settings = ExecutionSettingsRecord {
                 cost_per_contract_round_trip_brl: 0.0,
@@ -3641,8 +3752,11 @@ pub fn run() {
 
             std::fs::create_dir_all(&data_dir)?;
             let database_path = data_dir.join("simulador-de-trade.sqlite3");
-            let connection = Connection::open(database_path)?;
+            let mut connection = Connection::open(database_path)?;
             initialize_database(&connection)?;
+            // Recupera sessões ACTIVE persistidas por uma execução anterior do app.
+            // A atualização e o evento de encerramento são gravados na mesma transação.
+            recover_abandoned_training_sessions(&mut connection)?;
             app.manage(DbState(Mutex::new(connection)));
             app.manage(ReplayState(Mutex::new(None)));
             app.manage(ReplayAnalysisState(Mutex::new(None)));
