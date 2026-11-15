@@ -1115,7 +1115,7 @@ mod tests {
 
     #[test]
     fn aggregates_warmup_trades_into_m2_candles() {
-        let mut candles = Vec::new();
+        let mut candles = VecDeque::new();
         push_warmup_trade(
             &mut candles,
             parse_replay_timestamp("2026-10-13T09:00:01").unwrap(),
@@ -1147,6 +1147,36 @@ mod tests {
         assert_eq!(candles[0].close, 130010.0);
         assert_eq!(candles[0].volume, 5.0);
         assert_eq!(candles[1].open, 130005.0);
+    }
+
+    #[test]
+    fn warmup_keeps_only_the_most_recent_m2_bars_with_reindexed_results() {
+        use std::io::Write;
+        use std::time::{SystemTime, UNIX_EPOCH};
+
+        let unique = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos();
+        let path = std::env::temp_dir().join(format!("simulador-trade-warmup-window-{unique}.csv"));
+        {
+            let mut file = File::create(&path).unwrap();
+            writeln!(file, "symbol,timestamp,source_row,open,high,low,close,volume").unwrap();
+            writeln!(file, "WINV26,2026-10-07T09:00:00,1,130000,130010,129990,130005,100").unwrap();
+            writeln!(file, "WINV26,2026-10-07T09:02:00,2,130005,130015,130000,130010,200").unwrap();
+            writeln!(file, "WINV26,2026-10-07T09:04:00,3,130010,130020,130005,130015,300").unwrap();
+        }
+
+        let candles = process_warmup_candles(
+            vec![path.to_string_lossy().to_string()],
+            2,
+            2,
+        ).unwrap();
+
+        assert_eq!(candles.len(), 2);
+        assert_eq!(candles[0].timestamp, "2026-10-07T09:02:00");
+        assert_eq!(candles[1].timestamp, "2026-10-07T09:04:00");
+        assert_eq!(candles[0].index, 0);
+        assert_eq!(candles[1].index, 1);
+
+        let _ = std::fs::remove_file(path);
     }
 
     #[test]
