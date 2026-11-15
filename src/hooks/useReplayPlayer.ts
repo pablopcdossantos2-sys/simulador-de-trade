@@ -104,6 +104,10 @@ export function useReplayPlayer(
     queueLoadRef.current = null;
     setBusy(true);
     setPlaying(false);
+    setSession(null);
+    setProcessed(0);
+    setCurrentTimestamp(null);
+    setFinished(false);
     setError(null);
 
     try {

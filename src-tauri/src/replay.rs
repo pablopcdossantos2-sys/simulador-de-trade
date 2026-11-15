@@ -478,6 +478,10 @@ pub fn open_replay_file(
     expected_end: Option<String>,
 ) -> Result<ReplaySessionInfo, String> {
     let path = PathBuf::from(source_path.trim().trim_matches('"'));
+    // Um carregamento novo invalida a sessão anterior mesmo se o arquivo
+    // selecionado falhar na abertura ou na validação do plano.
+    let mut guard = state.0.lock().map_err(|error| error.to_string())?;
+    *guard = None;
     let (session, info) = open_session(&path)?;
 
     if let (Some(expected_start), Some(expected_end)) = (expected_start, expected_end) {
@@ -506,7 +510,6 @@ pub fn open_replay_file(
         }
     }
 
-    let mut guard = state.0.lock().map_err(|error| error.to_string())?;
     *guard = Some(session);
     Ok(info)
 }
@@ -705,8 +708,9 @@ pub fn open_replay_analysis_file(
     source_path: String,
 ) -> Result<ReplaySessionInfo, String> {
     let path = PathBuf::from(source_path.trim().trim_matches('"'));
-    let (session, info) = open_session(&path)?;
     let mut guard = state.0.lock().map_err(|error| error.to_string())?;
+    *guard = None;
+    let (session, info) = open_session(&path)?;
     *guard = Some(session);
     Ok(info)
 }
