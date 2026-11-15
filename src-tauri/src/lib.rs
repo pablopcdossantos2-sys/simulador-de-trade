@@ -56,6 +56,8 @@ struct TradeRecord {
     #[serde(rename = "netResultBRL")]
     net_result_brl: f64,
     post_trade_note: String,
+    #[serde(default)]
+    review: Option<Value>,
     entry_context: Option<Value>,
     #[serde(default = "default_intrabar_policy")]
     intrabar_policy: String,
@@ -498,14 +500,55 @@ fn column_exists(
     Ok(false)
 }
 
+const LEGACY_REVIEW_MARKER: &str = "simulador-de-trade:trade-review:v1:";
+
+fn split_legacy_trade_review(note: &str, review: Option<&Value>) -> (String, Option<String>) {
+    if let Some(review) = review {
+        return (note.to_string(), serde_json::to_string(review).ok());
+    }
+    let Some(payload) = note.strip_prefix(LEGACY_REVIEW_MARKER) else {
+        return (note.to_string(), None);
+    };
+    let Ok(value) = serde_json::from_str::<Value>(payload) else {
+        return (note.to_string(), None);
+    };
+    let Some(review) = value.get("review") else {
+        return (note.to_string(), None);
+    };
+    if review.get("tradeId").and_then(Value::as_str).is_none() {
+        return (note.to_string(), None);
+    }
+    let clean_note = value.get("note").and_then(Value::as_str).unwrap_or_default().to_string();
+    (clean_note, serde_json::to_string(review).ok())
+}
+
+fn migrate_legacy_trade_reviews(connection: &Connection) -> rusqlite::Result<()> {
+    let mut statement = connection.prepare(
+        "SELECT id, post_trade_note FROM trades WHERE post_trade_note LIKE 'simulador-de-trade:trade-review:v1:%' AND review_json IS NULL"
+    )?;
+    let rows = statement.query_map([], |row| Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?)))?;
+    let legacy = rows.collect::<rusqlite::Result<Vec<_>>>()?;
+    drop(statement);
+    for (id, note) in legacy {
+        let (clean_note, review_json) = split_legacy_trade_review(&note, None);
+        if let Some(review_json) = review_json {
+            connection.execute(
+                "UPDATE trades SET post_trade_note = ?1, review_json = ?2 WHERE id = ?3",
+                rusqlite::params![clean_note, review_json, id],
+            )?;
+        }
+    }
+    Ok(())
+}
+
 fn initialize_database(connection: &Connection) -> rusqlite::Result<()> {
     let current_schema_version: i64 =
         connection.query_row("PRAGMA user_version", [], |row| row.get(0))?;
-    if current_schema_version > 10 {
+    if current_schema_version > 11 {
         return Err(rusqlite::Error::SqliteFailure(
             rusqlite::ffi::Error::new(rusqlite::ffi::SQLITE_SCHEMA),
             Some(format!(
-                "O banco está na versão {current_schema_version}, mais nova que esta versão do aplicativo (10). Atualize o Simulador de Trade."
+                "O banco está na versão {current_schema_version}, mais nova que esta versão do aplicativo (11). Atualize o Simulador de Trade."
             )),
         ));
     }
@@ -539,6 +582,7 @@ fn initialize_database(connection: &Connection) -> rusqlite::Result<()> {
                 operational_costs_brl REAL NOT NULL DEFAULT 0,
                 net_result_brl REAL NOT NULL DEFAULT 0,
                 post_trade_note TEXT NOT NULL DEFAULT '',
+                review_json TEXT,
                 entry_context_json TEXT,
                 intrabar_policy TEXT NOT NULL DEFAULT 'STOP_FIRST'
             );
@@ -686,6 +730,10 @@ fn initialize_database(connection: &Connection) -> rusqlite::Result<()> {
         )?;
     }
 
+    if !column_exists(connection, "trades", "review_json")? {
+        connection.execute("ALTER TABLE trades ADD COLUMN review_json TEXT", [])?;
+    }
+
     if !column_exists(connection, "trades", "entry_context_json")? {
         connection.execute(
             "ALTER TABLE trades ADD COLUMN entry_context_json TEXT",
@@ -759,8 +807,9 @@ fn initialize_database(connection: &Connection) -> rusqlite::Result<()> {
         connection.execute("ALTER TABLE trades ADD COLUMN session_id TEXT", [])?;
     }
 
+    migrate_legacy_trade_reviews(connection)?;
     connection.execute_batch(
-        "CREATE INDEX IF NOT EXISTS idx_trades_session ON trades(session_id, closed_at ASC); PRAGMA user_version = 10;",
+        "CREATE INDEX IF NOT EXISTS idx_trades_session ON trades(session_id, closed_at ASC); PRAGMA user_version = 11;",
     )?;
     Ok(())
 }
@@ -768,6 +817,7 @@ fn initialize_database(connection: &Connection) -> rusqlite::Result<()> {
 fn persist_trade_record(connection: &Connection, trade: &TradeRecord) -> Result<(), String> {
     let entry_context_json = trade.entry_context.as_ref()
         .map(serde_json::to_string).transpose().map_err(|error| error.to_string())?;
+    let (post_trade_note, review_json) = split_legacy_trade_review(&trade.post_trade_note, trade.review.as_ref());
     connection.execute(
         r#"
         INSERT INTO trades (
@@ -775,9 +825,9 @@ fn persist_trade_record(connection: &Connection, trade: &TradeRecord) -> Result<
             contracts, slippage_ticks_per_side, cost_per_contract_round_trip_brl,
             opened_at, status, exit_price, exit_reason, closed_at, result_points,
             gross_result_brl, operational_costs_brl, net_result_brl,
-            post_trade_note, entry_context_json, intrabar_policy, initial_stop_loss, session_id
+            post_trade_note, review_json, entry_context_json, intrabar_policy, initial_stop_loss, session_id
         )
-        VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23, ?24, ?25)
+        VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23, ?24, ?25, ?26)
         ON CONFLICT(id) DO UPDATE SET
             asset = excluded.asset, side = excluded.side, signal_id = excluded.signal_id,
             requested_entry = excluded.requested_entry, entry = excluded.entry,
@@ -790,7 +840,7 @@ fn persist_trade_record(connection: &Connection, trade: &TradeRecord) -> Result<
             gross_result_brl = excluded.gross_result_brl,
             operational_costs_brl = excluded.operational_costs_brl,
             net_result_brl = excluded.net_result_brl, post_trade_note = excluded.post_trade_note,
-            entry_context_json = excluded.entry_context_json,
+            review_json = excluded.review_json, entry_context_json = excluded.entry_context_json,
             intrabar_policy = excluded.intrabar_policy,
             initial_stop_loss = excluded.initial_stop_loss,
             session_id = COALESCE(excluded.session_id, trades.session_id)
@@ -801,8 +851,8 @@ fn persist_trade_record(connection: &Connection, trade: &TradeRecord) -> Result<
             trade.slippage_ticks_per_side, trade.cost_per_contract_round_trip_brl,
             trade.opened_at, trade.status, trade.exit_price, trade.exit_reason,
             trade.closed_at, trade.result_points, trade.gross_result_brl,
-            trade.operational_costs_brl, trade.net_result_brl, trade.post_trade_note,
-            entry_context_json, trade.intrabar_policy,
+            trade.operational_costs_brl, trade.net_result_brl, post_trade_note,
+            review_json, entry_context_json, trade.intrabar_policy,
             if trade.initial_stop_loss > 0.0 { trade.initial_stop_loss } else { trade.stop_loss },
             trade.session_id,
         ],
@@ -1170,7 +1220,7 @@ fn list_session_trades(
                 t.cost_per_contract_round_trip_brl, t.opened_at, t.status,
                 t.exit_price, t.exit_reason, t.closed_at, t.result_points,
                 t.gross_result_brl, t.operational_costs_brl, t.net_result_brl,
-                t.post_trade_note, t.entry_context_json, t.intrabar_policy,
+                t.post_trade_note, t.review_json, t.entry_context_json, t.intrabar_policy,
                 t.initial_stop_loss, t.session_id
             FROM trades t
             WHERE t.session_id = ?1
@@ -1207,12 +1257,13 @@ fn list_session_trades(
                 operational_costs_brl: row.get(18)?,
                 net_result_brl: row.get(19)?,
                 post_trade_note: row.get(20)?,
+                review: row.get::<_, Option<String>>(21)?.and_then(|value| serde_json::from_str(&value).ok()),
                 entry_context: row
-                    .get::<_, Option<String>>(21)?
+                    .get::<_, Option<String>>(22)?
                     .and_then(|value| serde_json::from_str(&value).ok()),
-                intrabar_policy: row.get(22)?,
-                initial_stop_loss: row.get(23)?,
-                session_id: row.get(24)?,
+                intrabar_policy: row.get(23)?,
+                initial_stop_loss: row.get(24)?,
+                session_id: row.get(25)?,
             })
         })
         .map_err(|error| error.to_string())?;
@@ -1364,7 +1415,7 @@ fn list_trades(state: tauri::State<'_, DbState>) -> Result<Vec<TradeRecord>, Str
                 cost_per_contract_round_trip_brl, opened_at, status, exit_price,
                 exit_reason, closed_at, result_points, gross_result_brl,
                 operational_costs_brl, net_result_brl, post_trade_note,
-                entry_context_json, intrabar_policy, initial_stop_loss, session_id
+                review_json, entry_context_json, intrabar_policy, initial_stop_loss, session_id
             FROM trades
             ORDER BY closed_at DESC, id ASC
             LIMIT 500
@@ -1396,12 +1447,13 @@ fn list_trades(state: tauri::State<'_, DbState>) -> Result<Vec<TradeRecord>, Str
                 operational_costs_brl: row.get(18)?,
                 net_result_brl: row.get(19)?,
                 post_trade_note: row.get(20)?,
+                review: row.get::<_, Option<String>>(21)?.and_then(|value| serde_json::from_str(&value).ok()),
                 entry_context: row
-                    .get::<_, Option<String>>(21)?
+                    .get::<_, Option<String>>(22)?
                     .and_then(|value| serde_json::from_str(&value).ok()),
-                intrabar_policy: row.get(22)?,
-                initial_stop_loss: row.get(23)?,
-                session_id: row.get(24)?,
+                intrabar_policy: row.get(23)?,
+                initial_stop_loss: row.get(24)?,
+                session_id: row.get(25)?,
             })
         })
         .map_err(|error| error.to_string())?;
@@ -1424,7 +1476,7 @@ fn list_all_trades(
                 cost_per_contract_round_trip_brl, opened_at, status, exit_price,
                 exit_reason, closed_at, result_points, gross_result_brl,
                 operational_costs_brl, net_result_brl, post_trade_note,
-                entry_context_json, intrabar_policy, initial_stop_loss, session_id
+                review_json, entry_context_json, intrabar_policy, initial_stop_loss, session_id
             FROM trades
             ORDER BY closed_at ASC, id ASC
             "#,
@@ -1455,12 +1507,13 @@ fn list_all_trades(
                 operational_costs_brl: row.get(18)?,
                 net_result_brl: row.get(19)?,
                 post_trade_note: row.get(20)?,
+                review: row.get::<_, Option<String>>(21)?.and_then(|value| serde_json::from_str(&value).ok()),
                 entry_context: row
-                    .get::<_, Option<String>>(21)?
+                    .get::<_, Option<String>>(22)?
                     .and_then(|value| serde_json::from_str(&value).ok()),
-                intrabar_policy: row.get(22)?,
-                initial_stop_loss: row.get(23)?,
-                session_id: row.get(24)?,
+                intrabar_policy: row.get(23)?,
+                initial_stop_loss: row.get(24)?,
+                session_id: row.get(25)?,
             })
         })
         .map_err(|error| error.to_string())?;
@@ -1480,7 +1533,7 @@ fn query_backup_trades(connection: &Connection) -> Result<Vec<TradeRecord>, Stri
                 cost_per_contract_round_trip_brl, opened_at, status, exit_price,
                 exit_reason, closed_at, result_points, gross_result_brl,
                 operational_costs_brl, net_result_brl, post_trade_note,
-                entry_context_json, intrabar_policy, initial_stop_loss, session_id
+                review_json, entry_context_json, intrabar_policy, initial_stop_loss, session_id
             FROM trades
             ORDER BY closed_at ASC, id ASC
             "#,
@@ -1511,12 +1564,13 @@ fn query_backup_trades(connection: &Connection) -> Result<Vec<TradeRecord>, Stri
                 operational_costs_brl: row.get(18)?,
                 net_result_brl: row.get(19)?,
                 post_trade_note: row.get(20)?,
+                review: row.get::<_, Option<String>>(21)?.and_then(|value| serde_json::from_str(&value).ok()),
                 entry_context: row
-                    .get::<_, Option<String>>(21)?
+                    .get::<_, Option<String>>(22)?
                     .and_then(|value| serde_json::from_str(&value).ok()),
-                intrabar_policy: row.get(22)?,
-                initial_stop_loss: row.get(23)?,
-                session_id: row.get(24)?,
+                intrabar_policy: row.get(23)?,
+                initial_stop_loss: row.get(24)?,
+                session_id: row.get(25)?,
             })
         })
         .map_err(|error| error.to_string())?;
@@ -1980,7 +2034,7 @@ fn import_backup(
                     cost_per_contract_round_trip_brl, opened_at, status, exit_price,
                     exit_reason, closed_at, result_points, gross_result_brl,
                     operational_costs_brl, net_result_brl, post_trade_note,
-                    entry_context_json, intrabar_policy, initial_stop_loss, session_id
+                    review_json, entry_context_json, intrabar_policy, initial_stop_loss, session_id
                 )
                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23, ?24, ?25)
                 ON CONFLICT(id) DO NOTHING
@@ -3598,6 +3652,7 @@ mod tests {
             operational_costs_brl: 0.0,
             net_result_brl: 30.0,
             post_trade_note: "Execução disciplinada".to_string(),
+            review: None,
             entry_context: Some(json!({
                 "indicatorVersion": "multi-medias-nuvem-v1.0.0",
                 "zone": "GREEN"
@@ -3872,6 +3927,7 @@ mod tests {
             operational_costs_brl: 0.0,
             net_result_brl: 60.0,
             post_trade_note: "".to_string(),
+            review: None,
             entry_context: Some(json!({
                 "capturedAt": "2026-10-16T18:00:00Z",
                 "marketTimestamp": "2026-10-14T09:00:00-03:00",
@@ -3918,7 +3974,7 @@ mod tests {
             exit_price: 130200.0, exit_reason: "TARGET".to_string(),
             closed_at: "2026-11-14T09:10:00".to_string(), result_points: 200.0,
             gross_result_brl: 40.0, operational_costs_brl: 0.0, net_result_brl: 40.0,
-            post_trade_note: String::new(), entry_context: None,
+            post_trade_note: String::new(), review: None, entry_context: None,
             intrabar_policy: "STOP_FIRST".to_string(),
         }
     }
@@ -4030,7 +4086,7 @@ mod tests {
 
         let (contracts, requested, gross, net, note, context, policy, initial_stop): (i64, f64, f64, f64, String, Option<String>, String, f64) = connection
             .query_row(
-                "SELECT contracts, requested_entry, gross_result_brl, net_result_brl, post_trade_note, entry_context_json, intrabar_policy, initial_stop_loss FROM trades WHERE id = 'legacy-1'",
+                "SELECT contracts, requested_entry, gross_result_brl, net_result_brl, post_trade_note, review_json, entry_context_json, intrabar_policy, initial_stop_loss FROM trades WHERE id = 'legacy-1'",
                 [],
                 |row| Ok((
                     row.get(0)?,
