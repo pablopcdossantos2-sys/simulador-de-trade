@@ -217,32 +217,32 @@ export function useReplayPlayer(
     steppingRef.current = true;
     setPlaying(false);
 
+    let consumed = 0;
+    let published = 0;
+    let lastTrade: ReplayTrade | null = null;
+    let targetTimestamp: string | null = null;
+
+    // Um bloco válido pode ter sido consumido antes de o backend reportar
+    // um erro encontrado no bloco seguinte. Publica esse progresso parcial
+    // para manter gráfico, contador e timestamp sincronizados.
+    const publishProgress = () => {
+      if (!lastTrade || generation !== generationRef.current) return;
+      const committedTrade = lastTrade;
+      const committedCount = consumed;
+      lastTrade = null;
+      consumed = 0;
+      published += committedCount;
+      setProcessed((value) => value + committedCount);
+      setCurrentTimestamp(committedTrade.timestamp);
+      clockRef.current = anchorReplayClock(
+        marketTimestampOrdinalMs(committedTrade.timestamp),
+        performance.now(),
+        speedRef.current,
+      );
+      onBatchRef.current?.(committedTrade);
+    };
+
     try {
-      let consumed = 0;
-      let published = 0;
-      let lastTrade: ReplayTrade | null = null;
-      let targetTimestamp: string | null = null;
-
-      // Um bloco válido pode ter sido consumido antes de o backend reportar
-      // um erro encontrado no bloco seguinte. Publica esse progresso parcial
-      // para manter gráfico, contador e timestamp sincronizados.
-      const publishProgress = () => {
-        if (!lastTrade || generation !== generationRef.current) return;
-        const committedTrade = lastTrade;
-        const committedCount = consumed;
-        lastTrade = null;
-        consumed = 0;
-        published += committedCount;
-        setProcessed((value) => value + committedCount);
-        setCurrentTimestamp(committedTrade.timestamp);
-        clockRef.current = anchorReplayClock(
-          marketTimestampOrdinalMs(committedTrade.timestamp),
-          performance.now(),
-          speedRef.current,
-        );
-        onBatchRef.current?.(committedTrade);
-      };
-
       while (generation === generationRef.current) {
         const available = await ensureQueue(generation);
         if (!available || generation !== generationRef.current) break;
