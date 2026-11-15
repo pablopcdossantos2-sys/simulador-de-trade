@@ -95,6 +95,18 @@ export function subscribeUsageSessions(listener: () => void): () => void {
   return () => { listeners.delete(listener); };
 }
 
+export async function refreshUsageSessions(): Promise<void> {
+  if (isDesktop()) {
+    try {
+      replaceCache(await invoke<UsageSessionRecord[]>("list_usage_sessions"));
+      return;
+    } catch {
+      // Mantém o último cache disponível em caso de falha temporária do banco.
+    }
+  }
+  replaceCache(readLegacySessions());
+}
+
 export function startUsageTracking(): void {
   if (typeof window === "undefined" || heartbeat !== null) return;
 
@@ -106,17 +118,19 @@ export function startUsageTracking(): void {
     if (isDesktop()) {
       try {
         sessions = await invoke<UsageSessionRecord[]>("list_usage_sessions");
-        if (sessions.length === 0) {
-          const legacy = readLegacySessions();
-          if (legacy.length > 0) {
-            // Migração única do histórico legado do WebView para o SQLite.
-            for (const session of legacy) {
+        const legacy = readLegacySessions();
+        if (legacy.length > 0) {
+          // Mescla o legado mesmo se uma migração anterior tiver sido interrompida.
+          // Só grava sobre um registro existente quando o legado for mais recente.
+          for (const session of legacy) {
+            const existing = sessions.find((item) => item.id === session.id);
+            if (!existing || session.lastActiveAt > existing.lastActiveAt) {
               await invoke("save_usage_session", { session });
             }
-            sessions = legacy;
           }
+          sessions = await invoke<UsageSessionRecord[]>("list_usage_sessions");
+          try { localStorage.removeItem(STORAGE_KEY); } catch { /* Migração concluída no SQLite. */ }
         }
-        try { localStorage.removeItem(STORAGE_KEY); } catch { /* Migração concluída no SQLite. */ }
       } catch {
         sessions = readLegacySessions();
       }

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { readErrorMessage } from "../services/readErrorMessage";
+import { refreshUsageSessions } from "../services/usageTracking";
 import {
   backupAvailable,
   exportBackup,
@@ -53,6 +54,7 @@ export function BackupPanel({ disabled, onImported }: Props) {
       const result = await importBackup(importMode);
       if (result) {
         await onImported();
+        await refreshUsageSessions();
         setFeedback(summaryText(
           importMode === "merge"
             ? "Backup mesclado; registros locais e configurações preservados"

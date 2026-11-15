@@ -1769,6 +1769,10 @@ fn validate_backup_bundle(bundle: &BackupBundle) -> Result<(), String> {
             params![usage.id, usage.started_at, usage.ended_at, usage.last_active_at, usage.active_seconds],
         ).map_err(|error| error.to_string())?;
     }
+    transaction.execute(
+        "DELETE FROM usage_sessions WHERE datetime(COALESCE(ended_at, last_active_at, started_at)) < datetime('now', '-365 days')",
+        [],
+    ).map_err(|error| error.to_string())?;
 
     for event in &bundle.training_events {
         if !matches!(
