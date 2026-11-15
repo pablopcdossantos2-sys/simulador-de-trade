@@ -32,6 +32,7 @@ function bucketKey(
 export function useReplayPlayer(
   onTrade: (trade: ReplayTrade) => void,
   timeframeMinutes = 2,
+  onBatch?: (lastTrade: ReplayTrade) => void,
 ) {
   const [path, setPath] = useState("");
   const [session, setSession] = useState<ReplaySessionInfo | null>(null);
@@ -47,6 +48,7 @@ export function useReplayPlayer(
   const queueLoadRef = useRef<{ generation: number; promise: Promise<boolean> } | null>(null);
   const steppingRef = useRef(false);
   const onTradeRef = useRef(onTrade);
+  const onBatchRef = useRef(onBatch);
   const generationRef = useRef(0);
   const playingRef = useRef(false);
   const speedRef = useRef(1);
@@ -55,6 +57,10 @@ export function useReplayPlayer(
   useEffect(() => {
     onTradeRef.current = onTrade;
   }, [onTrade]);
+
+  useEffect(() => {
+    onBatchRef.current = onBatch;
+  }, [onBatch]);
 
   function setPlaying(next: boolean) {
     if (next && !playingRef.current && clockRef.current) {
@@ -197,6 +203,7 @@ export function useReplayPlayer(
       if (!trade) return null;
 
       applyTrade(trade);
+      onBatchRef.current?.(trade);
       return trade;
     } catch (reason) {
       if (generation === generationRef.current) {
@@ -221,6 +228,7 @@ export function useReplayPlayer(
           ? null
           : bucketKey(currentTimestamp, timeframeMinutes);
       let consumed = 0;
+      let lastTrade: ReplayTrade | null = null;
 
       while (generation === generationRef.current) {
         const available = await ensureQueue(generation);
@@ -245,8 +253,20 @@ export function useReplayPlayer(
         const trade = queueRef.current.shift();
         if (!trade) break;
 
-        applyTrade(trade);
+        onTradeRef.current(trade);
         consumed += 1;
+        lastTrade = trade;
+      }
+
+      if (lastTrade) {
+        setProcessed((value) => value + consumed);
+        setCurrentTimestamp(lastTrade.timestamp);
+        clockRef.current = {
+          marketTimeMs: marketTimestampOrdinalMs(lastTrade.timestamp),
+          wallTimeMs: performance.now(),
+          speed: speedRef.current,
+        };
+        onBatchRef.current?.(lastTrade);
       }
 
       return consumed;
@@ -395,6 +415,7 @@ export function useReplayPlayer(
         if (generation === generationRef.current && processedThisFrame > 0 && lastProcessed) {
           setProcessed((value) => value + processedThisFrame);
           setCurrentTimestamp(lastProcessed.timestamp);
+          onBatchRef.current?.(lastProcessed);
         }
 
         if (
