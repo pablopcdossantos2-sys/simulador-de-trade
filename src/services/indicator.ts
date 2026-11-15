@@ -25,8 +25,8 @@ export interface IndicatorAdapter {
   readonly name: string;
   readonly version: string;
   readonly config: MultiMediasConfig;
-  calculate(asset: Asset, candles: Candle[]): IndicatorEvaluation;
-  evaluate(asset: Asset, candles: Candle[]): IndicatorSignal | null;
+  calculate(asset: Asset, candles: Candle[], signalScope?: string): IndicatorEvaluation;
+  evaluate(asset: Asset, candles: Candle[], signalScope?: string): IndicatorSignal | null;
 }
 
 export const DEFAULT_MULTI_MEDIAS_CONFIG: MultiMediasConfig = {
@@ -105,7 +105,7 @@ export class MultiMediasNuvemAdapter implements IndicatorAdapter {
     this.config = config;
   }
 
-  calculate(asset: Asset, candles: Candle[]): IndicatorEvaluation {
+  calculate(asset: Asset, candles: Candle[], signalScope = "market"): IndicatorEvaluation {
     const series: IndicatorPoint[] = [];
     const signals: IndicatorSignal[] = [];
 
@@ -148,7 +148,7 @@ export class MultiMediasNuvemAdapter implements IndicatorAdapter {
           inGreenZone = true;
           inRedZone = false;
           const signal: IndicatorSignal = {
-            id: `${asset}-BUY-${candle.index}`,
+            id: `${signalScope}:${asset}:BUY:${candle.timestamp}:${candle.index}`,
             asset,
             side: "BUY",
             candleIndex: candle.index,
@@ -168,7 +168,7 @@ export class MultiMediasNuvemAdapter implements IndicatorAdapter {
           inRedZone = true;
           inGreenZone = false;
           const signal: IndicatorSignal = {
-            id: `${asset}-SELL-${candle.index}`,
+            id: `${signalScope}:${asset}:SELL:${candle.timestamp}:${candle.index}`,
             asset,
             side: "SELL",
             candleIndex: candle.index,
@@ -209,8 +209,8 @@ export class MultiMediasNuvemAdapter implements IndicatorAdapter {
     };
   }
 
-  evaluate(asset: Asset, candles: Candle[]): IndicatorSignal | null {
-    return this.calculate(asset, candles).authorization;
+  evaluate(asset: Asset, candles: Candle[], signalScope = "market"): IndicatorSignal | null {
+    return this.calculate(asset, candles, signalScope).authorization;
   }
 }
 
