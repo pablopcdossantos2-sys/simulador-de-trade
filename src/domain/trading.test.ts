@@ -8,6 +8,7 @@ import {
   resolveOco,
   resolveOcoTrade,
   validateTradeIntent,
+  validatePositionOco,
 } from "./trading";
 
 const buySignal: IndicatorSignal = {
@@ -201,6 +202,31 @@ describe("regras de entrada", () => {
     expect(closed?.operationalCostsBRL).toBe(1);
     expect(closed?.netResultBRL).toBe(48);
     expect(closed?.entryContext).toBeNull();
+  });
+});
+
+describe("ajustes OCO durante posição aberta", () => {
+  const openBuy = openPosition({
+    ...baseIntent,
+    contracts: 1,
+    execution: { ...baseIntent.execution, costPerContractRoundTripBRL: 1 },
+  });
+
+  it("bloqueia reduzir o alvo quando o risco ativo ainda exige retorno mínimo 1:2", () => {
+    expect(() => validatePositionOco(openBuy, openBuy.stopLoss, 130150))
+      .toThrow(/manter pelo menos 1:2/i);
+  });
+
+  it("permite reduzir o alvo depois de aproximar o stop, desde que a razão efetiva continue 1:2", () => {
+    expect(() => validatePositionOco(openBuy, 129950, 130150)).not.toThrow();
+  });
+
+  it("permite alvo com stop no breakeven, desde que cubra os custos", () => {
+    expect(() => validatePositionOco(openBuy, 130000, 130025)).not.toThrow();
+  });
+
+  it("bloqueia alvo que não cobre os custos mesmo com stop no breakeven", () => {
+    expect(() => validatePositionOco(openBuy, 130000, 130000)).toThrow(/além da entrada e cobrir os custos/i);
   });
 });
 
