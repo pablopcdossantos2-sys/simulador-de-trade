@@ -3174,7 +3174,11 @@ fn process_profit_m2_candle_file(
     session_end: &str,
     expected_asset: Option<&str>,
     target_date: Option<&str>,
+    source_timeframe_minutes: u32,
 ) -> Result<ProfitPreparationResult, String> {
+    if !matches!(source_timeframe_minutes, 1 | 2) {
+        return Err("Selecione explicitamente a origem dos candles: M1 ou M2.".to_string());
+    }
     let source = PathBuf::from(source_path.trim().trim_matches('"'));
     if !source.exists() || !source.is_file() {
         return Err("Arquivo de candles do Profit não encontrado.".to_string());
@@ -3294,11 +3298,8 @@ fn process_profit_m2_candle_file(
         }
     }
 
-    let source_is_m1 = rows.iter().any(|row| row.timestamp.minute() % 2 != 0)
-        || rows.windows(2).any(|pair| {
-        pair[0].timestamp.date() == pair[1].timestamp.date()
-            && (pair[1].timestamp - pair[0].timestamp).num_seconds() == 60
-    });
+    // O timeframe é informado pelo usuário: lacunas no pregão tornam a inferência por timestamp ambígua.
+    let source_is_m1 = source_timeframe_minutes == 1;
 
     let selected_date = requested_date.or_else(|| rows.last().map(|row| row.timestamp.date()))
         .ok_or_else(|| "Não foi possível identificar a data dos candles.".to_string())?;
@@ -3443,6 +3444,7 @@ async fn prepare_profit_replay_file(
     session_end: String,
     expected_asset: Option<String>,
     target_date: Option<String>,
+    source_timeframe_minutes: u32,
 ) -> Result<ProfitPreparationResult, String> {
     tauri::async_runtime::spawn_blocking(move || {
         let source = PathBuf::from(source_path.trim().trim_matches('"'));
@@ -3456,6 +3458,7 @@ async fn prepare_profit_replay_file(
                 &session_end,
                 expected_asset.as_deref(),
                 target_date.as_deref(),
+                source_timeframe_minutes,
             );
         }
 

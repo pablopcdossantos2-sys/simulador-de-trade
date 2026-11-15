@@ -33,6 +33,7 @@ function readableError(error: unknown, fallback: string): string {
 
 interface RowState {
   sourcePath: string;
+  sourceTimeframeMinutes: 1 | 2;
   status: "idle" | "working" | "done" | "error";
   message: string;
   progress: number;
@@ -60,7 +61,7 @@ export function PlanDataPreparationPanel({ plan, matches, onCatalogUpdated }: Pr
       const next = { ...current };
       for (const requirement of plan.dataRequirements) {
         const key = keyFor(requirement.role, requirement.date);
-        next[key] ??= { sourcePath: "", status: "idle", message: "", progress: 0 };
+        next[key] ??= { sourcePath: "", sourceTimeframeMinutes: 2, status: "idle", message: "", progress: 0 };
       }
       return next;
     });
@@ -75,7 +76,7 @@ export function PlanDataPreparationPanel({ plan, matches, onCatalogUpdated }: Pr
     setRows((current) => ({
       ...current,
       [key]: {
-        ...(current[key] ?? { sourcePath: "", status: "idle", message: "", progress: 0 }),
+        ...(current[key] ?? { sourcePath: "", sourceTimeframeMinutes: 2, status: "idle", message: "", progress: 0 }),
         ...patch,
       },
     }));
@@ -94,7 +95,7 @@ export function PlanDataPreparationPanel({ plan, matches, onCatalogUpdated }: Pr
         filters: [{ name: "Arquivo CSV", extensions: ["csv"] }],
       });
       if (!selected || Array.isArray(selected)) return;
-      setRows((current) => ({ ...current, [key]: { ...(current[key] ?? { sourcePath: "", status: "idle", message: "", progress: 0 }), sourcePath: selected, status: "idle", message: "", progress: 0 } }));
+      setRows((current) => ({ ...current, [key]: { ...(current[key] ?? { sourcePath: "", sourceTimeframeMinutes: 2, status: "idle", message: "", progress: 0 }), sourcePath: selected, status: "idle", message: "", progress: 0 } }));
     } catch (error) {
       updateRow(key, {
         status: "error",
@@ -121,6 +122,7 @@ export function PlanDataPreparationPanel({ plan, matches, onCatalogUpdated }: Pr
         (progress: ProfitPreparationProgress) => updateRow(key, { progress: progress.percent }),
         plan.asset,
         match.requirement.date,
+        rows[key]?.sourceTimeframeMinutes ?? 2,
       );
       const entry = await registerReplayFile(result.outputPath);
       if (entry.tradeDate !== match.requirement.date) {
@@ -173,7 +175,7 @@ export function PlanDataPreparationPanel({ plan, matches, onCatalogUpdated }: Pr
 
       <div className="plan-data-help">
         <InfoTip label="Sobre os arquivos do Profit">
-          Selecione um CSV M1 ou M2. Um único arquivo histórico pode conter várias datas; o sistema separa o pregão solicitado, ordena os registros e converte M1 em M2 automaticamente.
+          Selecione o timeframe real do CSV antes de preparar. Um único arquivo histórico pode conter várias datas; o sistema separa o pregão solicitado e converte M1 em M2 quando necessário. Não inferimos o timeframe pelos timestamps, pois lacunas podem tornar essa inferência ambígua.
         </InfoTip>
       </div>
 
@@ -197,6 +199,13 @@ export function PlanDataPreparationPanel({ plan, matches, onCatalogUpdated }: Pr
                 </div>
               ) : (
                 <div className="plan-data-input">
+                  <label>
+                    Timeframe do CSV
+                    <select value={row?.sourceTimeframeMinutes ?? 2} onChange={(event) => updateRow(key, { sourceTimeframeMinutes: Number(event.target.value) as 1 | 2 })} disabled={processing || row?.status === "working"}>
+                      <option value={1}>M1</option>
+                      <option value={2}>M2</option>
+                    </select>
+                  </label>
                   <input
                     value={row?.sourcePath ?? ""}
                     onChange={(event) => updateRow(key, { sourcePath: event.target.value })}

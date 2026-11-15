@@ -36,9 +36,10 @@ export function DataPreparationPanel({
   const [sourcePath, setSourcePath] = useState("");
   const [sessionStart, setSessionStart] = useState("09:00");
   const [sessionEnd, setSessionEnd] = useState("12:00");
+  const [sourceTimeframeMinutes, setSourceTimeframeMinutes] = useState<1 | 2>(2);
   const [status, setStatus] = useState("idle");
   const [message, setMessage] = useState(
-    "O arquivo bruto permanece intacto. O sistema gera uma cópia reduzida para replay.",
+    "O arquivo bruto permanece intacto. Informe o timeframe real do CSV para evitar inferências incorretas.",
   );
   const [progress, setProgress] = useState<ProfitPreparationProgress | null>(null);
   const [result, setResult] = useState<ProfitPreparationResult | null>(null);
@@ -76,6 +77,9 @@ export function DataPreparationPanel({
         sessionStart,
         sessionEnd,
         setProgress,
+        undefined,
+        undefined,
+        sourceTimeframeMinutes,
       );
       setResult(next);
       onPrepared?.(next);
@@ -108,6 +112,13 @@ export function DataPreparationPanel({
       </div>
 
       <div className="data-window-grid">
+        <label>
+          Timeframe do CSV de origem
+          <select value={sourceTimeframeMinutes} onChange={(event) => setSourceTimeframeMinutes(Number(event.target.value) as 1 | 2)} disabled={status === "working"}>
+            <option value={1}>M1 — candles de 1 minuto</option>
+            <option value={2}>M2 — candles de 2 minutos</option>
+          </select>
+        </label>
         <label>
           Início do período a tratar
           <input
