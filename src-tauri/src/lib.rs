@@ -35,6 +35,8 @@ struct TradeRecord {
     stop_loss: f64,
     #[serde(default)]
     initial_stop_loss: f64,
+    #[serde(default)]
+    session_id: Option<String>,
     target: f64,
     contracts: i64,
     slippage_ticks_per_side: i64,
@@ -330,11 +332,11 @@ fn column_exists(
 fn initialize_database(connection: &Connection) -> rusqlite::Result<()> {
     let current_schema_version: i64 =
         connection.query_row("PRAGMA user_version", [], |row| row.get(0))?;
-    if current_schema_version > 8 {
+    if current_schema_version > 9 {
         return Err(rusqlite::Error::SqliteFailure(
             rusqlite::ffi::Error::new(rusqlite::ffi::SQLITE_SCHEMA),
             Some(format!(
-                "O banco está na versão {current_schema_version}, mais nova que esta versão do aplicativo (8). Atualize o Simulador de Trade."
+                "O banco está na versão {current_schema_version}, mais nova que esta versão do aplicativo (9). Atualize o Simulador de Trade."
             )),
         ));
     }
@@ -353,6 +355,7 @@ fn initialize_database(connection: &Connection) -> rusqlite::Result<()> {
                 entry REAL NOT NULL,
                 stop_loss REAL NOT NULL,
                 initial_stop_loss REAL NOT NULL DEFAULT 0,
+                session_id TEXT,
                 target REAL NOT NULL,
                 contracts INTEGER NOT NULL DEFAULT 1,
                 slippage_ticks_per_side INTEGER NOT NULL DEFAULT 0,
@@ -572,86 +575,122 @@ fn initialize_database(connection: &Connection) -> rusqlite::Result<()> {
         )?;
     }
 
-    connection.execute_batch("PRAGMA user_version = 8;")?;
+    if !column_exists(connection, "trades", "session_id")? {
+        connection.execute("ALTER TABLE trades ADD COLUMN session_id TEXT", [])?;
+    }
+
+    connection.execute_batch(
+        "CREATE INDEX IF NOT EXISTS idx_trades_session ON trades(session_id, closed_at ASC); PRAGMA user_version = 9;",
+    )?;
+    Ok(())
+}
+
+fn persist_trade_record(connection: &Connection, trade: &TradeRecord) -> Result<(), String> {
+    let entry_context_json = trade.entry_context.as_ref()
+        .map(serde_json::to_string).transpose().map_err(|error| error.to_string())?;
+    connection.execute(
+        r#"
+        INSERT INTO trades (
+            id, asset, side, signal_id, requested_entry, entry, stop_loss, target,
+            contracts, slippage_ticks_per_side, cost_per_contract_round_trip_brl,
+            opened_at, status, exit_price, exit_reason, closed_at, result_points,
+            gross_result_brl, operational_costs_brl, net_result_brl,
+            post_trade_note, entry_context_json, intrabar_policy, initial_stop_loss, session_id
+        )
+        VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23, ?24, ?25)
+        ON CONFLICT(id) DO UPDATE SET
+            asset = excluded.asset, side = excluded.side, signal_id = excluded.signal_id,
+            requested_entry = excluded.requested_entry, entry = excluded.entry,
+            stop_loss = excluded.stop_loss, target = excluded.target,
+            contracts = excluded.contracts, slippage_ticks_per_side = excluded.slippage_ticks_per_side,
+            cost_per_contract_round_trip_brl = excluded.cost_per_contract_round_trip_brl,
+            opened_at = excluded.opened_at, status = excluded.status,
+            exit_price = excluded.exit_price, exit_reason = excluded.exit_reason,
+            closed_at = excluded.closed_at, result_points = excluded.result_points,
+            gross_result_brl = excluded.gross_result_brl,
+            operational_costs_brl = excluded.operational_costs_brl,
+            net_result_brl = excluded.net_result_brl, post_trade_note = excluded.post_trade_note,
+            entry_context_json = excluded.entry_context_json,
+            intrabar_policy = excluded.intrabar_policy,
+            initial_stop_loss = excluded.initial_stop_loss,
+            session_id = COALESCE(excluded.session_id, trades.session_id)
+        "#,
+        params![
+            trade.id, trade.asset, trade.side, trade.signal_id, trade.requested_entry,
+            trade.entry, trade.stop_loss, trade.target, trade.contracts,
+            trade.slippage_ticks_per_side, trade.cost_per_contract_round_trip_brl,
+            trade.opened_at, trade.status, trade.exit_price, trade.exit_reason,
+            trade.closed_at, trade.result_points, trade.gross_result_brl,
+            trade.operational_costs_brl, trade.net_result_brl, trade.post_trade_note,
+            entry_context_json, trade.intrabar_policy,
+            if trade.initial_stop_loss > 0.0 { trade.initial_stop_loss } else { trade.stop_loss },
+            trade.session_id,
+        ],
+    ).map_err(|error| error.to_string())?;
+    Ok(())
+}
+
+fn persist_training_event_record(connection: &Connection, event: &TrainingEventRecord) -> Result<(), String> {
+    connection.execute(
+        r#"
+        INSERT INTO training_events (
+            id, session_id, type, timestamp, market_timestamp, signal_id, side, reason, trade_id
+        ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)
+        ON CONFLICT(id) DO UPDATE SET
+            session_id = excluded.session_id, type = excluded.type, timestamp = excluded.timestamp,
+            market_timestamp = excluded.market_timestamp, signal_id = excluded.signal_id,
+            side = excluded.side, reason = excluded.reason, trade_id = excluded.trade_id
+        "#,
+        params![
+            event.id, event.session_id, event.r#type, event.timestamp, event.market_timestamp,
+            event.signal_id, event.side, event.reason, event.trade_id,
+        ],
+    ).map_err(|error| error.to_string())?;
     Ok(())
 }
 
 #[tauri::command]
 fn save_trade(state: tauri::State<'_, DbState>, trade: TradeRecord) -> Result<(), String> {
-    let entry_context_json = trade
-        .entry_context
-        .as_ref()
-        .map(serde_json::to_string)
-        .transpose()
-        .map_err(|error| error.to_string())?;
     let connection = state.0.lock().map_err(|error| error.to_string())?;
+    persist_trade_record(&connection, &trade)
+}
 
-    connection
-        .execute(
-            r#"
-            INSERT INTO trades (
-                id, asset, side, signal_id, requested_entry, entry, stop_loss, target,
-                contracts, slippage_ticks_per_side, cost_per_contract_round_trip_brl,
-                opened_at, status, exit_price, exit_reason, closed_at, result_points,
-                gross_result_brl, operational_costs_brl, net_result_brl,
-                post_trade_note, entry_context_json, intrabar_policy, initial_stop_loss
-            )
-            VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23, ?24)
-            ON CONFLICT(id) DO UPDATE SET
-                asset = excluded.asset,
-                side = excluded.side,
-                signal_id = excluded.signal_id,
-                requested_entry = excluded.requested_entry,
-                entry = excluded.entry,
-                stop_loss = excluded.stop_loss,
-                target = excluded.target,
-                contracts = excluded.contracts,
-                slippage_ticks_per_side = excluded.slippage_ticks_per_side,
-                cost_per_contract_round_trip_brl = excluded.cost_per_contract_round_trip_brl,
-                opened_at = excluded.opened_at,
-                status = excluded.status,
-                exit_price = excluded.exit_price,
-                exit_reason = excluded.exit_reason,
-                closed_at = excluded.closed_at,
-                result_points = excluded.result_points,
-                gross_result_brl = excluded.gross_result_brl,
-                operational_costs_brl = excluded.operational_costs_brl,
-                net_result_brl = excluded.net_result_brl,
-                post_trade_note = excluded.post_trade_note,
-                entry_context_json = excluded.entry_context_json,
-                intrabar_policy = excluded.intrabar_policy,
-                initial_stop_loss = excluded.initial_stop_loss
-            "#,
-            params![
-                trade.id,
-                trade.asset,
-                trade.side,
-                trade.signal_id,
-                trade.requested_entry,
-                trade.entry,
-                trade.stop_loss,
-                trade.target,
-                trade.contracts,
-                trade.slippage_ticks_per_side,
-                trade.cost_per_contract_round_trip_brl,
-                trade.opened_at,
-                trade.status,
-                trade.exit_price,
-                trade.exit_reason,
-                trade.closed_at,
-                trade.result_points,
-                trade.gross_result_brl,
-                trade.operational_costs_brl,
-                trade.net_result_brl,
-                trade.post_trade_note,
-                entry_context_json,
-                trade.intrabar_policy,
-                if trade.initial_stop_loss > 0.0 { trade.initial_stop_loss } else { trade.stop_loss },
-            ],
-        )
-        .map_err(|error| error.to_string())?;
-
+fn persist_closed_trade_and_event(
+    connection: &mut Connection,
+    trade: &TradeRecord,
+    event: &TrainingEventRecord,
+) -> Result<(), String> {
+    if trade.status != "CLOSED" || event.r#type != "TRADE_CLOSED"
+        || event.trade_id.as_deref() != Some(trade.id.as_str()) {
+        return Err("Operação e evento de fechamento incompatíveis.".to_string());
+    }
+    if trade.session_id.as_deref().is_some_and(|id| id != event.session_id) {
+        return Err("A operação e o evento pertencem a sessões diferentes.".to_string());
+    }
+    let transaction = connection.transaction().map_err(|error| error.to_string())?;
+    let session_exists: bool = transaction.query_row(
+        "SELECT EXISTS(SELECT 1 FROM training_sessions WHERE id = ?1)",
+        [&event.session_id], |row| row.get(0),
+    ).map_err(|error| error.to_string())?;
+    if !session_exists {
+        return Err("A sessão de treinamento não existe; a operação não foi registrada.".to_string());
+    }
+    let mut linked_trade = trade.clone();
+    linked_trade.session_id = Some(event.session_id.clone());
+    persist_trade_record(&transaction, &linked_trade)?;
+    persist_training_event_record(&transaction, event)?;
+    transaction.commit().map_err(|error| error.to_string())?;
     Ok(())
+}
+
+#[tauri::command]
+fn save_closed_trade(
+    state: tauri::State<'_, DbState>,
+    trade: TradeRecord,
+    event: TrainingEventRecord,
+) -> Result<(), String> {
+    let mut connection = state.0.lock().map_err(|error| error.to_string())?;
+    persist_closed_trade_and_event(&mut connection, &trade, &event)
 }
 
 #[tauri::command]
@@ -861,40 +900,7 @@ fn save_training_event(
     event: TrainingEventRecord,
 ) -> Result<(), String> {
     let connection = state.0.lock().map_err(|error| error.to_string())?;
-
-    connection
-        .execute(
-            r#"
-            INSERT INTO training_events (
-                id, session_id, type, timestamp, market_timestamp,
-                signal_id, side, reason, trade_id
-            )
-            VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)
-            ON CONFLICT(id) DO UPDATE SET
-                session_id = excluded.session_id,
-                type = excluded.type,
-                timestamp = excluded.timestamp,
-                market_timestamp = excluded.market_timestamp,
-                signal_id = excluded.signal_id,
-                side = excluded.side,
-                reason = excluded.reason,
-                trade_id = excluded.trade_id
-            "#,
-            params![
-                event.id,
-                event.session_id,
-                event.r#type,
-                event.timestamp,
-                event.market_timestamp,
-                event.signal_id,
-                event.side,
-                event.reason,
-                event.trade_id,
-            ],
-        )
-        .map_err(|error| error.to_string())?;
-
-    Ok(())
+    persist_training_event_record(&connection, &event)
 }
 
 #[tauri::command]
@@ -955,12 +961,13 @@ fn list_session_trades(
                 t.exit_price, t.exit_reason, t.closed_at, t.result_points,
                 t.gross_result_brl, t.operational_costs_brl, t.net_result_brl,
                 t.post_trade_note, t.entry_context_json, t.intrabar_policy,
-                t.initial_stop_loss
+                t.initial_stop_loss, t.session_id
             FROM trades t
-            INNER JOIN training_events e
-                ON e.trade_id = t.id
-            WHERE e.session_id = ?1
-              AND e.type = 'TRADE_CLOSED'
+            WHERE t.session_id = ?1
+               OR EXISTS (
+                    SELECT 1 FROM training_events e
+                    WHERE e.trade_id = t.id AND e.session_id = ?1 AND e.type = 'TRADE_CLOSED'
+               )
             ORDER BY t.closed_at ASC, t.id ASC
             "#,
         )
@@ -995,6 +1002,7 @@ fn list_session_trades(
                     .and_then(|value| serde_json::from_str(&value).ok()),
                 intrabar_policy: row.get(22)?,
                 initial_stop_loss: row.get(23)?,
+                session_id: row.get(24)?,
             })
         })
         .map_err(|error| error.to_string())?;
@@ -1144,7 +1152,7 @@ fn list_trades(state: tauri::State<'_, DbState>) -> Result<Vec<TradeRecord>, Str
                 cost_per_contract_round_trip_brl, opened_at, status, exit_price,
                 exit_reason, closed_at, result_points, gross_result_brl,
                 operational_costs_brl, net_result_brl, post_trade_note,
-                entry_context_json, intrabar_policy, initial_stop_loss
+                entry_context_json, intrabar_policy, initial_stop_loss, session_id
             FROM trades
             ORDER BY closed_at DESC, id ASC
             LIMIT 500
@@ -1181,6 +1189,7 @@ fn list_trades(state: tauri::State<'_, DbState>) -> Result<Vec<TradeRecord>, Str
                     .and_then(|value| serde_json::from_str(&value).ok()),
                 intrabar_policy: row.get(22)?,
                 initial_stop_loss: row.get(23)?,
+                session_id: row.get(24)?,
             })
         })
         .map_err(|error| error.to_string())?;
@@ -1203,7 +1212,7 @@ fn list_all_trades(
                 cost_per_contract_round_trip_brl, opened_at, status, exit_price,
                 exit_reason, closed_at, result_points, gross_result_brl,
                 operational_costs_brl, net_result_brl, post_trade_note,
-                entry_context_json, intrabar_policy, initial_stop_loss
+                entry_context_json, intrabar_policy, initial_stop_loss, session_id
             FROM trades
             ORDER BY closed_at ASC, id ASC
             "#,
@@ -1239,6 +1248,7 @@ fn list_all_trades(
                     .and_then(|value| serde_json::from_str(&value).ok()),
                 intrabar_policy: row.get(22)?,
                 initial_stop_loss: row.get(23)?,
+                session_id: row.get(24)?,
             })
         })
         .map_err(|error| error.to_string())?;
@@ -1258,7 +1268,7 @@ fn query_backup_trades(connection: &Connection) -> Result<Vec<TradeRecord>, Stri
                 cost_per_contract_round_trip_brl, opened_at, status, exit_price,
                 exit_reason, closed_at, result_points, gross_result_brl,
                 operational_costs_brl, net_result_brl, post_trade_note,
-                entry_context_json, intrabar_policy, initial_stop_loss
+                entry_context_json, intrabar_policy, initial_stop_loss, session_id
             FROM trades
             ORDER BY closed_at ASC, id ASC
             "#,
@@ -1294,6 +1304,7 @@ fn query_backup_trades(connection: &Connection) -> Result<Vec<TradeRecord>, Stri
                     .and_then(|value| serde_json::from_str(&value).ok()),
                 intrabar_policy: row.get(22)?,
                 initial_stop_loss: row.get(23)?,
+                session_id: row.get(24)?,
             })
         })
         .map_err(|error| error.to_string())?;
@@ -1713,9 +1724,9 @@ fn import_backup(
                     cost_per_contract_round_trip_brl, opened_at, status, exit_price,
                     exit_reason, closed_at, result_points, gross_result_brl,
                     operational_costs_brl, net_result_brl, post_trade_note,
-                    entry_context_json, intrabar_policy, initial_stop_loss
+                    entry_context_json, intrabar_policy, initial_stop_loss, session_id
                 )
-                VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23, ?24)
+                VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23, ?24, ?25)
                 ON CONFLICT(id) DO NOTHING
                 "#,
                 params![
@@ -1743,6 +1754,7 @@ fn import_backup(
                     entry_context_json,
                     trade.intrabar_policy,
                     if trade.initial_stop_loss > 0.0 { trade.initial_stop_loss } else { trade.stop_loss },
+                    trade.session_id,
                 ],
             )
             .map_err(|error| error.to_string())?;
@@ -3190,6 +3202,7 @@ mod tests {
     fn backup_json_round_trip_preserves_entry_context() {
         let trade = TradeRecord {
             id: "backup-trade".to_string(),
+            session_id: None,
             asset: "WINFUT".to_string(),
             side: "BUY".to_string(),
             signal_id: "signal-1".to_string(),
@@ -3461,6 +3474,7 @@ mod tests {
     fn trade_record_uses_expected_tauri_financial_field_name() {
         let record = TradeRecord {
             id: "t1".to_string(),
+            session_id: None,
             asset: "WINFUT".to_string(),
             side: "BUY".to_string(),
             signal_id: "s1".to_string(),
@@ -3514,6 +3528,90 @@ mod tests {
         assert_eq!(value["entryContext"]["zone"], "GREEN");
         assert_eq!(value["entryContext"]["signal"]["id"], "s1");
         assert!(value.get("grossResultBrl").is_none());
+    }
+
+    fn sample_closed_trade_for_session() -> TradeRecord {
+        TradeRecord {
+            id: "atomic-trade".to_string(), session_id: None,
+            asset: "WINFUT".to_string(), side: "BUY".to_string(),
+            signal_id: "signal-atomic".to_string(), requested_entry: 130000.0,
+            entry: 130000.0, stop_loss: 129900.0, initial_stop_loss: 129900.0,
+            target: 130200.0, contracts: 1, slippage_ticks_per_side: 0,
+            cost_per_contract_round_trip_brl: 0.0,
+            opened_at: "2026-11-14T09:00:00".to_string(), status: "CLOSED".to_string(),
+            exit_price: 130200.0, exit_reason: "TARGET".to_string(),
+            closed_at: "2026-11-14T09:10:00".to_string(), result_points: 200.0,
+            gross_result_brl: 40.0, operational_costs_brl: 0.0, net_result_brl: 40.0,
+            post_trade_note: String::new(), entry_context: None,
+            intrabar_policy: "STOP_FIRST".to_string(),
+        }
+    }
+
+    fn sample_closed_event_for_session() -> TrainingEventRecord {
+        TrainingEventRecord {
+            id: "atomic-event".to_string(), session_id: "atomic-session".to_string(),
+            r#type: "TRADE_CLOSED".to_string(), timestamp: "2026-11-14T12:10:00Z".to_string(),
+            market_timestamp: Some("2026-11-14T09:10:00".to_string()),
+            signal_id: Some("signal-atomic".to_string()), side: Some("BUY".to_string()),
+            reason: Some("TARGET".to_string()), trade_id: Some("atomic-trade".to_string()),
+        }
+    }
+
+    fn insert_atomic_test_session(connection: &Connection) {
+        connection.execute(
+            r#"INSERT INTO training_sessions (
+                id, asset, trade_date, start_time, end_time, timeframe_minutes,
+                warmup_bars, mode, started_at, ended_at, status, starting_balance_brl
+            ) VALUES ('atomic-session', 'WINFUT', '2026-11-14', '09:00', '17:00',
+                      2, 50, 'FREE', '2026-11-14T12:00:00Z', NULL, 'ACTIVE', NULL)"#,
+            [],
+        ).unwrap();
+    }
+
+    #[test]
+    fn closed_trade_and_session_event_are_saved_atomically() {
+        let mut connection = Connection::open_in_memory().unwrap();
+        initialize_database(&connection).unwrap();
+        insert_atomic_test_session(&connection);
+        persist_closed_trade_and_event(
+            &mut connection, &sample_closed_trade_for_session(), &sample_closed_event_for_session()
+        ).unwrap();
+
+        let (session_id, trade_count, event_count): (Option<String>, i64, i64) = connection.query_row(
+            r#"SELECT t.session_id,
+                (SELECT COUNT(*) FROM trades WHERE id = 'atomic-trade'),
+                (SELECT COUNT(*) FROM training_events WHERE id = 'atomic-event')
+                FROM trades t WHERE t.id = 'atomic-trade'"#,
+            [], |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+        ).unwrap();
+        assert_eq!(session_id.as_deref(), Some("atomic-session"));
+        assert_eq!(trade_count, 1);
+        assert_eq!(event_count, 1);
+    }
+
+    #[test]
+    fn closed_trade_is_rolled_back_when_session_event_insert_fails() {
+        let mut connection = Connection::open_in_memory().unwrap();
+        initialize_database(&connection).unwrap();
+        insert_atomic_test_session(&connection);
+        connection.execute_batch(
+            r#"CREATE TRIGGER reject_trade_closed_event
+               BEFORE INSERT ON training_events WHEN NEW.type = 'TRADE_CLOSED'
+               BEGIN SELECT RAISE(ABORT, 'forced event failure'); END;"#
+        ).unwrap();
+
+        let result = persist_closed_trade_and_event(
+            &mut connection, &sample_closed_trade_for_session(), &sample_closed_event_for_session()
+        );
+        assert!(result.is_err());
+        let trade_count: i64 = connection.query_row(
+            "SELECT COUNT(*) FROM trades WHERE id = 'atomic-trade'", [], |row| row.get(0)
+        ).unwrap();
+        let event_count: i64 = connection.query_row(
+            "SELECT COUNT(*) FROM training_events WHERE id = 'atomic-event'", [], |row| row.get(0)
+        ).unwrap();
+        assert_eq!(trade_count, 0);
+        assert_eq!(event_count, 0);
     }
 
     #[test]
@@ -3764,6 +3862,7 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             save_trade,
+            save_closed_trade,
             list_trades,
             list_all_trades,
             delete_all_trades,
