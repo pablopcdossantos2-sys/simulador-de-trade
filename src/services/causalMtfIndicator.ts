@@ -136,7 +136,8 @@ export function calculateCausalMtfAverages(
   let currentBarStart = "";
   let dailyCloses: number[] = [];
 
-  for (const candle of candles) {
+  for (let candlePosition = 0; candlePosition < candles.length; candlePosition += 1) {
+    const candle = candles[candlePosition];
     const parsed = parseMarketTimestamp(candle.timestamp);
     if (!parsed) continue;
 
@@ -185,7 +186,7 @@ export function calculateCausalMtfAverages(
 
     // A barra MTF passa a integrar o histórico diário apenas quando o próximo
     // bucket é encontrado; o valor corrente não é duplicado no aquecimento.
-    const next = candles[candles.indexOf(candle) + 1];
+    const next = candles[candlePosition + 1];
     const nextParsed = next ? parseMarketTimestamp(next.timestamp) : null;
     const nextBucket = nextParsed && nextParsed.day === parsed.day
       ? Math.floor((nextParsed.minute - sessionStart) / config.indicatorTimeframeMinutes)
