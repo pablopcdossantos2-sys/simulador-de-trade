@@ -47,6 +47,30 @@ describe("Multi Médias - Nuvem e Sinais", () => {
     expect(result.authorization?.side).toBe("BUY");
   });
 
+  it("gera IDs diferentes para o mesmo sinal em sessões distintas", () => {
+    const adapter = new MultiMediasNuvemAdapter();
+    const candles = trendCandles(5);
+    const firstSession = adapter.calculate("WINFUT", candles, "session-1");
+    const secondSession = adapter.calculate("WINFUT", candles, "session-2");
+
+    expect(firstSession.signals).toHaveLength(1);
+    expect(secondSession.signals).toHaveLength(1);
+    expect(firstSession.signals[0].id).not.toBe(secondSession.signals[0].id);
+    expect(firstSession.signals[0].id).toContain("session-1");
+    expect(secondSession.signals[0].id).toContain("session-2");
+  });
+
+  it("mantém IDs estáveis ao recalcular o mesmo sinal na mesma sessão", () => {
+    const adapter = new MultiMediasNuvemAdapter();
+    const candles = trendCandles(5);
+    const first = adapter.calculate("WINFUT", candles, "session-stable");
+    const repeated = adapter.calculate("WINFUT", candles, "session-stable");
+
+    expect(repeated.signals.map((signal) => signal.id)).toEqual(
+      first.signals.map((signal) => signal.id),
+    );
+  });
+
   it("inicia zona vermelha e emite somente um gatilho de venda em tendência monotônica", () => {
     const adapter = new MultiMediasNuvemAdapter();
     const result = adapter.calculate("WDOFUT", trendCandles(-5));
