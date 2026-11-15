@@ -7,6 +7,7 @@ export interface BackupSummary {
   trades: number;
   sessions: number;
   events: number;
+  usageSessions: number;
   replays?: number;
 }
 
