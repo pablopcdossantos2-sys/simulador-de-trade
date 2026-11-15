@@ -4,6 +4,7 @@ import {
   marketDateKey,
   marketIsoWeekKey,
   marketTimestampOrdinalMs,
+  parseMarketTimestamp,
 } from "./marketTime";
 
 describe("horário de mercado", () => {
@@ -17,6 +18,21 @@ describe("horário de mercado", () => {
     expect(
       bucketMarketTimestamp("2026-10-07T09:02:00-03:00", 120),
     ).toBe("2026-10-07T09:02:00");
+  });
+
+  it("aceita sufixo UTC sem deslocar o relógio de mercado", () => {
+    expect(
+      bucketMarketTimestamp("2026-10-07T09:02:00Z", 120),
+    ).toBe("2026-10-07T09:02:00");
+  });
+
+  it.each([
+    "2026-10-07T09:00:00+24:00",
+    "2026-10-07T09:00:00-03:60",
+  ])("rejeita offset fora do intervalo permitido: %s", (timestamp) => {
+    expect(() => parseMarketTimestamp(timestamp)).toThrow(
+      /timestamp de mercado inválido/i,
+    );
   });
 
   it("mantém ordenação cronológica de timestamps do mercado", () => {

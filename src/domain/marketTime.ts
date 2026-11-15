@@ -9,7 +9,7 @@ export interface MarketTimestampParts {
 }
 
 const MARKET_TIMESTAMP_RE =
-  /^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2}):(\d{2})(?:\.(\d{1,3}))?(?:Z|[+-]\d{2}:\d{2})?$/;
+  /^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2}):(\d{2})(?:\.(\d{1,3}))?(Z|[+-]\d{2}:\d{2})?$/;
 
 export function parseMarketTimestamp(
   value: string,
@@ -28,7 +28,20 @@ export function parseMarketTimestamp(
     minuteText,
     secondText,
     fraction = "0",
+    timezoneSuffix,
   ] = match;
+
+  // O offset é validado, mas não aplicado: o arquivo representa o relógio
+  // local do mercado, não um instante a ser convertido para o fuso do PC.
+  if (timezoneSuffix && timezoneSuffix !== "Z") {
+    const [offsetHours, offsetMinutes] = timezoneSuffix
+      .slice(1)
+      .split(":")
+      .map(Number);
+    if (offsetHours > 23 || offsetMinutes > 59) {
+      throw new Error(`Timestamp de mercado inválido: ${value}`);
+    }
+  }
 
   const parts: MarketTimestampParts = {
     year: Number(yearText),
