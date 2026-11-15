@@ -491,8 +491,11 @@ struct ProfitCandleRow {
 }
 
 fn aggregate_m1_candles(
-    rows: Vec<ProfitCandleRow>,
+    mut rows: Vec<ProfitCandleRow>,
 ) -> Result<(Vec<ProfitCandleRow>, usize), String> {
+    // O Profit costuma exportar os candles do mais recente para o mais antigo.
+    // Normalizar antes de agrupar evita falsos erros de lacuna no replay M2.
+    rows.sort_by_key(|row| row.timestamp);
     let mut buckets: Vec<(NaiveDateTime, Vec<ProfitCandleRow>)> = Vec::new();
 
     for row in rows {
@@ -3314,9 +3317,11 @@ fn process_profit_m2_candle_file(
         .ok_or_else(|| "Não foi possível identificar a data dos candles.".to_string())?;
     let available_dates: std::collections::BTreeSet<NaiveDate> =
         rows.iter().map(|row| row.timestamp.date()).collect();
-    let selected_rows: Vec<ProfitCandleRow> = rows.into_iter()
+    let mut selected_rows: Vec<ProfitCandleRow> = rows.into_iter()
         .filter(|row| row.timestamp.date() == selected_date)
         .collect();
+    // A mesma ordem crescente deve ser usada no M1 preservado e no M2 agregado.
+    selected_rows.sort_by_key(|row| row.timestamp);
     if selected_rows.is_empty() {
         let dates = available_dates.iter()
             .map(|date| date.format("%d/%m/%Y").to_string())
@@ -4546,6 +4551,31 @@ mod tests {
 
         let _ = fs::remove_dir_all(root);
     }
+
+    #[test]
+    fn m1_aggregation_normalizes_descending_profit_export_before_grouping() {
+        let date = NaiveDate::from_ymd_opt(2026, 11, 10).unwrap();
+        let row = |minute: u32, volume: f64| ProfitCandleRow {
+            timestamp: date.and_hms_opt(9, minute, 0).unwrap(),
+            source_row: minute as u64,
+            open: 130000.0 + minute as f64 * 5.0,
+            high: 130020.0 + minute as f64 * 5.0,
+            low: 129990.0 + minute as f64 * 5.0,
+            close: 130005.0 + minute as f64 * 5.0,
+            volume,
+        };
+        // O minuto 09:04 está isolado na borda, e os pares chegam em ordem decrescente.
+        let (candles, dropped) = aggregate_m1_candles(vec![
+            row(4, 9.0), row(3, 8.0), row(2, 7.0), row(1, 6.0), row(0, 5.0),
+        ]).unwrap();
+        assert_eq!(dropped, 1);
+        assert_eq!(candles.len(), 2);
+        assert_eq!(candles[0].timestamp, date.and_hms_opt(9, 0, 0).unwrap());
+        assert_eq!(candles[1].timestamp, date.and_hms_opt(9, 2, 0).unwrap());
+        assert_eq!(candles[0].volume, 11.0);
+        assert_eq!(candles[1].volume, 15.0);
+    }
+
     #[test]
     fn m1_pairs_aggregate_to_m2_and_drop_only_incomplete_edges() {
         let date = NaiveDate::from_ymd_opt(2026, 11, 10).unwrap();
