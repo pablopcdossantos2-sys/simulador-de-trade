@@ -43,6 +43,7 @@ export function useReplayPlayer(
   const [error, setError] = useState<string | null>(null);
 
   const queueRef = useRef<ReplayTrade[]>([]);
+  const queueLoadRef = useRef<{ generation: number; promise: Promise<boolean> } | null>(null);
   const steppingRef = useRef(false);
   const onTradeRef = useRef(onTrade);
   const generationRef = useRef(0);
@@ -96,6 +97,7 @@ export function useReplayPlayer(
     const generation = ++generationRef.current;
     clockRef.current = null;
     queueRef.current = [];
+    queueLoadRef.current = null;
     setBusy(true);
     setPlaying(false);
     setError(null);
@@ -126,20 +128,43 @@ export function useReplayPlayer(
   }
 
   async function ensureQueue(generation: number): Promise<boolean> {
-    if (generation !== generationRef.current) return false;
-    if (queueRef.current.length > 0) return true;
+    while (generation === generationRef.current) {
+      if (queueRef.current.length > 0) return true;
 
-    const chunk = await nextReplayTrades(CHUNK_SIZE);
-    if (generation !== generationRef.current) return false;
+      let pending = queueLoadRef.current;
+      if (!pending || pending.generation !== generation) {
+        const promise = (async () => {
+          const chunk = await nextReplayTrades(CHUNK_SIZE);
+          if (generation !== generationRef.current) return false;
 
-    if (chunk.length === 0) {
-      setFinished(true);
-      setPlaying(false);
-      return false;
+          if (chunk.length === 0) {
+            setFinished(true);
+            setPlaying(false);
+            return false;
+          }
+
+          // Somente a chamada proprietária da carga publica o bloco na fila.
+          // Chamadas concorrentes aguardam a mesma Promise e nunca sobrescrevem
+          // um bloco que já tenha sido obtido por outro consumidor.
+          if (queueRef.current.length === 0) queueRef.current = chunk;
+          return true;
+        })();
+        pending = { generation, promise };
+        queueLoadRef.current = pending;
+      }
+
+      try {
+        const loaded = await pending.promise;
+        if (generation !== generationRef.current) return false;
+        if (queueRef.current.length > 0) return true;
+        if (!loaded) return false;
+        // Outro consumidor pode ter esvaziado o bloco antes desta continuação.
+        // Nesse caso, solicita o próximo bloco em vez de sinalizar fila disponível.
+      } finally {
+        if (queueLoadRef.current === pending) queueLoadRef.current = null;
+      }
     }
-
-    queueRef.current = chunk;
-    return true;
+    return false;
   }
 
   function applyTrade(trade: ReplayTrade) {
@@ -239,6 +264,7 @@ export function useReplayPlayer(
     const generation = ++generationRef.current;
     clockRef.current = null;
     queueRef.current = [];
+    queueLoadRef.current = null;
     setBusy(true);
     setPlaying(false);
     setError(null);
@@ -269,6 +295,7 @@ export function useReplayPlayer(
     setPlaying(false);
     setBusy(false);
     queueRef.current = [];
+    queueLoadRef.current = null;
     steppingRef.current = false;
 
     try {
