@@ -38,8 +38,8 @@ export interface IndicatorPoint {
   candleIndex: number;
   wma20: number | null;
   vwap: number | null;
-  ema8: number;
-  ema52: number;
+  ema8: number | null;
+  ema52: number | null;
   zone: IndicatorZone;
 }
 

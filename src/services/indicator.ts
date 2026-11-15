@@ -41,12 +41,15 @@ function emaNext(previous: number | null, source: number, length: number): numbe
   return previous === null ? source : alpha * source + (1 - alpha) * previous;
 }
 
-function emaAt(previous: number | null, candles: Candle[], index: number, length: number): number {
+function emaAt(previous: number | null, candles: Candle[], index: number, length: number): number | null {
+  // Não expõe valores provisórios antes da semente: a EMA só passa a existir
+  // quando todas as primeiras `length` barras estão disponíveis.
+  if (index < length - 1) return null;
   // Pine inicializa a EMA com a SMA das primeiras `length` barras.
   if (index === length - 1) {
     return candles.slice(0, length).reduce((sum, candle) => sum + candle.close, 0) / length;
   }
-  return emaNext(previous, candles[index].close, length);
+  return previous === null ? null : emaNext(previous, candles[index].close, length);
 }
 
 function wmaAt(candles: Candle[], endIndex: number, length: number): number | null {
@@ -124,7 +127,7 @@ export class MultiMediasNuvemAdapter implements IndicatorAdapter {
       emaFast = emaAt(emaFast, candles, i, this.config.emaFastLength);
       emaSlow = emaAt(emaSlow, candles, i, this.config.emaSlowLength);
       const wma = wmaAt(candles, i, this.config.wmaLength);
-      const emaReady = i >= Math.max(this.config.emaFastLength, this.config.emaSlowLength) - 1;
+      const emaReady = emaFast !== null && emaSlow !== null;
 
       const nextPeriod = periodKey(candle.timestamp, this.config.vwapAnchor);
       if (nextPeriod !== currentVwapPeriod) {
@@ -137,9 +140,9 @@ export class MultiMediasNuvemAdapter implements IndicatorAdapter {
       const vwap = cumulativeVolume > 0 ? sourceVolume / cumulativeVolume : null;
 
       const alignedBull =
-        emaReady && wma !== null && emaFast > wma && wma > emaSlow;
+        emaReady && wma !== null && emaFast !== null && emaSlow !== null && emaFast > wma && wma > emaSlow;
       const alignedBear =
-        emaReady && wma !== null && emaSlow > wma && wma > emaFast;
+        emaReady && wma !== null && emaFast !== null && emaSlow !== null && emaSlow > wma && wma > emaFast;
       const bullishCandle = candle.close > candle.open;
       const bearishCandle = candle.close < candle.open;
 

@@ -83,6 +83,25 @@ describe("Multi Médias - Nuvem e Sinais", () => {
     expect(result.authorization?.side).toBe("SELL");
   });
 
+  it("não publica valores de EMA antes da semente e inicializa com a SMA", () => {
+    const adapter = new MultiMediasNuvemAdapter();
+    const candles = trendCandles(5, 60);
+    const result = adapter.calculate("WINFUT", candles);
+
+    expect(result.series[0].ema8).toBeNull();
+    expect(result.series[6].ema8).toBeNull();
+    expect(result.series[7].ema8).toBeCloseTo(
+      candles.slice(0, 8).reduce((sum, candle) => sum + candle.close, 0) / 8,
+      10,
+    );
+
+    expect(result.series[50].ema52).toBeNull();
+    expect(result.series[51].ema52).toBeCloseTo(
+      candles.slice(0, 52).reduce((sum, candle) => sum + candle.close, 0) / 52,
+      10,
+    );
+  });
+
   it("não autoriza sinais antes da inicialização da MME 52", () => {
     const adapter = new MultiMediasNuvemAdapter();
     const result = adapter.calculate("WINFUT", trendCandles(5, 40));
