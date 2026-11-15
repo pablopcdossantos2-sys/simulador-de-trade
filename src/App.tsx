@@ -49,6 +49,7 @@ import {
   closePositionManually,
   openPosition,
   validateOcoOrder,
+  validatePositionOco,
   resolveOco,
   resolveOcoTrade,
   sideLabel,
@@ -1134,6 +1135,7 @@ export default function App() {
         } else if (nextTarget >= Math.min(position.entry, marketPrice)) {
           throw new TradingRuleError("O alvo de uma venda precisa permanecer abaixo da entrada e do preço atual.");
         }
+        validatePositionOco(position, nextStop, nextTarget);
         const updated = { ...position, stopLoss: nextStop, target: nextTarget };
         positionRef.current = updated;
         setPosition(updated);
