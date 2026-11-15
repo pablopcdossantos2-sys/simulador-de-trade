@@ -922,6 +922,62 @@ mod tests {
     }
 
     #[test]
+    fn m2_replay_is_independent_of_batch_size_and_reset_rewinds_deterministically() {
+        use std::io::Write;
+        use std::time::{SystemTime, UNIX_EPOCH};
+
+        let unique = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let path = std::env::temp_dir().join(format!("simulador-trade-m2-batches-{unique}.csv"));
+        {
+            let mut file = File::create(&path).unwrap();
+            writeln!(file, "symbol,timestamp,source_row,open,high,low,close,volume").unwrap();
+            writeln!(file, "WINV26,2026-10-07T09:00:00,1,130000,130050,129950,130010,1200").unwrap();
+            writeln!(file, "WINV26,2026-10-07T09:02:00,2,130010,130060,129990,130040,900").unwrap();
+        }
+
+        let (mut single_batch, _) = open_session(&path).unwrap();
+        let expected = read_next_replay_batch(&mut single_batch, 5000).unwrap();
+        assert_eq!(expected.len(), 240);
+
+        let (mut chunked, _) = open_session(&path).unwrap();
+        let mut actual = Vec::new();
+        for size in [1, 7, 31, 2, 89, 13, 500] {
+            let batch = read_next_replay_batch(&mut chunked, size).unwrap();
+            if batch.is_empty() { break; }
+            actual.extend(batch);
+        }
+        while !chunked.finished || !chunked.pending_synthetic.is_empty() {
+            let batch = read_next_replay_batch(&mut chunked, 17).unwrap();
+            if batch.is_empty() { break; }
+            actual.extend(batch);
+        }
+
+        let project = |events: &[ReplayTradeRecord]| {
+            events.iter().map(|event| (
+                event.timestamp.clone(),
+                event.source_row,
+                event.sequence,
+                event.price,
+                event.quantity,
+            )).collect::<Vec<_>>()
+        };
+        assert_eq!(project(&actual), project(&expected));
+
+        chunked.reader.seek(SeekFrom::Start(chunked.data_start)).unwrap();
+        chunked.sequence = 0;
+        chunked.pending_synthetic.clear();
+        chunked.finished = false;
+        chunked.pending_error = None;
+        let replayed = read_next_replay_batch(&mut chunked, 5000).unwrap();
+        assert_eq!(project(&replayed), project(&expected));
+
+        let _ = std::fs::remove_file(path);
+    }
+
+    #[test]
     fn synthetic_m2_path_is_repeatable_and_stays_inside_source_ohlc() {
         let candle = ReplayCandleRecord {
             timestamp: "2026-10-07T09:00:00".to_string(),
