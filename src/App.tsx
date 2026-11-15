@@ -388,8 +388,8 @@ export default function App() {
 
   function appendTrainingEvent(event: TrainingEvent) {
     setTrainingEvents((current) => [...current, event]);
-    void saveTrainingEvent(event).catch(() =>
-      setFeedback("O evento de treino ocorreu, mas não pôde ser persistido."),
+    void saveTrainingEvent(event).catch((error) =>
+      setFeedback(readErrorMessage(error, "O evento de treino ocorreu, mas não pôde ser persistido.")),
     );
   }
 
@@ -493,9 +493,7 @@ export default function App() {
       ? saveClosedTrade(persistedTrade, closureEvent)
       : saveTrade(persistedTrade);
     void persistence.catch((error) => {
-      const reason = error instanceof Error
-        ? error.message
-        : "Falha ao salvar o histórico local da operação.";
+      const reason = readErrorMessage(error, "Falha ao salvar o histórico local da operação.");
       setFeedback(
         "A operação foi encerrada, mas não foi possível salvar conjuntamente a operação e seu vínculo com a sessão.",
       );
