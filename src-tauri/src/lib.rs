@@ -5,6 +5,7 @@ mod replay;
 use chrono::{DateTime, NaiveDate, NaiveDateTime, NaiveTime, Timelike, Utc};
 use encoding_rs::WINDOWS_1252;
 use rusqlite::{params, Connection};
+use serde::ser::{SerializeSeq, SerializeStruct};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::fs::{self, File};
@@ -164,6 +165,55 @@ struct ReplayBackupFile {
     metadata_content_base64: String,
 }
 
+#[derive(Debug, Clone)]
+struct ReplayBackupSource {
+    output_file_name: String,
+    replay_path: PathBuf,
+    metadata_path: PathBuf,
+}
+
+struct ReplayBackupExportFiles<'a>(&'a [ReplayBackupSource]);
+
+impl Serialize for ReplayBackupExportFiles<'_> {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where S: serde::Serializer {
+        let mut sequence = serializer.serialize_seq(Some(self.0.len()))?;
+        for source in self.0 {
+            let replay_bytes = fs::read(&source.replay_path).map_err(serde::ser::Error::custom)?;
+            let metadata_bytes = fs::read(&source.metadata_path).map_err(serde::ser::Error::custom)?;
+            let file = ReplayBackupFile {
+                output_file_name: source.output_file_name.clone(),
+                replay_content_base64: encode_base64(&replay_bytes),
+                metadata_content_base64: encode_base64(&metadata_bytes),
+            };
+            sequence.serialize_element(&file)?;
+        }
+        sequence.end()
+    }
+}
+
+struct BackupExportDocument<'a> {
+    bundle: &'a BackupBundle,
+    replay_files: ReplayBackupExportFiles<'a>,
+}
+
+impl Serialize for BackupExportDocument<'_> {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where S: serde::Serializer {
+        let mut document = serializer.serialize_struct("BackupExportDocument", 9)?;
+        document.serialize_field("format", &self.bundle.format)?;
+        document.serialize_field("schemaVersion", &self.bundle.schema_version)?;
+        document.serialize_field("appVersion", &self.bundle.app_version)?;
+        document.serialize_field("exportedAt", &self.bundle.exported_at)?;
+        document.serialize_field("trades", &self.bundle.trades)?;
+        document.serialize_field("trainingSessions", &self.bundle.training_sessions)?;
+        document.serialize_field("trainingEvents", &self.bundle.training_events)?;
+        document.serialize_field("executionSettings", &self.bundle.execution_settings)?;
+        document.serialize_field("replayFiles", &self.replay_files)?;
+        document.end()
+    }
+}
+
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct BackupImportDocument {
@@ -235,7 +285,7 @@ fn decode_base64(input: &str) -> Result<Vec<u8>, String> {
 /// Valida a codificação Base64 sem alocar um segundo buffer do tamanho do replay.
 fn validate_base64(input: &str) -> Result<(), String> {
     let bytes = input.as_bytes();
-    if bytes.len() % 4 != 0 {
+    if bytes.is_empty() || bytes.len() % 4 != 0 {
         return Err("Conteúdo de replay inválido no backup.".to_string());
     }
     for (index, chunk) in bytes.chunks_exact(4).enumerate() {
@@ -270,7 +320,7 @@ fn value_base64(byte: u8) -> Option<u8> {
     }
 }
 
-fn collect_replay_backup_files(app: &tauri::AppHandle) -> Result<Vec<ReplayBackupFile>, String> {
+fn collect_replay_backup_sources(app: &tauri::AppHandle) -> Result<Vec<ReplayBackupSource>, String> {
     let entries = catalog::list_replay_catalog(app.clone())?;
     let mut files = Vec::new();
     let mut total_bytes = 0u64;
@@ -278,17 +328,20 @@ fn collect_replay_backup_files(app: &tauri::AppHandle) -> Result<Vec<ReplayBacku
         let output_path = PathBuf::from(&entry.output_path);
         let metadata_path = PathBuf::from(&entry.metadata_path);
         if !output_path.is_file() || !metadata_path.is_file() { continue; }
-        let replay_bytes = fs::read(&output_path).map_err(|error| format!("Não foi possível incluir o replay {} no backup: {error}", output_path.display()))?;
-        let metadata_bytes = fs::read(&metadata_path).map_err(|error| format!("Não foi possível incluir os metadados do replay {} no backup: {error}", metadata_path.display()))?;
-        total_bytes = total_bytes.saturating_add(replay_bytes.len() as u64).saturating_add(metadata_bytes.len() as u64);
+        let replay_size = fs::metadata(&output_path)
+            .map_err(|error| format!("Não foi possível verificar o replay {}: {error}", output_path.display()))?.len();
+        let metadata_size = fs::metadata(&metadata_path)
+            .map_err(|error| format!("Não foi possível verificar os metadados do replay {}: {error}", metadata_path.display()))?.len();
+        total_bytes = total_bytes.saturating_add(replay_size).saturating_add(metadata_size);
         if total_bytes > 350 * 1024 * 1024 {
             return Err("Os arquivos de replay disponíveis excedem 350 MB. Faça o backup em um local com espaço suficiente ou reduza o catálogo.".to_string());
         }
-        let original_name = output_path.file_name().and_then(|name| name.to_str()).ok_or_else(|| "Nome de arquivo de replay inválido.".to_string())?;
-        files.push(ReplayBackupFile {
+        let original_name = output_path.file_name().and_then(|name| name.to_str())
+            .ok_or_else(|| "Nome de arquivo de replay inválido.".to_string())?;
+        files.push(ReplayBackupSource {
             output_file_name: format!("{index:04}-{original_name}"),
-            replay_content_base64: encode_base64(&replay_bytes),
-            metadata_content_base64: encode_base64(&metadata_bytes),
+            replay_path: output_path,
+            metadata_path,
         });
     }
     Ok(files)
@@ -1673,7 +1726,7 @@ fn export_backup(
     let events = query_backup_events(&connection)?;
     let settings = query_backup_execution_settings(&connection)?;
     drop(connection);
-    let replay_files = collect_replay_backup_files(&app)?;
+    let replay_sources = collect_replay_backup_sources(&app)?;
 
     let bundle = BackupBundle {
         format: "simulador-de-trade-backup".to_string(),
@@ -1686,10 +1739,10 @@ fn export_backup(
         execution_settings: settings,
     };
 
-    let mut bundle_value = serde_json::to_value(&bundle).map_err(|error| error.to_string())?;
-    bundle_value["replayFiles"] = serde_json::to_value(&replay_files).map_err(|error| error.to_string())?;
-    let text = serde_json::to_string_pretty(&bundle_value)
-        .map_err(|error| error.to_string())?;
+    let export_document = BackupExportDocument {
+        bundle: &bundle,
+        replay_files: ReplayBackupExportFiles(&replay_sources),
+    };
     let file_name = path
         .file_name()
         .and_then(|name| name.to_str())
@@ -1700,9 +1753,13 @@ fn export_backup(
         .as_nanos();
     let temp_path = path.with_file_name(format!(".{file_name}.{}.{}.tmp", std::process::id(), nonce));
     let write_result = (|| -> Result<(), String> {
-        let mut file = File::create(&temp_path).map_err(|error| error.to_string())?;
-        file.write_all(text.as_bytes()).map_err(|error| error.to_string())?;
-        file.sync_all().map_err(|error| error.to_string())?;
+        let file = File::create(&temp_path).map_err(|error| error.to_string())?;
+        let mut writer = BufWriter::new(file);
+        serde_json::to_writer_pretty(&mut writer, &export_document)
+            .map_err(|error| format!("Não foi possível serializar o backup: {error}"))?;
+        writer.flush().map_err(|error| error.to_string())?;
+        writer.get_ref().sync_all().map_err(|error| error.to_string())?;
+        drop(writer);
         replace_file_safely(&temp_path, &path)?;
         Ok(())
     })();
@@ -1717,7 +1774,7 @@ fn export_backup(
         trades: bundle.trades.len(),
         sessions: bundle.training_sessions.len(),
         events: bundle.training_events.len(),
-        replays: replay_files.len(),
+        replays: replay_sources.len(),
     })
 }
 
@@ -3226,10 +3283,39 @@ mod tests {
     fn base64_validation_rejects_invalid_padding_without_decoding_payload() {
         assert!(validate_base64("YWJj").is_ok());
         assert!(validate_base64("YQ==").is_ok());
+        assert!(validate_base64("").is_err());
         assert!(validate_base64("YWI=").is_ok());
         assert!(validate_base64("Y===").is_err());
         assert!(validate_base64("YW=J").is_err());
         assert!(validate_base64("YWJj=").is_err());
+    }
+
+    #[test]
+    fn replay_backup_export_serializes_file_pair_with_expected_base64() {
+        use std::time::{SystemTime, UNIX_EPOCH};
+
+        let unique = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos();
+        let root = std::env::temp_dir().join(format!("simulador-backup-stream-{unique}"));
+        fs::create_dir_all(&root).unwrap();
+        let replay_path = root.join("WINV26.replay.csv");
+        let metadata_path = root.join("WINV26.meta.json");
+        let replay = b"timestamp;price\\n2026-11-14 09:00:00;130000\\n";
+        let metadata = b"{\\"summary\\":{\\"symbol\\":\\"WINFUT\\"}}";
+        fs::write(&replay_path, replay).unwrap();
+        fs::write(&metadata_path, metadata).unwrap();
+
+        let sources = vec![ReplayBackupSource {
+            output_file_name: "0000-WINV26.replay.csv".to_string(),
+            replay_path,
+            metadata_path,
+        }];
+        let serialized = serde_json::to_string(&ReplayBackupExportFiles(&sources)).unwrap();
+        let parsed: Value = serde_json::from_str(&serialized).unwrap();
+        assert_eq!(parsed[0]["outputFileName"], "0000-WINV26.replay.csv");
+        assert_eq!(decode_base64(parsed[0]["replayContentBase64"].as_str().unwrap()).unwrap(), replay);
+        assert_eq!(decode_base64(parsed[0]["metadataContentBase64"].as_str().unwrap()).unwrap(), metadata);
+
+        let _ = fs::remove_dir_all(root);
     }
 
     #[test]
