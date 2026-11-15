@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { buildTraderEvolutionMetrics } from "../domain/traderEvolution";
 import { buildTradeReviewInsights } from "../domain/tradeReviewInsights";
 import { buildTradeReviewContextInsights } from "../domain/tradeReviewContextInsights";
@@ -49,6 +49,19 @@ function formatMoney(value: number): string {
     style: "currency",
     currency: "BRL",
   }).format(value);
+}
+
+function InfoTip({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <span
+      className="evolution-info-tip"
+      role="note"
+      aria-label={label}
+      title={`${label}: ${children}`}
+    >
+      <span aria-hidden="true">ⓘ</span>
+    </span>
+  );
 }
 
 const weekdayLabels = ["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"];
