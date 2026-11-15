@@ -28,7 +28,7 @@ import {
   roundPriceToTick,
   tickSizeFor,
 } from "./domain/marketSpecs";
-import { applyReplayTrade } from "./domain/replay";
+import { applyReplayTradeInPlace } from "./domain/replay";
 import { captureEntryContext } from "./domain/entryContext";
 import {
   planIsReady,
@@ -204,6 +204,7 @@ export default function App() {
   const startingTrainingRef = useRef(false);
   const positionRef = useRef<Position | null>(null);
   const candlesRef = useRef(candles);
+  const replayBatchOpenRef = useRef(false);
   const persistClosedTradeRef = useRef<(trade: Trade) => void>(() => undefined);
   const protectNextAutoFeedbackRef = useRef(false);
 
@@ -212,17 +213,20 @@ export default function App() {
 
   const handleReplayTrade = useCallback(
     (trade: ReplayTrade) => {
+      // O buffer do frame é separado do estado React. Os negócios são agregados
+      // nele em sequência e a interface recebe uma única publicação por frame.
+      if (!replayBatchOpenRef.current) {
+        candlesRef.current = candlesRef.current.map((candle) => ({ ...candle }));
+        replayBatchOpenRef.current = true;
+      }
       const previousCandles = candlesRef.current;
-      const nextCandles = applyReplayTrade(
+      const previousLength = previousCandles.length;
+      const nextCandles = applyReplayTradeInPlace(
         previousCandles,
         trade,
         replayTimeframeMinutes * 60,
       );
-      const candleJustClosed = nextCandles.length > previousCandles.length;
-
-      candlesRef.current = nextCandles;
-      setCandles(nextCandles);
-      setCurrentReplayTrade(trade);
+      const candleJustClosed = nextCandles.length > previousLength;
 
       const openPosition = positionRef.current;
       if (openPosition) {
@@ -266,9 +270,16 @@ export default function App() {
     [asset, dataMode, replayTimeframeMinutes, trainingSession?.status, warmupCandles],
   );
 
+  const flushReplayBatch = useCallback((lastTrade: ReplayTrade) => {
+    setCandles(candlesRef.current);
+    setCurrentReplayTrade(lastTrade);
+    replayBatchOpenRef.current = false;
+  }, []);
+
   const replay = useReplayPlayer(
     handleReplayTrade,
     replayTimeframeMinutes,
+    flushReplayBatch,
   );
 
   useEffect(() => {
