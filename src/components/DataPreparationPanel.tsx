@@ -173,8 +173,14 @@ export function DataPreparationPanel({
           </div>
           <div>
             <span>{result.dataMode === "CANDLES_M2_SYNTHETIC" ? "Candles M2 fora da janela" : "Negócios descartados"}</span>
-            <strong>{result.discardedRows.toLocaleString("pt-BR")}</strong>
+            <strong>{(result.dataMode === "CANDLES_M2_SYNTHETIC" ? result.discardedOutsideWindowRows : result.discardedRows).toLocaleString("pt-BR")}</strong>
           </div>
+          {result.dataMode === "CANDLES_M2_SYNTHETIC" && result.sourceTimeframeMinutes === 1 && (
+            <div>
+              <span>Candles M1 incompletos descartados</span>
+              <strong>{result.incompleteM1CandlesDropped.toLocaleString("pt-BR")}</strong>
+            </div>
+          )}
           <div>
             <span>Redução do arquivo</span>
             <strong>{result.reductionPct.toFixed(1)}%</strong>
