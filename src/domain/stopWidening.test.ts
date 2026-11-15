@@ -147,4 +147,40 @@ describe("simulateStopWideningScenario", () => {
       lastObservedTimestamp: trade(0, 990).timestamp,
     })).toThrow(/lados válidos/);
   });
+
+  it("rejects replay timestamps earlier than the last observed price", () => {
+    expect(() => simulateStopWideningScenario({
+      position,
+      attemptedStop: 900,
+      tradesAfterViolation: [{
+        ...trade(1, 900),
+        timestamp: "2026-11-13T08:59:59",
+      }],
+      startingBalanceBRL: 10000,
+      lastObservedPrice: 990,
+      lastObservedTimestamp: "2026-11-13T09:00:00",
+    })).toThrow(/horários dos negócios/);
+  });
+
+  it("rejects an exit price made impossible by excessive slippage", () => {
+    expect(() => simulateStopWideningScenario({
+      position: { ...position, slippageTicksPerSide: 181 },
+      attemptedStop: 900,
+      tradesAfterViolation: [trade(1, 900)],
+      startingBalanceBRL: 10000,
+      lastObservedPrice: 990,
+      lastObservedTimestamp: trade(0, 990).timestamp,
+    })).toThrow(/preço de saída após slippage/);
+  });
+
+  it("rejects zero-quantity replay records", () => {
+    expect(() => simulateStopWideningScenario({
+      position,
+      attemptedStop: 900,
+      tradesAfterViolation: [{ ...trade(1, 900), quantity: 0 }],
+      startingBalanceBRL: 10000,
+      lastObservedPrice: 990,
+      lastObservedTimestamp: trade(0, 990).timestamp,
+    })).toThrow(/quantidade ou horário inválido/);
+  });
 });
