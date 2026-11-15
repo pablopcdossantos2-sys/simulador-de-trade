@@ -1,11 +1,13 @@
 import { useEffect, useRef, useState, type MouseEvent as ReactMouseEvent } from "react";
 import { InfoTip } from "./InfoTip";
 import type { Asset, Candle, IndicatorEvaluation, IndicatorPoint, Position, Side } from "../types";
+import type { CausalMtfSnapshot } from "../services/causalMtfIndicator";
 
 interface Props {
   candles: Candle[];
   contextCandles?: Candle[];
   evaluation: IndicatorEvaluation;
+  mtfSnapshots?: CausalMtfSnapshot[];
   position: Position | null;
   asset: Asset;
   draftOrder?: { side: Side; entry: number; stopLoss: number; target: number } | null;
@@ -56,6 +58,27 @@ function formatTime(timestamp: string): string {
 }
 function formatDate(timestamp: string): string { return timestamp.slice(0, 10); }
 
+function buildMtfLinePath(
+  visible: ChartCandle[],
+  snapshots: Map<string, CausalMtfSnapshot>,
+  xForIndex: (index: number) => number,
+  y: (price: number) => number,
+  averageId: string,
+): string {
+  let path = "";
+  let drawing = false;
+  visible.forEach((candle, idx) => {
+    const value = snapshots.get(candle.timestamp)?.averages[averageId];
+    if (value === null || value === undefined || !Number.isFinite(value)) {
+      drawing = false;
+      return;
+    }
+    path += (drawing ? "L" : "M") + " " + xForIndex(idx) + " " + y(value) + " ";
+    drawing = true;
+  });
+  return path.trim();
+}
+
 function buildLinePath(
   visible: ChartCandle[],
   points: Map<number, IndicatorPoint>,
@@ -82,6 +105,7 @@ export function CandleChart({
   candles,
   contextCandles = [],
   evaluation,
+  mtfSnapshots = [],
   position,
   asset,
   draftOrder = null,
@@ -139,6 +163,7 @@ export function CandleChart({
     evaluation.series.filter((point) => visibleIndices.has(point.candleIndex))
       .map((point) => [point.candleIndex, point]),
   );
+  const mtfMap = new Map(mtfSnapshots.map((snapshot) => [snapshot.timestamp, snapshot]));
   const extraPrices = position
     ? [position.stopLoss, position.target, position.entry]
     : draftOrder
@@ -149,8 +174,14 @@ export function CandleChart({
       (value): value is number => value !== null && Number.isFinite(value),
     ),
   );
-  const rawMin = Math.min(...visible.map((candle) => candle.low), ...indicatorPrices, ...extraPrices);
-  const rawMax = Math.max(...visible.map((candle) => candle.high), ...indicatorPrices, ...extraPrices);
+  const mtfPrices = visible.flatMap((candle) => {
+    const snapshot = mtfMap.get(candle.timestamp);
+    return snapshot ? Object.values(snapshot.averages).filter(
+      (value): value is number => value !== null && Number.isFinite(value),
+    ) : [];
+  });
+  const rawMin = Math.min(...visible.map((candle) => candle.low), ...indicatorPrices, ...mtfPrices, ...extraPrices);
+  const rawMax = Math.max(...visible.map((candle) => candle.high), ...indicatorPrices, ...mtfPrices, ...extraPrices);
   const padding = Math.max((rawMax - rawMin) * 0.07, asset === "WINFUT" ? 10 : 1);
   const baseMin = rawMin - padding;
   const baseMax = rawMax + padding;
@@ -168,6 +199,10 @@ export function CandleChart({
   const vwapPath = buildLinePath(visible, pointMap, xForIndex, y, (point) => point.vwap);
   const ema8Path = buildLinePath(visible, pointMap, xForIndex, y, (point) => point.ema8);
   const ema52Path = buildLinePath(visible, pointMap, xForIndex, y, (point) => point.ema52);
+  const mtfPaths = ["M1", "M2", "M3", "M4"].map((id) => ({
+    id,
+    path: buildMtfLinePath(visible, mtfMap, xForIndex, y, id),
+  }));
   const visibleSignals = evaluation.signals.filter((signal) => visibleIndices.has(signal.candleIndex));
   const maxVolume = Math.max(...visible.map((candle) => candle.volume), 1);
   const lastCandle = visible[visible.length - 1];
@@ -340,6 +375,15 @@ export function CandleChart({
           <span>C {formatPrice(readoutCandle.close, asset)}</span>
           <span>Vol. {new Intl.NumberFormat("pt-BR", { notation: "compact", maximumFractionDigits: 1 }).format(readoutCandle.volume)}</span>
         </div>
+        <div className="chart-mtf-readout" aria-label="Médias móveis do timeframe de 15 minutos">
+          <strong>M15</strong>
+          {(["M1", "M2", "M3", "M4"] as const).map((id) => {
+            const value = mtfMap.get(readoutCandle.timestamp)?.averages[id] ?? null;
+            return <span key={id} className={`mtf-value mtf-${id.toLowerCase()}`}>
+              {id}: {value === null ? "—" : formatPrice(value, asset)}
+            </span>;
+          })}
+        </div>
         <div className="chart-controls" aria-label="Controles de zoom do gráfico">
           <InfoTip label="Como interagir com o gráfico" className="chart-info-tip">
             <p>Clique em um preço do gráfico para posicionar a entrada. Arraste a área dos candles para mover o gráfico. A linha de Alvo pode ser ajustada; o Stop só pode ser movido na direção favorável à operação, reduzindo o risco, e nunca em direção contrária.</p>
@@ -379,6 +423,7 @@ export function CandleChart({
         <span className="legend-wma">MMP 20</span><span className="legend-vwap">VWAP</span>
         <span className="legend-ema8">MME 8</span><span className="legend-ema52">MME 52</span>
         <span className="legend-volume">Volume</span>
+        <span className="legend-mtf">M15 MME 8/20/50/200</span>
       </div>
 
       <svg className={"chart" + (isPanning ? " chart-panning" : "")} viewBox={"0 0 " + WIDTH + " " + HEIGHT} role="img"
@@ -467,7 +512,8 @@ export function CandleChart({
         {wmaPath && <path d={wmaPath} className="indicator-wma-line" />}
         {vwapPath && <path d={vwapPath} className="indicator-vwap-line" />}
         {ema8Path && <path d={ema8Path} className="indicator-ema8-line" />}
-        {ema52Path && <path d={ema52Path} className="indicator-ema52-line" />}
+        {ema52Path && <path d={ema52Path} className="indicator-ema52-line" />
+        {mtfPaths.map(({ id, path }) => path && <path key={id} d={path} className={`indicator-mtf-${id.toLowerCase()}-line`} />)}}
 
         {position && <>
           <PriceLine y={y(position.entry)} label={"Entrada " + formatPrice(position.entry, asset)} className="entry-line" />
