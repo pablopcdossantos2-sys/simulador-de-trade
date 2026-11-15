@@ -354,6 +354,46 @@ describe("resolução OCO negócio a negócio", () => {
     status: "OPEN" as const,
   };
 
+  it.each(["STOP_FIRST", "TARGET_FIRST"] as const)(
+    "respeita a sequência histórica quando o alvo vem primeiro, independentemente da política %s",
+    (intrabarPolicy) => {
+      const result = resolveOcoTrade(
+        { ...position, intrabarPolicy },
+        {
+          asset: "WINFUT",
+          timestamp: "2026-01-01T09:30:01.000-03:00",
+          sourceRow: 501,
+          sequence: 101,
+          price: 130155,
+          quantity: 2,
+        },
+      );
+
+      expect(result?.exitReason).toBe("TARGET");
+      expect(result?.exitPrice).toBe(130150);
+    },
+  );
+
+  it.each(["STOP_FIRST", "TARGET_FIRST"] as const)(
+    "respeita a sequência histórica quando o stop vem primeiro, independentemente da política %s",
+    (intrabarPolicy) => {
+      const result = resolveOcoTrade(
+        { ...position, intrabarPolicy },
+        {
+          asset: "WINFUT",
+          timestamp: "2026-01-01T09:30:01.000-03:00",
+          sourceRow: 501,
+          sequence: 101,
+          price: 129895,
+          quantity: 2,
+        },
+      );
+
+      expect(result?.exitReason).toBe("STOP");
+      expect(result?.exitPrice).toBe(129895);
+    },
+  );
+
   it("ignora o próprio negócio de entrada", () => {
     expect(
       resolveOcoTrade(position, {
