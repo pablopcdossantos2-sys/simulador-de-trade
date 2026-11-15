@@ -258,7 +258,11 @@ export default function App() {
         ...candle,
         index: offset + index,
       }));
-      const closedEvaluation = indicator.calculate(asset, [...hidden, ...closedVisible]);
+      const closedEvaluation = indicator.calculate(
+        asset,
+        [...hidden, ...closedVisible],
+        trainingSession?.id ?? "preview",
+      );
       const authorization = closedEvaluation.authorization;
       const previousSignalId = lastSeenReplaySignalRef.current;
       lastSeenReplaySignalRef.current = authorization?.id ?? null;
@@ -274,7 +278,7 @@ export default function App() {
         );
       }
     },
-    [asset, dataMode, replayTimeframeMinutes, trainingSession?.status, warmupCandles],
+    [asset, dataMode, replayTimeframeMinutes, trainingSession?.id, trainingSession?.status, warmupCandles],
   );
 
   const flushReplayBatch = useCallback((lastTrade: ReplayTrade) => {
@@ -314,8 +318,8 @@ export default function App() {
   }, [candles, dataMode, visibleCandles, warmupCandles]);
 
   const indicatorEvaluation = useMemo(
-    () => indicator.calculate(asset, indicatorCandles),
-    [asset, indicatorCandles],
+    () => indicator.calculate(asset, indicatorCandles, trainingSession?.id ?? "preview"),
+    [asset, indicatorCandles, trainingSession?.id],
   );
   const signal = indicatorEvaluation.authorization;
   const signalAlreadyUsed = Boolean(
