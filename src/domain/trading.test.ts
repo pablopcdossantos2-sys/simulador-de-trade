@@ -226,7 +226,7 @@ describe("ajustes OCO durante posição aberta", () => {
   });
 
   it("bloqueia alvo que não cobre os custos mesmo com stop no breakeven", () => {
-    expect(() => validatePositionOco(openBuy, 130000, 130000)).toThrow(/além da entrada e cobrir os custos/i);
+    expect(() => validatePositionOco(openBuy, 130000, 130005)).toThrow(/além da entrada e cobrir os custos/i);
   });
 });
 
