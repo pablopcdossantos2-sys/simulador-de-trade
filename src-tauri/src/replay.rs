@@ -292,7 +292,7 @@ fn open_session(path: &Path) -> Result<(ReplaySession, ReplaySessionInfo), Strin
         }
         "symbol,timestamp,source_row,open,high,low,close,volume,timeframe_minutes" => ReplayFormat::CandlesM1,
         "symbol,timestamp,source_row,open,high,low,close,volume" => ReplayFormat::CandlesM2,
-        _ => return Err("Formato de replay inválido. São aceitos negócios legados ou OHLCV M2.".to_string()),
+        _ => return Err("Formato de replay inválido. São aceitos negócios legados, candles M1 ou candles M2.".to_string()),
     };
     let data_start = reader.stream_position().map_err(|error| error.to_string())?;
     let first_line = loop {
@@ -2076,6 +2076,54 @@ mod tests {
 
         let _ = std::fs::remove_file(first_path);
         let _ = std::fs::remove_file(second_path);
+    }
+
+    #[test]
+    fn parses_m1_candles_and_rejects_invalid_timeframe_or_timestamp() {
+        let candle = parse_replay_m1_candle_line(
+            "WINV26,2026-10-07T09:00:00,12,130000,130010,129990,130005,17,1",
+            "WINFUT",
+        ).unwrap();
+        assert_eq!(candle.volume, 17.0);
+        assert!(parse_replay_m1_candle_line(
+            "WINV26,2026-10-07T09:00:00,12,130000,130010,129990,130005,17,2",
+            "WINFUT",
+        ).unwrap_err().contains("timeframe_minutes"));
+        assert!(parse_replay_m1_candle_line(
+            "WINV26,2026-10-07T09:00:01,12,130000,130010,129990,130005,17,1",
+            "WINFUT",
+        ).unwrap_err().contains("abertura de um candle M1"));
+    }
+
+    #[test]
+    fn expands_m1_candle_to_sixty_tick_aligned_observations_and_preserves_quantity() {
+        let candle = parse_replay_m1_candle_line(
+            "WINV26,2026-10-07T09:00:00,12,130000,130020,129990,130010,17,1",
+            "WINFUT",
+        ).unwrap();
+        let events = expand_m1_candle(&candle, "WINFUT", 100).unwrap();
+        assert_eq!(events.len(), 60);
+        assert_eq!(events.first().unwrap().price, candle.open);
+        assert_eq!(events.last().unwrap().price, candle.close);
+        assert_eq!(events.iter().map(|event| event.price).fold(f64::NEG_INFINITY, f64::max), candle.high);
+        assert_eq!(events.iter().map(|event| event.price).fold(f64::INFINITY, f64::min), candle.low);
+        assert!(events.iter().all(|event| ((event.price / 5.0) - (event.price / 5.0).round()).abs() < 1e-7));
+        assert_eq!(events.iter().map(|event| event.quantity).sum::<f64>(), candle.volume);
+        assert_eq!(events.first().unwrap().sequence, 100);
+        assert_eq!(events.last().unwrap().sequence, 159);
+        assert_eq!(events.last().unwrap().timestamp, "2026-10-07T09:00:59");
+    }
+
+    #[test]
+    fn expands_zero_volume_m1_without_inventing_quantity() {
+        let candle = parse_replay_m1_candle_line(
+            "WDOZ26,2026-10-07T09:00:00,12,5000.0,5001.0,4999.5,5000.5,0,1",
+            "WDOFUT",
+        ).unwrap();
+        let events = expand_m1_candle(&candle, "WDOFUT", 0).unwrap();
+        assert_eq!(events.len(), 60);
+        assert!(events.iter().all(|event| event.quantity == 0.0));
+        assert!(events.iter().all(|event| ((event.price / 0.5) - (event.price / 0.5).round()).abs() < 1e-7));
     }
 
 }
