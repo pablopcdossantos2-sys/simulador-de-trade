@@ -1080,6 +1080,43 @@ mod tests {
     }
 
     #[test]
+    fn m2_replay_reports_duplicate_candle_after_valid_batch_and_recovers() {
+        use std::io::Write;
+        use std::time::{SystemTime, UNIX_EPOCH};
+
+        let unique = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos();
+        let path = std::env::temp_dir().join(format!("simulador-trade-m2-duplicate-{unique}.csv"));
+        {
+            let mut file = File::create(&path).unwrap();
+            writeln!(file, "symbol,timestamp,source_row,open,high,low,close,volume").unwrap();
+            writeln!(file, "WINV26,2026-10-07T09:00:00,1,130000,130050,129950,130010,1200").unwrap();
+            writeln!(file, "WINV26,2026-10-07T09:00:00,2,130010,130060,129990,130040,900").unwrap();
+            writeln!(file, "WINV26,2026-10-07T09:02:00,3,130040,130070,130000,130060,800").unwrap();
+        }
+
+        let (mut session, _) = open_session(&path).unwrap();
+
+        let first = read_next_replay_batch(&mut session, 5000).unwrap();
+        assert_eq!(first.len(), 120);
+        assert_eq!(first.first().unwrap().timestamp, "2026-10-07T09:00:00");
+        assert_eq!(first.last().unwrap().timestamp, "2026-10-07T09:01:59");
+
+        let error = read_next_replay_batch(&mut session, 5000).unwrap_err();
+        assert!(error.contains("duplicados ou fora de ordem cronológica"));
+
+        let recovered = read_next_replay_batch(&mut session, 5000).unwrap();
+        assert_eq!(recovered.len(), 120);
+        assert_eq!(recovered.first().unwrap().timestamp, "2026-10-07T09:02:00");
+        assert_eq!(recovered.last().unwrap().timestamp, "2026-10-07T09:03:59");
+
+        let end = read_next_replay_batch(&mut session, 5000).unwrap();
+        assert!(end.is_empty());
+        assert!(session.finished);
+
+        let _ = std::fs::remove_file(path);
+    }
+
+    #[test]
     fn opens_m2_session_and_streams_120_synthetic_seconds() {
         use std::io::Write;
         use std::time::{SystemTime, UNIX_EPOCH};
