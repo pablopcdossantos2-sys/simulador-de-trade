@@ -364,11 +364,11 @@ export function useReplayPlayer(
           if (!first) return;
           const anchorTimestamp = currentTimestamp ?? first.timestamp;
           const now = performance.now();
-          clockRef.current = {
-            marketTimeMs: marketTimestampOrdinalMs(anchorTimestamp),
-            wallTimeMs: now,
-            speed: speedRef.current,
-          };
+          clockRef.current = anchorReplayClock(
+            marketTimestampOrdinalMs(anchorTimestamp),
+            now,
+            speedRef.current,
+          );
         }
 
         while (
