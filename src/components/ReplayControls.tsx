@@ -150,6 +150,13 @@ export function ReplayControls({
             </p>
           )}
 
+          {session.synthetic && (
+            <p className="replay-synthetic-warning" role="note">
+              <strong>Replay sintético — não são negócios históricos.</strong>
+              Os 120 preços por candle M2 são uma trajetória artificial limitada pelos valores OHLC. A quantidade é distribuída ao longo dos segundos; horários, preços intermediários e fluxo de negócios não reproduzem o mercado real. Estratégias executadas neste modo produzem resultados hipotéticos, não evidência de desempenho em negócios históricos.
+            </p>
+          )}
+
           <div className="replay-note replay-note-help">
             <InfoTip label="Como funciona o replay">
               O ritmo controla o relógio do mercado: em 10×, dois minutos simulados correspondem a aproximadamente 12 segundos reais. {session.synthetic
