@@ -5,6 +5,9 @@ export interface ProfitPreparationResult {
   sourcePath: string;
   outputPath: string;
   metadataPath: string;
+  m1OutputPath?: string | null;
+  m1KeptRows?: number | null;
+  m1OutputBytes?: number | null;
   symbol: string;
   sourceOrder: "ASCENDING" | "DESCENDING" | "UNKNOWN";
   sourceRows: number;

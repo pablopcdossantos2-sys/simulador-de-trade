@@ -140,6 +140,12 @@ struct ProfitPreparationResult {
     source_path: String,
     output_path: String,
     metadata_path: String,
+    #[serde(default)]
+    m1_output_path: Option<String>,
+    #[serde(default)]
+    m1_kept_rows: Option<u64>,
+    #[serde(default)]
+    m1_output_bytes: Option<u64>,
     symbol: String,
     source_order: String,
     source_rows: u64,
@@ -3114,6 +3120,9 @@ fn process_profit_replay_file(
         source_path: source.to_string_lossy().to_string(),
         output_path: output_path.to_string_lossy().to_string(),
         metadata_path: metadata_path.to_string_lossy().to_string(),
+        m1_output_path: None,
+        m1_kept_rows: None,
+        m1_output_bytes: None,
         symbol,
         source_order,
         source_rows,
@@ -3320,6 +3329,12 @@ fn process_profit_m2_candle_file(
         ));
     }
 
+    // Preserve a cópia M1 original antes da agregação M2. O arquivo M1 terá
+    // identificação explícita de timeframe e não preencherá lacunas.
+    let m1_rows: Vec<ProfitCandleRow> = if source_is_m1 {
+        selected_rows.iter().filter(|row| row.timestamp.time() >= window_start && row.timestamp.time() < window_end).cloned().collect()
+    } else { Vec::new() };
+
     let (m2_rows, incomplete_m1_candles_dropped) = if source_is_m1 {
         aggregate_m1_candles(selected_rows)?
     } else {
@@ -3378,6 +3393,24 @@ fn process_profit_m2_candle_file(
     replace_file_safely(&temp_path, &output_path)?;
 
     let output_bytes = fs::metadata(&output_path).map_err(|error| error.to_string())?.len();
+
+    let m1_output_path = if source_is_m1 {
+        let m1_path = output_path.with_file_name(format!("{stem}_{date_label}_{range}_M1.replay.csv"));
+        let m1_temp = unique_temp_path(&m1_path, "m1.tmp");
+        let _m1_guard = TempFileGuard(m1_temp.clone());
+        let file = File::create(&m1_temp).map_err(|error| error.to_string())?;
+        let mut writer = BufWriter::with_capacity(1024 * 1024, file);
+        writer.write_all(b"symbol,timestamp,source_row,open,high,low,close,volume,timeframe_minutes\\n").map_err(|error| error.to_string())?;
+        for row in &m1_rows {
+            let line = format!("{},{},{},{},{},{},{},{},1\\n", csv_escape(&symbol), row.timestamp.format("%Y-%m-%dT%H:%M:%S"), row.source_row, row.open, row.high, row.low, row.close, row.volume);
+            writer.write_all(line.as_bytes()).map_err(|error| error.to_string())?;
+        }
+        writer.flush().map_err(|error| error.to_string())?;
+        drop(writer);
+        replace_file_safely(&m1_temp, &m1_path)?;
+        Some(m1_path)
+    } else { None };
+    let m1_output_bytes = m1_output_path.as_ref().map(|path| fs::metadata(path).map(|meta| meta.len()).map_err(|error| error.to_string())).transpose()?;
     let reduction_pct = if source_bytes == 0 { 0.0 }
         else { ((1.0 - output_bytes as f64 / source_bytes as f64) * 100.0).max(0.0) };
     let first_timestamp = rows.first().map(|row| row.timestamp.format("%Y-%m-%dT%H:%M:%S").to_string());
@@ -3387,6 +3420,9 @@ fn process_profit_m2_candle_file(
         source_path: source.to_string_lossy().to_string(),
         output_path: output_path.to_string_lossy().to_string(),
         metadata_path: metadata_path.to_string_lossy().to_string(),
+        m1_output_path: m1_output_path.as_ref().map(|path| path.to_string_lossy().to_string()),
+        m1_kept_rows: if source_is_m1 { Some(m1_rows.len() as u64) } else { None },
+        m1_output_bytes,
         symbol: symbol.clone(),
         source_order,
         source_rows,
@@ -3409,6 +3445,9 @@ fn process_profit_m2_candle_file(
         "purpose": "Simulador de Trade — replay de candles M2 WINFUT/WDOFUT",
         "dataMode": "CANDLES_M2_SYNTHETIC",
         "sourceTimeframeMinutes": result.source_timeframe_minutes,
+        "preservedM1File": result.m1_output_path,
+        "preservedM1Rows": result.m1_kept_rows,
+        "preservedM1Bytes": result.m1_output_bytes,
         "timezone": "America/Sao_Paulo",
         "sourceTradeDate": selected_date.format("%Y-%m-%d").to_string(),
         "window": { "startInclusive": result.session_start.clone(), "endExclusive": result.session_end.clone() },

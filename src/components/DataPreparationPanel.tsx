@@ -187,7 +187,19 @@ export function DataPreparationPanel({
             <strong>{(result.dataMode === "CANDLES_M2_SYNTHETIC" ? result.discardedOutsideWindowRows : result.discardedRows).toLocaleString("pt-BR")}</strong>
           </div>
           {result.dataMode === "CANDLES_M2_SYNTHETIC" && result.sourceTimeframeMinutes === 1 && (
-            <p className="preparation-note">A origem era M1, mas este arquivo de replay contém candles M2 agregados. A sequência M1 original ainda não é reproduzida; para análises que dependem de cada minuto, aguarde a implementação do replay M1.</p>
+            <p className="preparation-note">A sequência original M1 também foi preservada em um arquivo separado. O replay M1 ainda não está habilitado; por enquanto, o arquivo principal continua sendo M2.</p>
+          )}
+          {result.m1OutputPath && (
+            <>
+              <div>
+                <span>Candles M1 originais preservados</span>
+                <strong>{(result.m1KeptRows ?? 0).toLocaleString("pt-BR")}</strong>
+              </div>
+              <div className="result-path">
+                <span>Arquivo M1 preservado (ainda não reproduzível)</span>
+                <strong>{result.m1OutputPath}</strong>
+              </div>
+            </>
           )}
           {result.dataMode === "CANDLES_M2_SYNTHETIC" && result.sourceTimeframeMinutes === 1 && (
             <div>
