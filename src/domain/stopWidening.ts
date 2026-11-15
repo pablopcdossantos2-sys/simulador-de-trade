@@ -184,7 +184,9 @@ export function simulateStopWideningScenario(input: {
       throw new Error("O replay contém preço inválido ou incompatível com o tick do ativo.");
     }
     const tradeTime = parseMarketTimestamp(trade.timestamp);
-    if (!Number.isFinite(trade.quantity) || trade.quantity <= 0 ||
+    // Eventos sintéticos de candles M2 podem representar segundos sem negócios
+    // (quantidade zero); eles continuam sendo observações válidas de preço.
+    if (!Number.isFinite(trade.quantity) || trade.quantity < 0 ||
         !trade.timestamp.trim() || !Number.isFinite(tradeTime)) {
       throw new Error("O replay contém quantidade ou horário inválido.");
     }
