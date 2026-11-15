@@ -1,5 +1,5 @@
 import type { Position, ReplayTrade, Side } from "../types";
-import { grossResultBRL, tickSizeFor } from "./marketSpecs";
+import { grossResultBRL, isPriceOnTick, tickSizeFor } from "./marketSpecs";
 
 export type StopWideningOutcome = "TARGET" | "BANKRUPTCY" | "SESSION_END";
 
@@ -92,6 +92,30 @@ export function simulateStopWideningScenario(input: {
   if (!Number.isFinite(lastObservedPrice) || lastObservedPrice <= 0) {
     throw new Error("Não há preço válido para iniciar a análise contrafactual.");
   }
+  if (!lastObservedTimestamp.trim()) {
+    throw new Error("Informe o horário do último preço observado.");
+  }
+  if (!Number.isInteger(position.contracts) || position.contracts <= 0) {
+    throw new Error("A quantidade de contratos precisa ser um inteiro maior que zero.");
+  }
+  if (!Number.isFinite(position.slippageTicksPerSide) || position.slippageTicksPerSide < 0 ||
+      !Number.isFinite(position.costPerContractRoundTripBRL) || position.costPerContractRoundTripBRL < 0) {
+    throw new Error("Custos e slippage precisam ser valores válidos e não negativos.");
+  }
+  const referencePrices = [
+    position.entry, position.stopLoss, position.target, attemptedStop, lastObservedPrice,
+  ];
+  if (referencePrices.some((price) =>
+    !Number.isFinite(price) || price <= 0 || !isPriceOnTick(position.asset, price)
+  )) {
+    throw new Error("A posição contém preços inválidos ou incompatíveis com o tick do ativo.");
+  }
+  const validGeometry = position.side === "BUY"
+    ? position.stopLoss < position.entry && position.target > position.entry
+    : position.stopLoss > position.entry && position.target < position.entry;
+  if (!validGeometry) {
+    throw new Error("Stop e alvo precisam estar em lados válidos do preço de entrada.");
+  }
 
   const initialRiskPoints = Math.abs(position.entry - position.stopLoss);
   if (!Number.isFinite(initialRiskPoints) || initialRiskPoints <= 0) {
@@ -112,10 +136,24 @@ export function simulateStopWideningScenario(input: {
   let processedTrades = 0;
   const adjustments: StopWideningAdjustment[] = [];
 
+  let previousSequence = position.openedReplaySequence ?? -1;
   for (const trade of tradesAfterViolation) {
     if (trade.sequence <= (position.openedReplaySequence ?? -1)) continue;
-    if (!Number.isFinite(trade.price) || trade.price <= 0) continue;
+    if (trade.asset !== position.asset) {
+      throw new Error("O replay contém negócio de ativo diferente da posição.");
+    }
+    if (!Number.isInteger(trade.sequence) || trade.sequence <= previousSequence) {
+      throw new Error("Os negócios do replay precisam estar em ordem crescente e sem duplicidade.");
+    }
+    if (!Number.isFinite(trade.price) || trade.price <= 0 ||
+        !isPriceOnTick(position.asset, trade.price)) {
+      throw new Error("O replay contém preço inválido ou incompatível com o tick do ativo.");
+    }
+    if (!Number.isFinite(trade.quantity) || trade.quantity < 0 || !trade.timestamp.trim()) {
+      throw new Error("O replay contém quantidade ou horário inválido.");
+    }
 
+    previousSequence = trade.sequence;
     processedTrades += 1;
     lastPrice = trade.price;
     lastTimestamp = trade.timestamp;
