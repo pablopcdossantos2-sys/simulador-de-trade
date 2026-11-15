@@ -1242,7 +1242,7 @@ export default function App() {
         <button type="button" className={activeArea === "SIMULADOR" ? "active" : ""} aria-current={activeArea === "SIMULADOR" ? "page" : undefined} onClick={() => setActiveArea("SIMULADOR")}>Simulador</button>
         <button type="button" className={activeArea === "PREGOES" ? "active" : ""} aria-current={activeArea === "PREGOES" ? "page" : undefined} onClick={() => setActiveArea("PREGOES")}>Pregões e replays</button>
         <button type="button" className={activeArea === "RESULTADOS" ? "active" : ""} aria-current={activeArea === "RESULTADOS" ? "page" : undefined} onClick={() => setActiveArea("RESULTADOS")}>Resultados</button>
-        <button type="button" className={activeArea === "EVOLUCAO" ? "active" : ""} aria-current={activeArea === "EVOLUCAO" ? "page" : undefined} onClick={() => setActiveArea("EVOLUCAO")}>Evolução do Trader</button>
+        <button type="button" className={activeArea === "EVOLUCAO" ? "active" : ""} aria-current={activeArea === "EVOLUCAO" ? "page" : undefined} onClick={() => setActiveArea("EVOLUCAO")} disabled={examActive} title={examActive ? "A Evolução do Trader fica bloqueada durante uma prova." : undefined}>Evolução do Trader</button>
         <button type="button" className={activeArea === "SISTEMAS" ? "active" : ""} aria-current={activeArea === "SISTEMAS" ? "page" : undefined} onClick={() => setActiveArea("SISTEMAS")}>Sistemas de trading</button>
         <button type="button" className={activeArea === "MANUAL" ? "active" : ""} aria-current={activeArea === "MANUAL" ? "page" : undefined} onClick={() => setActiveArea("MANUAL")}>Manual</button>
         <button type="button" className={activeArea === "CONFIGURACOES" ? "active" : ""} aria-current={activeArea === "CONFIGURACOES" ? "page" : undefined} onClick={() => setActiveArea("CONFIGURACOES")}>Configurações</button>
@@ -1693,7 +1693,11 @@ export default function App() {
 
       <section className="app-area evolution-area" hidden={activeArea !== "EVOLUCAO"}>
         <h2 className="area-title">Evolução do Trader</h2>
-        <TraderEvolutionPanel refreshKey={sessionHistoryRefreshKey + trades.length + trainingEvents.length} />
+        {examActive ? (
+          <p role="status">A Evolução do Trader e seus resultados ficam ocultos durante uma prova ativa.</p>
+        ) : (
+          <TraderEvolutionPanel refreshKey={sessionHistoryRefreshKey + trades.length + trainingEvents.length} />
+        )}
       </section>
 
       <section className="app-area manual-area" hidden={activeArea !== "MANUAL"}>
