@@ -2,69 +2,68 @@ export function ManualPanel() {
   return (
     <div className="manual-panel card">
       <p className="manual-intro">
-        Este manual explica o fluxo recomendado para preparar os dados do Profit,
-        carregar um pregão e realizar os treinamentos. Os arquivos são processados
-        localmente e o CSV original não é alterado.
+        Este manual explica como montar seu acervo de pregões, configurar uma
+        estratégia e começar a treinar. Todo o processamento dos CSVs acontece
+        no seu computador, sem modificar os arquivos originais do Profit.
       </p>
 
       <section className="manual-topic">
-        <h3>1. Escolher a estratégia e preparar uma simulação</h3>
+        <h3>1. Adicionar pregões e replays ao acervo</h3>
         <ol>
-          <li>Abra a aba <strong>Simulador</strong>. Antes do plano, escolha <strong>01 — Multi Médias · Nuvem e Sinais</strong> ou <strong>02 — MMs MTF + Angulação (beta)</strong>.</li>
-          <li>No Sistema 01 há sinais de entrada e reentrada por toque na MME lenta (padrão 52). O Sistema 02 permite apenas a direção indicada pela confluência M15: verde (compra), vermelho (venda); a entrada é manual e o cinza bloqueia novas ordens.</li>
-          <li>Para personalizar períodos, expanda <strong>Configurar médias da estratégia</strong> antes de planejar o treino. No Sistema 01 configure MME rápida, MMP intermediária e MME lenta (padrões 8/20/52). No Sistema 02 configure as quatro MMEs M15 (padrões 8/20/50/200). Digite números inteiros de 2 a 300, em ordem crescente, e clique em <strong>Salvar médias e filtros</strong>. No Sistema 02, também é possível ativar ou desativar a angulação global, o alinhamento, a participação de cada MME, a VWAP e o TPV na confluência. O ATR 14 normaliza os ângulos e não é um voto independente.</li>
-          <li>Escolha o ativo: WINFUT ou WDOFUT.</li>
-          <li>O campo <strong>Data do pregão</strong> começa preenchido com a data atual. Você pode escolher outra data quando quiser estudar um pregão anterior.</li>
-          <li>Clique em <strong>Usar pregão completo</strong>. O programa calcula quais arquivos são necessários: o pregão-alvo e o histórico anterior usado para aquecer o indicador.</li>
+          <li>Abra <strong>Pregões e replays</strong> no menu principal. Não é necessário passar pelo Simulador nem criar um plano de treino para importar seus arquivos.</li>
+          <li>Em <strong>Preparar arquivo para replay</strong>, clique em <strong>Selecionar CSV</strong> e escolha o arquivo de candles exportado pelo Profit Ultra.</li>
+          <li>Selecione corretamente o <strong>timeframe M1 ou M2</strong> do CSV. Para um CSV que contenha vários dias, preencha <strong>Data específica do pregão</strong>. Quando esse campo estiver vazio, será utilizada a primeira data encontrada no arquivo.</li>
+          <li>Confira os horários de início e fim; a janela começa no horário informado e termina imediatamente antes do horário final. Clique em <strong>Preparar e adicionar</strong>.</li>
+          <li>Acompanhe o percentual de preparação. Ao concluir, o replay M2 é registrado no catálogo; arquivos M1 também preservam uma versão original M1, catalogada separadamente. Repita o processo para as outras datas que possui.</li>
+          <li>Se já tiver um arquivo <strong>.replay.csv</strong> criado pelo programa e seus metadados correspondentes, clique em <strong>Adicionar replay pronto</strong> na lista do acervo, sem prepará-lo novamente.</li>
+          <li>Em <strong>Pregões e replays disponíveis</strong>, use <strong>Atualizar lista</strong> para conferir o acervo. Se mover ou apagar arquivos, use <strong>Remover referências ausentes</strong>; isso não apaga os replays válidos.</li>
         </ol>
-        <p>Se a data atual cair em fim de semana ou feriado da B3, ela não será um pregão válido. Nesse caso, escolha uma data de pregão disponível. <strong>Para o Sistema 02</strong>, o plano requer 450 candles M2 anteriores (aproximadamente dois pregões), destinados a aquecer as 50 barras M15 do TPV e os demais indicadores. O Sistema 01 usa 260 candles M2 com os períodos originais. Quando você altera as médias, o plano calcula automaticamente um novo aquecimento; o plano antigo é invalidado e precisa ser reaplicado, mas os CSVs catalogados são preservados.</p>
+        <p>O CSV original não é alterado. Os arquivos tratados são mantidos no local de saída usado pelo programa. Ao mudar ou excluir os arquivos no Windows, os replays podem se tornar indisponíveis no catálogo.</p>
       </section>
 
       <section className="manual-topic">
-        <h3>2. Exportar e selecionar arquivos do Profit</h3>
+        <h3>2. Escolher a estratégia e planejar o treinamento</h3>
         <ol>
-          <li>No Profit Ultra, exporte os candles do ativo e das datas necessárias em CSV. O formato M1 é aceito e convertido automaticamente para M2; arquivos M2 também são aceitos.</li>
-          <li>Na seção <strong>Dados do pregão</strong>, cada linha identifica uma data e sua função: <strong>Histórico prévio</strong> ou <strong>Pregão completo</strong>.</li>
-          <li>Em cada linha, clique em <strong>Selecionar CSV</strong> e escolha o arquivo correspondente àquela data. A seleção preenche somente a linha em que você clicou; os demais campos permanecem independentes.</li>
-          <li>Se um único CSV contiver várias datas, você pode informar manualmente o mesmo caminho nas linhas correspondentes. O sistema separa os registros pela data solicitada.</li>
-          <li>Clique em <strong>Preparar replay</strong> em cada linha ou em <strong>Preparar todos os caminhos informados</strong> depois de preencher os caminhos necessários.</li>
+          <li>Abra <strong>Simulador</strong>. A página mostra resumos compactos das etapas já concluídas. Clique no título de qualquer etapa contraída para revisar ou alterar sua configuração.</li>
+          <li>Expanda <strong>Estratégia de treinamento</strong> se quiser alternar entre <strong>01 — Multi Médias · Nuvem e Sinais</strong> e <strong>02 — MMs MTF + Angulação (beta)</strong>. O sistema selecionado fica indicado no resumo.</li>
+          <li>Expanda <strong>Configurar médias da estratégia</strong> somente quando desejar alterar os períodos das médias ou, no Sistema 02, ativar ou desativar os filtros de angulação, alinhamento, MMEs, VWAP e TPV. Clique em <strong>Salvar médias e filtros</strong> para aplicar.</li>
+          <li>Em <strong>Planejar simulação</strong>, escolha WINFUT ou WDOFUT e a data do pregão. Clique em <strong>Usar pregão completo</strong>.</li>
+          <li>O programa calcula o histórico anterior necessário para o aquecimento. Quando o plano estiver aplicado, sua seção é contraída automaticamente, mas pode ser aberta para edição.</li>
         </ol>
+        <p>Se a data cair em feriado ou fim de semana da B3, escolha um pregão válido. Com as configurações padrão, o Sistema 01 pede 260 candles M2 anteriores; o Sistema 02 pede 450. Ao modificar períodos ou a participação das médias, o aquecimento pode mudar e o plano deve ser reaplicado. Seus CSVs já catalogados permanecem preservados.</p>
       </section>
 
       <section className="manual-topic">
-        <h3>3. Entender os dois arquivos de replay</h3>
-        <p>
-          É normal que uma simulação gere mais de um arquivo. O replay do <strong>pregão-alvo</strong>
-          contém o dia que será exibido e treinado. O replay do <strong>histórico prévio</strong>
-          fornece candles anteriores para estabilizar os cálculos do indicador, especialmente a MME lenta do sistema 01 ou as médias M15 do sistema 02.
-        </p>
-        <p>
-          Por exemplo, ao preparar 12/11/2026 e 13/11/2026 para estudar o pregão de 13/11,
-          mantenha os dois arquivos no catálogo: 12/11 será usado como histórico prévio
-          (oculto durante o treino) e 13/11 será o pregão-alvo. Não junte os dois arquivos.
-        </p>
+        <h3>3. Conferir arquivos do plano e carregar o pregão</h3>
+        <ol>
+          <li>Expanda <strong>Arquivos disponíveis e preparação do pregão</strong> somente se houver pendências ou se quiser conferir o vínculo entre os arquivos, a data e o contrato.</li>
+          <li>O catálogo identifica automaticamente pregões já preparados em <strong>Pregões e replays</strong>. Não é necessário importá-los novamente quando atendem ao plano.</li>
+          <li>Se faltar algum CSV, use <strong>Dados do pregão</strong> dentro da etapa: cada linha indica histórico prévio ou pregão-alvo. Clique em <strong>Selecionar CSV</strong>, confira M1/M2 e depois em <strong>Preparar replay</strong>. Um arquivo com várias datas pode servir a várias linhas, desde que cada linha identifique sua própria data.</li>
+          <li>Quando todos os arquivos estiverem disponíveis, essa etapa é contraída automaticamente e a seção <strong>Carregar pregão</strong> fica disponível. Clique em <strong>Carregar replay</strong>.</li>
+          <li>Após o carregamento, o painel de carga também fica compacto. Escolha <strong>Treino livre</strong> ou <strong>Modo prova</strong> e clique em <strong>Iniciar treino</strong> ou <strong>Iniciar prova</strong>.</li>
+        </ol>
+        <p>Os candles de histórico prévio alimentam os indicadores, mas permanecem ocultos durante o treinamento. O replay mostra somente os negócios sintéticos ou históricos correspondentes ao pregão selecionado.</p>
       </section>
 
       <section className="manual-topic">
-        <h3>4. Conferir o catálogo e carregar o pregão</h3>
-        <ol>
-          <li>Confira a seção <strong>Arquivos disponíveis</strong>. Ela mostra se cada requisito do plano foi atendido e se o ativo/contrato é compatível.</li>
-          <li>Quando todos os requisitos estiverem disponíveis, o arquivo do pregão-alvo será selecionado para carregamento. O histórico prévio é carregado como contexto oculto do indicador.</li>
-          <li>Na seção <strong>Carregar pregão</strong>, clique em <strong>Carregar replay</strong>. Aguarde a confirmação de que o arquivo foi carregado.</li>
-          <li>Escolha <strong>Treino livre</strong> ou <strong>Modo prova</strong> e clique em <strong>Iniciar treino</strong> ou <strong>Iniciar prova</strong>.</li>
-          <li>Use os controles para reproduzir, pausar, mudar a velocidade, avançar um segundo ou avançar um candle. O contador <strong>Fechamento M2</strong>, no canto inferior direito do gráfico, acompanha o tempo simulado do mercado e fica parado durante a pausa.</li>
-          <li>Na segunda estratégia, os valores M15 ficam em uma faixa reservada abaixo da leitura do último candle; mover o mouse pelo gráfico altera os valores sem deslocar o gráfico.</li>
-        </ol>
+        <h3>4. Reproduzir, pausar e navegar no gráfico</h3>
+        <ul>
+          <li>Use os controles para reproduzir ou pausar, alterar a velocidade, avançar um segundo, avançar um candle e reiniciar o replay quando permitido.</li>
+          <li>O contador <strong>Fechamento M2</strong> no canto inferior direito do gráfico mostra quanto tempo simulado falta para o candle fechar; fica parado quando o replay está pausado.</li>
+          <li>Arraste a área de preços para navegar. Candles, médias, VWAP e nuvens permanecem recortados dentro da região de preços: não devem invadir a área de volume nem a escala dos horários.</li>
+          <li>Os volumes ficam na faixa inferior própria. Os horários e o texto <strong>JANELA DE TREINO</strong> permanecem legíveis durante o deslocamento do gráfico.</li>
+          <li>No Sistema 02, os dados das quatro médias M15, VWAP, ATR e TPV ficam numa faixa fixa abaixo do OHLCV; mover o mouse altera os valores sem reposicionar o gráfico.</li>
+        </ul>
       </section>
 
       <section className="manual-topic">
         <h3>5. Operar durante o treinamento</h3>
         <ul>
-          <li>No <strong>Sistema 01</strong>, o sinal e as regras de reentrada pela MME lenta configurada determinam a direção permitida. No <strong>Sistema 02</strong>, a confluência M15 de médias, VWAP e TPV autoriza o sentido, sem criar gatilhos automáticos.</li>
-          <li>Configure a distância do stop e do alvo em pontos. A relação risco/retorno mínima exigida é de 1:2.</li>
+          <li>No <strong>Sistema 01</strong>, a zona e as regras de reentrada pela MME lenta configurada determinam a direção permitida. No <strong>Sistema 02</strong>, os filtros M15 ativados autorizam compra ou venda, sem disparar uma ordem automaticamente.</li>
+          <li>Defina as distâncias de stop e alvo em pontos. A relação risco/retorno mínima exigida é de 1:2.</li>
           <li>Você pode posicionar a entrada pelo gráfico e ajustar as linhas de stop e alvo conforme as regras do simulador.</li>
           <li>O replay pausa em situações de decisão relevantes durante o treino. Encerre a sessão quando terminar.</li>
-          <li>Não é possível trocar a estratégia durante uma sessão ou posição aberta. Ao trocar, reaplique o plano e carregue o replay para obter o histórico correto. O catálogo preserva os CSVs já preparados.</li>
+          <li>Não é permitido trocar a estratégia ou seus filtros durante uma sessão ou posição aberta. Após alterar o sistema ou os parâmetros, reaplique o plano e recarregue o replay.</li>
         </ul>
       </section>
 
@@ -78,22 +77,17 @@ export function ManualPanel() {
       </section>
 
       <section className="manual-topic">
-        <h3>7. Resultados, evolução e configurações</h3>
+        <h3>7. Resultados, evolução, backup e importação</h3>
         <ul>
-          <li><strong>Resultados:</strong> consulte operações encerradas, histórico e métricas disponíveis. Novas sessões registram os períodos das médias usados, que também aparecem nos relatórios e backups.</li>
-          <li><strong>Evolução do Trader:</strong> acompanhe a evolução das sessões e dos indicadores de disciplina.</li>
-          <li><strong>Configurações:</strong> ajuste custos, slippage, saldos iniciais dos treinamentos e opções de backup/restauração.</li>
+          <li><strong>Resultados:</strong> consulte operações, histórico e métricas disponíveis. Novas sessões registram os períodos e filtros usados, incluídos em relatórios e backups.</li>
+          <li><strong>Evolução do Trader:</strong> acompanhe a evolução dos treinos e dos indicadores de disciplina.</li>
+          <li><strong>Configurações:</strong> ajuste custos, slippage, saldos e backups. Em <strong>Modo de importação</strong>, use <strong>Mesclar</strong> para preservar os registros existentes ou <strong>Substituir tudo</strong> para restaurar os dados do backup no lugar dos locais; confirme antes de substituir.</li>
         </ul>
       </section>
 
       <section className="manual-topic manual-note">
         <h3>Observação sobre a natureza do replay</h3>
-        <p>
-          O replay M2 cria um percurso sintético de preço dentro de cada candle. Ele não
-          reconstitui os negócios históricos tick a tick nem a sequência real de agressões
-          intrabar. Use os resultados como ferramenta educacional, não como reprodução
-          exata do mercado.
-        </p>
+        <p>O replay a partir de candles M1/M2 cria trajetórias sintéticas de preço dentro dos candles. Ele não reconstitui negócios históricos tick a tick nem a ordem real das agressões intrabar. Use os resultados para treinamento educacional, não como reprodução exata do mercado.</p>
       </section>
     </div>
   );
