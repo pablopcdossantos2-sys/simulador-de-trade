@@ -111,3 +111,17 @@ Para qualquer **FALHOU**, envie a mensagem de erro exata, a etapa do roteiro e, 
 - Comprar serviços de dados, certificados de assinatura ou publicar na Microsoft Store.
 
 **Fontes sobre a janela WIN:** B3, Ofício Circular 055/2026-VNC de 29/10/2026 (grade em vigor de 03/11/2026) e 005/2026-PRE de 24/02/2026 (grade em vigor de 09/03/2026). O WIN normalmente encerra às 18:25; o contrato vincendo pode encerrar às 18:00 no dia de vencimento.
+
+## Conferência visual rápida após correção do gráfico e do ícone de ajuda
+
+**Somente após atualizar o executável.** Os testes completos anteriores foram informados como aprovados pelo usuário em 15/11/2026; não é necessário repeti-los por causa destas duas correções de interface.
+
+1. Abra a versão atual da `main` no Windows. Se o binário ainda for antigo, gere um novo artefato no workflow **Windows packaging (on demand)** conforme a Etapa 2. Não é necessário criar release.
+2. Acesse **Simulador** e carregue qualquer replay WINFUT ou WDOFUT que já esteja preparado (ou o modo de demonstração).
+3. Confira a legenda e o gráfico da estratégia **Multi Médias — Nuvem e Sinais**: devem aparecer **somente MMP 20, VWAP, MME 8, MME 52 e Volume**; nenhuma linha, legenda, painel ou readout **M15 MME 8/20/50/200** deve aparecer.
+4. Passe o mouse sobre as médias, amplie e reduza o gráfico. O zoom vertical não deve se afastar artificialmente por causa de médias M15 ocultas.
+5. Observe os ícones de informação (`i`) do gráfico e dos painéis. O ponto e a haste devem permanecer **centralizados dentro da borda circular**. Abra e feche um deles para verificar que o texto de ajuda continua acessível.
+6. Repita a conferência do ícone no **modo claro, modo escuro e gráfico maximizado**.
+7. Se houver algum problema, envie somente a captura da tela e indique a etapa desta seção. Não é necessário repetir a auditoria dos CSVs ou a validação de operações/backup já concluída.
+
+**Observação:** o cálculo das médias M15 do futuro Sistema 02 permanece disponível no código e nos testes próprios; ele apenas não é mais executado nem desenhado no gráfico do Sistema 01.
