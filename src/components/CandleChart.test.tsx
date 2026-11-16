@@ -96,6 +96,7 @@ it("recorta preços e médias na área de preço, mantendo barras de volume fora
   const markup = renderToStaticMarkup(
     <CandleChart candles={candles}
       evaluation={new MultiMediasNuvemAdapter().calculate("WINFUT", candles)}
+      contextCandles={candles.slice(0, 5)}
       asset="WINFUT" position={null} />,
   );
   expect(markup).toContain('class="chart-price-layer"');
