@@ -1365,6 +1365,19 @@ export default function App() {
     }
   }
 
+  async function handlePreparedReplay(result: import("./services/profitData").ProfitPreparationResult) {
+    try {
+      await registerReplayFile(result.outputPath);
+      if (result.m1OutputPath) await registerReplayFile(result.m1OutputPath);
+      setCatalogRefreshKey((value) => value + 1);
+      setFeedback("Arquivo tratado e adicionado ao catálogo local de pregões.");
+    } catch (error) {
+      const message = readErrorMessage(error, "O replay foi preparado, mas não pôde ser catalogado.");
+      setFeedback(message);
+      throw new Error(message);
+    }
+  }
+
   const historyTradesForDisplay = visibleTradesForTrainingState(
     trades,
     trainingSession,
@@ -1780,26 +1793,21 @@ export default function App() {
         <DataPreparationPanel
           plannedStart={simulationPlan?.targetStartTime}
           plannedEnd={simulationPlan?.targetEndTime}
-          onPrepared={async (result) => {
-            try {
-              await registerReplayFile(result.outputPath);
-              if (result.m1OutputPath) await registerReplayFile(result.m1OutputPath);
-              setCatalogRefreshKey((value) => value + 1);
-              setFeedback(
-                "Arquivo tratado e adicionado ao catálogo local de dados.",
-              );
-            } catch (error) {
-              setFeedback(
-                readErrorMessage(error, "O arquivo foi tratado, mas não pôde ser catalogado."),
-              );
-            }
-          }}
+          onPrepared={handlePreparedReplay}
         />      </details>
       </section>
 
       <section className="app-area available-replays-area" hidden={activeArea !== "PREGOES"}>
         <h2 className="area-title">Pregões e replays</h2>
-        <AvailableReplaysPanel refreshKey={catalogRefreshKey} />
+        <p className="data-description">Adicione seus CSVs do Profit diretamente aqui. Não é preciso criar um plano no Simulador para organizar o acervo.</p>
+        <DataPreparationPanel
+          disabled={trainingActive || Boolean(position) || startingTraining || loadingReplay}
+          onPrepared={handlePreparedReplay}
+        />
+        <AvailableReplaysPanel
+          refreshKey={catalogRefreshKey}
+          onCatalogUpdated={() => setCatalogRefreshKey((value) => value + 1)}
+        />
       </section>
 
       <section className="app-area results-area" hidden={activeArea !== "RESULTADOS"}>
