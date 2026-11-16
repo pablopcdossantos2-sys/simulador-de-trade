@@ -88,6 +88,19 @@ fn valid_strategy_averages(value: &Value) -> bool {
         if length <= last { return false; }
         last = length;
     }
+    // Registros anteriores não possuíam filtros. Quando presentes, os
+    // interruptores devem ser estritamente booleanos para reproduzir a sessão.
+    if let Some(filters) = value.pointer("/mtf/filters") {
+        for key in ["useAngles", "requireAlignment", "useVwap", "useTpv"] {
+            if filters.get(key).and_then(Value::as_bool).is_none() { return false; }
+        }
+        let Some(votes) = filters.get("voteOn").and_then(Value::as_array) else {
+            return false;
+        };
+        if votes.len() != 4 || votes.iter().any(|v| !v.is_boolean()) {
+            return false;
+        }
+    }
     true
 }
 
@@ -4518,6 +4531,29 @@ mod tests {
             "mtf": { "periods": [10, 24, 60, 250] }
         });
         assert!(valid_strategy_averages(&snapshot));
+        let enabled = serde_json::json!({
+            "multiMedias": { "emaFastLength": 5, "wmaLength": 12, "emaSlowLength": 30 },
+            "mtf": {
+                "periods": [10, 24, 60, 250],
+                "filters": {
+                    "useAngles": false, "requireAlignment": true,
+                    "voteOn": [true, false, false, true],
+                    "useVwap": true, "useTpv": false
+                }
+            }
+        });
+        assert!(valid_strategy_averages(&enabled));
+        assert!(!valid_strategy_averages(&serde_json::json!({
+            "multiMedias": { "emaFastLength": 5, "wmaLength": 12, "emaSlowLength": 30 },
+            "mtf": {
+                "periods": [10, 24, 60, 250],
+                "filters": {
+                    "useAngles": "false", "requireAlignment": true,
+                    "voteOn": [true, false, false, true],
+                    "useVwap": true, "useTpv": false
+                }
+            }
+        })));
         assert!(!valid_strategy_averages(&serde_json::json!({
             "multiMedias": { "emaFastLength": 5, "wmaLength": 4, "emaSlowLength": 30 },
             "mtf": { "periods": [10, 24, 60, 250] }
