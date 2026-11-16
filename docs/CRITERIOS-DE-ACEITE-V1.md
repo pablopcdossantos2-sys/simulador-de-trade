@@ -2,6 +2,8 @@
 
 Este documento separa **o que impede a primeira entrega** do que poderá vir depois. Ser aprovado na CI não significa que o aplicativo Windows e o gráfico estão validados.
 
+**Validação humana informada em 15/11/2026:** o usuário declarou ter executado os testes do [tutorial Windows e Profit Ultra](VALIDACAO-HUMANA-PASSO-A-PASSO.md) e que tudo estava funcionando bem. Trata-se de relato positivo do usuário, e não de observação remota com logs ou capturas. As correções visuais subsequentes (retirada do M15 da estratégia 01 e alinhamento do ícone de informação) precisam apenas de uma verificação visual direcionada; não é necessário repetir as auditorias dos 18 CSVs. A instalação pelo NSIS não foi confirmada separadamente.
+
 ## Funcionalidades já implementadas
 
 - Aplicativo desktop Tauri + React; sessão educacional WINFUT/WDOFUT, sem enviar ordens reais.

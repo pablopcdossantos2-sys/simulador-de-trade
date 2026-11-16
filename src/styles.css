@@ -289,7 +289,8 @@ h2 {
 .chart-candle-zoom span { min-width: 76px; color: #a9bdd1; font-size: .72rem; text-align: center; font-variant-numeric: tabular-nums; }
 .chart-controls button.chart-candle-step { display: grid; place-items: center; width: 30px; min-width: 30px; height: 29px; min-height: 29px; padding: 0; border-radius: 6px; font-size: 1.05rem; line-height: 1; }
 .chart-controls .chart-info-tip { position: relative; align-self: center; }
-.chart-controls .chart-info-tip > summary { width: 28px; height: 28px; border-color: #58718c; background: #14263a; color: #d6e6f5; font-size: .88rem; }
+.chart-controls .chart-info-tip > summary { width: 28px; height: 28px; border-color: #58718c; background: #14263a; color: #d6e6f5; }
+.chart-controls .chart-info-tip .info-tip-symbol { width: 16px; height: 16px; }
 .chart-controls .chart-info-tip .info-tip-content { left: 0; right: auto; width: min(360px, calc(100vw - 40px)); }
 .chart-shell:has(.chart-info-tip[open]) { overflow: visible; position: relative; z-index: 5; }
 .chart-controls button {
@@ -3850,12 +3851,17 @@ td {
 /* Ajuda contextual: explicações secundárias ficam disponíveis sem ocupar a tela. */
 .info-tip { position: relative; display: inline-flex; flex: 0 0 auto; vertical-align: middle; }
 .info-tip > summary {
-  display: grid; place-items: center; width: 23px; height: 23px; padding: 0;
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 23px; height: 23px; min-width: 23px; min-height: 23px;
+  margin: 0; padding: 0; flex-shrink: 0;
   border: 1px solid #58718c; border-radius: 50%; background: #14263a;
-  color: #c6d8e9; cursor: pointer; list-style: none; font-size: .78rem;
-  font-weight: 900; line-height: 1;
+  color: #c6d8e9; cursor: pointer; list-style: none; line-height: 1;
 }
+.info-tip > summary::marker { content: ""; font-size: 0; }
 .info-tip > summary::-webkit-details-marker { display: none; }
+.info-tip-symbol {
+  display: block; width: 14px; height: 14px; flex: none; pointer-events: none;
+}
 .info-tip > summary:hover, .info-tip[open] > summary { border-color: #8db8df; background: #203b58; color: #fff; }
 .info-tip-content {
   position: absolute; z-index: 30; top: calc(100% + 8px); right: 0;
