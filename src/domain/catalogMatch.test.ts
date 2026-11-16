@@ -110,10 +110,24 @@ it("exige o pregão completo para o arquivo-alvo", () => {
 
 it("prioriza M1 original ao escolher fontes do plano, sem excluir M2 legado", () => {
   const matches = matchSimulationPlan(plan, "WINFUT", [
-    entry({ outputPath: "warmup-m2.csv", dataMode: "CANDLES_M2_SYNTHETIC" }),
-    entry({ outputPath: "target-m2.csv", tradeDate: "2026-10-14", dataMode: "CANDLES_M2_SYNTHETIC" }),
-    entry({ outputPath: "warmup-m1.csv", dataMode: "CANDLES_M1_SYNTHETIC" }),
-    entry({ outputPath: "target-m1.csv", tradeDate: "2026-10-14", dataMode: "CANDLES_M1_SYNTHETIC" }),
+    entry({
+      outputPath: "warmup-m2.csv", dataMode: "CANDLES_M2_SYNTHETIC",
+      lastTimestamp: "2026-10-13T17:58:00",
+    }),
+    entry({
+      outputPath: "target-m2.csv", tradeDate: "2026-10-14",
+      dataMode: "CANDLES_M2_SYNTHETIC",
+      firstTimestamp: "2026-10-14T09:00:00", lastTimestamp: "2026-10-14T17:58:00",
+    }),
+    entry({
+      outputPath: "warmup-m1.csv", dataMode: "CANDLES_M1_SYNTHETIC",
+      lastTimestamp: "2026-10-13T17:59:00",
+    }),
+    entry({
+      outputPath: "target-m1.csv", tradeDate: "2026-10-14",
+      dataMode: "CANDLES_M1_SYNTHETIC",
+      firstTimestamp: "2026-10-14T09:00:00", lastTimestamp: "2026-10-14T17:59:00",
+    }),
   ]);
   expect(planIsReady(matches)).toBe(true);
   expect(warmupFilesFromMatches(matches)).toEqual(["warmup-m1.csv"]);

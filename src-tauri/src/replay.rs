@@ -2226,6 +2226,90 @@ mod tests {
         let _ = std::fs::remove_file(path);
     }
 
+
+    #[test]
+    fn full_wdo_m1_session_streams_every_second_and_rewinds_deterministically() {
+        use std::io::Write;
+        use std::time::{SystemTime, UNIX_EPOCH};
+
+        // 09:00–18:30: pregão completo de 570 candles M1 (dados gerados para
+        // estressar o streaming, sem fingir serem cotações históricas).
+        let unique = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos();
+        let path = std::env::temp_dir().join(format!("simulador-full-day-wdo-{unique}.replay.csv"));
+        let start = NaiveDateTime::parse_from_str("2026-11-10T09:00:00", "%Y-%m-%dT%H:%M:%S").unwrap();
+        let minute_count = 570_usize;
+        {
+            let mut file = std::io::BufWriter::new(File::create(&path).unwrap());
+            writeln!(file, "symbol,timestamp,source_row,open,high,low,close,volume,timeframe_minutes").unwrap();
+            for minute in 0..minute_count {
+                let open = 5500.0 + (minute % 17) as f64 * 0.5;
+                writeln!(
+                    file, "WDOFUT,{},{},{},{},{},{},{},1",
+                    (start + Duration::minutes(minute as i64)).format("%Y-%m-%dT%H:%M:%S"),
+                    minute + 1,
+                    open, open + 1.0, open - 1.0, open + 0.5,
+                    minute % 9 + 1,
+                ).unwrap();
+            }
+        }
+
+        let (mut session, info) = open_session(&path).unwrap();
+        assert_eq!(info.mode, "CANDLES_M1_SYNTHETIC");
+        let mut events = Vec::with_capacity(minute_count * 60);
+        loop {
+            let batch = read_next_replay_batch(&mut session, 997).unwrap();
+            if batch.is_empty() { break; }
+            for (index, event) in batch.iter().enumerate() {
+                assert_eq!(event.sequence as usize, events.len() + index);
+                assert_eq!(event.source_row as usize, (events.len() + index) / 60 + 1);
+                assert!((event.price * 2.0 - (event.price * 2.0).round()).abs() < 1e-7);
+            }
+            events.extend(batch);
+        }
+        assert_eq!(events.len(), minute_count * 60);
+        assert_eq!(events.first().unwrap().timestamp, "2026-11-10T09:00:00");
+        assert_eq!(events.last().unwrap().timestamp, "2026-11-10T18:29:59");
+
+        let mut expected_volume = 0.0;
+        for minute in 0..minute_count {
+            let candle = &events[minute * 60..(minute + 1) * 60];
+            let open = 5500.0 + (minute % 17) as f64 * 0.5;
+            let volume = (minute % 9 + 1) as f64;
+            assert_eq!(candle.first().unwrap().price, open);
+            assert_eq!(candle.last().unwrap().price, open + 0.5);
+            assert_eq!(candle.iter().map(|event| event.price).fold(f64::NEG_INFINITY, f64::max), open + 1.0);
+            assert_eq!(candle.iter().map(|event| event.price).fold(f64::INFINITY, f64::min), open - 1.0);
+            assert_eq!(candle.iter().map(|event| event.quantity).sum::<f64>(), volume);
+            expected_volume += volume;
+        }
+        assert_eq!(events.iter().map(|event| event.quantity).sum::<f64>(), expected_volume);
+
+        // Mesmo cursor reaberto em lotes menores: nada desaparece ou duplica.
+        rewind_session(&mut session).unwrap();
+        let mut seen = 0_usize;
+        loop {
+            let batch = read_next_replay_batch(&mut session, 73).unwrap();
+            if batch.is_empty() { break; }
+            for event in batch {
+                let original = &events[seen];
+                assert_eq!((event.timestamp, event.price, event.quantity, event.sequence),
+                           (original.timestamp.clone(), original.price, original.quantity, original.sequence));
+                seen += 1;
+            }
+        }
+        assert_eq!(seen, minute_count * 60);
+
+        // Aquecimento de M2 a partir dos mesmos M1: 285 barras com volume íntegro.
+        let candles = process_warmup_candles(
+            vec![path.to_string_lossy().to_string()], 2, 285,
+        ).unwrap();
+        assert_eq!(candles.len(), 285);
+        assert_eq!(candles.first().unwrap().timestamp, "2026-11-10T09:00:00");
+        assert_eq!(candles.last().unwrap().timestamp, "2026-11-10T18:28:00");
+        assert_eq!(candles.iter().map(|candle| candle.volume).sum::<f64>(), expected_volume);
+        let _ = std::fs::remove_file(path);
+    }
+
     #[test]
     fn expands_zero_volume_m1_without_inventing_quantity() {
         let candle = parse_replay_m1_candle_line(

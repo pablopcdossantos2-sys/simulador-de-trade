@@ -21,7 +21,7 @@
 
 ## Fase 2 — Fonte OHLCV M2 e replay
 
-A fonte disponível no Profit é o histórico de candles M1 (1 minuto). O aplicativo deve manter os CSVs brutos intactos e agregar pares cronológicos de candles M1 em candles M2 derivados, com uma linha por candle. Não exigir nem presumir que o Profit exporte M2.
+A fonte principal disponível no Profit é o histórico M1 (1 minuto). O aplicativo mantém os CSVs brutos intactos, preserva M1 para replay sintético e também agrega pares cronológicos em M2. Aceita CSV M2 quando a periodicidade é declarada corretamente.
 
 - [x] Definir formato canônico OHLCV M2.
 - [x] Detectar cabeçalhos OHLCV M1, delimitadores e formatos de data/preço do Profit a partir de amostras reais WIN.
@@ -31,7 +31,8 @@ A fonte disponível no Profit é o histórico de candles M1 (1 minuto). O aplica
 - [x] Preparar um replay compacto por pregão a partir dos candles M1 agregados, sem manter negócios tick a tick.
 - [x] Aquecer o indicador diretamente com candles M2 anteriores, sem desenhá-los.
 - [x] Manter compatibilidade de leitura com arquivos legados de negócios individuais.
-- [ ] Validar a importação contra amostras reais de CSV M1 exportadas pelo Profit para WIN e WDO.
+- [x] Conferir independentemente os 18 CSVs M1 reais disponíveis (9 WIN e 9 WDO) e incluir amostras representativas nos testes Rust.
+- [ ] Confirmar a importação fim a fim no aplicativo desktop Windows com WIN e WDO.
 - [ ] Confirmar o comportamento do timestamp do CSV do Profit (abertura ou fechamento do candle) com amostras reais.
 - [ ] Validar o ganho de tamanho dos arquivos M2 derivados em relação aos CSVs M1 de origem.
 - [ ] Testar o replay de pregão completo, inclusive pausas, reinício, avanço de segundo e avanço de candle.
@@ -55,7 +56,7 @@ A fonte disponível no Profit é o histórico de candles M1 (1 minuto). O aplica
 - [x] Custos por contrato, slippage e resultado líquido.
 - [x] Risco/retorno mínimo obrigatório 1:2.
 - [x] Saídas por stop/alvo e stop manual.
-- [x] Diferenciar replay OHLCV M2 com movimento sintético de replay legado tick a tick.
+- [x] Diferenciar replay OHLCV M1/M2 com movimento sintético de replay legado tick a tick.
 - [ ] Revisar e documentar com clareza como a trajetória sintética determina o instante de acionamento de OCO.
 - [ ] Separar visualmente resultado de execução sintética de resultado baseado em negócios históricos legados.
 
@@ -104,7 +105,7 @@ A estrutura e os critérios de avaliação serão definidos com o usuário antes
 - [x] Testes de regras de execução, replay, calendário e indicador.
 - [x] Dependências frontend e Rust travadas no repositório.
 - [x] CI para testes, build frontend e verificações Rust.
-- [ ] Testes automatizados de importação OHLCV M2 com fixtures WIN e WDO (há cobertura WIN; falta fixture WDO).
-- [ ] Testes de replay sintético de uma sessão completa.
+- [x] Testes automatizados com amostras OHLCV WIN e WDO, incluindo arquivos reais de M1 e tick mínimo dos contratos.
+- [x] Teste de streaming sintético de sessão completa WDO M1 (570 candles), conservação de volume, reinício determinístico e aquecimento M2.
 - [ ] Testes de repetibilidade após fechar, reiniciar e reabrir a mesma sessão.
 - [ ] Validar a performance de memória e CPU com um pregão completo.

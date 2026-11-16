@@ -4,9 +4,9 @@ Aplicativo desktop educacional para treinar execução disciplinada em WINFUT e 
 
 ## Como funciona
 
-O simulador usa candles históricos de **2 minutos (M2)** exportados do Profit. Em vez de exigir um CSV gigantesco de negócios tick a tick, o aplicativo armazena somente OHLCV: abertura, máxima, mínima, fechamento e volume.
+O simulador recebe **candles M1 (1 minuto, formato recomendado) ou M2 (2 minutos)** exportados do Profit, sem exigir negócios tick a tick. Ao importar M1, preserva um replay M1 e gera um segundo arquivo M2 agregado; ambos podem ser selecionados automaticamente pelo catálogo. Os candles originais contêm OHLCV: abertura, máxima, mínima, fechamento e quantidade negociada.
 
-Durante a reprodução, um algoritmo cria uma trajetória de preço para os 120 segundos de cada candle. O percurso:
+Durante a reprodução, um algoritmo cria uma trajetória sintética para os **60 segundos de cada M1** ou **120 segundos de cada M2**. O percurso:
 
 - começa na abertura e termina no fechamento;
 - permanece entre a mínima e a máxima do candle de origem;
@@ -14,13 +14,13 @@ Durante a reprodução, um algoritmo cria uma trajetória de preço para os 120 
 - usa uma semente determinística por candle, portanto o mesmo arquivo gera o mesmo percurso sempre que a sessão é reiniciada;
 - distribui a quantidade total de forma determinística entre os 120 segundos. Quando a quantidade de origem é inteira, cada segundo recebe uma quantidade inteira de contratos; alguns segundos podem receber zero quando o volume é baixo.
 
-**Importante:** os preços e a distribuição de volume segundo a segundo são sintéticos. Eles não são negócios históricos, não reconstituem a ordem real dos negócios nem o perfil intrabar de volume. Por isso, a VWAP enquanto o candle M2 está em formação também é uma aproximação de treinamento. Quando Stop e Alvo poderiam ter sido atingidos dentro do mesmo candle M2, o resultado depende do percurso simulado. Os relatórios representam um cenário de treinamento, não uma reprodução tick a tick do mercado.
+**Importante:** os preços e a distribuição de volume segundo a segundo são sintéticos. Eles não são negócios históricos, não reconstituem a ordem real dos negócios nem o perfil intrabar de volume. Por isso, a VWAP enquanto um candle está em formação também é uma aproximação de treinamento. Quando Stop e Alvo poderiam ter sido atingidos dentro do mesmo candle, o resultado depende do percurso simulado. Os relatórios representam um cenário de treinamento, não uma reprodução tick a tick do mercado.
 
-Arquivos legados de negócios individuais continuam aceitos para compatibilidade, mas o fluxo recomendado é o CSV M2.
+Arquivos legados de negócios individuais continuam aceitos para compatibilidade, mas o fluxo recomendado é **CSV M1 com o timeframe declarado corretamente**.
 
 ## Exportar os dados do Profit
 
-Exporte um arquivo CSV do ativo e do pregão desejados, usando o gráfico de 2 minutos. O arquivo deve conter:
+Exporte um CSV de candles M1 (preferencial) ou M2 do Profit, informando o timeframe correspondente ao importar. O arquivo deve conter:
 
 - Ativo ou contrato;
 - Data/Hora do candle (ou Data com data e hora juntas, ou Data e Hora separadas);
@@ -30,13 +30,13 @@ Exporte um arquivo CSV do ativo e do pregão desejados, usando o gráfico de 2 m
 - Fechamento;
 - Volume Quantidade/Quantidade (contratos). Quando o Profit exportar Volume Financeiro e Volume Quantidade, o simulador utiliza Volume Quantidade.
 
-O timestamp deve identificar a abertura do candle M2. Use um arquivo por pregão e mantenha o contrato do aquecimento compatível com o contrato do pregão-alvo.
+O simulador interpreta o timestamp como **abertura do candle**. Essa convenção ainda precisa de confirmação operacional no Profit; não desloque os horários sem evidência. Use o mesmo contrato/série contínua no aquecimento e no pregão-alvo, observando que a identificação genérica WINFUT/WDOFUT não comprova o vencimento.
 
-No simulador, defina ativo, data e janela horária. Importe os CSVs M2 solicitados para o aquecimento oculto e para o pregão-alvo. O programa valida o conteúdo, seleciona a janela, ordena os candles e cria um arquivo compacto de replay. O CSV bruto do Profit não é alterado.
+No simulador, defina ativo, data e janela horária. Importe os CSVs M1/M2 solicitados para o aquecimento oculto e para o pregão-alvo. O programa valida o conteúdo, seleciona a janela, ordena os candles e cria um arquivo compacto de replay. O CSV bruto do Profit não é alterado.
 
 ## Funcionalidades
 
-- Replay M2 com movimento sintético segundo a segundo, controles de velocidade, pausa, avanço de segundo e avanço de candle;
+- Replay M1 ou M2 com movimento sintético segundo a segundo, controles de velocidade, pausa, avanço de segundo e avanço de candle;
 - aquecimento histórico oculto do indicador antes do início do período visível;
 - indicador Multi Médias - Nuvem e Sinais com MME 8, MMP 20, MME 52 e VWAP;
 - entradas direcionais condicionadas por sinal e reentrada autorizada pela MME 52;
@@ -59,7 +59,7 @@ Para executar o desktop durante o desenvolvimento, instale também Rust, WebView
 npm run tauri dev
 ```
 
-No Windows, o instalador e a versão portátil são produzidos pelo GitHub Actions. Consulte o [guia de instalação](docs/INSTALACAO-WINDOWS.md) e o [guia de validação prática](docs/GUIA-VALIDACAO-WINDOWS.md), que orienta a primeira importação dos CSVs M2 do Profit e a conferência do replay.
+No Windows, o instalador e a versão portátil são produzidos pelo GitHub Actions. Consulte o [guia de instalação](docs/INSTALACAO-WINDOWS.md) e o [guia de validação prática](docs/GUIA-VALIDACAO-WINDOWS.md), que orienta a primeira importação dos CSVs M1/M2 do Profit e a conferência do replay. Consulte também os [critérios objetivos de aceite](docs/CRITERIOS-DE-ACEITE-V1.md).
 
 ## Dados e privacidade
 
