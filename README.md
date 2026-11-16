@@ -10,6 +10,16 @@ Para testar a versão atual, abra [Windows packaging (on demand)](https://github
 
 O pacote atualizado inclui `BUILD-INFO.txt` com o commit completo e o link da compilação. O programa também mostra **Compilação: <sete caracteres>** abaixo do título. Confira que os sete caracteres coincidem com o início do commit registrado no `BUILD-INFO.txt`. Consulte o [guia de instalação](docs/INSTALACAO-WINDOWS.md) para o procedimento ilustrado em texto.
 
+## Personalizar os períodos das médias (ambas as estratégias)
+
+No **Simulador**, escolha o sistema e expanda **Configurar médias da estratégia** (imediatamente acima de **Planejar simulação**). Insira períodos inteiros entre **2 e 300**, em ordem crescente, e clique **Salvar médias**. O botão **Preencher valores padrão** restaura os campos originais; clique em **Salvar médias** para confirmar.
+
+- **Sistema 01 — Multi Médias:** altere os períodos da MME rápida (8), MMP ponderada (20) e MME lenta (52). O sinal de confluência e a reentrada após toque na MME lenta usam **os valores efetivamente salvos**.
+- **Sistema 02 — MMs MTF:** altere os quatro períodos das MMEs M15 (8, 20, 50, 200). As três primeiras participam do filtro direcional; a quarta é apenas referência, conforme o padrão do Pine.
+- O tipo das médias e as regras de VWAP/TPV/ângulos continuam **fixos** neste ciclo: esta tela personaliza **períodos**, não a fórmula inteira do indicador.
+- Os períodos escolhidos permanecem no mesmo computador após fechar o aplicativo. Cada **nova sessão** salva um snapshot no SQLite e o preserva em backups, relatórios JSON e exportações CSV. Sessões antigas continuam sem snapshot; não é possível atribuir retroativamente uma configuração que não foi registrada.
+- A edição é bloqueada durante o treino ou com uma posição aberta. Salvar novos períodos descarrega o replay, invalida o plano de aquecimento e solicita **aplicar novamente o plano**; o catálogo de CSVs não é apagado. O histórico necessário é recalculado conforme as médias participantes mais longas.
+
 ## Como funciona
 
 O simulador recebe **candles M1 (1 minuto, formato recomendado) ou M2 (2 minutos)** exportados do Profit, sem exigir negócios tick a tick. Ao importar M1, preserva um replay M1 e gera um segundo arquivo M2 agregado; ambos podem ser selecionados automaticamente pelo catálogo. Os candles originais contêm OHLCV: abertura, máxima, mínima, fechamento e quantidade negociada.

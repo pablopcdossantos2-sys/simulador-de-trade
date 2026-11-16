@@ -41,3 +41,12 @@ O TPV só participa quando existe sua janela de 50 períodos M15. O plano de sim
 ## Aceitação humana da beta
 
 Siga a seção **Novo teste dirigido — escolha de estratégias e confluência M15 (beta)** do [tutorial passo a passo](VALIDACAO-HUMANA-PASSO-A-PASSO.md), comparando fundo e valores M15 com o Pine original. Em caso de divergência, informe horário, ativo, série, valores, capturas e candles utilizados para aquecimento.
+
+
+## Períodos personalizáveis — novembro de 2026
+
+A tela **Simulador → Configurar médias da estratégia** agora permite modificar os **quatro períodos M15**. Os padrões são 8/20/50/200. São permitidos inteiros de 2 a 300 em ordem crescente. Os três primeiros participam da autorização; o quarto é uma referência visual, não um voto.
+
+A mudança modifica as MMEs M15 e suas angulações calculadas, e o planejador pede histórico anterior proporcional à maior média **participante**, mantendo um mínimo de 60 barras M15. Salvar requer encerrar a sessão e descarregar o replay/planejamento anterior. ATR, VWAP, TPV, limiares de ângulo e métodos das médias ainda seguem os padrões fixos definidos nesta versão; a fidelidade ao Pine personalizado requer validação separada.
+
+Os períodos usados em cada sessão nova ficam preservados no registro `strategyAverages` e nos backups. O gráfico exibe os valores personalizados na legenda e no painel M15.

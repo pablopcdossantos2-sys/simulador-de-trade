@@ -161,3 +161,19 @@ Esses pontos são independentes das auditorias anteriores dos CSVs; não é prec
 4. Em **Dados do pregão**, selecione uma data para a qual falte arquivo no catálogo. Cada linha deve mostrar de modo organizado a **data e janela**, o campo **Arquivo CSV do Profit**, o botão **Selecionar CSV**, o seletor **Timeframe do CSV** e **Preparar replay**. Redimensione a janela para verificar o empilhamento em vez de rolagem horizontal.
 5. Escolha uma estratégia na aba **Sistemas de trading** e confirme que o seletor do **Simulador** reflete a escolha. Durante sessão ativa ou posição aberta, a troca deve ficar bloqueada.
 6. Se algum elemento permanecer desalinhado, envie uma captura de tela com a área visível e informe o identificador de **Compilação**, sem compartilhar seus arquivos de mercado publicamente.
+
+
+## Novo teste dirigido — personalização de médias das estratégias
+
+A verificação abaixo pode ser feita sem terminal, após gerar e instalar um novo pacote Windows da `main` (confira a inscrição **Compilação**). Ela não substitui a comparação da segunda estratégia com o Pine original.
+
+1. Abra a aba **Simulador** e escolha **Sistema 01 — Multi Médias**. Expanda **Configurar médias da estratégia**: os valores iniciais devem ser **MME 8, MMP 20, MME 52**.
+2. Informe **5, 12, 30** nos três campos e clique **Salvar médias**. O cabeçalho e a legenda do gráfico devem passar a mostrar **MME 5, MMP 12, MME 30**, e não 8/20/52. Não devem aparecer linhas M15 no primeiro sistema. As mudanças afetam o cálculo dos sinais, não apenas os títulos.
+3. Planeje **WDOFUT em 05/11/2026, M2**. O aquecimento do Sistema 01 deve ser **150 candles M2** (maior período 30 × 5), não os 260 da configuração original. Os CSVs anteriormente importados devem continuar no catálogo.
+4. Enquanto uma sessão estiver ativa, tente abrir o editor: os campos de período e os botões devem estar desativados. Depois de finalizar a sessão e qualquer posição, os controles devem voltar a ficar disponíveis.
+5. Escolha o **Sistema 02 (beta)** e observe os padrões **8/20/50/200**. Altere para **10/24/60/250**, salve e confira a nova legenda com esses quatro períodos. Um novo plano deverá pedir **525 candles M2** (70 M15 × 15/2), em vez dos 450 originais. O quarto período 250 é informativo por padrão; não autoriza a direção.
+6. Experimente valores iguais ou fora dos limites, como **8/8/50/200** ou **301**. O sistema deve mostrar erro e **não aplicar** a mudança. Use **Preencher valores padrão → Salvar médias** para reverter os períodos somente da estratégia escolhida.
+7. Feche e reabra o aplicativo. Os períodos devem permanecer salvos no mesmo computador. No histórico de sessões, confira a indicação dos períodos usados. Em um relatório JSON/backup de uma sessão nova, procure `strategyAverages`. O CSV da sessão inclui a coluna `moving_average_periods` e deve identificar os mesmos valores.
+8. Ao mudar os períodos de um sistema, verifique que o plano anterior precisa ser reaplicado antes de carregar/reiniciar o replay e que a estratégia oposta não sofreu alterações.
+
+**Atenção:** os períodos configuráveis não equivalem a uma reprodução idêntica do indicador Pine quando usado com configurações diferentes dos padrões. A validação do M2→M15 e dos resultados continua necessária.
