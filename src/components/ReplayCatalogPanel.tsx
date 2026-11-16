@@ -64,7 +64,7 @@ export function ReplayCatalogPanel({
       <div className="section-heading">
         <div className="catalog-title">
           <h2>Arquivos disponíveis</h2>
-          <InfoTip label="Sobre o catálogo">O catálogo reúne os replays preparados e verifica ativo, data e janela declarada. Os horários reais do primeiro e último candle podem ser menores que a janela selecionada. Arquivos identificados apenas como WINFUT ou WDOFUT são séries contínuas: o vencimento específico não é comprovado pelo nome do CSV.</InfoTip>
+          <InfoTip label="Sobre o catálogo">O catálogo confere ativo, data, janela declarada e, para M1/M2, a presença dos candles nas extremidades da janela. Um arquivo que comece tarde ou termine cedo não libera o plano. A checagem de extremos não substitui a validação das lacunas internas; arquivos WINFUT/WDOFUT de série contínua também não comprovam o vencimento específico.</InfoTip>
         </div>
         <button type="button" className="catalog-refresh" onClick={() => void refresh(true)}>
           Atualizar catálogo
@@ -117,13 +117,17 @@ export function ReplayCatalogPanel({
                       ? "Disponível"
                       : match.status === "CONTRACT_MISMATCH"
                         ? "Contrato incompatível"
-                        : "Faltando"}
+                        : match.status === "INCOMPLETE"
+                          ? "Janela incompleta"
+                          : "Faltando"}
                   </strong>
                   <small>
                     {match.entry
                       ? match.status === "CONTRACT_MISMATCH"
                         ? `${match.entry.symbol} disponível, mas o pregão-alvo usa outro contrato.`
-                        : `${match.entry.symbol} · ${match.entry.dataMode === "CANDLES_M1_SYNTHETIC" ? "M1" : match.entry.dataMode === "CANDLES_M2_SYNTHETIC" ? "M2" : "legado"} · janela ${match.entry.sessionStart}–${match.entry.sessionEnd} · registros ${match.entry.firstTimestamp?.slice(11, 16) ?? "?"}–${match.entry.lastTimestamp?.slice(11, 16) ?? "?"}`
+                        : match.status === "INCOMPLETE"
+                          ? `O arquivo ${match.entry.symbol} declara ${match.entry.sessionStart}–${match.entry.sessionEnd}, mas possui candles de ${match.entry.firstTimestamp?.slice(11, 16) ?? "?"} a ${match.entry.lastTimestamp?.slice(11, 16) ?? "?"}. Exporte um período completo.`
+                          : `${match.entry.symbol} · ${match.entry.dataMode === "CANDLES_M1_SYNTHETIC" ? "M1" : match.entry.dataMode === "CANDLES_M2_SYNTHETIC" ? "M2" : "legado"} · janela ${match.entry.sessionStart}–${match.entry.sessionEnd} · registros ${match.entry.firstTimestamp?.slice(11, 16) ?? "?"}–${match.entry.lastTimestamp?.slice(11, 16) ?? "?"}`
                       : "Trate e catalogue um arquivo compatível do Profit Ultra."}
                   </small>
                 </div>

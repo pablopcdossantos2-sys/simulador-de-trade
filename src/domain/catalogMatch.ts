@@ -8,7 +8,7 @@ import type { Asset } from "../types";
 export interface RequirementMatch {
   requirement: SimulationDataRequirement;
   entry: ReplayCatalogEntry | null;
-  status: "AVAILABLE" | "MISSING" | "CONTRACT_MISMATCH";
+  status: "AVAILABLE" | "MISSING" | "CONTRACT_MISMATCH" | "INCOMPLETE";
 }
 
 function minutes(value: string): number {
@@ -36,6 +36,37 @@ export function entryCoversRequirement(
     minutes(entry.sessionStart) <= minutes(requirement.startTime) &&
     minutes(entry.sessionEnd) >= minutes(requirement.endTime)
   );
+}
+
+// A janela declarada nos metadados é o pedido do usuário, não prova que
+// existam candles em todos os seus extremos. Não aprovar um arquivo truncado.
+function timestampCandleStartMinute(value: string | null, tradeDate: string): number | null {
+  if (!value || !value.startsWith(`${tradeDate}T`)) return null;
+  const match = /^\d{4}-\d{2}-\d{2}T(\d{2}):(\d{2}):(\d{2})(?:$|[.Z+-])/.exec(value);
+  if (!match) return null;
+  const hour = Number(match[1]);
+  const minute = Number(match[2]);
+  const second = Number(match[3]);
+  if (hour > 23 || minute > 59 || second !== 0) return null;
+  return hour * 60 + minute;
+}
+
+export function entryHasRequiredCandleCoverage(
+  entry: ReplayCatalogEntry,
+  requirement: SimulationDataRequirement,
+): boolean {
+  // Negócios legados não possuem grade fixa de candles. As regras de
+  // cobertura intradiária só são aplicadas aos formatos M1/M2 conhecidos.
+  if (entry.dataMode !== "CANDLES_M1_SYNTHETIC" &&
+      entry.dataMode !== "CANDLES_M2_SYNTHETIC") return true;
+
+  const first = timestampCandleStartMinute(entry.firstTimestamp, requirement.date);
+  const last = timestampCandleStartMinute(entry.lastTimestamp, requirement.date);
+  if (first === null || last === null || last < first) return false;
+  const sourceMinutes = entry.dataMode === "CANDLES_M1_SYNTHETIC" ? 1 : 2;
+
+  return first <= minutes(requirement.startTime) &&
+    last + sourceMinutes >= minutes(requirement.endTime);
 }
 
 function bestCoverage(
@@ -66,51 +97,46 @@ export function matchSimulationPlan(
   const targetCandidates = targetRequirement
     ? bestCoverage(entries, targetRequirement, asset)
     : [];
-  const targetEntry = targetCandidates[0] ?? null;
+  const targetEntry = targetRequirement
+    ? targetCandidates.find((entry) => entryHasRequiredCandleCoverage(entry, targetRequirement)) ?? null
+    : null;
   const targetSymbol = targetEntry?.symbol ?? null;
 
   return plan.dataRequirements.map((requirement) => {
     const candidates = bestCoverage(entries, requirement, asset);
+    const completeCandidates = candidates.filter((entry) =>
+      entryHasRequiredCandleCoverage(entry, requirement),
+    );
 
     if (requirement.role === "TARGET") {
       return {
         requirement,
-        entry: candidates[0] ?? null,
-        status: candidates.length ? "AVAILABLE" : "MISSING",
+        entry: completeCandidates[0] ?? candidates[0] ?? null,
+        status: completeCandidates.length
+          ? "AVAILABLE" : candidates.length ? "INCOMPLETE" : "MISSING",
       };
     }
 
     if (!candidates.length) {
-      return {
-        requirement,
-        entry: null,
-        status: "MISSING",
-      };
+      return { requirement, entry: null, status: "MISSING" };
+    }
+    if (!completeCandidates.length) {
+      return { requirement, entry: candidates[0], status: "INCOMPLETE" };
     }
 
     if (!targetSymbol) {
-      return {
-        requirement,
-        entry: candidates[0],
-        status: "AVAILABLE",
-      };
+      return { requirement, entry: completeCandidates[0], status: "AVAILABLE" };
     }
 
-    const sameContract = candidates.find(
+    const sameContract = completeCandidates.find(
       (entry) => entry.symbol === targetSymbol,
     );
-
     if (sameContract) {
-      return {
-        requirement,
-        entry: sameContract,
-        status: "AVAILABLE",
-      };
+      return { requirement, entry: sameContract, status: "AVAILABLE" };
     }
-
     return {
       requirement,
-      entry: candidates[0],
+      entry: completeCandidates[0],
       status: "CONTRACT_MISMATCH",
     };
   });
