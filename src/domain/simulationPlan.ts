@@ -46,7 +46,7 @@ const B3_CLOSED_DATES = new Set([
 // B3 Ofícios 005/2026-PRE e 055/2026-VNC: WIN encerra normalmente
 // às 18:25 desde 09/03/2026. No vencimento do contrato vincendo, há
 // uma exceção às 18:00; rótulos WINFUT contínuos não provam vencimento.
-function fullSessionEndForDate(asset: Asset, date: string): string {
+export function fullSessionEndForDate(asset: Asset, date: string): string {
   if (asset === "WDOFUT") return "18:30";
   return date >= "2026-03-09" ? "18:25" : "18:00";
 }
@@ -54,6 +54,10 @@ function fullSessionEndForDate(asset: Asset, date: string): string {
 const B3_SPECIAL_SESSION_START_2026: Record<string, string> = {
   "2026-02-18": "13:00",
 };
+
+export function fullSessionStartForDate(date: string): string {
+  return B3_SPECIAL_SESSION_START_2026[date] ?? "09:00";
+}
 
 export interface SimulationPlanInput {
   asset: Asset;
@@ -242,7 +246,7 @@ export function calculateSimulationPlan(
     );
   }
 
-  const fullSessionStart = B3_SPECIAL_SESSION_START_2026[input.date] ?? "09:00";
+  const fullSessionStart = fullSessionStartForDate(input.date);
   const fullSessionEnd = fullSessionEndForDate(input.asset, input.date);
   const visible = barsForWindow(
     fullSessionStart,
@@ -281,7 +285,7 @@ export function calculateSimulationPlan(
     if (!previousDate) break;
 
     fullSessionPreviousDates.push(previousDate);
-    const sessionStart = B3_SPECIAL_SESSION_START_2026[previousDate] ?? "09:00";
+    const sessionStart = fullSessionStartForDate(previousDate);
     warmupRequirements.push({
       role: "WARMUP",
       date: previousDate,
