@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { calculateSimulationPlan } from "./simulationPlan";
 import {
   matchSimulationPlan,
+  matchIsUsable,
   planIsReady,
   targetFileFromMatches,
   warmupFilesFromMatches,
@@ -18,7 +19,7 @@ function entry(
     asset: "WINFUT",
     tradeDate: "2026-10-13",
     sessionStart: "09:00",
-    sessionEnd: "18:00",
+    sessionEnd: "18:25",
     firstTimestamp: "2026-10-13T09:00:00",
     lastTimestamp: "2026-10-13T17:59:59",
     fileBytes: 1000,
@@ -42,7 +43,7 @@ describe("catálogo de dados do plano", () => {
       entry({
         outputPath: "C:\\data\\target.replay.csv",
         tradeDate: "2026-10-14",
-        sessionEnd: "18:00",
+        sessionEnd: "18:25",
       }),
     ]);
 
@@ -64,7 +65,7 @@ describe("catálogo de dados do plano", () => {
       entry({
         outputPath: "C:\\data\\target.replay.csv",
         tradeDate: "2026-10-14",
-        sessionEnd: "18:00",
+        sessionEnd: "18:25",
         symbol: "WINV26",
       }),
     ]);
@@ -117,7 +118,7 @@ it("prioriza M1 original ao escolher fontes do plano, sem excluir M2 legado", ()
     entry({
       outputPath: "target-m2.csv", tradeDate: "2026-10-14",
       dataMode: "CANDLES_M2_SYNTHETIC",
-      firstTimestamp: "2026-10-14T09:00:00", lastTimestamp: "2026-10-14T17:58:00",
+      firstTimestamp: "2026-10-14T09:00:00", lastTimestamp: "2026-10-14T18:24:00",
     }),
     entry({
       outputPath: "warmup-m1.csv", dataMode: "CANDLES_M1_SYNTHETIC",
@@ -135,7 +136,7 @@ it("prioriza M1 original ao escolher fontes do plano, sem excluir M2 legado", ()
 });
 
 describe("cobertura efetiva dos candles no catálogo", () => {
-  it("não aprova WIN M1 iniciado às 09:03 com janela declarada desde 09:00", () => {
+  it("aceita com aviso WIN M1 iniciado às 09:03, sem preencher minutos", () => {
     const matches = matchSimulationPlan(plan, "WINFUT", [
       entry({
         outputPath: "warmup-m1-incompleto.csv",
@@ -151,32 +152,33 @@ describe("cobertura efetiva dos candles no catálogo", () => {
         lastTimestamp: "2026-10-14T17:59:00",
       }),
     ]);
-    expect(matches[0].status).toBe("INCOMPLETE");
+    expect(matches[0].status).toBe("AVAILABLE_WITH_NOTICE");
     expect(matches[0].entry?.outputPath).toBe("warmup-m1-incompleto.csv");
-    expect(matches[1].status).toBe("AVAILABLE");
-    expect(planIsReady(matches)).toBe(false);
-    expect(warmupFilesFromMatches(matches)).toEqual([]);
+    expect(planIsReady(matches)).toBe(true);
+    expect(matchIsUsable(matches[0])).toBe(true);
+    expect(warmupFilesFromMatches(matches)).toEqual(["warmup-m1-incompleto.csv"]);
   });
 
-  it("aceita M2 com último candle às 17:58 e rejeita término antes do solicitado", () => {
+  it("aceita M2 com extremo planejado e avisa sobre término anterior", () => {
     const valid = entry({
       tradeDate: "2026-10-14",
       dataMode: "CANDLES_M2_SYNTHETIC",
       firstTimestamp: "2026-10-14T09:00:00",
-      lastTimestamp: "2026-10-14T17:58:00",
+      lastTimestamp: "2026-10-14T18:24:00",
     });
     const complete = matchSimulationPlan(plan, "WINFUT", [entry({}), valid]);
     expect(complete[1].status).toBe("AVAILABLE");
 
     const shortened = matchSimulationPlan(plan, "WINFUT", [
       entry({}),
-      { ...valid, lastTimestamp: "2026-10-14T17:56:00" },
+      { ...valid, lastTimestamp: "2026-10-14T18:22:00" },
     ]);
-    expect(shortened[1].status).toBe("INCOMPLETE");
-    expect(targetFileFromMatches(shortened)).toBeNull();
+    expect(shortened[1].status).toBe("AVAILABLE_WITH_NOTICE");
+    expect(planIsReady(shortened)).toBe(true);
+    expect(targetFileFromMatches(shortened)).toBe(valid.outputPath);
   });
 
-  it("prefere M2 íntegro ao M1 truncado e mantém preferência por M1 íntegro", () => {
+  it("prefere M2 com extremos completos ao M1 de extremos abreviados", () => {
     const matches = matchSimulationPlan(plan, "WINFUT", [
       entry({ outputPath: "warmup-original.csv" }),
       entry({
@@ -216,4 +218,43 @@ describe("cobertura efetiva dos candles no catálogo", () => {
     ]);
     expect(planIsReady(legacy)).toBe(true);
   });
+});
+
+it("aceita o WIN do Profit em 04/11/2026 com primeira barra às 09:03", () => {
+  const day = calculateSimulationPlan({
+    asset: "WINFUT", date: "2026-11-04", timeframeMinutes: 2,
+  });
+  expect(day.targetEndTime).toBe("18:25");
+  const matches = matchSimulationPlan(day, "WINFUT", [
+    entry({
+      tradeDate: "2026-11-03", symbol: "WINFUT",
+      sessionEnd: "18:25", dataMode: "CANDLES_M1_SYNTHETIC",
+      firstTimestamp: "2026-11-03T09:00:00",
+      lastTimestamp: "2026-11-03T18:24:00", outputPath: "warmup.csv",
+    }),
+    entry({
+      tradeDate: "2026-11-04", symbol: "WINFUT",
+      sessionEnd: "18:25", dataMode: "CANDLES_M1_SYNTHETIC",
+      firstTimestamp: "2026-11-04T09:03:00",
+      lastTimestamp: "2026-11-04T18:24:00", outputPath: "target.csv",
+    }),
+  ]);
+  expect(matches.map((item) => item.status)).toEqual([
+    "AVAILABLE", "AVAILABLE_WITH_NOTICE",
+  ]);
+  expect(planIsReady(matches)).toBe(true);
+  expect(targetFileFromMatches(matches)).toBe("target.csv");
+});
+
+it("rejeita metadados M1 fora da janela, sem confundi-los com atraso legítimo", () => {
+  const matches = matchSimulationPlan(plan, "WINFUT", [
+    entry({
+      dataMode: "CANDLES_M1_SYNTHETIC",
+      firstTimestamp: "2026-10-13T20:00:00",
+      lastTimestamp: "2026-10-13T20:10:00",
+    }),
+    entry({ tradeDate: "2026-10-14" }),
+  ]);
+  expect(matches[0].status).toBe("INCOMPLETE");
+  expect(planIsReady(matches)).toBe(false);
 });

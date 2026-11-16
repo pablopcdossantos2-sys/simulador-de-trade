@@ -1677,6 +1677,12 @@ td {
   color: #a7dfbf;
 }
 
+.catalog-readiness.notice {
+  border: 1px solid #7b6641;
+  background: #2b2519;
+  color: #e4d4a7;
+}
+
 .catalog-readiness.missing {
   border: 1px solid #6f5634;
   background: #2b2112;
@@ -1709,6 +1715,10 @@ td {
 .catalog-requirements article.available,
 .plan-data-list article.available {
   border-color: #2f624b;
+}
+
+.catalog-requirements article.notice {
+  border-color: #7b6641;
 }
 
 .catalog-requirements article.mismatch {
@@ -1837,6 +1847,12 @@ td {
   color: #276b4e;
 }
 
+:root[data-theme="light"] .catalog-readiness.notice {
+  border-color: #d6c092;
+  background: #fff8e7;
+  color: #745928;
+}
+
 :root[data-theme="light"] .catalog-readiness.missing {
   border-color: #dfca9d;
   background: #fff8e9;
@@ -1852,6 +1868,11 @@ td {
 :root[data-theme="light"] .catalog-requirements article.available,
 :root[data-theme="light"] .plan-data-list article.available {
   border-color: #9fcdb5;
+}
+
+:root[data-theme="light"] .catalog-requirements article.notice {
+  border-color: #d6c092;
+  background: #fffaf0;
 }
 
 :root[data-theme="light"] .catalog-requirements article.mismatch {

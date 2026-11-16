@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { InfoTip } from "./InfoTip";
 import { open } from "@tauri-apps/plugin-dialog";
 import type { SimulationPlan } from "../domain/simulationPlan";
-import type { RequirementMatch } from "../domain/catalogMatch";
+import { matchIsUsable, type RequirementMatch } from "../domain/catalogMatch";
 import {
   prepareProfitReplayFile,
   type ProfitPreparationProgress,
@@ -68,7 +68,7 @@ export function PlanDataPreparationPanel({ plan, matches, onCatalogUpdated }: Pr
   }, [plan]);
 
   const missing = useMemo(
-    () => matches.filter((match) => match.status !== "AVAILABLE"),
+    () => matches.filter((match) => !matchIsUsable(match)),
     [matches],
   );
 
@@ -178,7 +178,7 @@ export function PlanDataPreparationPanel({ plan, matches, onCatalogUpdated }: Pr
 
       <div className="plan-data-help">
         <InfoTip label="Sobre os arquivos do Profit">
-          Selecione o timeframe real do CSV. O sistema separa a data solicitada, gera M2 e preserva M1 para replay sintético. O arquivo precisa conter os candles inicial e final da janela exigida: a escolha de um horário no formulário não cria dados ausentes. Rótulos de série contínua WINFUT/WDOFUT não identificam o vencimento específico.
+          Selecione o timeframe real do CSV. O sistema separa a data solicitada, gera M2 e preserva M1 para replay sintético. Horário planejado não garante candle exatamente naquele minuto: diferenças nas bordas são exibidas, sem bloquear nem criar candles fictícios. Rótulos de série contínua WINFUT/WDOFUT não identificam o vencimento específico.
         </InfoTip>
       </div>
 
@@ -186,7 +186,7 @@ export function PlanDataPreparationPanel({ plan, matches, onCatalogUpdated }: Pr
         {matches.map((match) => {
           const key = keyFor(match.requirement.role, match.requirement.date);
           const row = rows[key];
-          const available = match.status === "AVAILABLE";
+          const available = matchIsUsable(match);
           return (
             <article key={key} className={available ? "available" : "pending"}>
               <div className="plan-data-identity">
@@ -197,8 +197,8 @@ export function PlanDataPreparationPanel({ plan, matches, onCatalogUpdated }: Pr
 
               {available ? (
                 <div className="plan-data-existing">
-                  <strong>Já disponível</strong>
-                  <small>{match.entry?.symbol}</small>
+                  <strong>{match.status === "AVAILABLE_WITH_NOTICE" ? "Disponível com observação" : "Já disponível"}</strong>
+                  <small>{match.entry?.symbol}{match.status === "AVAILABLE_WITH_NOTICE" ? " · usam-se somente candles existentes" : ""}</small>
                 </div>
               ) : (
                 <div className="plan-data-input">

@@ -88,7 +88,7 @@ export function SimulationPlanner({ onPlanChange, disabled = false }: Props) {
             <div>
               <span>Pregão</span>
               <strong>{brDate(result.plan.targetDate)} · {result.plan.targetStartTime}–{result.plan.targetEndTime}</strong>
-              <small>{result.plan.visibleBars.toLocaleString("pt-BR")} candles M{result.plan.timeframeMinutes}</small>
+              <small>Até {result.plan.visibleBars.toLocaleString("pt-BR")} intervalos M{result.plan.timeframeMinutes}; somente candles existentes serão reproduzidos.</small>
             </div>
             <div>
               <span>Histórico anterior</span>
