@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { strategyLabel } from "../domain/tradingStrategies";
+import { selectedMovingAveragesLabel } from "../services/strategyMovingAverages";
 import { EntryContextPreview } from "./EntryContextPreview";
 import {
   blockedAttemptBreakdown,
@@ -238,6 +239,9 @@ export function SessionHistoryPanel({ refreshKey }: Props) {
                   {session.mode === "EXAM" ? "Prova" : "Treino"}
                 </span>
                 <small>{strategyLabel(session.strategyId ?? "MULTI_MEDIAS")}</small>
+                {session.strategyAverages && (
+                  <small>{selectedMovingAveragesLabel(session.strategyAverages, session.strategyId ?? "MULTI_MEDIAS")}</small>
+                )}
                 <small>
                   {session.status === "ENDED" ? "Concluída" : "Sessão ainda ativa"}
                 </small>
@@ -267,6 +271,11 @@ export function SessionHistoryPanel({ refreshKey }: Props) {
                     <small>
                       {selected.startTime}–{selected.endTime} ·{" "}
                       {selected.timeframeMinutes} min · {strategyLabel(selected.strategyId ?? "MULTI_MEDIAS")}
+                    </small>
+                    <small>
+                      Médias usadas: {selected.strategyAverages
+                        ? selectedMovingAveragesLabel(selected.strategyAverages, selected.strategyId ?? "MULTI_MEDIAS")
+                        : "Configuração não registrada nesta sessão antiga"}
                     </small>
                   </div>
 

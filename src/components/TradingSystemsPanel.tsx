@@ -55,7 +55,7 @@ export function TradingSystemsPanel({ selectedStrategyId, movingAverages = DEFAU
             </div>
             <span className="trading-system-status planned">Beta para testes</span>
           </div>
-          <p className="trading-system-summary">Estratégia de confluência causal em M15: três médias participantes (${movingAverages.mtf.periods.slice(0, 3).join(", ")}), VWAP ancorada, TPV e alinhamento. A quarta MME (${movingAverages.mtf.periods[3]}) é exibida, mas não vota por padrão.</p>
+          <p className="trading-system-summary">Estratégia de confluência causal em M15: três médias participantes ({movingAverages.mtf.periods.slice(0, 3).join(", ")}), VWAP ancorada, TPV e alinhamento. A quarta MME ({movingAverages.mtf.periods[3]}) é exibida, mas não vota por padrão.</p>
           <div className="trading-system-indicators">
             <span>Gráfico M2</span><span>Médias M15</span><span>VWAP MTF</span><span>TPV</span><span>ATR e ângulos</span>
           </div>

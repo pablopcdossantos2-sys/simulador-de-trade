@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { strategyLabel } from "../domain/tradingStrategies";
+import { selectedMovingAveragesLabel } from "../services/strategyMovingAverages";
 import type { TradingStrategyId } from "../types";
 import type {
   TrainingEvent,
@@ -185,6 +186,9 @@ export function TrainingSessionPanel({
           <div>
             <span>Estratégia</span>
             <strong>{strategyLabel(session.strategyId ?? "MULTI_MEDIAS")}</strong>
+            {session.strategyAverages && (
+              <small>{selectedMovingAveragesLabel(session.strategyAverages, session.strategyId ?? "MULTI_MEDIAS")}</small>
+            )}
           </div>
           <div>
             <span>Pregão</span>

@@ -151,3 +151,20 @@ it("identifica a estratégia 02 em CSV e JSON da sessão", () => {
   });
   expect(json.session.strategyId).toBe("MTF_ANGULACAO");
 });
+
+// As configurações personalizadas pertencem ao relatório histórico, não apenas
+// à preferência local da interface.
+it("inclui snapshot dos períodos no CSV e no relatório JSON", () => {
+  const chosen = {
+    multiMedias: { emaFastLength: 5, wmaLength: 12, emaSlowLength: 30 },
+    mtf: { periods: [10, 24, 60, 250] as [number, number, number, number] },
+  };
+  const trained = { ...session, strategyAverages: chosen };
+  const csv = sessionTradesToCsv(trained, [trade]);
+  expect(csv).toContain("moving_average_periods");
+  expect(csv).toContain('""emaFastLength"":5');
+  const complete = buildCompleteSessionExport({
+    session: trained, performance, events: [event], trades: [trade],
+  });
+  expect(complete.session.strategyAverages).toEqual(chosen);
+});
