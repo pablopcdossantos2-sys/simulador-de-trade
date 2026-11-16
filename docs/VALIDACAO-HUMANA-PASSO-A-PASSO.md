@@ -193,3 +193,20 @@ A verificação abaixo pode ser feita sem terminal, após gerar e instalar um no
 8. Mova o mouse entre diversos candles com MMEs M15 ainda indisponíveis e já disponíveis. A linha OHLCV deve permanecer acima da **faixa M15 reservada**, sem que as cifras adicionais empurrem o gráfico para baixo. Confira também com o gráfico maximizado e com a janela mais estreita.
 
 Se o fundo do Pine original divergir, registre ativo, contrato, data, horário, configuração dos votos e diferença dos valores M15. O uso de M2 para reconstruir M15 ainda é uma aproximação causal.
+
+
+## Novo teste dirigido — acervo de pregões, etapas compactas e camadas do gráfico
+
+Use um **novo pacote Windows da main**, verifique o identificador de **Compilação** e preserve o banco e os CSVs originais. Esta seção complementa os testes anteriores sem exigir que sejam repetidos.
+
+1. Abra **Pregões e replays** sem passar por **Simulador**. Confirme que há **Selecionar CSV**, campos de timeframe M1/M2, data específica do pregão (opcional), horários de início/fim e **Preparar e adicionar**.
+2. Use um CSV conhecido do Profit, por exemplo um dos pregões M1 já auditados. Confirme a data (quando o arquivo contiver várias datas), horário e quantidade de registros. Ao concluir, veja o arquivo na lista **Pregões e replays disponíveis**. Caso a origem seja M1, confira também o replay M1 preservado.
+3. Clique em **Adicionar replay pronto**, escolha um `*.replay.csv` acompanhado de seus metadados e confira que foi incorporado ao catálogo. A seleção de um CSV bruto nesse botão deve ser recusada com mensagem compreensível.
+4. Volte ao **Simulador**. **Estratégia de treinamento** deve estar contraída com o nome do sistema selecionado. **Configurar médias da estratégia** também deve iniciar contraída. Clique no título para revisar; salvar alterações válidas deve recolher a seção.
+5. Em **Planejar simulação**, selecione a data e aplique o plano. Confira que a etapa foi recolhida e mostra o ativo/data. Se o acervo já cumprir todas as exigências, **Arquivos disponíveis e preparação do pregão** também deve recolher automaticamente; caso falte arquivo, deve permanecer aberta com pendências explícitas.
+6. Quando o plano estiver completo, a seção **Carregar pregão** deverá abrir para carregar o replay e recolher após o carregamento, mantendo sua situação visível. O quadro **Sessão de treino**, os controles de reprodução e o gráfico continuam disponíveis.
+7. Arraste o preço para cima e para baixo até que os candles e as MMEs tentem ultrapassar o limite da área de preços. Eles devem desaparecer no recorte do gráfico, **sem cobrir o histograma de volume**, o eixo de horários ou as palavras **JANELA DE TREINO**. Confira ambas as estratégias e a janela maximizada.
+8. Em **Configurações → Backup e restauração**, confira que **Modo de importação** aparece com espaço até o seletor e opções curtas **Mesclar** / **Substituir tudo**, com texto explicativo. Não execute *Substituir tudo* no banco principal só para testar aparência.
+9. Compare a altura e os cantos dos campos de texto, data, horários, números e seleção em **Pregões e replays**, **Simulador** e **Configurações**. Verifique que não há rolagem horizontal em janelas mais estreitas.
+
+Se observar problema visual, envie captura da região, identificador de compilação e resolução da janela. Não divulgue CSVs privados em relatórios públicos.

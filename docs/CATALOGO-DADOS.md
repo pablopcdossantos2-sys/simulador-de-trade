@@ -19,3 +19,14 @@ O replay M1 contém candles originais de um minuto; o M2 é derivado de pares cr
 O catálogo usa o símbolo do alvo como referência para aquecimento. Dados contínuos com `WINFUT`/`WDOFUT` não comprovam qual contrato de vencimento está presente. O aplicativo distingue os modos de replay, mas nenhum movimento sintético corresponde a negócios históricos reais.
 
 Veja o [tutorial prático de validação no Windows](VALIDACAO-HUMANA-PASSO-A-PASSO.md).
+
+
+## Adicionar arquivos pela página Pregões e replays
+
+1. Abra **Pregões e replays**, sem passar pelo Simulador.
+2. Na importação de CSV bruto, clique **Selecionar CSV**, confira se a origem é M1 ou M2 e, se o arquivo possuir mais de uma data, preencha **Data específica do pregão**. Se o campo ficar vazio, o sistema usa a primeira data registrada.
+3. Configure a janela de horas e clique **Preparar e adicionar**. O tratamento é local, exibe progresso e, se bem-sucedido, registra os arquivos gerados no catálogo. Com CSVs M1, o M1 original e o M2 agregado são registrados.
+4. Para incorporar um **.replay.csv já preparado**, com seu arquivo de metadados na mesma pasta, clique **Adicionar replay pronto**.
+5. Use **Atualizar lista** para ver o acervo e **Remover referências ausentes** caso o arquivo tenha sido movido ou apagado. Essa limpeza não remove arquivos existentes.
+
+No **Simulador**, o plano procura os replays compatíveis no catálogo. Se todos os arquivos estiverem disponíveis, a etapa **Arquivos disponíveis e preparação do pregão** fica recolhida e o carregamento é liberado. Uma etapa concluída pode ser aberta clicando no título. Dados de outra data/contrato ou com janela incompatível continuam pendentes; o recolhimento não os torna válidos.

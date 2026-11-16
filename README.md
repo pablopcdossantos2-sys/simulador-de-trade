@@ -10,6 +10,18 @@ Para testar a versão atual, abra [Windows packaging (on demand)](https://github
 
 O pacote atualizado inclui `BUILD-INFO.txt` com o commit completo e o link da compilação. O programa também mostra **Compilação: <sete caracteres>** abaixo do título. Confira que os sete caracteres coincidem com o início do commit registrado no `BUILD-INFO.txt`. Consulte o [guia de instalação](docs/INSTALACAO-WINDOWS.md) para o procedimento ilustrado em texto.
 
+## Organizar seu acervo sem iniciar um treinamento
+
+Na página **Pregões e replays**, importe os CSVs históricos do Profit diretamente, sem passar pela área inicial do Simulador. Use **Selecionar CSV**, escolha o timeframe real (M1 ou M2), opcionalmente selecione a **data específica** caso o CSV reúna vários pregões, confirme os horários e clique **Preparar e adicionar**. O programa gera os replays e os registra no catálogo, preservando o arquivo bruto. Repita para outras datas.
+
+Se você já tem um arquivo `.replay.csv` gerado pelo sistema com seus metadados, use **Adicionar replay pronto**. A lista pode ser atualizada e referências ausentes removidas sem excluir arquivos existentes.
+
+No **Simulador**, as etapas de estratégia, configuração de médias, planejamento, conferência de arquivos e carregamento aparecem **contraídas quando já estão corretas**; basta clicar no título para revisar. Etapas pendentes são abertas conforme necessário. Ao editar as médias/filtros ou trocar de estratégia, será necessário reaplicar o plano, mas os arquivos preparados permanecem catalogados.
+
+O gráfico usa **recortes independentes para preço e volume**: arrastar os preços verticalmente não faz candles/médias invadirem o histograma de volume, o eixo de horários ou os textos da sessão.
+
+Em **Configurações → Backup e restauração**, o seletor **Modo de importação** foi padronizado com duas opções: **Mesclar** e **Substituir tudo**. Use *Substituir tudo* somente quando desejar trocar os registros locais pelos dados de um backup.
+
 ## Personalizar os períodos das médias (ambas as estratégias)
 
 No **Simulador**, escolha o sistema e expanda **Configurar médias da estratégia** (imediatamente acima de **Planejar simulação**). Insira períodos inteiros entre **2 e 300**, em ordem crescente, e clique **Salvar médias**. O botão **Preencher valores padrão** restaura os campos originais; clique em **Salvar médias** para confirmar.
@@ -57,7 +69,7 @@ Exporte um CSV de candles M1 (preferencial) ou M2 do Profit, informando o timefr
 
 O simulador interpreta o timestamp como **abertura do candle**. Essa convenção ainda precisa de confirmação operacional no Profit; não desloque os horários sem evidência. Use o mesmo contrato/série contínua no aquecimento e no pregão-alvo, observando que a identificação genérica WINFUT/WDOFUT não comprova o vencimento.
 
-No simulador, defina ativo, data e janela horária. Importe os CSVs M1/M2 solicitados para o aquecimento oculto e para o pregão-alvo. O programa valida o conteúdo, seleciona a janela, ordena os candles e cria um arquivo compacto de replay. O CSV bruto do Profit não é alterado.
+Os CSVs podem ser preparados antecipadamente em **Pregões e replays** ou durante o plano guiado no **Simulador**. Depois, defina ativo e data no plano de treino; o catálogo identifica os arquivos compatíveis, calcula o aquecimento oculto e seleciona o pregão-alvo. O CSV bruto do Profit não é alterado.
 
 ## Funcionalidades
 
