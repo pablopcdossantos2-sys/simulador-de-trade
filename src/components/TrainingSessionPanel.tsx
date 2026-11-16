@@ -1,4 +1,6 @@
 import { useEffect, useState } from "react";
+import { strategyLabel } from "../domain/tradingStrategies";
+import type { TradingStrategyId } from "../types";
 import type {
   TrainingEvent,
   TrainingMode,
@@ -14,6 +16,7 @@ interface Props {
   startBlockedReason?: string | null;
   replayLoaded: boolean;
   onOpenSettings: () => void;
+  selectedStrategyId: TradingStrategyId;
   mode: TrainingMode;
   startingBalanceBRL: number | null;
   onModeChange: (mode: TrainingMode) => void;
@@ -101,6 +104,7 @@ export function TrainingSessionPanel({
   startBlockedReason = null,
   replayLoaded,
   onOpenSettings,
+  selectedStrategyId,
   mode,
   startingBalanceBRL,
   onModeChange,
@@ -150,7 +154,8 @@ export function TrainingSessionPanel({
       {!active && (
         <>
         <small className="training-hint">
-          Capital configurado: {startingBalanceBRL == null
+          Sistema selecionado: <strong>{strategyLabel(selectedStrategyId)}</strong>.
+          {" "}Capital configurado: {startingBalanceBRL == null
             ? "não definido"
             : new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(startingBalanceBRL)}
         </small>
@@ -177,6 +182,10 @@ export function TrainingSessionPanel({
 
       {session && (
         <div className="training-kpis">
+          <div>
+            <span>Estratégia</span>
+            <strong>{strategyLabel(session.strategyId ?? "MULTI_MEDIAS")}</strong>
+          </div>
           <div>
             <span>Pregão</span>
             <strong>{session.tradeDate}</strong>

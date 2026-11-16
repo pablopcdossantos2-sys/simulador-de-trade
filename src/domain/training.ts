@@ -44,6 +44,7 @@ export function createTrainingSession(input: {
   timeframeMinutes: number;
   warmupBars: number;
   mode: TrainingSession["mode"];
+  strategyId?: TrainingSession["strategyId"];
   startingBalanceBRL: number | null;
   now?: Date;
 }): TrainingSession {
@@ -58,6 +59,7 @@ export function createTrainingSession(input: {
     timeframeMinutes: input.timeframeMinutes,
     warmupBars: input.warmupBars,
     mode: input.mode,
+    strategyId: input.strategyId ?? "MULTI_MEDIAS",
     startingBalanceBRL: input.startingBalanceBRL,
     startedAt: now.toISOString(),
     endedAt: null,

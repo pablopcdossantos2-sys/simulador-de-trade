@@ -1,5 +1,6 @@
 export type Asset = "WINFUT" | "WDOFUT";
 export type Side = "BUY" | "SELL";
+export type TradingStrategyId = "MULTI_MEDIAS" | "MTF_ANGULACAO";
 export type SignalSide = Side | "NONE";
 export type IndicatorZone = "GREEN" | "RED" | "NONE";
 export type VwapAnchor = "Session" | "Week" | "Month" | "Year";
@@ -197,6 +198,8 @@ export interface TrainingSession {
   timeframeMinutes: number;
   warmupBars: number;
   mode: TrainingMode;
+  /** Sessões antigas não têm identificador; nestas aplica-se MULTI_MEDIAS. */
+  strategyId?: TradingStrategyId;
   startingBalanceBRL?: number | null;
   startedAt: string;
   endedAt: string | null;

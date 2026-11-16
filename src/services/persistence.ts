@@ -220,6 +220,7 @@ function normalizeTrainingSession(
   return {
     ...session,
     mode: session.mode === "EXAM" ? "EXAM" : "FREE",
+    strategyId: session.strategyId === "MTF_ANGULACAO" ? "MTF_ANGULACAO" : "MULTI_MEDIAS",
   };
 }
 
