@@ -45,10 +45,10 @@ export function ManualPanel() {
       <section className="manual-topic">
         <h3>4. Selecionar e carregar o replay no Simulador</h3>
         <ol>
-          <li>Abra <strong>Simulador</strong> e escolha o pregão desejado em <strong>Selecionar replay disponível</strong>. A lista informa os replays prontos e os que ainda exigem arquivos anteriores.</li>
-          <li>Clique em <strong>Selecionar este replay para o treino</strong> quando os arquivos estiverem completos. Também é possível usar <strong>Consultar outro dia</strong> para verificar uma data específica.</li>
+          <li>Abra <strong>Simulador</strong> e escolha o pregão em <strong>Selecionar e carregar replay</strong>. A lista informa os dias prontos e os que ainda exigem arquivos anteriores.</li>
+          <li>Clique apenas em <strong>Carregar replay</strong>. O sistema seleciona o pregão, verifica o contrato e o histórico de aquecimento e abre os arquivos em uma única operação. Também é possível usar <strong>Consultar outro dia</strong>.</li>
           <li>Se o replay daquele dia não existir ou faltar histórico, o sistema exibirá as pendências e um botão para voltar a <strong>Pregões e replays</strong>, onde os CSVs serão importados e os arquivos gerados.</li>
-          <li>Em <strong>Carregar replay selecionado</strong>, clique em <strong>Carregar replay</strong>. Escolha <strong>Treino livre</strong> ou <strong>Modo prova</strong> e inicie a sessão.</li>
+          <li>Quando aparecer <strong>Replay carregado</strong>, escolha <strong>Treino livre</strong> ou <strong>Modo prova</strong> e inicie a sessão. A reprodução não começa automaticamente.</li>
         </ol>
         <p>O Simulador não importa CSVs nem prepara arquivos. Os candles de aquecimento alimentam os indicadores, mas ficam ocultos; somente o pregão escolhido é reproduzido.</p>
       </section>

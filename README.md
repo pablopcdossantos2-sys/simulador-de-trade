@@ -121,4 +121,4 @@ Este software tem finalidade educacional e de treinamento. Não envia ordens rea
 
 1. Em **Pregões e replays**, importe os CSVs M1/M2 do Profit e gere replays catalogados. Use a preparação guiada para identificar e completar o histórico de aquecimento necessário aos indicadores.
 2. Em **Sistemas de trading**, configure e selecione a estratégia.
-3. No **Simulador**, escolha um replay já disponível e carregue-o para iniciar o treino. Caso o pregão ou seu aquecimento esteja indisponível, a interface indica as pendências e oferece um atalho para **Pregões e replays**. O Simulador não prepara arquivos CSV.
+3. No **Simulador**, escolha um replay já disponível e clique uma única vez em **Carregar replay**. A seleção do pregão e a abertura dos arquivos/histórico ocorrem juntas, sem uma segunda confirmação. Depois, escolha o modo e inicie o treino. Caso o pregão ou seu aquecimento esteja indisponível, a interface indica as pendências e oferece um atalho para **Pregões e replays**. O Simulador não prepara arquivos CSV.

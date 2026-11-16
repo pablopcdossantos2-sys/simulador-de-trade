@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { CandleChart } from "./components/CandleChart";
 import { DataPreparationPanel } from "./components/DataPreparationPanel";
 import { ReplayControls } from "./components/ReplayControls";
-import { ReplayLoadPanel } from "./components/ReplayLoadPanel";
 import { ReplayCatalogPanel } from "./components/ReplayCatalogPanel";
 import { ReplaySelectionPanel } from "./components/ReplaySelectionPanel";
 import { AvailableReplaysPanel } from "./components/AvailableReplaysPanel";
@@ -251,6 +250,9 @@ export default function App() {
   const [sessionHistoryRefreshKey, setSessionHistoryRefreshKey] = useState(0);
   const [startingTraining, setStartingTraining] = useState(false);
   const [loadingReplay, setLoadingReplay] = useState(false);
+  // A seleção e a abertura são uma única operação; evita cliques paralelos
+  // antes de o React atualizar o estado disabled do botão.
+  const loadingReplayRef = useRef(false);
   const [switchingStrategy, setSwitchingStrategy] = useState(false);
   const switchingStrategyRef = useRef(false);
   const activeSignalRef = useRef<{ id: string; side: Side } | null>(null);
@@ -773,51 +775,69 @@ export default function App() {
     );
   }
 
-  async function loadReplay() {
-    if (position || trainingActive) {
+  async function loadReplay(plan: SimulationPlan) {
+    if (position || trainingActive || startingTrainingRef.current ||
+        switchingStrategyRef.current || replay.busy) {
+      setFeedback("Encerre a posição e a sessão de treino antes de carregar outro replay.");
+      return;
+    }
+    if (loadingReplayRef.current) return;
+    if (catalogLoading || catalogError) {
+      setFeedback("Atualize o catálogo de replays antes de tentar carregar o pregão.");
+      return;
+    }
+
+    // Não depende de setSimulationPlan do React: resolve o alvo e o aquecimento
+    // diretamente do plano escolhido, antes de abrir qualquer arquivo.
+    const matches = matchSimulationPlan(plan, plan.asset, catalogEntries);
+    if (!planIsReady(matches)) {
       setFeedback(
-        "Encerre a posição e a sessão de treino antes de carregar outro replay.",
+        "O replay selecionado possui dados ausentes ou contratos incompatíveis. " +
+        "Abra Pregões e replays para preparar os arquivos do pregão e do aquecimento.",
       );
       return;
     }
 
-    if (!simulationPlan) {
-      setFeedback("Selecione um replay pronto na lista antes de carregar e iniciar o treino.");
-      return;
-    }
-
-    if (!planIsReady(catalogMatches)) {
-      setFeedback(
-        "O replay selecionado não possui todos os arquivos necessários. Abra Pregões e replays para preparar o pregão e o histórico.",
-      );
-      return;
-    }
-
-    const targetPath = targetFileFromMatches(catalogMatches);
+    const targetPath = targetFileFromMatches(matches);
     if (!targetPath) {
-      setFeedback("Este pregão não está disponível. Abra Pregões e replays para importar os CSVs e gerar o replay.");
+      setFeedback("Não há replay válido para esse pregão. Prepare os arquivos em Pregões e replays.");
       return;
     }
 
-    if (loadingReplay) return;
+    loadingReplayRef.current = true;
     setLoadingReplay(true);
-    replay.setPath(targetPath);
-
     try {
-      const warmupPaths = warmupFilesFromMatches(catalogMatches);
+      // Descarrega a sessão antiga antes de substituir seu plano e buffers.
+      if (replay.session) {
+        replay.setPlaying(false);
+        await replay.unload();
+      }
+      setSimulationPlan(null);
+      replay.setPath("");
+      setWarmupCandles([]);
+      setDataMode("demo");
+      setAsset(plan.asset);
+      replaceCandles(createDemoCandles(plan.asset));
+      setCurrentReplayTrade(null);
+
       const hiddenCandles = await loadWarmupCandles(
-        warmupPaths,
-        simulationPlan.timeframeMinutes,
-        simulationPlan.warmupBars,
+        warmupFilesFromMatches(matches),
+        plan.timeframeMinutes,
+        plan.warmupBars,
       );
       const info = await replay.loadReplay(
-        simulationPlan.targetStartTime,
-        simulationPlan.targetEndTime,
+        plan.targetStartTime,
+        plan.targetEndTime,
         targetPath,
       );
-      if (!info) return;
-      setWarmupCandles(hiddenCandles);
+      if (!info) {
+        setFeedback("Não foi possível abrir o replay selecionado. Confira os arquivos em Pregões e replays.");
+        return;
+      }
 
+      setSimulationPlan(plan);
+      replay.setPath(targetPath);
+      setWarmupCandles(hiddenCandles);
       setDataMode("replay");
       setAsset(info.asset);
       replaceCandles([]);
@@ -832,19 +852,19 @@ export default function App() {
       setContracts("1");
       setTrainingSession(null);
       setTrainingEvents([]);
+      setTrainingMode("FREE");
       activeSignalRef.current = null;
       lastSeenReplaySignalRef.current = null;
       usedSignalIdsRef.current = new Set();
       ignoredSignalIdsRef.current = new Set();
       lastSuggestedSignalIdRef.current = null;
       setFeedback(
-        `Replay ${info.symbol} carregado. Histórico anterior: ${hiddenCandles.length} candles ocultos.`,
+        `Replay ${info.symbol} carregado. Histórico anterior: ${hiddenCandles.length} candles ocultos. Escolha o modo e inicie o treino.`,
       );
     } catch (error) {
-      setFeedback(
-        readErrorMessage(error, "Falha ao preparar o histórico anterior do indicador."),
-      );
+      setFeedback(readErrorMessage(error, "Falha ao carregar o replay e preparar os indicadores."));
     } finally {
+      loadingReplayRef.current = false;
       setLoadingReplay(false);
     }
   }
@@ -1418,7 +1438,6 @@ export default function App() {
     }
   }
 
-  const setupFilesReady = Boolean(simulationPlan) && planIsReady(catalogMatches);
 
   const historyTradesForDisplay = visibleTradesForTrainingState(
     trades,
@@ -1534,68 +1553,11 @@ export default function App() {
           }
           setActiveArea("PREGOES");
         }}
-        onSelect={async (plan) => {
-          if (!planIsReady(matchSimulationPlan(plan, plan.asset, catalogEntries))) {
-            setFeedback("Faltam arquivos do pregão ou do aquecimento. Complete os dados em Pregões e replays.");
-            return;
-          }
-          if (trainingActive || position || startingTrainingRef.current || loadingReplay ||
-              switchingStrategyRef.current) {
-            setFeedback("Finalize a sessão atual antes de selecionar outro replay.");
-            return;
-          }
-          if (replay.session) {
-            try {
-              replay.setPlaying(false);
-              await replay.unload();
-            } catch (error) {
-              setFeedback(readErrorMessage(error, "Não foi possível descarregar o replay atual."));
-              return;
-            }
-          }
-          setSimulationPlan(plan);
-          setAsset(plan.asset);
-          setDataMode("demo");
-          setWarmupCandles([]);
-          replaceCandles(createDemoCandles(plan.asset));
-          setCurrentReplayTrade(null);
-          positionRef.current = null;
-          setPosition(null);
-          setLastClosedTradeMarker(null);
-          setDraftEntryPrice(null);
-          setDraftSide(null);
-          setTrainingSession(null);
-          setTrainingEvents([]);
-          setTrainingMode("FREE");
-          activeSignalRef.current = null;
-          lastSeenReplaySignalRef.current = null;
-          usedSignalIdsRef.current = new Set();
-          ignoredSignalIdsRef.current = new Set();
-          lastSuggestedSignalIdRef.current = null;
-          const matches = matchSimulationPlan(plan, plan.asset, catalogEntries);
-          replay.setPath(targetFileFromMatches(matches) ?? "");
-          setFeedback(`Replay ${plan.asset} · ${plan.targetDate} selecionado. Carregue-o para iniciar o treino; os arquivos prontos foram obtidos do catálogo.`);
-        }}
-      />
-
-      <SetupDisclosure title="Carregar replay selecionado"
-        status={replay.session ? "Replay carregado · pronto para iniciar" :
-          !simulationPlan ? "Selecione um replay preparado" :
-            setupFilesReady ? "Pronto para carregar" : "Arquivos pendentes no catálogo"}
-        complete={Boolean(replay.session) || !setupFilesReady}
-        expandWhenIncomplete={setupFilesReady}
-        resetKey={simulationPlan?.targetDate ?? selectedStrategyId}>
-      <ReplayLoadPanel
-        path={replay.path}
-        timeframeMinutes={replayTimeframeMinutes}
+        loadedReplay={Boolean(replay.session)}
         session={replay.session}
-        playing={replay.playing}
-        busy={replay.busy || loadingReplay}
-        canLoad={!catalogLoading && setupFilesReady && Boolean(simulationPlan)}
-        trainingActive={trainingActive}
-        onLoad={() => void loadReplay()}
+        busy={loadingReplay || replay.busy}
+        onLoad={(plan) => void loadReplay(plan)}
       />
-      </SetupDisclosure>
 
       <TrainingSessionPanel
         session={trainingSession}

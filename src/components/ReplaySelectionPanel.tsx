@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import type { Asset, MovingAverageSettings, TradingStrategyId } from "../types";
 import type { ReplayCatalogEntry } from "../services/replayCatalog";
 import type { SimulationPlan } from "../domain/simulationPlan";
+import type { ReplaySessionInfo } from "../services/replayData";
 import { replayChoiceForDate, replayChoicesFromCatalog } from "../domain/replayChoices";
 import { InfoTip } from "./InfoTip";
 
@@ -13,7 +14,10 @@ interface Props {
   settings: MovingAverageSettings;
   currentPlan: SimulationPlan | null;
   disabled: boolean;
-  onSelect: (plan: SimulationPlan) => void | Promise<void>;
+  busy: boolean;
+  loadedReplay: boolean;
+  session?: ReplaySessionInfo | null;
+  onLoad: (plan: SimulationPlan) => void | Promise<void>;
   onPrepare: (asset: Asset, date: string) => void;
   onRefresh: () => void;
 }
@@ -25,7 +29,7 @@ function brDate(date: string): string {
 
 export function ReplaySelectionPanel({
   entries, loading, error, strategyId, settings, currentPlan,
-  disabled, onSelect, onPrepare, onRefresh,
+  disabled, busy, loadedReplay, session, onLoad, onPrepare, onRefresh,
 }: Props) {
   const choices = useMemo(
     () => replayChoicesFromCatalog(entries, strategyId, settings),
@@ -38,9 +42,8 @@ export function ReplaySelectionPanel({
   const choice = searchDate
     ? replayChoiceForDate(entries, searchAsset, searchDate, strategyId, settings)
     : chosen ?? null;
-  const changed = Boolean(choice && (
-    choice.asset !== currentPlan?.asset || choice.date !== currentPlan?.targetDate
-  ));
+  const sameAsLoaded = Boolean(choice && loadedReplay && currentPlan &&
+    choice.asset === currentPlan.asset && choice.date === currentPlan.targetDate);
   const selectedActive = currentPlan && replayChoiceForDate(
     entries, currentPlan.asset, currentPlan.targetDate, strategyId, settings,
   );
@@ -56,11 +59,12 @@ export function ReplaySelectionPanel({
     <section className="replay-selection-panel card" aria-label="Escolher um replay pronto para treinar">
       <div className="section-heading">
         <div className="section-title-with-help">
-          <h2>Selecionar replay disponível</h2>
+          <h2>Selecionar e carregar replay</h2>
           <InfoTip label="Como escolher um replay">
             Os arquivos CSV e os replays são preparados em Pregões e replays. Aqui você
-            escolhe um pregão catalogado. O sistema confere o histórico anterior
-            exigido pela estratégia, inclusive a compatibilidade do contrato.
+            escolhe um pregão catalogado e clica em Carregar replay. Em uma só
+            operação, o sistema verifica o histórico anterior necessário para
+            os indicadores e a compatibilidade do contrato, e abre o replay.
           </InfoTip>
         </div>
         <button type="button" className="catalog-refresh" onClick={onRefresh}
@@ -72,8 +76,8 @@ export function ReplaySelectionPanel({
         <div><span>Prontos para esta estratégia</span><strong>{choices.filter((item) => item.ready).length}</strong></div>
       </div>
       <p className="data-description">
-        Escolha um replay pronto ou consulte um dia específico. Não é necessário
-        selecionar arquivos CSV dentro do Simulador.
+        Escolha um replay pronto ou consulte um dia específico. Clique apenas
+        em Carregar replay; os indicadores e o histórico são preparados automaticamente.
       </p>
       <div className="replay-selection-fields">
         <label>Replays preparados
@@ -111,13 +115,17 @@ export function ReplaySelectionPanel({
       {choice?.error && <div className="data-status error" role="status">{choice.error}</div>}
       {choice && !choice.error && (
         <div className={`replay-selection-notice ${choice.ready ? "ready" : "missing"}`} role="status">
-          <strong>{choice.ready
-            ? `Replay de ${brDate(choice.date)} pronto para treino`
+          <strong>{sameAsLoaded
+            ? `Replay de ${brDate(choice.date)} carregado`
+            : choice.ready
+              ? `Replay de ${brDate(choice.date)} pronto para carregar`
             : !choice.targetReady
               ? `Não há replay válido de ${brDate(choice.date)} para ${choice.asset}`
               : "O replay existe, mas falta histórico para os indicadores"}</strong>
-          <p>{choice.ready
-            ? `Pregão e histórico necessários catalogados · ${choice.plan?.warmupBars} candles M2 de aquecimento previstos.`
+          <p>{sameAsLoaded
+            ? "O replay está aberto e os indicadores foram aquecidos. Escolha o modo e inicie o treino no painel abaixo."
+            : choice.ready
+              ? `Pregão e histórico necessários catalogados · ${choice.plan?.warmupBars} candles M2 de aquecimento previstos.`
             : "Acesse Pregões e replays para importar os CSVs, gerar os arquivos necessários e completar o histórico antes da simulação."}</p>
           {!choice.ready && choice.missing.length > 0 && (
             <div className="replay-selection-requirements">
@@ -133,9 +141,10 @@ export function ReplaySelectionPanel({
           )}
           <div className="replay-selection-actions">
             {choice.ready && choice.plan && (
-              <button type="button" className="planner-apply" disabled={disabled || !changed}
-                onClick={() => void onSelect(choice.plan!)}>
-                {changed ? "Selecionar este replay para o treino" : "Replay selecionado para o treino"}
+              <button type="button" className="planner-apply"
+                disabled={disabled || busy || sameAsLoaded}
+                onClick={() => void onLoad(choice.plan!)}>
+                {busy ? "Carregando replay..." : sameAsLoaded ? "Replay carregado" : "Carregar replay"}
               </button>
             )}
             {!choice.ready && (
@@ -145,10 +154,20 @@ export function ReplaySelectionPanel({
           </div>
         </div>
       )}
-      {currentPlan && (!choice || changed) && (
+      {currentPlan && loadedReplay && (!choice || !sameAsLoaded) && (
         <p className="replay-selection-current">
-          Replay atualmente selecionado: <strong>{currentPlan.asset} · {brDate(currentPlan.targetDate)}</strong>.
-          {selectedActive && !selectedActive.ready ? " Verifique os arquivos antes de treinar." : ""}
+          Replay atualmente carregado: <strong>{currentPlan.asset} · {brDate(currentPlan.targetDate)}</strong>.
+          {selectedActive && !selectedActive.ready ? " Verifique os arquivos antes do próximo treino." : ""}
+        </p>
+      )}
+      {loadedReplay && session && (
+        <p className="replay-session-note" role="status">
+          <strong>{session.symbol}</strong> · {session.asset} · {session.mode === "TICK_LEGACY"
+            ? "Negócios históricos tick a tick"
+            : session.mode === "CANDLES_M1_SYNTHETIC"
+              ? "Replay sintético M1"
+              : "Replay sintético M2"}.
+          {session.synthetic ? " Os preços intrabar são simulados, não ticks históricos." : ""}
         </p>
       )}
       {choice && !choice.ready && choice.targetReady && (
