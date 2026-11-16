@@ -206,6 +206,8 @@ export default function App() {
   const [sessionHistoryRefreshKey, setSessionHistoryRefreshKey] = useState(0);
   const [startingTraining, setStartingTraining] = useState(false);
   const [loadingReplay, setLoadingReplay] = useState(false);
+  const [switchingStrategy, setSwitchingStrategy] = useState(false);
+  const switchingStrategyRef = useRef(false);
   const activeSignalRef = useRef<{ id: string; side: Side } | null>(null);
   const usedSignalIdsRef = useRef<Set<string>>(new Set());
   const ignoredSignalIdsRef = useRef<Set<string>>(new Set());
@@ -1247,28 +1249,55 @@ export default function App() {
     }
   }
 
-  function selectStrategy(next: TradingStrategyId) {
-    if (!strategySelectionAllowed(trainingActive, Boolean(position), startingTraining || loadingReplay)) {
-      setFeedback("Finalize a sessão e a posição antes de trocar de sistema.");
+  async function selectStrategy(next: TradingStrategyId) {
+    if (!strategySelectionAllowed(
+      trainingActive, Boolean(position),
+      startingTraining || loadingReplay || switchingStrategyRef.current,
+    )) {
+      setFeedback("Finalize a sessão e a posição, ou aguarde o processamento, antes de trocar de sistema.");
       return;
     }
     if (next === selectedStrategyId) { setActiveArea("SIMULADOR"); return; }
-    setSelectedStrategyId(next);
-    try { localStorage.setItem(STRATEGY_KEY, next); } catch { /* preferência opcional */ }
-    setTrainingSession(null);
-    setTrainingEvents([]);
-    setLastClosedTradeMarker(null);
-    setDraftEntryPrice(null);
-    setDraftSide(null);
-    setStopDistance("");
-    setTargetDistance("");
-    activeSignalRef.current = null;
-    lastSeenReplaySignalRef.current = null;
-    usedSignalIdsRef.current = new Set();
-    ignoredSignalIdsRef.current = new Set();
-    lastSuggestedSignalIdRef.current = null;
-    setActiveArea("SIMULADOR");
-    setFeedback(`Sistema selecionado: ${strategyLabel(next)}. O replay e os dados já importados continuam disponíveis.`);
+
+    // O aquecimento mínimo muda por estratégia. Não reutilizar em silêncio
+    // o replay preparado com os 260 candles do Sistema 01 para TPV M15/50.
+    switchingStrategyRef.current = true;
+    setSwitchingStrategy(true);
+    try {
+      if (replay.session) {
+        replay.setPlaying(false);
+        await replay.unload();
+      }
+      setSelectedStrategyId(next);
+      try { localStorage.setItem(STRATEGY_KEY, next); } catch { /* preferência opcional */ }
+      setSimulationPlan(null);
+      setCatalogMatches([]);
+      setWarmupCandles([]);
+      setDataMode("demo");
+      replaceCandles(createDemoCandles(asset));
+      setCurrentReplayTrade(null);
+      positionRef.current = null;
+      setPosition(null);
+      setTrainingSession(null);
+      setTrainingEvents([]);
+      setLastClosedTradeMarker(null);
+      setDraftEntryPrice(null);
+      setDraftSide(null);
+      setStopDistance("");
+      setTargetDistance("");
+      activeSignalRef.current = null;
+      lastSeenReplaySignalRef.current = null;
+      usedSignalIdsRef.current = new Set();
+      ignoredSignalIdsRef.current = new Set();
+      lastSuggestedSignalIdRef.current = null;
+      setActiveArea("SIMULADOR");
+      setFeedback(`Sistema selecionado: ${strategyLabel(next)}. Aplique um novo plano para preparar o aquecimento específico. Os CSVs catalogados foram preservados.`);
+    } catch (error) {
+      setFeedback(readErrorMessage(error, "Não foi possível descarregar o replay antigo. A estratégia foi mantida."));
+    } finally {
+      switchingStrategyRef.current = false;
+      setSwitchingStrategy(false);
+    }
   }
 
   const historyTradesForDisplay = visibleTradesForTrainingState(
@@ -1340,7 +1369,7 @@ export default function App() {
 
       <section className="app-area" hidden={activeArea !== "SISTEMAS"}>
         <TradingSystemsPanel selectedStrategyId={selectedStrategyId}
-          disabled={!strategySelectionAllowed(trainingActive, Boolean(position), startingTraining || loadingReplay)}
+          disabled={!strategySelectionAllowed(trainingActive, Boolean(position), startingTraining || loadingReplay || switchingStrategy)}
           onSelect={selectStrategy} />
       </section>
 
@@ -1353,15 +1382,16 @@ export default function App() {
         </div>
         <label htmlFor="strategy-select">Sistema
           <select id="strategy-select" value={selectedStrategyId}
-            disabled={!strategySelectionAllowed(trainingActive, Boolean(position), startingTraining || loadingReplay)}
-            onChange={(event) => selectStrategy(event.target.value as TradingStrategyId)}>
+            disabled={!strategySelectionAllowed(trainingActive, Boolean(position), startingTraining || loadingReplay || switchingStrategy)}
+            onChange={(event) => { void selectStrategy(event.target.value as TradingStrategyId); }}>
             <option value="MULTI_MEDIAS">01 — Multi Médias · Nuvem e Sinais</option>
             <option value="MTF_ANGULACAO">02 — MMs MTF + Angulação (beta)</option>
           </select>
         </label>
       </section>
       <SimulationPlanner
-        disabled={trainingActive || Boolean(position) || startingTraining}
+        strategyId={selectedStrategyId}
+        disabled={trainingActive || Boolean(position) || startingTraining || switchingStrategy}
         onPlanChange={async (plan) => {
           if (trainingActive || position || startingTrainingRef.current) {
             setFeedback(
