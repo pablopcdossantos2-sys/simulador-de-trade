@@ -4593,6 +4593,41 @@ td {
 :root[data-theme="light"] .strategy-confluence-switches label { color: #365571; }
 :root[data-theme="light"] .strategy-confluence-switches small { color: #627a91; }
 
+/* As opções de plotagem são independentes dos critérios que votam no fundo M15. */
+.strategy-average-rules { display: grid; gap: 9px; min-width: 0; }
+.strategy-average-rule {
+  display: grid;
+  grid-template-columns: minmax(120px, 1fr) minmax(130px, 1fr) minmax(160px, 1.15fr) minmax(120px, 1fr);
+  align-items: center;
+  gap: 10px 14px;
+  padding: 11px 13px;
+  border: 1px solid #304d69;
+  border-radius: 9px;
+  background: #14283e;
+  min-width: 0;
+}
+.strategy-average-rule > strong { color: #e7f1fb; font-size: .83rem; }
+.strategy-average-rule label { color: #cadbec; font-size: .79rem; }
+.strategy-average-checkbox { display: flex; align-items: center; gap: 8px; }
+.strategy-average-checkbox input[type="checkbox"] { width: 17px; height: 17px; margin: 0; accent-color: #6ca8e3; flex: 0 0 auto; }
+.strategy-average-angle { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 6px; }
+.strategy-average-angle input[type="number"] {
+  width: 78px; min-width: 0; min-height: 36px; padding: 6px 8px;
+  border: 1px solid #456888; border-radius: 7px;
+  background: #0c1c2d; color: #e9f4ff; font-variant-numeric: tabular-nums;
+}
+.strategy-average-rule input:disabled { opacity: .55; }
+:root[data-theme="light"] .strategy-average-rule { background: #fff; border-color: #c5d8e5; }
+:root[data-theme="light"] .strategy-average-rule > strong { color: #254864; }
+:root[data-theme="light"] .strategy-average-rule label { color: #365571; }
+:root[data-theme="light"] .strategy-average-angle input[type="number"] { background: #fff; color: #243f57; border-color: #b4cada; }
+@media (max-width: 850px) {
+  .strategy-average-rule { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 480px) {
+  .strategy-average-rule { grid-template-columns: minmax(0, 1fr); }
+}
+
 /* Fluxo progressivo do Simulador: cada etapa concluída ocupa só a linha de status. */
 .setup-disclosure {
   margin: 0 0 12px;

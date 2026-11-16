@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { InfoTip } from "./InfoTip";
 import type { MovingAverageSettings, MtfVoteFilters, TradingStrategyId } from "../types";
-import { DEFAULT_MTF_VOTE_FILTERS } from "../services/mtfConfluence";
+import { DEFAULT_MTF_VOTE_FILTERS, MTF_CONFLUENCE_DEFAULTS } from "../services/mtfConfluence";
 import {
   defaultsForMovingAverages,
   MIN_MOVING_AVERAGE_PERIOD,
@@ -34,11 +34,16 @@ export function StrategyAveragesPanel({ strategyId, settings, disabled, onSave }
     ...DEFAULT_MTF_VOTE_FILTERS, ...settings.mtf.filters,
     voteOn: [...(settings.mtf.filters?.voteOn ?? DEFAULT_MTF_VOTE_FILTERS.voteOn)],
   }));
+  const [plotOn, setPlotOn] = useState<boolean[]>(() => [...(settings.mtf.plotOn ?? [true, true, true, true])]);
+  const [angleFields, setAngleFields] = useState<string[]>(() =>
+    (settings.mtf.filters?.angleThresholds ?? MTF_CONFLUENCE_DEFAULTS.angleThresholds).map(String));
   const [feedback, setFeedback] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     setFields(inputsFor(settings, strategyId));
+    setPlotOn([...(settings.mtf.plotOn ?? [true, true, true, true])]);
+    setAngleFields((settings.mtf.filters?.angleThresholds ?? MTF_CONFLUENCE_DEFAULTS.angleThresholds).map(String));
     setExpanded(false);
     setFilters({
       ...DEFAULT_MTF_VOTE_FILTERS, ...settings.mtf.filters,
@@ -55,6 +60,14 @@ export function StrategyAveragesPanel({ strategyId, settings, disabled, onSave }
     setFields((current) => current.map((item, position) => position === index ? value : item));
     setFeedback(null);
   };
+  const updateAngle = (index: number, value: string) => {
+    setAngleFields((current) => current.map((item, position) => position === index ? value : item));
+    setFeedback(null);
+  };
+  const togglePlot = (index: number, checked: boolean) => {
+    setPlotOn((current) => current.map((value, i) => i === index ? checked : value));
+    setFeedback(null);
+  };
 
   async function save() {
     if (disabled || saving) return;
@@ -63,7 +76,14 @@ export function StrategyAveragesPanel({ strategyId, settings, disabled, onSave }
       multiMedias: { ...settings.multiMedias },
       mtf: {
         periods: [...settings.mtf.periods] as [number, number, number, number],
-        filters: { ...settings.mtf.filters, ...filters, voteOn: [...filters.voteOn] as [boolean, boolean, boolean, boolean] },
+        plotOn: [...plotOn] as [boolean, boolean, boolean, boolean],
+        filters: {
+          ...settings.mtf.filters, ...filters,
+          voteOn: [...filters.voteOn] as [boolean, boolean, boolean, boolean],
+          angleThresholds: angleFields.map((value) =>
+            value.trim() === "" ? Number.NaN : Number(value.replace(",", ".")))
+            as [number, number, number, number],
+        },
       },
     };
     if (isMtf) {
@@ -88,7 +108,13 @@ export function StrategyAveragesPanel({ strategyId, settings, disabled, onSave }
     if (disabled || saving) return;
     setFields(inputsFor(defaultsForMovingAverages(), strategyId));
     if (isMtf) {
-      setFilters({ ...DEFAULT_MTF_VOTE_FILTERS, voteOn: [...DEFAULT_MTF_VOTE_FILTERS.voteOn] });
+      setFilters({
+        ...DEFAULT_MTF_VOTE_FILTERS,
+        voteOn: [...DEFAULT_MTF_VOTE_FILTERS.voteOn],
+        angleThresholds: [...MTF_CONFLUENCE_DEFAULTS.angleThresholds],
+      });
+      setAngleFields(MTF_CONFLUENCE_DEFAULTS.angleThresholds.map(String));
+      setPlotOn([true, true, true, true]);
     }
     setFeedback("Valores padrão preenchidos. Clique em Salvar médias para aplicá-los.");
   }
@@ -163,17 +189,38 @@ export function StrategyAveragesPanel({ strategyId, settings, disabled, onSave }
                 onChange={(event) => toggleFilter("requireAlignment", event.target.checked)}
                 disabled={disabled || saving} /> Usar alinhamento das médias</label>
             </div>
-            <p className="strategy-averages-explanation">Escolha quais MMEs entram no cálculo do fundo. Todas as quatro continuam desenhadas no gráfico, mesmo quando não votam.</p>
-            <div className="strategy-confluence-switches">
+            <p className="strategy-averages-explanation">
+              Configure cada MME separadamente: exibir a linha no gráfico não significa participar do fundo verde/vermelho.
+              O limiar de angulação é independente, aplicado apenas quando a média vota e a angulação global está ativa.
+            </p>
+            <div className="strategy-average-rules" role="group" aria-label="Exibição, angulação e votação das médias M15">
               {filters.voteOn.map((enabled, index) => (
-                <label key={index}>
-                  <input type="checkbox" checked={enabled}
-                    onChange={(event) => toggleAverage(index, event.target.checked)}
-                    disabled={disabled || saving} />
-                  Usar MME {fields[index] || settings.mtf.periods[index]} no fundo
-                  <small>{[2, 1, 1.5, 1][index]}°</small>
-                </label>
+                <div className="strategy-average-rule" key={index}>
+                  <strong>MME {fields[index] || settings.mtf.periods[index]} · M15</strong>
+                  <label className="strategy-average-checkbox">
+                    <input type="checkbox" checked={plotOn[index] ?? true}
+                      onChange={(event) => togglePlot(index, event.target.checked)}
+                      disabled={disabled || saving} />
+                    Exibir no gráfico
+                  </label>
+                  <label className="strategy-average-angle">
+                    Angulação mínima (°)
+                    <input type="number" min="0.1" max="89" step="0.1"
+                      aria-label={`Angulação mínima da MME ${index + 1} em graus`}
+                      value={angleFields[index] ?? ""}
+                      onChange={(event) => updateAngle(index, event.target.value)}
+                      disabled={disabled || saving} />
+                  </label>
+                  <label className="strategy-average-checkbox">
+                    <input type="checkbox" checked={enabled}
+                      onChange={(event) => toggleAverage(index, event.target.checked)}
+                      disabled={disabled || saving} />
+                    Usar no fundo
+                  </label>
+                </div>
               ))}
+            </div>
+            <div className="strategy-confluence-switches">
               <label><input type="checkbox" checked={filters.useVwap}
                 onChange={(event) => toggleFilter("useVwap", event.target.checked)}
                 disabled={disabled || saving || !filters.useAngles} />
@@ -182,12 +229,12 @@ export function StrategyAveragesPanel({ strategyId, settings, disabled, onSave }
               <label><input type="checkbox" checked={filters.useTpv}
                 onChange={(event) => toggleFilter("useTpv", event.target.checked)}
                 disabled={disabled || saving} />
-                Usar TPV no fundo <small>Média 50 · proximidade 0,45 desvio</small>
+                Usar TPV no fundo <small>Acima/abaixo da média de 50 · sem desvio-padrão</small>
               </label>
             </div>
             <p className="strategy-averages-explanation">
-              As médias e a VWAP usam ângulos normalizados pelo ATR 14. Desmarcar um critério o remove dos votos;
-              não altera sua curva no gráfico. Os valores numéricos permanecem os padrões Pine v13.
+              As médias e a VWAP usam ângulos normalizados pelo ATR 14. Os limites de angulação das MMEs são editáveis
+              (padrões: 2°/1°/1,5°/1°). A visibilidade no gráfico e a participação no fundo são opções independentes.
             </p>
           </div>
         )}

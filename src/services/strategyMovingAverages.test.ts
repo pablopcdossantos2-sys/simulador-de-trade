@@ -91,8 +91,10 @@ describe("preferências dos votos do fundo M15", () => {
     };
     const normalized = normalizeMovingAverageSettings(legacy);
     expect(normalized.mtf.periods).toEqual([5, 10, 20, 50]);
+    expect(normalized.mtf.plotOn).toEqual([true, true, true, true]);
     expect(normalized.mtf.filters).toEqual({
       useAngles: true, requireAlignment: true, voteOn: [true, true, true, false],
+      angleThresholds: [2, 1, 1.5, 1],
       useVwap: true, useTpv: true,
     });
   });
@@ -101,9 +103,36 @@ describe("preferências dos votos do fundo M15", () => {
     settings.mtf.filters!.voteOn = [false, true, false, true];
     settings.mtf.filters!.useAngles = false;
     settings.mtf.filters!.useTpv = false;
+    settings.mtf.filters!.angleThresholds = [3, 2.5, 4, 0.5];
+    settings.mtf.plotOn = [true, false, true, false];
     const normalized = normalizeMovingAverageSettings(settings);
     expect(normalized.mtf.filters).toEqual(settings.mtf.filters);
+    expect(normalized.mtf.plotOn).toEqual([true, false, true, false]);
   });
+  it("migra filtros antigos e adiciona os limiares personalizados padrão sem perder os votos", () => {
+    const settings = defaultsForMovingAverages();
+    const legacy = {
+      ...settings,
+      mtf: {
+        periods: [5, 10, 20, 50],
+        filters: { ...settings.mtf.filters, voteOn: [false, true, true, false], angleThresholds: undefined },
+      },
+    };
+    const restored = normalizeMovingAverageSettings(legacy);
+    expect(restored.mtf.filters?.voteOn).toEqual([false, true, true, false]);
+    expect(restored.mtf.filters?.angleThresholds).toEqual([2, 1, 1.5, 1]);
+    expect(restored.mtf.plotOn).toEqual([true, true, true, true]);
+  });
+
+  it("rejeita angulações fora da faixa e visibilidade inválida", () => {
+    const angle = defaultsForMovingAverages();
+    angle.mtf.filters!.angleThresholds = [2, -1, 1.5, 1];
+    expect(() => validateMovingAverageSettings(angle, "MTF_ANGULACAO")).toThrow(/0,1° a 89°/);
+    const plot = defaultsForMovingAverages();
+    plot.mtf.plotOn = [true, true, false, "sim" as unknown as boolean];
+    expect(() => validateMovingAverageSettings(plot, "MTF_ANGULACAO")).toThrow(/opções válidas/);
+  });
+
   it("recusa valores não booleanos nos interruptores", () => {
     const broken = defaultsForMovingAverages() as unknown as Record<string, unknown>;
     ((broken.mtf as Record<string, unknown>).filters as Record<string, unknown>).useVwap = "yes";

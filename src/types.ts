@@ -12,6 +12,8 @@ export interface MtfVoteFilters {
   requireAlignment: boolean;
   /** Cada média participa independentemente; a quarta começa desmarcada. */
   voteOn: [boolean, boolean, boolean, boolean];
+  /** Limiares angulares mínimos (graus, 0,1 a 89), na ordem das quatro MMEs. */
+  angleThresholds?: [number, number, number, number];
   useVwap: boolean;
   useTpv: boolean;
 }
@@ -24,6 +26,8 @@ export interface MovingAverageSettings {
   };
   mtf: {
     periods: [number, number, number, number];
+    /** Exibição das linhas M15, independente dos votos no fundo. Legados usam todas as linhas. */
+    plotOn?: [boolean, boolean, boolean, boolean];
     /** Opcional para ler configurações e backups das versões anteriores. */
     filters?: MtfVoteFilters;
   };

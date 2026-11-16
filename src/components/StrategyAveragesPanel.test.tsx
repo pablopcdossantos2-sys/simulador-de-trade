@@ -42,5 +42,11 @@ it("apresenta os interruptores globais e individuais da confluência M15", () =>
   expect(html).toContain("Usar VWAP diária no fundo");
   expect(html).toContain("Usar TPV no fundo");
   expect(html).toContain("ATR 14");
-  expect(html).toContain("0,45 desvio");
+  expect(html).toContain("sem desvio-padrão");
+  expect(html).toContain("Angulação mínima (°)");
+  expect(html).toContain('aria-label="Angulação mínima da MME 1 em graus"');
+  expect(html).toContain("Exibir no gráfico");
+  expect(html).toContain("Usar no fundo");
+  expect(html).toContain('value="1.5"');
+  expect(html).not.toContain("0,45 desvio");
 });

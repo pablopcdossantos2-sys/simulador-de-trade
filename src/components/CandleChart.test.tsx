@@ -4,6 +4,7 @@ import { CandleChart } from "./CandleChart";
 import { MultiMediasNuvemAdapter } from "../services/indicator";
 import { calculateMtfConfluence } from "../services/mtfConfluence";
 import { INDICATOR_V1_REGRESSION_CANDLES } from "../fixtures/indicatorV1";
+import { defaultsForMovingAverages } from "../services/strategyMovingAverages";
 
 describe("gráfico da primeira estratégia: Multi Médias", () => {
   it("mantém somente MME8, MMP20, MME52, VWAP e volume, sem médias M15", () => {
@@ -111,6 +112,32 @@ it("mantém a leitura do cursor abaixo do gráfico mesmo quando o cronômetro es
   expect(markup).toContain('class="chart-status-card chart-cursor-card"');
   expect(markup).not.toContain("chart-countdown-card");
   expect(markup.indexOf('class="chart-cursor-values"')).toBeGreaterThan(markup.indexOf("</svg>"));
+});
+
+it("separa a exibição das MMEs M15 dos votos que geram o fundo", () => {
+  const candles = INDICATOR_V1_REGRESSION_CANDLES;
+  const evaluation = { authorization: null, signals: [], series: [], zone: "NONE" as const };
+  const mtfPoints = calculateMtfConfluence(candles).points;
+  const settings = defaultsForMovingAverages();
+  settings.mtf.filters!.voteOn = [false, false, false, false];
+  const visualOnly = renderToStaticMarkup(
+    <CandleChart candles={candles} evaluation={evaluation} asset="WINFUT" position={null}
+      strategyId="MTF_ANGULACAO" mtfPoints={mtfPoints} movingAverages={settings} />,
+  );
+  expect(visualOnly).toContain("indicator-mtf-m1-line");
+  expect(visualOnly).toContain("indicator-mtf-m4-line");
+  settings.mtf.filters!.voteOn = [true, true, true, false];
+  settings.mtf.plotOn = [false, true, true, false];
+  const hidden = renderToStaticMarkup(
+    <CandleChart candles={candles} evaluation={evaluation} asset="WINFUT" position={null}
+      strategyId="MTF_ANGULACAO" mtfPoints={mtfPoints} movingAverages={settings} />,
+  );
+  expect(hidden).not.toContain("indicator-mtf-m1-line");
+  expect(hidden).not.toContain("indicator-mtf-m4-line");
+  expect(hidden).toContain("indicator-mtf-m2-line");
+  expect(hidden).toContain("indicator-mtf-m3-line");
+  expect(hidden).not.toContain("M15 MME 8");
+  expect(hidden).not.toContain("M15 MME 200");
 });
 
 it("recorta preços e médias na área de preço, mantendo barras de volume fora dela", () => {

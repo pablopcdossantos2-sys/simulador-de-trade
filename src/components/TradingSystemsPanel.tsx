@@ -55,7 +55,7 @@ export function TradingSystemsPanel({ selectedStrategyId, movingAverages = DEFAU
             </div>
             <span className="trading-system-status planned">Beta para testes</span>
           </div>
-          <p className="trading-system-summary">Estratégia de confluência causal em M15: três médias participantes ({movingAverages.mtf.periods.slice(0, 3).join(", ")}), VWAP ancorada, TPV e alinhamento. A quarta MME ({movingAverages.mtf.periods[3]}) é exibida, mas não vota por padrão.</p>
+          <p className="trading-system-summary">Estratégia de confluência causal em M15: quatro MMEs configuráveis, VWAP diária, TPV e alinhamento opcionais. Cada MME pode ser exibida sem participar do cálculo do fundo verde/vermelho.</p>
           <div className="trading-system-indicators">
             <span>Gráfico M2</span><span>Médias M15</span><span>VWAP MTF</span><span>TPV</span><span>ATR e ângulos</span>
           </div>
@@ -65,9 +65,9 @@ export function TradingSystemsPanel({ selectedStrategyId, movingAverages = DEFAU
           <ul>
             <li>Gráfico principal de 2 minutos e timeframe de contexto de 15 minutos.</li>
             <li>Modo causal, sem lookahead: cada atualização considera somente os candles de 2 minutos já disponíveis naquele ponto do replay.</li>
-            <li>MMEs de períodos {movingAverages.mtf.periods.join(", ")} em M15. Por padrão a quarta não vota, mas cada média pode ser ligada ou desligada no fundo.</li>
-            <li>ATR 14 e limiares angulares de 2°/1°/1,5°/1°. A VWAP diária usa limiar de 1° e o TPV usa média de 50 barras e proximidade de 0,45 desvio. Cada critério é opcional no fundo, conforme Pine v13.</li>
-            <li>O fundo verde/vermelho exige todos os votos concordantes e alinhamento estrito das médias; em caso contrário, não há autorização operacional.</li>
+            <li>MMEs de períodos {movingAverages.mtf.periods.join(", ")} em M15. Cada linha possui um controle de visibilidade independente do voto na confluência.</li>
+            <li>ATR 14 e limites angulares individuais editáveis (padrões 2°/1°/1,5°/1°). A VWAP diária usa limiar de 1°; o TPV compara seu valor com a média de 50 barras, sem cálculo de desvio.</li>
+            <li>O fundo verde/vermelho exige concordância dos critérios habilitados; quando exigido, o alinhamento das médias também deve confirmar a direção.</li>
           </ul>
           <h4>Autorização operacional</h4>
           <ul>

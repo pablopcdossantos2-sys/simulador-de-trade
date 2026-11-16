@@ -7,7 +7,7 @@ import {
 
 // Parâmetros padrão do Pine Indicador_v13_alinhamento_total (versão 13).
 // M4/EMA200 é plotada, mas NÃO participa do fundo por padrão.
-export const MTF_CONFLUENCE_VERSION = "mtf-confluencia-v13-beta1";
+export const MTF_CONFLUENCE_VERSION = "mtf-confluencia-v13-beta2";
 export const MTF_CONFLUENCE_DEFAULTS = {
   periods: [8, 20, 50, 200] as const,
   voteOn: [true, true, true, false] as const,
@@ -17,7 +17,6 @@ export const MTF_CONFLUENCE_DEFAULTS = {
   vwapAngleLookback: 3,
   vwapAngleThreshold: 1,
   tpvPeriod: 50,
-  tpvProximity: 0.45,
   requireAlignment: true,
 } as const;
 
@@ -25,6 +24,7 @@ export const DEFAULT_MTF_VOTE_FILTERS: MtfVoteFilters = {
   useAngles: true,
   requireAlignment: true,
   voteOn: [true, true, true, false],
+  angleThresholds: [...MTF_CONFLUENCE_DEFAULTS.angleThresholds],
   useVwap: true,
   useTpv: true,
 };
@@ -44,7 +44,6 @@ export interface MtfConfluencePoint {
   vwapAngle: number | null;
   tpv: number;
   tpvMean: number | null;
-  tpvDeviation: number | null;
   tpvVote: -1 | 0 | 1 | null;
   aligned: "BUY" | "SELL" | null;
   zone: IndicatorZone;
@@ -156,7 +155,7 @@ function evaluateBars(
     // de alinhamento (se a trava estiver ligada), como no Pine v13.
     if (filters.useAngles && filters.voteOn[j]) {
       if (ang === null) requiredData = false;
-      votes.push(voteForAngle(ang, config.angleThresholds[j]));
+      votes.push(voteForAngle(ang, (filters.angleThresholds ?? config.angleThresholds)[j]));
     }
   }
 
@@ -190,16 +189,12 @@ function evaluateBars(
   const tpvs = tpvSeries(bars);
   const tpv = tpvs[index];
   let tpvMean: number | null = null;
-  let tpvDeviation: number | null = null;
   let tpvVote: MtfConfluencePoint["tpvVote"] = null;
   if (tpvs.length >= config.tpvPeriod) {
     const window = tpvs.slice(-config.tpvPeriod);
     tpvMean = window.reduce((sum, item) => sum + item, 0) / config.tpvPeriod;
-    tpvDeviation = Math.sqrt(
-      window.reduce((sum, item) => sum + (item - tpvMean!) ** 2, 0) / config.tpvPeriod,
-    );
-    tpvVote = Math.abs(tpv - tpvMean) <= tpvDeviation * config.tpvProximity
-      ? 0 : tpv > tpvMean ? 1 : -1;
+    // Sem desvio-padrão nem faixa de proximidade: somente o sinal frente à média.
+    tpvVote = tpv > tpvMean ? 1 : tpv < tpvMean ? -1 : 0;
   }
   if (filters.useTpv) {
     if (tpvVote === null) requiredData = false;
@@ -224,7 +219,7 @@ function evaluateBars(
 
   return {
     averages, angles, atr, vwap, vwapAngle, tpv, tpvMean,
-    tpvDeviation, tpvVote, aligned, zone,
+    tpvVote, aligned, zone,
     showBackground: requiredData && alignmentOk && hasVotes,
   };
 }
@@ -244,7 +239,10 @@ export function calculateMtfConfluence(
     typeof filters.useVwap !== "boolean" ||
     typeof filters.useTpv !== "boolean" ||
     !Array.isArray(filters.voteOn) || filters.voteOn.length !== 4 ||
-    !filters.voteOn.every((vote) => typeof vote === "boolean")
+    !filters.voteOn.every((vote) => typeof vote === "boolean") ||
+    (filters.angleThresholds !== undefined &&
+      (!Array.isArray(filters.angleThresholds) || filters.angleThresholds.length !== 4 ||
+       !filters.angleThresholds.every((n) => typeof n === "number" && Number.isFinite(n) && n >= 0.1 && n <= 89)))
   ) throw new Error("Filtros de confluência MTF inválidos.");
   if (candles.length === 0) return { points: [], zone: "NONE" };
   const source = calculateCausalMtfAverages(candles, DEFAULT_CAUSAL_MTF_CONFIG);

@@ -30,7 +30,7 @@ describe("confluência MTF da estratégia 02", () => {
     expect(MTF_CONFLUENCE_DEFAULTS.voteOn).toEqual([true, true, true, false]);
     expect(MTF_CONFLUENCE_DEFAULTS.angleThresholds).toEqual([2, 1, 1.5, 1]);
     expect(MTF_CONFLUENCE_DEFAULTS.tpvPeriod).toBe(50);
-    expect(MTF_CONFLUENCE_DEFAULTS.tpvProximity).toBe(0.45);
+    expect(MTF_CONFLUENCE_DEFAULTS).not.toHaveProperty("tpvProximity");
   });
 
   it("não libera direção nem inventa TPV antes de 50 barras M15", () => {
@@ -134,6 +134,38 @@ describe("interruptores equivalentes aos do Pine v13", () => {
       ...defaults, voteOn: [false,false,false,false], useVwap: false, useTpv: false,
     });
     expect(noVotes.zone).toBe("NONE");
+  });
+
+  it("permite editar cada limiar de angulação sem alterar as curvas plotadas", () => {
+    const candles = trending(3, 3);
+    const baseline = calculateMtfConfluence(candles);
+    const strict = calculateMtfConfluence(candles, [8,20,50,200], {
+      ...defaults, angleThresholds: [89, 89, 89, 89],
+    });
+    expect(baseline.zone).toBe("GREEN");
+    expect(strict.zone).toBe("NONE");
+    expect(strict.points.at(-1)?.averages).toEqual(baseline.points.at(-1)?.averages);
+    expect(strict.points.at(-1)?.angles).toEqual(baseline.points.at(-1)?.angles);
+  });
+
+  it("TPV vota só pela posição em relação à média de 50, sem desvio ou banda neutra", () => {
+    const data = calculateMtfConfluence(trending(3, 3));
+    for (const point of data.points.filter((p) => p.tpvMean !== null)) {
+      expect(point.tpvVote).toBe(point.tpv > point.tpvMean! ? 1 : point.tpv < point.tpvMean! ? -1 : 0);
+      expect(point).not.toHaveProperty("tpvDeviation");
+    }
+    const flat = calculateMtfConfluence(trending(0, 3));
+    expect(flat.points.at(-1)?.tpvVote).toBe(0);
+    expect(flat.points.at(-1)?.tpvMean).toBe(0);
+  });
+
+  it("rejeita limiares angulares inválidos mesmo com candles vazios", () => {
+    expect(() => calculateMtfConfluence([], [8,20,50,200], {
+      ...defaults, angleThresholds: [2, 0, 1.5, 1],
+    })).toThrow(/Filtros/);
+    expect(() => calculateMtfConfluence([], [8,20,50,200], {
+      ...defaults, angleThresholds: [2, Number.NaN, 1.5, 1],
+    })).toThrow(/Filtros/);
   });
 
   it("valida os interruptores contra tipos incorretos", () => {

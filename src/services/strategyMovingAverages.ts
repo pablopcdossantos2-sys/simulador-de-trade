@@ -14,7 +14,12 @@ export const DEFAULT_MOVING_AVERAGE_SETTINGS: MovingAverageSettings = {
   },
   mtf: {
     periods: [...MTF_CONFLUENCE_DEFAULTS.periods] as [number, number, number, number],
-    filters: { ...DEFAULT_MTF_VOTE_FILTERS, voteOn: [...DEFAULT_MTF_VOTE_FILTERS.voteOn] },
+    plotOn: [true, true, true, true],
+    filters: {
+      ...DEFAULT_MTF_VOTE_FILTERS,
+      voteOn: [...DEFAULT_MTF_VOTE_FILTERS.voteOn],
+      angleThresholds: [...MTF_CONFLUENCE_DEFAULTS.angleThresholds],
+    },
   },
 };
 
@@ -40,7 +45,11 @@ function validFilters(raw: unknown): boolean {
     typeof filters.useVwap === "boolean" &&
     typeof filters.useTpv === "boolean" &&
     Array.isArray(filters.voteOn) && filters.voteOn.length === 4 &&
-    filters.voteOn.every((flag: unknown) => typeof flag === "boolean");
+    filters.voteOn.every((flag: unknown) => typeof flag === "boolean") &&
+    (filters.angleThresholds === undefined ||
+      (Array.isArray(filters.angleThresholds) && filters.angleThresholds.length === 4 &&
+       filters.angleThresholds.every((angle: unknown) =>
+         typeof angle === "number" && Number.isFinite(angle) && angle >= 0.1 && angle <= 89)));
 }
 
 function validMtf(value: unknown): value is MovingAverageSettings["mtf"] {
@@ -49,6 +58,10 @@ function validMtf(value: unknown): value is MovingAverageSettings["mtf"] {
   return Array.isArray(periods) && periods.length === 4 &&
     periods.every(validPeriod) &&
     periods.every((item, index) => index === 0 || periods[index - 1] < item) &&
+    (Object.prototype.hasOwnProperty.call(value, "plotOn") === false ||
+      (Array.isArray((value as Record<string, unknown>).plotOn) &&
+       ((value as Record<string, unknown>).plotOn as unknown[]).length === 4 &&
+       ((value as Record<string, unknown>).plotOn as unknown[]).every((flag) => typeof flag === "boolean"))) &&
     (Object.prototype.hasOwnProperty.call(value, "filters") === false ||
      validFilters((value as Record<string, unknown>).filters));
 }
@@ -58,7 +71,12 @@ export function defaultsForMovingAverages(): MovingAverageSettings {
     multiMedias: { ...DEFAULT_MOVING_AVERAGE_SETTINGS.multiMedias },
     mtf: {
       periods: [...DEFAULT_MOVING_AVERAGE_SETTINGS.mtf.periods] as [number, number, number, number],
-      filters: { ...DEFAULT_MTF_VOTE_FILTERS, voteOn: [...DEFAULT_MTF_VOTE_FILTERS.voteOn] },
+      plotOn: [true, true, true, true],
+      filters: {
+        ...DEFAULT_MTF_VOTE_FILTERS,
+        voteOn: [...DEFAULT_MTF_VOTE_FILTERS.voteOn],
+        angleThresholds: [...MTF_CONFLUENCE_DEFAULTS.angleThresholds],
+      },
     },
   };
 }
@@ -72,8 +90,13 @@ export function normalizeMovingAverageSettings(raw: unknown): MovingAverageSetti
     multiMedias: validMulti(value.multiMedias) ? { ...value.multiMedias } : defaults.multiMedias,
     mtf: validMtf(value.mtf) ? {
       periods: [...value.mtf.periods] as [number,number,number,number],
+      plotOn: [...(value.mtf.plotOn ?? [true,true,true,true])] as [boolean, boolean, boolean, boolean],
       filters: value.mtf.filters ? {
-        ...value.mtf.filters, voteOn: [...value.mtf.filters.voteOn] as [boolean, boolean, boolean, boolean],
+        ...DEFAULT_MTF_VOTE_FILTERS,
+        ...value.mtf.filters,
+        voteOn: [...value.mtf.filters.voteOn] as [boolean, boolean, boolean, boolean],
+        angleThresholds: [...(value.mtf.filters.angleThresholds ?? MTF_CONFLUENCE_DEFAULTS.angleThresholds)]
+          as [number, number, number, number],
       } : defaults.mtf.filters,
     } : defaults.mtf,
   };
@@ -86,7 +109,7 @@ export function validateMovingAverageSettings(value: MovingAverageSettings, stra
     );
   }
   if (strategyId === "MTF_ANGULACAO" && !validMtf(value.mtf)) {
-    throw new Error("Use quatro períodos inteiros de 2 a 300 em ordem crescente (M15).");
+    throw new Error("Use quatro períodos inteiros de 2 a 300 em ordem crescente (M15), limiares de ângulo de 0,1° a 89° e opções válidas de exibição e fundo.");
   }
 }
 

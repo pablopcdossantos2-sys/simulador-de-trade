@@ -175,6 +175,7 @@ export function CandleChart({
   if (!visible.length) return null;
 
   const showMtf = strategyId === "MTF_ANGULACAO";
+  const mtfPlotOn = movingAverages.mtf.plotOn ?? [true, true, true, true];
   const mtfMap = new Map(mtfPoints.map((point) => [point.timestamp, point]));
   const visibleIndices = new Set(visible.map((candle) => candle.index));
   const pointMap = new Map(
@@ -189,9 +190,12 @@ export function CandleChart({
   const indicatorPrices = showMtf
     ? visible.flatMap((candle) => {
         const point = mtfMap.get(candle.timestamp);
-        return point ? [...Object.values(point.averages), point.vwap].filter(
-          (value): value is number => value !== null && Number.isFinite(value),
-        ) : [];
+        return point ? [
+          ...(["M1", "M2", "M3", "M4"] as const)
+            .filter((_, index) => mtfPlotOn[index])
+            .map((id) => point.averages[id]),
+          point.vwap,
+        ].filter((value): value is number => value !== null && Number.isFinite(value)) : [];
       })
     : Array.from(pointMap.values()).flatMap((point) =>
         [point.wma20, point.vwap, point.ema8, point.ema52].filter(
@@ -218,7 +222,7 @@ export function CandleChart({
   const ema8Path = buildLinePath(visible, pointMap, xForIndex, y, (point) => point.ema8);
   const ema52Path = buildLinePath(visible, pointMap, xForIndex, y, (point) => point.ema52);
   const mtfLinePaths = showMtf
-    ? (["M1", "M2", "M3", "M4"] as const).map((id) => ({
+    ? (["M1", "M2", "M3", "M4"] as const).filter((_, index) => mtfPlotOn[index]).map((id) => ({
         id,
         path: buildMtfPath(visible, mtfMap, xForIndex, y, (point) => point.averages[id]),
       })) : [];
@@ -407,7 +411,7 @@ export function CandleChart({
           <div className="chart-mtf-readout" aria-label="Indicadores M15 do candle selecionado">
             <strong>M15</strong>
             {(["M1", "M2", "M3", "M4"] as const).map((id, index) => (
-              <span key={id}>MME {movingAverages.mtf.periods[index]}: {readoutMtf?.averages[id] == null
+              mtfPlotOn[index] && <span key={id}>MME {movingAverages.mtf.periods[index]}: {readoutMtf?.averages[id] == null
                 ? "—" : formatPrice(readoutMtf.averages[id]!, asset)}</span>
             ))}
             <span>VWAP: {readoutMtf?.vwap == null ? "—" : formatPrice(readoutMtf.vwap, asset)}</span>
@@ -451,7 +455,7 @@ export function CandleChart({
         {showMtf ? (
           <>
             {movingAverages.mtf.periods.map((period, index) => (
-              <span key={index} className={`legend-mtf-m${index+1}`}>M15 MME {period}</span>
+              mtfPlotOn[index] && <span key={index} className={`legend-mtf-m${index+1}`}>M15 MME {period}</span>
             ))}
             <span className="legend-mtf-vwap">VWAP M15</span>
             <span className="legend-volume">Volume</span>
