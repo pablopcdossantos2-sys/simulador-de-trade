@@ -2,9 +2,15 @@ name: Windows packaging (on demand)
 
 on:
   workflow_dispatch:
+  # Disparo pontual: gerar o pacote de validação da main que contém as correções.
+  # Após o início do pacote esta opção volta ao modo sob demanda.
   push:
+    branches:
+      - main
     tags:
       - "v*"
+    paths:
+      - ".github/workflows/windows-build.yml"
 
 permissions:
   contents: read
