@@ -15,6 +15,7 @@ import { StudentProgressPanel } from "./components/StudentProgressPanel";
 import { TraderEvolutionPanel } from "./components/TraderEvolutionPanel";
 import { TradingSystemsPanel } from "./components/TradingSystemsPanel";
 import { ExecutionSettingsPanel } from "./components/ExecutionSettingsPanel";
+import { StrategyAveragesPanel } from "./components/StrategyAveragesPanel";
 import { DatabaseMaintenancePanel } from "./components/DatabaseMaintenancePanel";
 import { BackupPanel } from "./components/BackupPanel";
 import { InfoTip } from "./components/InfoTip";
@@ -61,8 +62,12 @@ import {
   suggestedOcoDistance,
 } from "./data/demoMarket";
 import { useReplayPlayer } from "./hooks/useReplayPlayer";
-import { indicator } from "./services/indicator";
+import { DEFAULT_MULTI_MEDIAS_CONFIG, MultiMediasNuvemAdapter } from "./services/indicator";
 import { calculateMtfConfluence, MTF_CONFLUENCE_VERSION } from "./services/mtfConfluence";
+import {
+  loadMovingAverageSettings, saveMovingAverageSettings,
+  selectedMovingAveragesLabel,
+} from "./services/strategyMovingAverages";
 import {
   normalizeStrategyId, strategyLabel, strategySelectionAllowed,
 } from "./domain/tradingStrategies";
@@ -89,6 +94,7 @@ import type {
   ExecutionSettings,
   IndicatorEvaluation,
   IndicatorSignal,
+  MovingAverageSettings,
   Position,
   ReplayTrade,
   Side,
@@ -170,6 +176,14 @@ export default function App() {
   const [activeArea, setActiveArea] = useState<"SIMULADOR" | "PREGOES" | "RESULTADOS" | "EVOLUCAO" | "SISTEMAS" | "MANUAL" | "CONFIGURACOES">("SIMULADOR");
   const [asset, setAsset] = useState<Asset>("WINFUT");
   const [selectedStrategyId, setSelectedStrategyId] = useState<TradingStrategyId>(initialStrategyId);
+  const [movingAverages, setMovingAverages] = useState(loadMovingAverageSettings);
+  const configuredMultiMedias = useMemo(
+    () => new MultiMediasNuvemAdapter({
+      ...DEFAULT_MULTI_MEDIAS_CONFIG,
+      ...movingAverages.multiMedias,
+    }),
+    [movingAverages.multiMedias],
+  );
   const [dataMode, setDataMode] = useState<DataMode>("demo");
   const [candles, setCandles] = useState(() => createDemoCandles("WINFUT"));
   const [currentReplayTrade, setCurrentReplayTrade] =
@@ -278,7 +292,7 @@ export default function App() {
         index: offset + index,
       }));
       if (selectedStrategyId === "MTF_ANGULACAO") return;
-      const closedEvaluation = indicator.calculate(
+      const closedEvaluation = configuredMultiMedias.calculate(
         asset,
         [...hidden, ...closedVisible],
         trainingSession?.id ?? "preview",
@@ -298,7 +312,7 @@ export default function App() {
         );
       }
     },
-    [asset, dataMode, replayTimeframeMinutes, trainingSession?.id, trainingSession?.status, warmupCandles, selectedStrategyId],
+    [asset, dataMode, replayTimeframeMinutes, trainingSession?.id, trainingSession?.status, warmupCandles, selectedStrategyId, configuredMultiMedias],
   );
 
   const flushReplayBatch = useCallback((lastTrade: ReplayTrade) => {
@@ -339,14 +353,14 @@ export default function App() {
 
   const mtfEvaluation = useMemo(
     () => selectedStrategyId === "MTF_ANGULACAO"
-      ? calculateMtfConfluence(indicatorCandles) : null,
-    [selectedStrategyId, indicatorCandles],
+      ? calculateMtfConfluence(indicatorCandles, movingAverages.mtf.periods) : null,
+    [selectedStrategyId, indicatorCandles, movingAverages.mtf.periods],
   );
   const indicatorEvaluation: IndicatorEvaluation = useMemo(
     () => selectedStrategyId === "MTF_ANGULACAO"
       ? { authorization: null, signals: [], series: [], zone: mtfEvaluation?.zone ?? "NONE" }
-      : indicator.calculate(asset, indicatorCandles, trainingSession?.id ?? "preview"),
-    [selectedStrategyId, asset, indicatorCandles, trainingSession?.id, mtfEvaluation?.zone],
+      : configuredMultiMedias.calculate(asset, indicatorCandles, trainingSession?.id ?? "preview"),
+    [selectedStrategyId, asset, indicatorCandles, trainingSession?.id, mtfEvaluation?.zone, configuredMultiMedias],
   );
   const signal = indicatorEvaluation.authorization;
   const signalAlreadyUsed = Boolean(
@@ -593,8 +607,8 @@ export default function App() {
         reentryAuthorization
           ? reentryAuthorization.method === "STOP_COOLDOWN"
             ? "Dez candles fechados após o stop. A reentrada na mesma direção está autorizada."
-            : "Um candle posterior tocou na MME 52. A reentrada na mesma direção está autorizada."
-          : "O sinal ativo já foi utilizado. Aguarde um novo gatilho, um toque posterior na MME 52 ou dez candles fechados após um stop.",
+            : `Um candle posterior tocou na MME ${movingAverages.multiMedias.emaSlowLength}. A reentrada na mesma direção está autorizada.`
+          : `O sinal ativo já foi utilizado. Aguarde um novo gatilho, um toque posterior na MME ${movingAverages.multiMedias.emaSlowLength} ou dez candles fechados após um stop.`,
       );
       return;
     }
@@ -615,6 +629,7 @@ export default function App() {
     signal?.id,
     signalAlreadyUsed,
     reentryAuthorization?.id,
+    movingAverages.multiMedias.emaSlowLength,
     asset,
     position,
     lastCandle?.index,
@@ -634,10 +649,10 @@ export default function App() {
       reentryAuthorization
         ? reentryAuthorization.method === "STOP_COOLDOWN"
           ? `Dez candles fechados após o stop. Reentrada de ${sideLabel(reentryAuthorization.side).toLowerCase()} autorizada.`
-          : `Candle posterior tocou na MME 52. Reentrada de ${sideLabel(reentryAuthorization.side).toLowerCase()} autorizada.`
-        : "Sem zona autorizadora ativa, toque na MME 52 ou dez candles fechados após um stop. Compra e Venda permanecem bloqueadas.",
+          : `Candle posterior tocou na MME ${movingAverages.multiMedias.emaSlowLength}. Reentrada de ${sideLabel(reentryAuthorization.side).toLowerCase()} autorizada.`
+        : `Sem zona autorizadora ativa, toque na MME ${movingAverages.multiMedias.emaSlowLength} ou dez candles fechados após um stop. Compra e Venda permanecem bloqueadas.`,
     );
-  }, [selectedStrategyId, indicatorEvaluation.zone, signal, position, lastCandle?.index, reentryAuthorization?.id]);
+  }, [selectedStrategyId, indicatorEvaluation.zone, signal, position, lastCandle?.index, reentryAuthorization?.id, movingAverages.multiMedias.emaSlowLength]);
 
   useEffect(() => {
     if (selectedStrategyId !== "MTF_ANGULACAO" || position || !lastCandle) return;
@@ -878,6 +893,7 @@ export default function App() {
       warmupBars: simulationPlan.warmupBars,
       mode: trainingMode,
       strategyId: selectedStrategyId,
+      strategyAverages: movingAverages,
       startingBalanceBRL,
     });
     const startedEvent = createTrainingEvent({
@@ -1056,7 +1072,7 @@ export default function App() {
       if (!useFreshSignal && !useReentry && !useMtfPermission) {
         throw new TradingRuleError(selectedStrategyId === "MTF_ANGULACAO"
           ? "Entrada bloqueada: aguarde confluência M15 verde para comprar ou vermelha para vender. Em cinza, não há autorização."
-          : "Entrada fora do operacional: aguarde um sinal válido, um toque posterior na MME 52 ou dez candles fechados após um stop.");
+          : `Entrada fora do operacional: aguarde um sinal válido, um toque posterior na MME ${movingAverages.multiMedias.emaSlowLength} ou dez candles fechados após um stop.`);
       }
       const entrySignal = useFreshSignal ? signal : null;
       const orderEntry = draftEntryPrice !== null && draftSide === side ? draftEntryPrice : lastPrice;
@@ -1088,8 +1104,8 @@ export default function App() {
         evaluation: indicatorEvaluation,
         signal: contextSignal,
         marketTimestamp,
-        indicatorVersion: selectedStrategyId === "MTF_ANGULACAO"
-          ? MTF_CONFLUENCE_VERSION : indicator.version,
+        indicatorVersion: `${selectedStrategyId === "MTF_ANGULACAO"
+          ? MTF_CONFLUENCE_VERSION : configuredMultiMedias.version} [${selectedMovingAveragesLabel(movingAverages, selectedStrategyId)}]`,
       });
 
       const nextPosition = openPosition(
@@ -1132,7 +1148,7 @@ export default function App() {
         tradeId: nextPosition.id,
       });
       setFeedback(
-        `${sideLabel(side)} aberta em ${money.format(orderEntry)} com OCO obrigatório ativo.${useMtfPermission ? " Entrada manual autorizada pela confluência M15." : useReentry ? reentryAuthorization?.method === "STOP_COOLDOWN" ? " Reentrada autorizada após dez candles fechados desde o stop." : " Reentrada autorizada pelo toque posterior na MME 52." : ""}`,
+        `${sideLabel(side)} aberta em ${money.format(orderEntry)} com OCO obrigatório ativo.${useMtfPermission ? " Entrada manual autorizada pela confluência M15." : useReentry ? reentryAuthorization?.method === "STOP_COOLDOWN" ? " Reentrada autorizada após dez candles fechados desde o stop." : ` Reentrada autorizada pelo toque posterior na MME ${movingAverages.multiMedias.emaSlowLength}.` : ""}`,
       );
       // Após a entrada, a reprodução continua com a posição sendo monitorada.
       if (dataMode === "replay" && replay.session && !replay.finished) {
@@ -1256,6 +1272,48 @@ export default function App() {
     }
   }
 
+  async function applyMovingAverages(next: MovingAverageSettings) {
+    if (!strategySelectionAllowed(trainingActive, Boolean(position),
+      startingTraining || loadingReplay || switchingStrategyRef.current)) {
+      throw new Error("Finalize o treino e a posição aberta antes de alterar as médias.");
+    }
+    switchingStrategyRef.current = true;
+    setSwitchingStrategy(true);
+    try {
+      // Um replay carregado e o plano de aquecimento pertencem aos parâmetros antigos.
+      if (replay.session) {
+        replay.setPlaying(false);
+        await replay.unload();
+      }
+      const saved = saveMovingAverageSettings(next);
+      setMovingAverages(saved);
+      setSimulationPlan(null);
+      setCatalogMatches([]);
+      setWarmupCandles([]);
+      setDataMode("demo");
+      replaceCandles(createDemoCandles(asset));
+      setCurrentReplayTrade(null);
+      setTrainingSession(null);
+      setTrainingEvents([]);
+      setLastClosedTradeMarker(null);
+      setDraftEntryPrice(null);
+      setDraftSide(null);
+      setStopDistance("");
+      setTargetDistance("");
+      activeSignalRef.current = null;
+      lastSeenReplaySignalRef.current = null;
+      usedSignalIdsRef.current = new Set();
+      ignoredSignalIdsRef.current = new Set();
+      lastSuggestedSignalIdRef.current = null;
+      setFeedback(`Médias aplicadas: ${selectedMovingAveragesLabel(saved, selectedStrategyId)}. Reaplique o plano de simulação; os arquivos CSV catalogados foram preservados.`);
+    } catch (error) {
+      throw new Error(readErrorMessage(error, "Não foi possível aplicar as médias."));
+    } finally {
+      switchingStrategyRef.current = false;
+      setSwitchingStrategy(false);
+    }
+  }
+
   async function selectStrategy(next: TradingStrategyId) {
     if (!strategySelectionAllowed(
       trainingActive, Boolean(position),
@@ -1361,9 +1419,8 @@ export default function App() {
         <div className="indicator-name">
           <span>Sistema de trading</span>
           <strong>{strategyLabel(selectedStrategyId)}</strong>
-          <small>{selectedStrategyId === "MTF_ANGULACAO"
-            ? "M15 MME 8/20/50/200 · ATR · VWAP · TPV · entrada manual"
-            : "MME 8 · MMP 20 · MME 52 · VWAP Session"}</small>
+          <small>{selectedMovingAveragesLabel(movingAverages, selectedStrategyId)}
+            {selectedStrategyId === "MTF_ANGULACAO" ? " · ATR · VWAP · TPV · entrada manual" : " · VWAP Session"}</small>
         </div>
       </section>
 
@@ -1399,8 +1456,15 @@ export default function App() {
           </select>
         </label>
       </section>
+      <StrategyAveragesPanel
+        strategyId={selectedStrategyId}
+        settings={movingAverages}
+        disabled={!strategySelectionAllowed(trainingActive, Boolean(position), startingTraining || loadingReplay || switchingStrategy)}
+        onSave={applyMovingAverages}
+      />
       <SimulationPlanner
         strategyId={selectedStrategyId}
+        movingAverages={movingAverages}
         disabled={trainingActive || Boolean(position) || startingTraining || switchingStrategy}
         onPlanChange={async (plan) => {
           if (trainingActive || position || startingTrainingRef.current) {
@@ -1551,7 +1615,7 @@ export default function App() {
                 <p>Arraste os candles para navegar pelo gráfico. Amplie ou reduza pelas opções de zoom. Quando uma direção estiver autorizada, clique no preço para preparar uma entrada manual. O alvo pode ser ajustado; o Stop só pode avançar para reduzir o risco.</p>
               </InfoTip>
             </div>
-            <SignalBadge strategyId={selectedStrategyId} evaluation={indicatorEvaluation} signalAlreadyUsed={signalAlreadyUsed} reentrySide={reentryAuthorization?.side ?? null} reentryMethod={reentryAuthorization?.method ?? null} />
+            <SignalBadge strategyId={selectedStrategyId} slowLength={movingAverages.multiMedias.emaSlowLength} evaluation={indicatorEvaluation} signalAlreadyUsed={signalAlreadyUsed} reentrySide={reentryAuthorization?.side ?? null} reentryMethod={reentryAuthorization?.method ?? null} />
           </div>
 
           {visibleCandles.length || warmupCandles.length ? (
@@ -1561,6 +1625,7 @@ export default function App() {
               evaluation={indicatorEvaluation}
               strategyId={selectedStrategyId}
               mtfPoints={mtfEvaluation?.points ?? []}
+              movingAverages={movingAverages}
               position={position}
               asset={asset}
               draftOrder={draftOrder}
@@ -1584,7 +1649,7 @@ export default function App() {
             <strong>Regras</strong>
             <span>{selectedStrategyId === "MTF_ANGULACAO"
               ? "Confluência M15 verde: somente compra manual; vermelha: somente venda manual; cinza: bloqueado. OCO e risco/retorno mínimo de 1:2 são obrigatórios."
-              : "Compra na zona verde; venda na vermelha. Risco/retorno mínimo: 1:2. Reentrada após toque na MME 52 ou dez candles fechados depois de um stop."}</span>
+              : `Compra na zona verde; venda na vermelha. Risco/retorno mínimo: 1:2. Reentrada após toque na MME ${movingAverages.multiMedias.emaSlowLength} ou dez candles fechados depois de um stop.`}</span>
           </div>
 
           <label>
@@ -1904,12 +1969,14 @@ export default function App() {
 
 function SignalBadge({
   strategyId,
+  slowLength = 52,
   evaluation,
   signalAlreadyUsed = false,
   reentrySide = null,
   reentryMethod = null,
 }: {
   strategyId: TradingStrategyId;
+  slowLength?: number;
   evaluation: IndicatorEvaluation;
   signalAlreadyUsed?: boolean;
   reentrySide?: Side | null;
@@ -1931,7 +1998,7 @@ function SignalBadge({
   if (reentrySide && (!signal || signalAlreadyUsed)) {
     return (
       <div className={`signal-badge ${reentrySide === "BUY" ? "buy" : "sell"}`}>
-        {reentryMethod === "STOP_COOLDOWN" ? "Reentrada após 10 candles" : "Reentrada MME 52"} · {sideLabel(reentrySide)} autorizada
+        {reentryMethod === "STOP_COOLDOWN" ? "Reentrada após 10 candles" : `Reentrada MME ${slowLength}`} · {sideLabel(reentrySide)} autorizada
       </div>
     );
   }
