@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { strategyLabel } from "../domain/tradingStrategies";
 import { EntryContextPreview } from "./EntryContextPreview";
 import {
   blockedAttemptBreakdown,
@@ -236,6 +237,7 @@ export function SessionHistoryPanel({ refreshKey }: Props) {
                   {session.timeframeMinutes} ·{" "}
                   {session.mode === "EXAM" ? "Prova" : "Treino"}
                 </span>
+                <small>{strategyLabel(session.strategyId ?? "MULTI_MEDIAS")}</small>
                 <small>
                   {session.status === "ENDED" ? "Concluída" : "Sessão ainda ativa"}
                 </small>
@@ -264,7 +266,7 @@ export function SessionHistoryPanel({ refreshKey }: Props) {
                     </strong>
                     <small>
                       {selected.startTime}–{selected.endTime} ·{" "}
-                      {selected.timeframeMinutes} min
+                      {selected.timeframeMinutes} min · {strategyLabel(selected.strategyId ?? "MULTI_MEDIAS")}
                     </small>
                   </div>
 

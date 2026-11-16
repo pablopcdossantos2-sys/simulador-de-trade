@@ -130,8 +130,24 @@ describe("exportação de relatório por sessão", () => {
     expect(csv).toContain("Legado / sem classificação");
     expect(csv).toContain("intrabar_policy");
     expect(csv).toContain("indicator_version");
+    expect(csv).toContain("strategy_id");
+    expect(csv).toContain("MULTI_MEDIAS");
     expect(csv).toContain("STOP_FIRST");
     expect(csv).toContain("'=HYPERLINK");
     expect(csv).not.toContain("entry_context");
   });
+});
+
+it("identifica a estratégia 02 em CSV e JSON da sessão", () => {
+  const second = { ...session, strategyId: "MTF_ANGULACAO" as const };
+  const csv = sessionTradesToCsv(second, [trade]);
+  const headings = csv.split("\r\n")[0];
+  const row = csv.split("\r\n")[1];
+  const column = headings.replace("\uFEFF", "").split(";").indexOf("strategy_id");
+  expect(column).toBeGreaterThan(0);
+  expect(row.split(";")[column]).toBe("MTF_ANGULACAO");
+  const json = buildCompleteSessionExport({
+    session: second, performance, events: [event], trades: [trade],
+  });
+  expect(json.session.strategyId).toBe("MTF_ANGULACAO");
 });

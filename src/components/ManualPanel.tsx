@@ -8,13 +8,15 @@ export function ManualPanel() {
       </p>
 
       <section className="manual-topic">
-        <h3>1. Preparar uma simulação</h3>
+        <h3>1. Escolher a estratégia e preparar uma simulação</h3>
         <ol>
-          <li>Abra a aba <strong>Simulador</strong> e escolha o ativo: WINFUT ou WDOFUT.</li>
+          <li>Abra a aba <strong>Simulador</strong>. Antes do plano, escolha <strong>01 — Multi Médias · Nuvem e Sinais</strong> ou <strong>02 — MMs MTF + Angulação (beta)</strong>.</li>
+          <li>No Sistema 01 há sinais de entrada e reentrada por MME 52. O Sistema 02 permite apenas a direção indicada pela confluência M15: verde (compra), vermelho (venda); a entrada é manual e o cinza bloqueia novas ordens.</li>
+          <li>Escolha o ativo: WINFUT ou WDOFUT.</li>
           <li>O campo <strong>Data do pregão</strong> começa preenchido com a data atual. Você pode escolher outra data quando quiser estudar um pregão anterior.</li>
           <li>Clique em <strong>Usar pregão completo</strong>. O programa calcula quais arquivos são necessários: o pregão-alvo e o histórico anterior usado para aquecer o indicador.</li>
         </ol>
-        <p>Se a data atual cair em fim de semana ou feriado da B3, ela não será um pregão válido. Nesse caso, escolha uma data de pregão disponível.</p>
+        <p>Se a data atual cair em fim de semana ou feriado da B3, ela não será um pregão válido. Nesse caso, escolha uma data de pregão disponível. <strong>Para o Sistema 02</strong>, o plano requer 450 candles M2 anteriores (aproximadamente dois pregões), destinados a aquecer as 50 barras M15 do TPV e os demais indicadores. O Sistema 01 mantém 260 candles M2.</p>
       </section>
 
       <section className="manual-topic">
@@ -56,10 +58,11 @@ export function ManualPanel() {
       <section className="manual-topic">
         <h3>5. Operar durante o treinamento</h3>
         <ul>
-          <li>A direção permitida depende da zona e do sinal do indicador.</li>
+          <li>No <strong>Sistema 01</strong>, o sinal e as regras de reentrada pela MME 52 determinam a direção permitida. No <strong>Sistema 02</strong>, a confluência M15 de médias, VWAP e TPV autoriza o sentido, sem criar gatilhos automáticos.</li>
           <li>Configure a distância do stop e do alvo em pontos. A relação risco/retorno mínima exigida é de 1:2.</li>
           <li>Você pode posicionar a entrada pelo gráfico e ajustar as linhas de stop e alvo conforme as regras do simulador.</li>
           <li>O replay pausa em situações de decisão relevantes durante o treino. Encerre a sessão quando terminar.</li>
+          <li>Não é possível trocar a estratégia durante uma sessão ou posição aberta. Ao trocar, reaplique o plano e carregue o replay para obter o histórico correto. O catálogo preserva os CSVs já preparados.</li>
         </ul>
       </section>
 
