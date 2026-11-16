@@ -1462,7 +1462,8 @@ td {
 
 .planner-grid input,
 .planner-grid select,
-.data-window-grid input {
+.data-window-grid input,
+.data-window-grid select {
   min-height: 42px;
   width: 100%;
   border: 1px solid #2a3e58;
@@ -1561,7 +1562,8 @@ td {
 
 :root[data-theme="light"] .planner-grid input,
 :root[data-theme="light"] .planner-grid select,
-:root[data-theme="light"] .data-window-grid input {
+:root[data-theme="light"] .data-window-grid input,
+:root[data-theme="light"] .data-window-grid select {
   border-color: #bdcddd;
   background: #fff;
   color: #1c3144;
