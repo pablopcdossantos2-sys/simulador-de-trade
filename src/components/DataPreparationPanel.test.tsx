@@ -8,6 +8,10 @@ describe("importação direta do CSV bruto para o acervo", () => {
     expect(html).toContain("Selecionar CSV");
     expect(html).toContain("Preparar e adicionar");
     expect(html).toContain("Data específica do pregão");
+    expect(html).toContain("Ativo dos candles");
+    expect(html).toContain("WINFUT (Mini-índice)");
+    expect(html).toContain("WDOFUT (Mini-dólar)");
+    expect(html).toContain("18:25");
     expect(html).toContain("Timeframe do CSV");
     expect(html).toContain('type="date"');
     expect(html).toContain('type="time"');
