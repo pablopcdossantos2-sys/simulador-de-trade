@@ -1852,6 +1852,8 @@ export default function App() {
           />
         </SetupDisclosure>
         <AvailableReplaysPanel
+          strategyId={selectedStrategyId}
+          settings={movingAverages}
           refreshKey={catalogRefreshKey}
           onCatalogUpdated={() => setCatalogRefreshKey((value) => value + 1)}
         />

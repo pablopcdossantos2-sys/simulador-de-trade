@@ -1,5 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { open } from "@tauri-apps/plugin-dialog";
+import type { MovingAverageSettings, TradingStrategyId } from "../types";
+import { DEFAULT_MOVING_AVERAGE_SETTINGS } from "../services/strategyMovingAverages";
+import { replayChoicesFromCatalog } from "../domain/replayChoices";
 import {
   listReplayCatalog,
   registerReplayFile,
@@ -10,6 +13,8 @@ import {
 interface Props {
   refreshKey: number;
   onCatalogUpdated?: () => void;
+  strategyId?: TradingStrategyId;
+  settings?: MovingAverageSettings;
 }
 
 function formatDate(value: string): string {
@@ -22,7 +27,10 @@ function formatBytes(value: number): string {
   return `${(value / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-export function AvailableReplaysPanel({ refreshKey, onCatalogUpdated }: Props) {
+export function AvailableReplaysPanel({
+  refreshKey, onCatalogUpdated, strategyId = "MULTI_MEDIAS",
+  settings = DEFAULT_MOVING_AVERAGE_SETTINGS,
+}: Props) {
   const [entries, setEntries] = useState<ReplayCatalogEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -88,6 +96,12 @@ export function AvailableReplaysPanel({ refreshKey, onCatalogUpdated }: Props) {
 
   const available = entries.filter((entry) => entry.exists);
   const unavailable = entries.length - available.length;
+  const choices = useMemo(
+    () => replayChoicesFromCatalog(available, strategyId, settings),
+    [entries, strategyId, settings],
+  );
+  const choiceFor = (entry: ReplayCatalogEntry) =>
+    choices.find((choice) => choice.asset === entry.asset && choice.date === entry.tradeDate);
 
   return (
     <section className="available-replays-panel card">
@@ -107,7 +121,8 @@ export function AvailableReplaysPanel({ refreshKey, onCatalogUpdated }: Props) {
       </div>
 
       <div className="available-replays-summary">
-        <div><span>Replays disponíveis</span><strong>{available.length}</strong></div>
+        <div><span>Arquivos de replay disponíveis</span><strong>{available.length}</strong></div>
+        <div><span>Dias prontos para a estratégia</span><strong>{choices.filter((choice) => choice.ready).length}</strong></div>
         <div><span>Arquivos indisponíveis</span><strong>{unavailable}</strong></div>
       </div>
 
@@ -127,6 +142,15 @@ export function AvailableReplaysPanel({ refreshKey, onCatalogUpdated }: Props) {
                 <span className="available-replay-window">{entry.sessionStart}–{entry.sessionEnd}</span>
               </div>
               <small>{entry.symbol} · {entry.dataMode === "CANDLES_M1_SYNTHETIC" ? "M1 sintético" : entry.dataMode === "CANDLES_M2_SYNTHETIC" ? "M2 sintético" : "Formato legado"} · {formatBytes(entry.fileBytes)}</small>
+              <small className={choiceFor(entry)?.ready ? "replay-readiness ready" : "replay-readiness"}>
+                {choiceFor(entry)?.ready
+                  ? "Pronto para treino com a estratégia selecionada"
+                  : choiceFor(entry)?.targetReady
+                    ? "Replay preparado · faltam arquivos de aquecimento"
+                    : choiceFor(entry)
+                      ? "Arquivo preparado · confira a janela e os metadados"
+                      : "Arquivo catalogado · uso como histórico de aquecimento"}
+              </small>
               <small>Primeiro/último registro: {entry.firstTimestamp?.slice(11, 16) ?? "?"}–{entry.lastTimestamp?.slice(11, 16) ?? "?"} (janela configurada: {entry.sessionStart}–{entry.sessionEnd})</small>
               <small className="available-replay-filename">{entry.outputPath.split(/[\\/]/).pop()}</small>
             </div>

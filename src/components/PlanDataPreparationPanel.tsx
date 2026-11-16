@@ -107,7 +107,7 @@ export function PlanDataPreparationPanel({ plan, matches, onCatalogUpdated, disa
   }
 
   async function processMatch(match: RequirementMatch): Promise<boolean> {
-    if (!plan || disabled || processing) return false;
+    if (!plan || disabled) return false;
     const key = keyFor(match.requirement.role, match.requirement.date);
     const sourcePath = rows[key]?.sourcePath.trim().replace(/^"(.*)"$/, "$1") ?? "";
     if (!sourcePath) {

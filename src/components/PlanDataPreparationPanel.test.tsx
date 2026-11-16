@@ -14,7 +14,7 @@ describe("formulário guiado de CSVs por pregão", () => {
     const html = renderToStaticMarkup(
       <PlanDataPreparationPanel plan={plan} matches={matches} onCatalogUpdated={() => undefined} />,
     );
-    expect(html).toContain("Dados do pregão");
+    expect(html).toContain("Gerar os replays necessários");
     expect(html).toContain('class="section-title-with-help"');
     expect(html).toContain('class="plan-data-file-row"');
     expect(html).toContain('class="plan-data-timeframe-row"');
@@ -26,4 +26,20 @@ describe("formulário guiado de CSVs por pregão", () => {
     expect(html).toContain("Preparar replay");
     expect(html).not.toContain('class="plan-data-help"');
   });
+});
+
+it("desabilita a criação de replays quando há treino ou posição ativa", () => {
+  const plan = calculateSimulationPlan({
+    asset: "WINFUT", date: "2026-11-13", timeframeMinutes: 2,
+  });
+  const missing = plan.dataRequirements.map(requirement => ({
+    requirement, entry: null, status: "MISSING" as const,
+  }));
+  const html = renderToStaticMarkup(
+    <PlanDataPreparationPanel plan={plan} matches={missing}
+      disabled onCatalogUpdated={() => undefined} />,
+  );
+  expect(html).toContain("Gerar os replays necessários");
+  expect(html).toContain('disabled=""');
+  expect(html).toContain("Preparar todos os caminhos informados");
 });
