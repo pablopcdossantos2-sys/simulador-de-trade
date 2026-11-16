@@ -15,10 +15,17 @@ O pacote atualizado inclui `BUILD-INFO.txt` com o commit completo e o link da co
 No **Simulador**, escolha o sistema e expanda **Configurar médias da estratégia** (imediatamente acima de **Planejar simulação**). Insira períodos inteiros entre **2 e 300**, em ordem crescente, e clique **Salvar médias**. O botão **Preencher valores padrão** restaura os campos originais; clique em **Salvar médias** para confirmar.
 
 - **Sistema 01 — Multi Médias:** altere os períodos da MME rápida (8), MMP ponderada (20) e MME lenta (52). O sinal de confluência e a reentrada após toque na MME lenta usam **os valores efetivamente salvos**.
-- **Sistema 02 — MMs MTF:** altere os quatro períodos das MMEs M15 (8, 20, 50, 200). As três primeiras participam do filtro direcional; a quarta é apenas referência, conforme o padrão do Pine.
-- O tipo das médias e as regras de VWAP/TPV/ângulos continuam **fixos** neste ciclo: esta tela personaliza **períodos**, não a fórmula inteira do indicador.
-- Os períodos escolhidos permanecem no mesmo computador após fechar o aplicativo. Cada **nova sessão** salva um snapshot no SQLite e o preserva em backups, relatórios JSON e exportações CSV. Sessões antigas continuam sem snapshot; não é possível atribuir retroativamente uma configuração que não foi registrada.
-- A edição é bloqueada durante o treino ou com uma posição aberta. Salvar novos períodos descarrega o replay, invalida o plano de aquecimento e solicita **aplicar novamente o plano**; o catálogo de CSVs não é apagado. O histórico necessário é recalculado conforme as médias participantes mais longas.
+- **Sistema 02 — MMs MTF:** altere os quatro períodos das MMEs M15 (8, 20, 50, 200) e escolha individualmente quais participam da cor do fundo. Por padrão as três primeiras votam e a quarta é apenas referência, como no Pine.
+- **Filtros opcionais do Sistema 02:** marque/desmarque *Usar angulação no fundo (ATR 14)*, *Usar alinhamento das médias*, *Usar MME N no fundo* (cada uma das quatro), *Usar VWAP diária no fundo* e *Usar TPV no fundo*. Quando a angulação está desligada, as médias podem votar **juntas por alinhamento**, se essa trava estiver ligada; a VWAP não vota. Se nenhum critério participar, nenhuma entrada será autorizada. O ATR é o normalizador da angulação, **não um voto independente**.
+- Os valores numéricos dos limiares permanecem os defaults do Pine v13 (MMEs 2°/1°/1,5°/1°; VWAP 1°; TPV 50 barras/0,45 desvio). A tela permite **ligar/desligar critérios**, não modificar essas fórmulas nem o tipo das médias.
+- Os períodos e os filtros escolhidos permanecem no mesmo computador após fechar o aplicativo. Cada **nova sessão** salva um snapshot no SQLite e o preserva em backups, relatórios JSON e exportações CSV. Sessões antigas continuam sem snapshot; não é possível atribuir retroativamente uma configuração que não foi registrada.
+- A edição é bloqueada durante o treino ou com uma posição aberta. Salvar períodos ou filtros descarrega o replay, invalida o plano de aquecimento e solicita **aplicar novamente o plano**; o catálogo de CSVs não é apagado. O histórico necessário é recalculado conforme as médias participantes mais longas.
+
+## Cronômetro e leitura estável do gráfico
+
+Durante o replay, o canto inferior direito **da área de preços** mostra **Fechamento M2** com contagem regressiva de `02:00` até `00:00`, calculada **exclusivamente a partir do horário de mercado revelado**. Pausar congela a contagem; acelerar o replay acelera a passagem do tempo de mercado. Sem replay carregado, a contagem não é inventada.
+
+Na segunda estratégia, os valores **M15 (quatro MMEs, VWAP, ATR e TPV)** ficam em uma faixa de tamanho reservado **logo abaixo dos valores OHLCV**. A passagem do mouse muda somente os valores, não a altura da barra nem a posição do gráfico. Testar o layout no Windows em diferentes dimensões continua importante.
 
 ## Como funciona
 

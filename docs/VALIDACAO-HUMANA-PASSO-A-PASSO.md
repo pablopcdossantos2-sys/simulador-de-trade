@@ -177,3 +177,19 @@ A verificação abaixo pode ser feita sem terminal, após gerar e instalar um no
 8. Ao mudar os períodos de um sistema, verifique que o plano anterior precisa ser reaplicado antes de carregar/reiniciar o replay e que a estratégia oposta não sofreu alterações.
 
 **Atenção:** os períodos configuráveis não equivalem a uma reprodução idêntica do indicador Pine quando usado com configurações diferentes dos padrões. A validação do M2→M15 e dos resultados continua necessária.
+
+
+## Novo teste dirigido — interruptores da confluência e estabilidade do gráfico
+
+**Use uma compilação Windows gerada da `main` depois desta alteração** e confira seu identificador no aplicativo. Não reutilize um ZIP de workflow anterior.
+
+1. No **Sistema 02**, expanda **Configurar médias da estratégia**. Confira as caixas padrão: angulação ligada, alinhamento ligado, MMEs 1/2/3 ligadas, MME 4 desligada, VWAP ligada e TPV ligado.
+2. Salve os filtros sem modificar os valores. Planeje um pregão, prepare o histórico e carregue o replay. A cor verde/vermelha continua exigindo a unanimidade dos critérios ativos.
+3. Desative **TPV** e salve. Após reaplicar o plano, verifique que a insuficiência de 50 barras M15 do TPV **não bloqueia, por si só**, as médias e a VWAP ainda ativas. O TPV continua visível como leitura.
+4. Desative o interruptor **Usar angulação no fundo**, mantenha **Usar alinhamento das médias** e desative TPV. As médias participantes devem passar a votar em conjunto pelo alinhamento, sem voto da VWAP. Desative também o alinhamento: sem mais nenhum voto, o fundo não autoriza novas operações.
+5. Habilite a **quarta MME** (padrão 200) para participar do fundo. Reaplique o planejamento: será solicitado aquecimento maior, de **1.575 candles M2** para 210 barras M15, respeitando a média de 200 + margem de 10. Restaure os padrões de votos depois do teste.
+6. Confirme que os interruptores foram salvos mesmo após fechar/reabrir o programa. Uma nova sessão deve carregar os mesmos valores em `strategyAverages.mtf.filters` no relatório JSON/backup.
+7. Avance o replay em **M2** e observe **Fechamento M2** no canto inferior direito da área de preços. O contador começa próximo de **02:00**, decresce com os negócios revelados e fica imóvel quando a reprodução é pausada; não depende da hora do computador.
+8. Mova o mouse entre diversos candles com MMEs M15 ainda indisponíveis e já disponíveis. A linha OHLCV deve permanecer acima da **faixa M15 reservada**, sem que as cifras adicionais empurrem o gráfico para baixo. Confira também com o gráfico maximizado e com a janela mais estreita.
+
+Se o fundo do Pine original divergir, registre ativo, contrato, data, horário, configuração dos votos e diferença dos valores M15. O uso de M2 para reconstruir M15 ainda é uma aproximação causal.

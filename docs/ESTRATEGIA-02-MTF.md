@@ -35,7 +35,7 @@ O TPV só participa quando existe sua janela de 50 períodos M15. O plano de sim
 
 1. **M2 não divide M15:** não é possível repartir um candle M2 entre dois candles M15 em fronteiras ímpares sem M1 ou ticks. O M2 é atribuído integralmente ao intervalo de início. Assim, valores de M15, TPV e VWAP podem diferir daqueles do TradingView com dados originais em M15. A simulação permanece causal: os candles futuros não entram no cálculo.
 2. **Fidelidade numérica pendente:** a CI verifica consistência, tendência, bloqueio sem dados, ausência de lookahead, persistência e integração, mas ainda falta comparação manual valor a valor com o Pine v13 na mesma série/contrato.
-3. **Parâmetros do original:** nesta versão beta, os parâmetros acima estão fixados nos defaults do Pine. O Pine possui ainda vários outros tipos de médias, escolhas de timeframe e toggles; essas preferências ainda não são expostas na interface. Não declarar que essas funcionalidades estão implementadas.
+3. **Parâmetros do original:** os períodos das quatro MMEs e os interruptores de confluência agora são configuráveis. ATR, limiares angulares, períodos/proximidade do TPV, tipos de média, timeframes e algumas opções de visualização ainda usam os valores padrão. Não declarar que todos os controles do Pine foram reproduzidos.
 4. **Intrabar sintético:** os eventos por segundo são produzidos a partir de OHLCV. Stop/alvo e posição intrabar representam cenário educacional, não execução histórica real.
 
 ## Aceitação humana da beta
@@ -45,8 +45,30 @@ Siga a seção **Novo teste dirigido — escolha de estratégias e confluência 
 
 ## Períodos personalizáveis — novembro de 2026
 
-A tela **Simulador → Configurar médias da estratégia** agora permite modificar os **quatro períodos M15**. Os padrões são 8/20/50/200. São permitidos inteiros de 2 a 300 em ordem crescente. Os três primeiros participam da autorização; o quarto é uma referência visual, não um voto.
+A tela **Simulador → Configurar médias da estratégia** agora permite modificar os **quatro períodos M15**. Os padrões são 8/20/50/200. São permitidos inteiros de 2 a 300 em ordem crescente. Os três primeiros participam da autorização por padrão; o quarto é uma referência visual até que seja habilitado em **Usar no fundo**.
 
-A mudança modifica as MMEs M15 e suas angulações calculadas, e o planejador pede histórico anterior proporcional à maior média **participante**, mantendo um mínimo de 60 barras M15. Salvar requer encerrar a sessão e descarregar o replay/planejamento anterior. ATR, VWAP, TPV, limiares de ângulo e métodos das médias ainda seguem os padrões fixos definidos nesta versão; a fidelidade ao Pine personalizado requer validação separada.
+A mudança modifica as MMEs M15 e suas angulações calculadas, e o planejador pede histórico anterior proporcional à maior média **participante**, mantendo um mínimo de 60 barras M15. Se o usuário habilitar a quarta MME, seu período também passa a compor o cálculo do aquecimento. Salvar requer encerrar a sessão e descarregar o replay/planejamento anterior. ATR, VWAP, TPV, limiares de ângulo e métodos das médias ainda seguem os padrões fixos definidos nesta versão; a fidelidade ao Pine personalizado requer validação separada.
 
 Os períodos usados em cada sessão nova ficam preservados no registro `strategyAverages` e nos backups. O gráfico exibe os valores personalizados na legenda e no painel M15.
+
+
+## Interruptores de confluência — novembro de 2026
+
+Foi implementada a seleção de critérios conforme o Pine v13:
+
+- **Usar angulação no fundo** (ligado por padrão): as médias escolhidas votam individualmente por suas inclinações normalizadas pelo ATR 14; a VWAP diária vota se estiver habilitada.
+- **Usar alinhamento das médias** (ligado por padrão): a ordem das médias selecionadas é uma trava direcional (com pelo menos duas médias). Se a angulação global estiver desligada, o alinhamento vira **um único voto** das médias participantes.
+- **Usar MME N no fundo**, individualmente para as quatro médias. Padrão: 1, 2 e 3 ligadas; 4 desligada. Desligar o voto não remove a linha do gráfico.
+- **Usar VWAP diária no fundo** (ligado por padrão): vota pela inclinação de 1° somente quando a angulação global estiver ligada.
+- **Usar TPV no fundo** (ligado por padrão): usa zona acima/abaixo de sua média de 50 e proximidade de 0,45 desvio. Ao desligar, o TPV deixa de exigir aquecimento para votar; sua leitura continua disponível.
+- Todos os votos participantes devem concordar para autorizar verde/vermelho. **Nenhum voto ativo = nenhuma autorização.** A ausência de dado num critério participante também bloqueia a cor direcional.
+
+O **ATR 14 não é um voto separado**, mas normaliza a angulação de médias e VWAP. Os limiares padrão permanecem em 2°/1°/1,5°/1° para as quatro médias e 1° na VWAP; esses números ainda não são editáveis, apenas os votos são habilitáveis/desabilitáveis.
+
+As opções ficam na mesma seção da personalização das MMEs e são persistidas no perfil local e no snapshot das sessões. O replay/planejamento é descarregado quando elas mudam; os CSVs preparados são preservados.
+
+## Cronômetro do gráfico e ausência de deslocamento ao passar o mouse
+
+O gráfico do replay mostra **Fechamento M2**, contado pelo último horário de negócio revelado. Quando pausado, o valor não continua a correr com o relógio do Windows. O texto é sobreposto ao canto direito inferior da área de preços, sem bloquear interações com os candles.
+
+A leitura do M15 passou a usar um bloco de grade fixa logo abaixo do OHLCV: valores variáveis no hover não podem quebrar linhas e alterar a altura do gráfico.

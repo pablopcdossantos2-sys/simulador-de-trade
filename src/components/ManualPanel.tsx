@@ -12,7 +12,7 @@ export function ManualPanel() {
         <ol>
           <li>Abra a aba <strong>Simulador</strong>. Antes do plano, escolha <strong>01 — Multi Médias · Nuvem e Sinais</strong> ou <strong>02 — MMs MTF + Angulação (beta)</strong>.</li>
           <li>No Sistema 01 há sinais de entrada e reentrada por toque na MME lenta (padrão 52). O Sistema 02 permite apenas a direção indicada pela confluência M15: verde (compra), vermelho (venda); a entrada é manual e o cinza bloqueia novas ordens.</li>
-          <li>Para personalizar períodos, expanda <strong>Configurar médias da estratégia</strong> antes de planejar o treino. No Sistema 01 configure MME rápida, MMP intermediária e MME lenta (padrões 8/20/52). No Sistema 02 configure as quatro MMEs M15 (padrões 8/20/50/200). Digite números inteiros de 2 a 300, em ordem crescente, e clique em <strong>Salvar médias</strong>.</li>
+          <li>Para personalizar períodos, expanda <strong>Configurar médias da estratégia</strong> antes de planejar o treino. No Sistema 01 configure MME rápida, MMP intermediária e MME lenta (padrões 8/20/52). No Sistema 02 configure as quatro MMEs M15 (padrões 8/20/50/200). Digite números inteiros de 2 a 300, em ordem crescente, e clique em <strong>Salvar médias e filtros</strong>. No Sistema 02, também é possível ativar ou desativar a angulação global, o alinhamento, a participação de cada MME, a VWAP e o TPV na confluência. O ATR 14 normaliza os ângulos e não é um voto independente.</li>
           <li>Escolha o ativo: WINFUT ou WDOFUT.</li>
           <li>O campo <strong>Data do pregão</strong> começa preenchido com a data atual. Você pode escolher outra data quando quiser estudar um pregão anterior.</li>
           <li>Clique em <strong>Usar pregão completo</strong>. O programa calcula quais arquivos são necessários: o pregão-alvo e o histórico anterior usado para aquecer o indicador.</li>
@@ -52,7 +52,8 @@ export function ManualPanel() {
           <li>Quando todos os requisitos estiverem disponíveis, o arquivo do pregão-alvo será selecionado para carregamento. O histórico prévio é carregado como contexto oculto do indicador.</li>
           <li>Na seção <strong>Carregar pregão</strong>, clique em <strong>Carregar replay</strong>. Aguarde a confirmação de que o arquivo foi carregado.</li>
           <li>Escolha <strong>Treino livre</strong> ou <strong>Modo prova</strong> e clique em <strong>Iniciar treino</strong> ou <strong>Iniciar prova</strong>.</li>
-          <li>Use os controles para reproduzir, pausar, mudar a velocidade, avançar um segundo ou avançar um candle.</li>
+          <li>Use os controles para reproduzir, pausar, mudar a velocidade, avançar um segundo ou avançar um candle. O contador <strong>Fechamento M2</strong>, no canto inferior direito do gráfico, acompanha o tempo simulado do mercado e fica parado durante a pausa.</li>
+          <li>Na segunda estratégia, os valores M15 ficam em uma faixa reservada abaixo da leitura do último candle; mover o mouse pelo gráfico altera os valores sem deslocar o gráfico.</li>
         </ol>
       </section>
 
