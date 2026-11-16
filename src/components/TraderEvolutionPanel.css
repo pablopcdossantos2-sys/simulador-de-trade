@@ -178,5 +178,17 @@
 
 
 /* Ajuda contextual nas seções da evolução */
-.evolution-section-heading > .info-tip { margin-left: auto; }
-.evolution-inline-help { display: flex; justify-content: flex-end; }
+.evolution-section-heading { align-items: center; }
+.evolution-heading-title {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-width: 0;
+}
+.evolution-heading-title h3 { margin: 0; }
+.evolution-section-heading > span { min-width: 0; }
+@media (max-width: 750px) {
+  .evolution-section-heading { align-items: flex-start; }
+  .evolution-section-heading > span { flex-basis: 100%; }
+}
