@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { InfoTip } from "./InfoTip";
-import type { MovingAverageSettings, TradingStrategyId } from "../types";
+import type { MovingAverageSettings, MtfVoteFilters, TradingStrategyId } from "../types";
+import { DEFAULT_MTF_VOTE_FILTERS } from "../services/mtfConfluence";
 import {
   defaultsForMovingAverages,
   MIN_MOVING_AVERAGE_PERIOD,
@@ -28,11 +29,19 @@ function inputsFor(settings: MovingAverageSettings, id: TradingStrategyId): stri
 
 export function StrategyAveragesPanel({ strategyId, settings, disabled, onSave }: Props) {
   const [fields, setFields] = useState(() => inputsFor(settings, strategyId));
+  const [filters, setFilters] = useState<MtfVoteFilters>(() => ({
+    ...DEFAULT_MTF_VOTE_FILTERS, ...settings.mtf.filters,
+    voteOn: [...(settings.mtf.filters?.voteOn ?? DEFAULT_MTF_VOTE_FILTERS.voteOn)],
+  }));
   const [feedback, setFeedback] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     setFields(inputsFor(settings, strategyId));
+    setFilters({
+      ...DEFAULT_MTF_VOTE_FILTERS, ...settings.mtf.filters,
+      voteOn: [...(settings.mtf.filters?.voteOn ?? DEFAULT_MTF_VOTE_FILTERS.voteOn)],
+    });
     setFeedback(null);
   }, [strategyId, settings]);
 
@@ -50,7 +59,10 @@ export function StrategyAveragesPanel({ strategyId, settings, disabled, onSave }
     const numbers = fields.map((value) => value.trim() === "" ? Number.NaN : Number(value));
     const next: MovingAverageSettings = {
       multiMedias: { ...settings.multiMedias },
-      mtf: { periods: [...settings.mtf.periods] as [number, number, number, number] },
+      mtf: {
+        periods: [...settings.mtf.periods] as [number, number, number, number],
+        filters: { ...settings.mtf.filters, ...filters, voteOn: [...filters.voteOn] as [boolean, boolean, boolean, boolean] },
+      },
     };
     if (isMtf) {
       next.mtf.periods = numbers as [number, number, number, number];
@@ -61,7 +73,7 @@ export function StrategyAveragesPanel({ strategyId, settings, disabled, onSave }
       validateMovingAverageSettings(next, strategyId);
       setSaving(true);
       await onSave(next);
-      setFeedback("Médias salvas. Reaplique o plano para preparar o aquecimento com estes períodos.");
+      setFeedback("Configurações salvas. Reaplique o plano para preparar o aquecimento correto.");
     } catch (error) {
       setFeedback(error instanceof Error ? error.message : "Não foi possível salvar as médias.");
     } finally {
@@ -72,14 +84,31 @@ export function StrategyAveragesPanel({ strategyId, settings, disabled, onSave }
   function restoreDefaultFields() {
     if (disabled || saving) return;
     setFields(inputsFor(defaultsForMovingAverages(), strategyId));
+    if (isMtf) {
+      setFilters({ ...DEFAULT_MTF_VOTE_FILTERS, voteOn: [...DEFAULT_MTF_VOTE_FILTERS.voteOn] });
+    }
     setFeedback("Valores padrão preenchidos. Clique em Salvar médias para aplicá-los.");
+  }
+
+
+  function toggleFilter(key: "useAngles" | "requireAlignment" | "useVwap" | "useTpv", checked: boolean) {
+    setFilters((current) => ({ ...current, [key]: checked }));
+    setFeedback(null);
+  }
+
+  function toggleAverage(index: number, checked: boolean) {
+    setFilters((current) => ({
+      ...current,
+      voteOn: current.voteOn.map((value, i) => i === index ? checked : value) as [boolean, boolean, boolean, boolean],
+    }));
+    setFeedback(null);
   }
 
   return (
     <details className="strategy-averages-panel card">
       <summary className="strategy-averages-toggle">
         <span className="strategy-averages-summary">
-          <strong>Configurar médias da estratégia</strong>
+          <strong>Configurar médias e filtros da estratégia</strong>
           <small>{selectedMovingAveragesLabel(settings, strategyId)} · períodos em candles</small>
         </span>
         <span aria-hidden="true" className="strategy-averages-chevron">⌄</span>
@@ -94,7 +123,7 @@ export function StrategyAveragesPanel({ strategyId, settings, disabled, onSave }
         </div>
         <p className="strategy-averages-explanation">
           {isMtf
-            ? "Quatro MMEs do contexto M15. As três primeiras participam da autorização direcional; a quarta aparece no gráfico como referência."
+            ? "Quatro MMEs do contexto M15; escolha abaixo quais entram na confluência. A quarta é apenas referência por padrão."
             : "MME rápida, MMP intermediária e MME lenta. O alinhamento entre as três médias determina os sinais e o toque na MME lenta permite reentradas."}
         </p>
         <div className="strategy-averages-fields">
@@ -114,13 +143,57 @@ export function StrategyAveragesPanel({ strategyId, settings, disabled, onSave }
             </label>
           ))}
         </div>
+        {isMtf && (
+          <div className="strategy-confluence-controls" aria-label="Critérios do fundo da segunda estratégia">
+            <div className="section-title-with-help">
+              <h3>Filtros que participam da confluência M15</h3>
+              <InfoTip label="Como os filtros de confluência funcionam">
+                O interruptor global de angulação afeta as médias e a VWAP. Com ele desligado, as médias só votam juntas pelo alinhamento, quando essa opção está ligada. Os filtros marcados precisam concordar na direção. O ATR 14 é utilizado para normalizar ângulos em graus, não é um voto isolado. Com todos os critérios inativos, nenhuma entrada é autorizada.
+              </InfoTip>
+            </div>
+            <div className="strategy-confluence-switches">
+              <label><input type="checkbox" checked={filters.useAngles}
+                onChange={(event) => toggleFilter("useAngles", event.target.checked)}
+                disabled={disabled || saving} /> Usar angulação no fundo (ATR 14)</label>
+              <label><input type="checkbox" checked={filters.requireAlignment}
+                onChange={(event) => toggleFilter("requireAlignment", event.target.checked)}
+                disabled={disabled || saving} /> Usar alinhamento das médias</label>
+            </div>
+            <p className="strategy-averages-explanation">Escolha quais MMEs entram no cálculo do fundo. Todas as quatro continuam desenhadas no gráfico, mesmo quando não votam.</p>
+            <div className="strategy-confluence-switches">
+              {filters.voteOn.map((enabled, index) => (
+                <label key={index}>
+                  <input type="checkbox" checked={enabled}
+                    onChange={(event) => toggleAverage(index, event.target.checked)}
+                    disabled={disabled || saving} />
+                  Usar MME {fields[index] || settings.mtf.periods[index]} no fundo
+                  <small>{[2, 1, 1.5, 1][index]}°</small>
+                </label>
+              ))}
+              <label><input type="checkbox" checked={filters.useVwap}
+                onChange={(event) => toggleFilter("useVwap", event.target.checked)}
+                disabled={disabled || saving || !filters.useAngles} />
+                Usar VWAP diária no fundo <small>±1°{!filters.useAngles ? " · inativa sem angulação" : ""}</small>
+              </label>
+              <label><input type="checkbox" checked={filters.useTpv}
+                onChange={(event) => toggleFilter("useTpv", event.target.checked)}
+                disabled={disabled || saving} />
+                Usar TPV no fundo <small>Média 50 · proximidade 0,45 desvio</small>
+              </label>
+            </div>
+            <p className="strategy-averages-explanation">
+              As médias e a VWAP usam ângulos normalizados pelo ATR 14. Desmarcar um critério o remove dos votos;
+              não altera sua curva no gráfico. Os valores numéricos permanecem os padrões Pine v13.
+            </p>
+          </div>
+        )}
         <div className="strategy-averages-actions">
           <button type="button" className="secondary" onClick={restoreDefaultFields}
             disabled={disabled || saving}>
             Preencher valores padrão
           </button>
           <button type="button" onClick={() => void save()} disabled={disabled || saving}>
-            {saving ? "Salvando..." : "Salvar médias"}
+            {saving ? "Salvando..." : "Salvar configurações"}
           </button>
         </div>
         {disabled && <p className="strategy-averages-disabled">Finalize o treino e qualquer posição aberta antes de alterar as médias.</p>}
