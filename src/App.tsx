@@ -353,8 +353,8 @@ export default function App() {
 
   const mtfEvaluation = useMemo(
     () => selectedStrategyId === "MTF_ANGULACAO"
-      ? calculateMtfConfluence(indicatorCandles, movingAverages.mtf.periods) : null,
-    [selectedStrategyId, indicatorCandles, movingAverages.mtf.periods],
+      ? calculateMtfConfluence(indicatorCandles, movingAverages.mtf.periods, movingAverages.mtf.filters) : null,
+    [selectedStrategyId, indicatorCandles, movingAverages.mtf.periods, movingAverages.mtf.filters],
   );
   const indicatorEvaluation: IndicatorEvaluation = useMemo(
     () => selectedStrategyId === "MTF_ANGULACAO"
@@ -1305,7 +1305,7 @@ export default function App() {
       usedSignalIdsRef.current = new Set();
       ignoredSignalIdsRef.current = new Set();
       lastSuggestedSignalIdRef.current = null;
-      setFeedback(`Médias aplicadas: ${selectedMovingAveragesLabel(saved, selectedStrategyId)}. Reaplique o plano de simulação; os arquivos CSV catalogados foram preservados.`);
+      setFeedback(`Médias e filtros aplicados: ${selectedMovingAveragesLabel(saved, selectedStrategyId)}. Reaplique o plano de simulação; os arquivos CSV catalogados foram preservados.`);
     } catch (error) {
       throw new Error(readErrorMessage(error, "Não foi possível aplicar as médias."));
     } finally {
@@ -1627,6 +1627,9 @@ export default function App() {
               strategyId={selectedStrategyId}
               mtfPoints={mtfEvaluation?.points ?? []}
               movingAverages={movingAverages}
+              replayTimestamp={dataMode === "replay" ? replay.currentTimestamp : null}
+              replayTimeframeMinutes={replayTimeframeMinutes}
+              showCountdown={dataMode === "replay" && Boolean(replay.session)}
               position={position}
               asset={asset}
               draftOrder={draftOrder}
