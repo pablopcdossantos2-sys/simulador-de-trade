@@ -9,7 +9,9 @@ describe("catálogo acessível diretamente na área de pregões", () => {
     );
     expect(html).toContain("Pregões e replays disponíveis");
     expect(html).toContain("Adicionar replay pronto");
-    expect(html).toContain("Atualizar lista");
+    // No primeiro render ainda não houve leitura assíncrona do catálogo.
+    expect(html).toContain('class="catalog-refresh"');
+    expect(html).toContain("Atualizando...");
     expect(html).not.toContain("Prepare um arquivo do Profit na seção Simulador");
   });
 });
