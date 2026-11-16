@@ -4469,3 +4469,9 @@ td {
   .plan-data-timeframe-row > select { flex: 1 1 90px; }
   .plan-data-input button { flex: 1 1 auto; }
 }
+
+/* Identificador discreto, mas verificável, da revisão contida no executável. */
+.build-identity { display: inline-block; margin-top: 5px; font-size: .69rem;
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  color: #809bb4; letter-spacing: .015em; }
+:root[data-theme="light"] .build-identity { color: #637c93; }

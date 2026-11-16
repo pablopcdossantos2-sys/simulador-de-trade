@@ -102,6 +102,11 @@ import type { SimulationPlan } from "./domain/simulationPlan";
 
 const THEME_KEY = "simulador-de-trade:theme";
 const STRATEGY_KEY = "simulador-de-trade:strategy";
+// Injetado pela compilação Windows sob demanda. A revisão é mostrada ao usuário
+// para diferenciar executáveis antigos de builds produzidos a partir da main.
+const BUILD_COMMIT = import.meta.env.VITE_BUILD_COMMIT_SHA?.trim() ?? "";
+const BUILD_LABEL = BUILD_COMMIT && /^[a-f0-9]{40}$/i.test(BUILD_COMMIT)
+  ? BUILD_COMMIT.slice(0, 7) : "local";
 
 function initialStrategyId(): TradingStrategyId {
   try { return normalizeStrategyId(localStorage.getItem(STRATEGY_KEY)); }
@@ -1316,6 +1321,9 @@ export default function App() {
           <p className="subtitle">
             WINFUT e WDOFUT · {strategyLabel(selectedStrategyId)} · OCO obrigatório
           </p>
+          <small className="build-identity" title={BUILD_COMMIT || "Execução de desenvolvimento"}>
+            Compilação: {BUILD_LABEL}
+          </small>
         </div>
 
         <div className="topbar-actions">

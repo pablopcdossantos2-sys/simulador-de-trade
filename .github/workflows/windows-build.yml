@@ -45,6 +45,8 @@ jobs:
         run: npm ci
 
       - name: Build Tauri and NSIS installer
+        env:
+          VITE_BUILD_COMMIT_SHA: ${{ github.sha }}
         run: npm run tauri build
 
       - name: Prepare portable executable
@@ -64,6 +66,13 @@ jobs:
             throw "Instalador NSIS não encontrado."
           }
           Copy-Item $installer.FullName "artifacts/Simulador-de-Trade-Instalador.exe"
+
+      - name: Identify source revision
+        shell: pwsh
+        run: |
+          "Commit: $env:GITHUB_SHA" | Set-Content -Encoding utf8 "artifacts/BUILD-INFO.txt"
+          "Build: $env:GITHUB_SERVER_URL/$env:GITHUB_REPOSITORY/actions/runs/$env:GITHUB_RUN_ID" | Add-Content -Encoding utf8 "artifacts/BUILD-INFO.txt"
+          "Branch or ref: $env:GITHUB_REF" | Add-Content -Encoding utf8 "artifacts/BUILD-INFO.txt"
 
       - name: Generate SHA-256 checksums
         shell: pwsh
