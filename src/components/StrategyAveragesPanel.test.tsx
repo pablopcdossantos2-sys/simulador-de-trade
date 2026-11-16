@@ -38,7 +38,8 @@ it("apresenta os interruptores globais e individuais da confluência M15", () =>
   );
   expect(html).toContain("Usar angulação no fundo");
   expect(html).toContain("Usar alinhamento das médias");
-  expect(html).toContain("Usar MME 200 no fundo");
+  expect(html).toContain("MME 200 · M15");
+  expect(html).toContain("Usar no fundo");
   expect(html).toContain("Usar VWAP diária no fundo");
   expect(html).toContain("Usar TPV no fundo");
   expect(html).toContain("ATR 14");
