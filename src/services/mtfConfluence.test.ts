@@ -88,3 +88,57 @@ describe("configurações personalizadas do contexto M15", () => {
     expect(() => calculateMtfConfluence([], [8, 20, 50.5, 200])).toThrow(/inválidos/);
   });
 });
+
+describe("interruptores equivalentes aos do Pine v13", () => {
+  const defaults = {
+    useAngles: true, requireAlignment: true,
+    voteOn: [true, true, true, false] as [boolean, boolean, boolean, boolean],
+    useVwap: true, useTpv: true,
+  };
+
+  it("mantém o modo original quando todos os filtros padrão estão ligados", () => {
+    const candles = trending(3, 2);
+    const original = calculateMtfConfluence(candles);
+    const explicit = calculateMtfConfluence(candles, [8, 20, 50, 200], defaults);
+    expect(explicit).toEqual(original);
+  });
+
+  it("desligar TPV remove requisito das 50 barras e libera somente os outros votos", () => {
+    const candles = trending(3, 1);
+    expect(calculateMtfConfluence(candles).points.at(-1)?.tpvVote).toBeNull();
+    const withoutTpv = calculateMtfConfluence(candles, [8,20,50,200], { ...defaults, useTpv: false });
+    expect(withoutTpv.points.at(-1)?.showBackground).toBe(true);
+    expect(withoutTpv.zone).toBe("GREEN");
+  });
+
+  it("sem angulação o alinhamento atua como um único voto; VWAP fica inativa", () => {
+    const candles = trending(3, 1);
+    const alignmentOnly = calculateMtfConfluence(candles, [8,20,50,200], {
+      ...defaults, useAngles: false, useVwap: true, useTpv: false,
+    });
+    expect(alignmentOnly.zone).toBe("GREEN");
+    const none = calculateMtfConfluence(candles, [8,20,50,200], {
+      ...defaults, useAngles: false, requireAlignment: false, useTpv: false,
+    });
+    expect(none.zone).toBe("NONE");
+    expect(none.points.at(-1)?.showBackground).toBe(false);
+  });
+
+  it("médias desmarcadas não votam; TPV sozinho pode definir o fundo", () => {
+    const candles = trending(4, 4);
+    const tpvOnly = calculateMtfConfluence(candles, [8,20,50,200], {
+      ...defaults, voteOn: [false,false,false,false], useVwap: false, useTpv: true,
+    });
+    expect(tpvOnly.zone).toBe("GREEN");
+    const noVotes = calculateMtfConfluence(candles, [8,20,50,200], {
+      ...defaults, voteOn: [false,false,false,false], useVwap: false, useTpv: false,
+    });
+    expect(noVotes.zone).toBe("NONE");
+  });
+
+  it("valida os interruptores contra tipos incorretos", () => {
+    expect(() => calculateMtfConfluence([], [8,20,50,200], {
+      ...defaults, voteOn: [true, true] as unknown as [boolean,boolean,boolean,boolean],
+    })).toThrow(/Filtros/);
+  });
+});

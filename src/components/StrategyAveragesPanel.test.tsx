@@ -30,3 +30,17 @@ describe("configuração das médias no Simulador", () => {
     expect(html).toContain('disabled=""');
   });
 });
+
+it("apresenta os interruptores globais e individuais da confluência M15", () => {
+  const html = renderToStaticMarkup(
+    <StrategyAveragesPanel strategyId="MTF_ANGULACAO" settings={settings}
+      disabled={false} onSave={async () => undefined} />,
+  );
+  expect(html).toContain("Usar angulação no fundo");
+  expect(html).toContain("Usar alinhamento das médias");
+  expect(html).toContain("Usar MME 200 no fundo");
+  expect(html).toContain("Usar VWAP diária no fundo");
+  expect(html).toContain("Usar TPV no fundo");
+  expect(html).toContain("ATR 14");
+  expect(html).toContain("0,45 desvio");
+});

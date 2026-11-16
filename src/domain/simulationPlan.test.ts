@@ -151,3 +151,24 @@ it("adapta o aquecimento às médias personalizadas, sem mudar os defaults", () 
   });
   expect(mtf.warmupBars).toBe(825);
 });
+
+it("aquecimento considera a quarta média somente quando participa do fundo", () => {
+  const input = {
+    asset: "WINFUT" as const, date: "2026-11-11",
+    timeframeMinutes: 2, strategyId: "MTF_ANGULACAO" as const,
+    movingAverages: {
+      multiMedias: { emaFastLength: 8, wmaLength: 20, emaSlowLength: 52 },
+      mtf: {
+        periods: [8, 20, 50, 200] as [number, number, number, number],
+        filters: {
+          useAngles: true, requireAlignment: true,
+          voteOn: [true, true, true, true] as [boolean, boolean, boolean, boolean],
+          useVwap: true, useTpv: true,
+        },
+      },
+    },
+  };
+  expect(calculateSimulationPlan(input).warmupBars).toBe(1575);
+  input.movingAverages.mtf.filters.voteOn[3] = false;
+  expect(calculateSimulationPlan(input).warmupBars).toBe(450);
+});

@@ -82,3 +82,31 @@ describe("médias configuráveis por estratégia", () => {
     expect(personalized.series.at(-1)?.ema52).not.toEqual(defaultResult.series.at(-1)?.ema52);
   });
 });
+
+describe("preferências dos votos do fundo M15", () => {
+  it("restaura os interruptores originais para configurações anteriores", () => {
+    const legacy = {
+      multiMedias: { emaFastLength: 8, wmaLength: 20, emaSlowLength: 52 },
+      mtf: { periods: [5, 10, 20, 50] },
+    };
+    const normalized = normalizeMovingAverageSettings(legacy);
+    expect(normalized.mtf.periods).toEqual([5, 10, 20, 50]);
+    expect(normalized.mtf.filters).toEqual({
+      useAngles: true, requireAlignment: true, voteOn: [true, true, true, false],
+      useVwap: true, useTpv: true,
+    });
+  });
+  it("preserva individualmente as preferências ativadas/desativadas", () => {
+    const settings = defaultsForMovingAverages();
+    settings.mtf.filters!.voteOn = [false, true, false, true];
+    settings.mtf.filters!.useAngles = false;
+    settings.mtf.filters!.useTpv = false;
+    const normalized = normalizeMovingAverageSettings(settings);
+    expect(normalized.mtf.filters).toEqual(settings.mtf.filters);
+  });
+  it("recusa valores não booleanos nos interruptores", () => {
+    const broken = defaultsForMovingAverages() as unknown as Record<string, unknown>;
+    ((broken.mtf as Record<string, unknown>).filters as Record<string, unknown>).useVwap = "yes";
+    expect(() => validateMovingAverageSettings(broken as unknown as ReturnType<typeof defaultsForMovingAverages>, "MTF_ANGULACAO")).toThrow();
+  });
+});

@@ -71,3 +71,22 @@ it("mostra no gráfico exatamente os períodos personalizados para cada estraté
   expect(second).toContain("M15 MME 250");
   expect(second).not.toContain("MMP 12");
 });
+
+it("reserva a leitura do M15 em faixa própria e exibe contagem regressiva de tempo de replay", () => {
+  const candles = INDICATOR_V1_REGRESSION_CANDLES;
+  const evaluation = { authorization: null, signals: [], series: [], zone: "NONE" as const };
+  const last = candles.at(-1)!;
+  const markup = renderToStaticMarkup(
+    <CandleChart candles={candles} evaluation={evaluation} asset="WINFUT" position={null}
+      strategyId="MTF_ANGULACAO" mtfPoints={calculateMtfConfluence(candles).points}
+      replayTimestamp={last.timestamp} replayTimeframeMinutes={2} showCountdown />,
+  );
+  expect(markup).toContain('class="chart-readouts"');
+  expect(markup).toContain('class="chart-mtf-readout"');
+  expect(markup).toContain('class="chart-controls"');
+  expect(markup.indexOf('class="chart-ohlc"')).toBeLessThan(markup.indexOf('class="chart-mtf-readout"'));
+  expect(markup.indexOf('class="chart-mtf-readout"')).toBeLessThan(markup.indexOf('class="chart-controls"'));
+  expect(markup).toContain("Fechamento M2");
+  expect(markup).toContain("02:00");
+  expect(markup).toContain('class="candle-close-countdown"');
+});

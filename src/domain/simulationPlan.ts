@@ -256,8 +256,11 @@ export function calculateSimulationPlan(
   // O período escolhido influencia a quantidade de histórico anterior.
   // O sistema 02 mantém 60 M15 por padrão, ou acrescenta dez M15 à
   // maior média participante se o usuário optar por períodos mais longos.
-  const votingMtfPeriods = input.movingAverages?.mtf.periods.slice(0, 3) ?? [8, 20, 50];
-  const warmupM15Bars = Math.max(MTF_WARMUP_M15_BARS, Math.max(...votingMtfPeriods) + 10);
+  const mtfPeriods = input.movingAverages?.mtf.periods ?? [8, 20, 50, 200];
+  const voted = input.movingAverages?.mtf.filters?.voteOn ?? [true, true, true, false];
+  const votingMtfPeriods = mtfPeriods.filter((_, index) => voted[index]);
+  const longestVoter = Math.max(0, ...votingMtfPeriods);
+  const warmupM15Bars = Math.max(MTF_WARMUP_M15_BARS, longestVoter + 10);
   const warmupBars = input.strategyId === "MTF_ANGULACAO"
     ? Math.ceil(warmupM15Bars * 15 / input.timeframeMinutes)
     : Math.max(
