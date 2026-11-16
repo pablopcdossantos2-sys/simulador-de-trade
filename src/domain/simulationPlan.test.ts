@@ -115,3 +115,17 @@ it("usa 18:25 para o WIN em novembro, preservando o fechamento 18:00 pré-09/03"
   expect(november.dataRequirements[0].date).toBe("2026-11-03");
   expect(november.dataRequirements[0].endTime).toBe("18:25");
 });
+
+it("reservará dois pregões prévios para M15/TPV50 na estratégia 02", () => {
+  const plan = calculateSimulationPlan({
+    asset: "WDOFUT", date: "2026-11-05",
+    timeframeMinutes: 2, strategyId: "MTF_ANGULACAO",
+  });
+  expect(plan.warmupBars).toBe(450);
+  expect(plan.fullSessionsNeeded).toBe(2);
+  expect(plan.fullSessionPreviousDates).toEqual(["2026-11-04", "2026-11-03"]);
+  expect(plan.dataRequirements.map(x => x.date)).toEqual([
+    "2026-11-03", "2026-11-04", "2026-11-05",
+  ]);
+  expect(plan.targetEndTime).toBe("18:30");
+});

@@ -4,10 +4,11 @@ import {
   DEFAULT_TIMEFRAME_MINUTES,
   type SimulationPlan,
 } from "../domain/simulationPlan";
-import type { Asset } from "../types";
+import type { Asset, TradingStrategyId } from "../types";
 
 interface Props {
   onPlanChange?: (plan: SimulationPlan) => void | Promise<void>;
+  strategyId?: TradingStrategyId;
   disabled?: boolean;
 }
 
@@ -24,7 +25,7 @@ function brDate(value: string): string {
   return `${day}/${month}/${year}`;
 }
 
-export function SimulationPlanner({ onPlanChange, disabled = false }: Props) {
+export function SimulationPlanner({ onPlanChange, strategyId = "MULTI_MEDIAS", disabled = false }: Props) {
   const [asset, setAsset] = useState<Asset>("WINFUT");
   const [date, setDate] = useState(currentLocalDate);
   const timeframeMinutes = DEFAULT_TIMEFRAME_MINUTES;
@@ -32,7 +33,7 @@ export function SimulationPlanner({ onPlanChange, disabled = false }: Props) {
   const result = useMemo(() => {
     try {
       return {
-        plan: calculateSimulationPlan({ asset, date, timeframeMinutes }),
+        plan: calculateSimulationPlan({ asset, date, timeframeMinutes, strategyId }),
         error: null,
       };
     } catch (error) {
@@ -41,7 +42,7 @@ export function SimulationPlanner({ onPlanChange, disabled = false }: Props) {
         error: error instanceof Error ? error.message : String(error),
       };
     }
-  }, [asset, date]);
+  }, [asset, date, strategyId]);
 
   function applyPlan() {
     if (disabled || !result.plan) return;
@@ -93,7 +94,9 @@ export function SimulationPlanner({ onPlanChange, disabled = false }: Props) {
             <div>
               <span>Histórico anterior</span>
               <strong>{result.plan.warmupBars.toLocaleString("pt-BR")} candles</strong>
-              <small>Ocultos durante o treino para estabilizar a MME 52</small>
+              <small>{strategyId === "MTF_ANGULACAO"
+                ? "Histórico M2 oculto para aquecer as médias M15, ATR e TPV de 50 períodos"
+                : "Ocultos durante o treino para estabilizar a MME 52"}</small>
             </div>
           </div>
 

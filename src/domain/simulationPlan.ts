@@ -1,9 +1,13 @@
-import type { Asset } from "../types";
+import type { Asset, TradingStrategyId } from "../types";
 import { DEFAULT_MULTI_MEDIAS_CONFIG } from "../services/indicator";
 
 export const DEFAULT_TIMEFRAME_MINUTES = 2;
 export const SUPPORTED_TIMEFRAMES_MINUTES = [2] as const;
 export const STANDARD_WARMUP_MULTIPLIER = 5;
+// A estratégia MTF depende da média+desvio do TPV de 50 candles M15.
+// 60 barras M15 de histórico anterior oferecem folga para EMA/ATR e evitam
+// que a sessão-alvo comece quase inteira sem TPV. 2min é a grade de origem.
+export const MTF_WARMUP_M15_BARS = 60;
 
 const SUPPORTED_CALENDAR_YEARS = new Set([2025, 2026]);
 export const SUPPORTED_SIMULATION_YEARS = [2026] as const;
@@ -55,6 +59,7 @@ export interface SimulationPlanInput {
   asset: Asset;
   date: string;
   timeframeMinutes: number;
+  strategyId?: TradingStrategyId;
 }
 
 export interface SimulationDataRequirement {
@@ -247,8 +252,9 @@ export function calculateSimulationPlan(
     throw new Error("O pregão completo não contém candles M2 suficientes.");
   }
 
-  const warmupBars =
-    DEFAULT_MULTI_MEDIAS_CONFIG.emaSlowLength * STANDARD_WARMUP_MULTIPLIER;
+  const warmupBars = input.strategyId === "MTF_ANGULACAO"
+    ? Math.ceil(MTF_WARMUP_M15_BARS * 15 / input.timeframeMinutes)
+    : DEFAULT_MULTI_MEDIAS_CONFIG.emaSlowLength * STANDARD_WARMUP_MULTIPLIER;
   const warmupMinutes = warmupBars * input.timeframeMinutes;
   const sameWindowSessionsNeeded = Math.ceil(warmupBars / visible.bars);
 
