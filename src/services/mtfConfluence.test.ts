@@ -72,3 +72,19 @@ describe("confluência MTF da estratégia 02", () => {
     expect(result.points.at(-1)?.atr).toBe(0);
   });
 });
+
+describe("configurações personalizadas do contexto M15", () => {
+  it("muda a curva M15 e a confluência calculada, sem antecipar dados", () => {
+    const candles = trending(4, 2);
+    const original = calculateMtfConfluence(candles);
+    const custom = calculateMtfConfluence(candles, [5, 12, 30, 180]);
+    expect(custom.points.at(-1)?.averages.M1).not.toBe(original.points.at(-1)?.averages.M1);
+    expect(custom.points.at(-1)?.averages.M2).not.toBe(original.points.at(-1)?.averages.M2);
+    expect(custom.points.at(-1)?.averages.M3).not.toBe(original.points.at(-1)?.averages.M3);
+    expect(custom.points.at(-1)?.averages.M4).not.toBe(original.points.at(-1)?.averages.M4);
+    expect(custom.points[249]).toEqual(calculateMtfConfluence(candles.slice(0, 250), [5, 12, 30, 180]).points[249]);
+  });
+  it("rejeita parâmetro não inteiro", () => {
+    expect(() => calculateMtfConfluence([], [8, 20, 50.5, 200])).toThrow(/inválidos/);
+  });
+});

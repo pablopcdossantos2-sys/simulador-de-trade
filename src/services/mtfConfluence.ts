@@ -124,8 +124,11 @@ function angle(values: (number | null)[], index: number, lookback: number, atr: 
   return Math.atan(((current - previous) / lookback) / atr) * 180 / Math.PI;
 }
 
-function evaluateBars(bars: Bar[]): Omit<MtfConfluencePoint, "candleIndex" | "timestamp" | "availableAt" | "barStart"> {
-  const config = MTF_CONFLUENCE_DEFAULTS;
+function evaluateBars(
+  bars: Bar[],
+  periods: readonly [number, number, number, number],
+): Omit<MtfConfluencePoint, "candleIndex" | "timestamp" | "availableAt" | "barStart"> {
+  const config = { ...MTF_CONFLUENCE_DEFAULTS, periods };
   const index = bars.length - 1;
   const closeSeries = bars.map((bar) => bar.close);
   const ma = config.periods.map((length) => emaSeries(closeSeries, length));
@@ -203,7 +206,13 @@ function evaluateBars(bars: Bar[]): Omit<MtfConfluencePoint, "candleIndex" | "ti
 }
 
 /** Avaliação causal somente sobre candles M2 já fechados; não emite ordens. */
-export function calculateMtfConfluence(candles: Candle[]): MtfConfluenceEvaluation {
+export function calculateMtfConfluence(
+  candles: Candle[],
+  periods: readonly [number, number, number, number] = MTF_CONFLUENCE_DEFAULTS.periods,
+): MtfConfluenceEvaluation {
+  if (periods.length !== 4 || periods.some((n) => !Number.isInteger(n) || n < 2 || n > 300)) {
+    throw new Error("Períodos MTF inválidos: informe quatro inteiros entre 2 e 300.");
+  }
   if (candles.length === 0) return { points: [], zone: "NONE" };
   const source = calculateCausalMtfAverages(candles, DEFAULT_CAUSAL_MTF_CONFIG);
   const completed: Bar[] = [];
@@ -217,7 +226,7 @@ export function calculateMtfConfluence(candles: Candle[]): MtfConfluenceEvaluati
       ...completed,
       { ...snapshot.aggregatedBar, start: snapshot.indicatorBarStart },
     ];
-    const evaluated = evaluateBars(bars);
+    const evaluated = evaluateBars(bars, periods);
     points.push({
       candleIndex: snapshot.candleIndex,
       timestamp: snapshot.timestamp,

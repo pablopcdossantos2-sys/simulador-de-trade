@@ -129,3 +129,25 @@ it("reservará dois pregões prévios para M15/TPV50 na estratégia 02", () => {
   ]);
   expect(plan.targetEndTime).toBe("18:30");
 });
+
+it("adapta o aquecimento às médias personalizadas, sem mudar os defaults", () => {
+  const adjusted = calculateSimulationPlan({
+    asset: "WDOFUT", date: "2026-11-05",
+    timeframeMinutes: 2, strategyId: "MULTI_MEDIAS",
+    movingAverages: {
+      multiMedias: { emaFastLength: 10, wmaLength: 30, emaSlowLength: 80 },
+      mtf: { periods: [8, 20, 50, 200] },
+    },
+  });
+  expect(adjusted.warmupBars).toBe(400);
+
+  const mtf = calculateSimulationPlan({
+    asset: "WDOFUT", date: "2026-11-05",
+    timeframeMinutes: 2, strategyId: "MTF_ANGULACAO",
+    movingAverages: {
+      multiMedias: { emaFastLength: 8, wmaLength: 20, emaSlowLength: 52 },
+      mtf: { periods: [15, 30, 100, 220] },
+    },
+  });
+  expect(mtf.warmupBars).toBe(825);
+});

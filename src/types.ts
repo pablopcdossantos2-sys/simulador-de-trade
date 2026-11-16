@@ -6,6 +6,15 @@ export type IndicatorZone = "GREEN" | "RED" | "NONE";
 export type VwapAnchor = "Session" | "Week" | "Month" | "Year";
 export type IntrabarPolicy = "STOP_FIRST" | "TARGET_FIRST";
 
+export interface MovingAverageSettings {
+  multiMedias: {
+    emaFastLength: number;
+    wmaLength: number;
+    emaSlowLength: number;
+  };
+  mtf: { periods: [number, number, number, number] };
+}
+
 export interface Candle {
   index: number;
   timestamp: string;
@@ -206,6 +215,8 @@ export interface TrainingSession {
   mode: TrainingMode;
   /** Sessões antigas não têm identificador; nestas aplica-se MULTI_MEDIAS. */
   strategyId?: TradingStrategyId;
+  /** Snapshot dos períodos usados na sessão, inclusive para backup e auditoria. */
+  strategyAverages?: MovingAverageSettings | null;
   startingBalanceBRL?: number | null;
   startedAt: string;
   endedAt: string | null;

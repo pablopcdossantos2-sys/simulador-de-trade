@@ -1,4 +1,4 @@
-import type { Asset, TradingStrategyId } from "../types";
+import type { Asset, MovingAverageSettings, TradingStrategyId } from "../types";
 import { DEFAULT_MULTI_MEDIAS_CONFIG } from "../services/indicator";
 
 export const DEFAULT_TIMEFRAME_MINUTES = 2;
@@ -60,6 +60,7 @@ export interface SimulationPlanInput {
   date: string;
   timeframeMinutes: number;
   strategyId?: TradingStrategyId;
+  movingAverages?: MovingAverageSettings;
 }
 
 export interface SimulationDataRequirement {
@@ -252,9 +253,18 @@ export function calculateSimulationPlan(
     throw new Error("O pregão completo não contém candles M2 suficientes.");
   }
 
+  // O período escolhido influencia a quantidade de histórico anterior.
+  // O sistema 02 mantém 60 M15 por padrão, ou acrescenta dez M15 à
+  // maior média participante se o usuário optar por períodos mais longos.
+  const votingMtfPeriods = input.movingAverages?.mtf.periods.slice(0, 3) ?? [8, 20, 50];
+  const warmupM15Bars = Math.max(MTF_WARMUP_M15_BARS, Math.max(...votingMtfPeriods) + 10);
   const warmupBars = input.strategyId === "MTF_ANGULACAO"
-    ? Math.ceil(MTF_WARMUP_M15_BARS * 15 / input.timeframeMinutes)
-    : DEFAULT_MULTI_MEDIAS_CONFIG.emaSlowLength * STANDARD_WARMUP_MULTIPLIER;
+    ? Math.ceil(warmupM15Bars * 15 / input.timeframeMinutes)
+    : Math.max(
+        input.movingAverages?.multiMedias.emaFastLength ?? DEFAULT_MULTI_MEDIAS_CONFIG.emaFastLength,
+        input.movingAverages?.multiMedias.wmaLength ?? DEFAULT_MULTI_MEDIAS_CONFIG.wmaLength,
+        input.movingAverages?.multiMedias.emaSlowLength ?? DEFAULT_MULTI_MEDIAS_CONFIG.emaSlowLength,
+      ) * STANDARD_WARMUP_MULTIPLIER;
   const warmupMinutes = warmupBars * input.timeframeMinutes;
   const sameWindowSessionsNeeded = Math.ceil(warmupBars / visible.bars);
 
