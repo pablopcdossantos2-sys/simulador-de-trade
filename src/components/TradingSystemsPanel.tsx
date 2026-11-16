@@ -1,5 +1,5 @@
 import type { MovingAverageSettings, TradingStrategyId } from "../types";
-import { DEFAULT_MOVING_AVERAGE_SETTINGS } from "../services/strategyMovingAverages";
+import { DEFAULT_MOVING_AVERAGE_SETTINGS, describeMtfVotes } from "../services/strategyMovingAverages";
 
 interface Props {
   selectedStrategyId: TradingStrategyId;
@@ -59,12 +59,14 @@ export function TradingSystemsPanel({ selectedStrategyId, movingAverages = DEFAU
           <div className="trading-system-indicators">
             <span>Gráfico M2</span><span>Médias M15</span><span>VWAP MTF</span><span>TPV</span><span>ATR e ângulos</span>
           </div>
+          <h4>Filtros utilizados na configuração atual</h4>
+          <p className="trading-system-footnote">{describeMtfVotes(movingAverages)}</p>
           <h4>Configuração inicial definida</h4>
           <ul>
             <li>Gráfico principal de 2 minutos e timeframe de contexto de 15 minutos.</li>
             <li>Modo causal, sem lookahead: cada atualização considera somente os candles de 2 minutos já disponíveis naquele ponto do replay.</li>
-            <li>MMEs de períodos {movingAverages.mtf.periods.join(", ")} em M15; a quarta não participa da confluência, conforme o padrão do Pine v13.</li>
-            <li>ATR 14 e ângulos das três médias participantes: limiares 2°/1°/1,5°. A VWAP diária usa limiar de 1°, e o TPV usa média de 50 barras e proximidade de 0,45 desvio.</li>
+            <li>MMEs de períodos {movingAverages.mtf.periods.join(", ")} em M15. Por padrão a quarta não vota, mas cada média pode ser ligada ou desligada no fundo.</li>
+            <li>ATR 14 e limiares angulares de 2°/1°/1,5°/1°. A VWAP diária usa limiar de 1° e o TPV usa média de 50 barras e proximidade de 0,45 desvio. Cada critério é opcional no fundo, conforme Pine v13.</li>
             <li>O fundo verde/vermelho exige todos os votos concordantes e alinhamento estrito das médias; em caso contrário, não há autorização operacional.</li>
           </ul>
           <h4>Autorização operacional</h4>

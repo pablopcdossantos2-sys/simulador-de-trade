@@ -110,3 +110,16 @@ describe("preferências dos votos do fundo M15", () => {
     expect(() => validateMovingAverageSettings(broken as unknown as ReturnType<typeof defaultsForMovingAverages>, "MTF_ANGULACAO")).toThrow();
   });
 });
+
+it("mostra no resumo somente os filtros efetivamente utilizados", async () => {
+  const { describeMtfVotes } = await import("./strategyMovingAverages");
+  const settings = defaultsForMovingAverages();
+  expect(describeMtfVotes(settings)).toContain("Ângulos MME 8/20/50");
+  expect(describeMtfVotes(settings)).toContain("TPV");
+  settings.mtf.filters!.useAngles = false;
+  settings.mtf.filters!.useTpv = false;
+  settings.mtf.filters!.useVwap = false;
+  expect(describeMtfVotes(settings)).toBe("Alinhamento das médias");
+  settings.mtf.filters!.requireAlignment = false;
+  expect(describeMtfVotes(settings)).toContain("Nenhum critério votante");
+});

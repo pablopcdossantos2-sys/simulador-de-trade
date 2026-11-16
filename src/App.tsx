@@ -66,7 +66,7 @@ import { DEFAULT_MULTI_MEDIAS_CONFIG, MultiMediasNuvemAdapter } from "./services
 import { calculateMtfConfluence, MTF_CONFLUENCE_VERSION } from "./services/mtfConfluence";
 import {
   loadMovingAverageSettings, saveMovingAverageSettings,
-  selectedMovingAveragesLabel,
+  selectedMovingAveragesLabel, describeMtfVotes,
 } from "./services/strategyMovingAverages";
 import {
   normalizeStrategyId, strategyLabel, strategySelectionAllowed,
@@ -1420,7 +1420,8 @@ export default function App() {
           <span>Sistema de trading</span>
           <strong>{strategyLabel(selectedStrategyId)}</strong>
           <small>{selectedMovingAveragesLabel(movingAverages, selectedStrategyId)}
-            {selectedStrategyId === "MTF_ANGULACAO" ? " · ATR · VWAP · TPV · entrada manual" : " · VWAP Session"}</small>
+            {selectedStrategyId === "MTF_ANGULACAO"
+              ? ` · ${describeMtfVotes(movingAverages)} · entrada manual` : " · VWAP Session"}</small>
         </div>
       </section>
 
