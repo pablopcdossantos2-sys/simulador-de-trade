@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 import { open } from "@tauri-apps/plugin-dialog";
+import type { Asset } from "../types";
+import { fullSessionEndForDate, fullSessionStartForDate } from "../domain/simulationPlan";
 import { InfoTip } from "./InfoTip";
 import {
   prepareProfitReplayFile,
@@ -37,8 +39,9 @@ export function DataPreparationPanel({
   disabled = false,
 }: Props) {
   const [sourcePath, setSourcePath] = useState("");
+  const [asset, setAsset] = useState<Asset>("WINFUT");
   const [sessionStart, setSessionStart] = useState("09:00");
-  const [sessionEnd, setSessionEnd] = useState("12:00");
+  const [sessionEnd, setSessionEnd] = useState(() => fullSessionEndForDate("WINFUT", new Date().toISOString().slice(0, 10)));
   const [sourceTimeframeMinutes, setSourceTimeframeMinutes] = useState<1 | 2>(1);
   const [targetDate, setTargetDate] = useState("");
   const [status, setStatus] = useState("idle");
@@ -52,6 +55,22 @@ export function DataPreparationPanel({
     if (plannedStart) setSessionStart(plannedStart);
     if (plannedEnd) setSessionEnd(plannedEnd);
   }, [plannedStart, plannedEnd]);
+
+  function setFullSessionDefaults(nextAsset: Asset, date: string) {
+    const sessionDate = date || new Date().toISOString().slice(0, 10);
+    setSessionStart(fullSessionStartForDate(sessionDate));
+    setSessionEnd(fullSessionEndForDate(nextAsset, sessionDate));
+  }
+
+  function changeAsset(nextAsset: Asset) {
+    setAsset(nextAsset);
+    setFullSessionDefaults(nextAsset, targetDate);
+  }
+
+  function changeDate(date: string) {
+    setTargetDate(date);
+    setFullSessionDefaults(asset, date);
+  }
 
   async function selectSourceFile() {
     if (disabled || status === "working") return;
@@ -100,7 +119,7 @@ export function DataPreparationPanel({
         sessionStart,
         sessionEnd,
         setProgress,
-        undefined,
+        asset,
         targetDate.trim() || undefined,
         sourceTimeframeMinutes,
       );
@@ -135,10 +154,18 @@ export function DataPreparationPanel({
 
       <div className="data-window-grid">
         <label>
+          Ativo dos candles
+          <select value={asset} onChange={(event) => changeAsset(event.target.value as Asset)}
+            disabled={disabled || status === "working"}>
+            <option value="WINFUT">WINFUT (Mini-índice)</option>
+            <option value="WDOFUT">WDOFUT (Mini-dólar)</option>
+          </select>
+        </label>
+        <label>
           Data específica do pregão (opcional)
-          <input type="date" value={targetDate} onChange={(event) => setTargetDate(event.target.value)}
+          <input type="date" value={targetDate} onChange={(event) => changeDate(event.target.value)}
             disabled={disabled || status === "working"} />
-          <small>Se vazio, utiliza a primeira data do CSV. Em arquivos com vários dias, escolha a data desejada.</small>
+          <small>Sem data, usa a primeira do CSV. Ao escolher ativo/data, os horários são ajustados para o pregão completo.</small>
         </label>
         <label>
           Timeframe do CSV de origem
