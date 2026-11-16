@@ -1,6 +1,6 @@
 # Simulador de Trade
 
-Aplicativo desktop educacional para treinar execução disciplinada em WINFUT e WDOFUT, com replay histórico, indicador Multi Médias - Nuvem e Sinais, ordens OCO e análise dos resultados.
+Aplicativo desktop educacional para treinar execução disciplinada em WINFUT e WDOFUT, com replay histórico, **seleção de duas estratégias**, ordens OCO e análise dos resultados. A estratégia 01 está consolidada; a segunda está liberada como **beta para validação com o Pine original**.
 
 ## Como funciona
 
@@ -38,11 +38,22 @@ No simulador, defina ativo, data e janela horária. Importe os CSVs M1/M2 solici
 
 - Replay M1 ou M2 com movimento sintético segundo a segundo, controles de velocidade, pausa, avanço de segundo e avanço de candle;
 - aquecimento histórico oculto do indicador antes do início do período visível;
-- indicador Multi Médias - Nuvem e Sinais com MME 8, MMP 20, MME 52 e VWAP;
+- **sistema 01 — Multi Médias · Nuvem e Sinais:** MME 8, MMP 20, MME 52, VWAP e sinais de entrada;
+- **sistema 02 — MMs MTF + Angulação (beta):** quatro MMEs M15 (8, 20, 50, 200), ATR 14, VWAP M15 e TPV 50 com autorização direcional verde/vermelha/cinza, sem disparar entradas automáticas;
+- seleção da estratégia antes do plano; o sistema 02 requer 450 candles M2 anteriores (normalmente dois pregões), e o sistema 01 mantém 260;
 - entradas direcionais condicionadas por sinal e reentrada autorizada pela MME 52;
 - ordem OCO obrigatória, risco/retorno mínimo de 1:2, custos e slippage configuráveis;
-- stop manual, histórico persistente, notas pós-trade, relatórios e evolução dos resultados;
+- stop manual, histórico persistente, notas pós-trade, relatórios e evolução dos resultados; a estratégia selecionada acompanha a sessão e aparece nos relatórios e backups;
 - modo claro/escuro, configurações locais e backup/restauração.
+
+## Escolher com qual estratégia treinar
+
+1. No **Simulador**, escolha o sistema 01 ou 02 em **Estratégia de treinamento**, ou escolha diretamente na página **Sistemas de trading**.
+2. Selecione o ativo e a data e aplique o plano. **O sistema 02 pede mais histórico** para aquecer TPV e médias M15.
+3. Prepare os CSVs indicados e inicie o replay. **Verde** autoriza apenas compra manual, **vermelho** apenas venda manual e **cinza** bloqueia novas entradas no sistema 02. O OCO e a razão mínima 1:2 continuam obrigatórios.
+4. Não é possível trocar de sistema com treino ou posição aberta. Ao alternar, o replay carregado é descarregado e o plano precisa ser reaplicado; os CSVs catalogados são preservados.
+
+A segunda estratégia não reproduz M15 exato a partir de M2, nem reconstitui negócios intrabar; veja [especificação e limitações](docs/ESTRATEGIA-02-MTF.md). A comparação TradingView/Profit precisa de [validação humana](docs/VALIDACAO-HUMANA-PASSO-A-PASSO.md) antes de declarar sua fidelidade numérica concluída.
 
 ## Executar em desenvolvimento
 

@@ -125,3 +125,26 @@ Para qualquer **FALHOU**, envie a mensagem de erro exata, a etapa do roteiro e, 
 7. Se houver algum problema, envie somente a captura da tela e indique a etapa desta seção. Não é necessário repetir a auditoria dos CSVs ou a validação de operações/backup já concluída.
 
 **Observação:** o cálculo das médias M15 do futuro Sistema 02 permanece disponível no código e nos testes próprios; ele apenas não é mais executado nem desenhado no gráfico do Sistema 01.
+
+
+## Novo teste dirigido — escolha de estratégias e confluência M15 (beta)
+
+**Esse roteiro substitui a repetição de toda a validação anterior**: os testes do Sistema 01 informados como aprovados não precisam ser refeitos integralmente.
+
+1. **Atualizar o aplicativo:** acesse https://github.com/pablopcdossantos2-sys/simulador-de-trade/actions ; escolha **Windows packaging (on demand)** e **Run workflow → main**. Essa etapa gera binários atuais sob demanda; um pacote antigo não contém a seleção de estratégias. Ao terminar com sucesso, baixe **Artifacts → simulador-de-trade-windows-x64** e descompacte. Não é necessário instalar Git ou Node.
+
+2. **Escolher sistema 01:** na aba **Simulador**, selecione **01 — Multi Médias · Nuvem e Sinais**. Use um replay já preparado ou volte à demonstração. Observe somente MME 8, MMP 20, MME 52, VWAP e Volume; não devem aparecer curvas M15. As regras de sinal e reentrada MME52 devem permanecer como antes.
+
+3. **Alternar para o sistema 02:** finalize qualquer treino/posição, escolha **02 — MMs MTF + Angulação (beta)**. O simulador deve descarregar o replay anterior e solicitar novo plano, sem apagar os CSVs catalogados. Uma troca durante treino ativo ou posição aberta deve estar indisponível.
+
+4. **Planejar um alvo que possua dois pregões anteriores:** selecione **WDOFUT, 05/11/2026**, período **M2**. O plano deverá apresentar **450 candles de aquecimento**, exigindo os CSVs de **03/11/2026** e **04/11/2026**, além do alvo **05/11/2026**. Selecione **M1** ao preparar os CSVs originais do Profit Ultra; o sistema os converte/agrega sem inventar candles ausentes.
+
+5. **Conferir os gráficos:** inicie o replay com sistema 02. A legenda deve mostrar **M15 MME 8, 20, 50 e 200** mais **VWAP M15**, sem MMP20/MME52 próprias do sistema 01. As linhas e a escala de preços não devem se confundir entre estratégias. O painel M15 mostra VWAP, ATR e estado do TPV.
+
+6. **Observar o fundo e testar uma entrada:** quando o fundo estiver **cinza** (ou não houver alinhamento/dados suficientes), tente comprar ou vender: a entrada deve ser bloqueada. Quando estiver **verde**, apenas compra manual poderá passar; quando **vermelho**, apenas venda manual. O usuário deve posicionar/confirmar a entrada: a estratégia não abre posições automaticamente. Mesmo com autorização, OCO e risco/retorno mínimo 1:2 são exigidos.
+
+7. **Comparar com o Pine original:** no TradingView, aplique **Indicador_v13_alinhamento_total.txt**, M15 para médias/VWAP/TPV, e compare pelo menos 5 instantes após as primeiras 50 barras M15. Registre **data, candle, MME8, MME20, MME50, MME200, VWAP, ATR, TPV e cor do fundo**. Use o mesmo ativo/série e quantidade negociada dos CSVs. Se houver diferenças, anote se são de **fronteira M2→M15**, diferença de histórico inicial ou outra origem. Não assuma equivalência exata.
+
+8. **Conferir persistência:** finalize a sessão, abra **Resultados**, verifique se a estratégia aparece na sessão e no CSV da operação. Faça um backup e confira no JSON que a sessão contém **strategyId: MTF_ANGULACAO**; após reabrir o programa, o sistema anteriormente escolhido deve continuar selecionado. Teste importação/restauração somente com uma cópia de segurança, não no seu histórico principal.
+
+**O que informar em caso de divergência:** etapa, WIN/WDO, data, horário do candle, captura de tela, valor do Pine e valor do simulador. Os arquivos completos de mercado não devem ser publicados no GitHub.

@@ -45,3 +45,18 @@ Este documento separa **o que impede a primeira entrega** do que poderá vir dep
 - Reconstrução de negócios tick a tick a partir de OHLCV (tecnicamente impossível sem dados adicionais).
 
 Use o [tutorial humano passo a passo](VALIDACAO-HUMANA-PASSO-A-PASSO.md) para os itens de aceitação restantes. Concluir os itens obrigatórios acima, registrar os resultados e então congelar o código para a versão candidata.
+
+
+## Estratégia 02 — trilha beta separada da aceitação histórica da estratégia 01
+
+A partir de novembro de 2026, há seleção operacional entre duas estratégias. A primeira continua com seu indicador/ordens originais. A segunda já tem MTF M15, ATR, angulação, VWAP, TPV, filtro de alinhamento, autorização direcional manual, gráficos separados, aquecimento adicional e persistência da estratégia por sessão.
+
+- [x] Implementar as quatro MMEs M15 (200 só ilustrativa por padrão), ATR14, VWAP diária, TPV com média/desvio50 e veto por alinhamento conforme parâmetros padrão do Pine v13.
+- [x] Manter o gráfico da estratégia 01 sem linhas M15 nem efeitos colaterais da estratégia 02.
+- [x] Possibilitar seleção de estratégia; impedir troca durante treino/posição, recalcular plano ao alternar, usar 450 M2 para aquecimento MTF.
+- [x] Gravar a estratégia em SQLite, restaurá-la no backup, mostrá-la no histórico/relatório/CSV; sessões antigas são atribuídas ao sistema 01.
+- [x] Testar regras de autorização manual M15 sem reaproveitar a reentrada MME 52 como se fosse um sinal do sistema 02.
+- [ ] **Aceitação humana do beta:** comparar 5 ou mais candles M15 do simulador com o Pine v13 no TradingView (mesma série, datas e histórico anterior), verificar concordâncias e documentar divergências do M2→M15.
+- [ ] **Aceitação humana do beta:** no Windows, conferir alternância das estratégias, fundos verde/vermelho/cinza, operações permitidas/bloqueadas e persistência do sistema no histórico/backup.
+
+A estratégia 02 é disponibilizada como **beta** até as verificações acima. O uso de candles M2 não permite uma reconstrução M15 rigorosamente idêntica em fronteiras temporais ímpares. Não publicar números derivados como equivalência exata com o TradingView.
