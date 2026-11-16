@@ -34,6 +34,7 @@ import { applyReplayTradeInPlace } from "./domain/replay";
 import { captureEntryContext } from "./domain/entryContext";
 import {
   planIsReady,
+  matchIsUsable,
   targetFileFromMatches,
   warmupFilesFromMatches,
   type RequirementMatch,
