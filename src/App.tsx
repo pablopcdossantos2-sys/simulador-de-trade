@@ -16,6 +16,7 @@ import { TraderEvolutionPanel } from "./components/TraderEvolutionPanel";
 import { TradingSystemsPanel } from "./components/TradingSystemsPanel";
 import { ExecutionSettingsPanel } from "./components/ExecutionSettingsPanel";
 import { StrategyAveragesPanel } from "./components/StrategyAveragesPanel";
+import { SetupDisclosure } from "./components/SetupDisclosure";
 import { DatabaseMaintenancePanel } from "./components/DatabaseMaintenancePanel";
 import { BackupPanel } from "./components/BackupPanel";
 import { InfoTip } from "./components/InfoTip";
@@ -1378,6 +1379,9 @@ export default function App() {
     }
   }
 
+  const setupFilesReady = Boolean(simulationPlan) && planIsReady(catalogMatches);
+  const setupFilesPending = catalogMatches.filter((entry) => !matchIsUsable(entry)).length;
+
   const historyTradesForDisplay = visibleTradesForTrainingState(
     trades,
     trainingSession,
@@ -1456,7 +1460,10 @@ export default function App() {
       </section>
 
       <section className="app-area simulator-area" hidden={activeArea !== "SIMULADOR"}>
-      {/* Fluxo principal: escolher sistema → planejar → preparar → carregar → treinar. */}
+      {/* As etapas concluídas se recolhem; os títulos permanecem disponíveis para edição. */}
+      <SetupDisclosure title="Estratégia de treinamento"
+        status={strategyLabel(selectedStrategyId)} complete
+        expandWhenIncomplete={false} resetKey={selectedStrategyId}>
       <section className="strategy-selection-panel card" aria-label="Escolher estratégia de treinamento">
         <div>
           <h2>Estratégia de treinamento</h2>
@@ -1471,12 +1478,18 @@ export default function App() {
           </select>
         </label>
       </section>
+      </SetupDisclosure>
       <StrategyAveragesPanel
         strategyId={selectedStrategyId}
         settings={movingAverages}
         disabled={!strategySelectionAllowed(trainingActive, Boolean(position), startingTraining || loadingReplay || switchingStrategy)}
         onSave={applyMovingAverages}
       />
+      <SetupDisclosure title="Planejar simulação"
+        status={simulationPlan
+          ? `${simulationPlan.asset} · ${simulationPlan.targetDate} · M${simulationPlan.timeframeMinutes}`
+          : "Escolha a data e aplique o plano"}
+        complete={Boolean(simulationPlan)} resetKey={selectedStrategyId}>
       <SimulationPlanner
         strategyId={selectedStrategyId}
         movingAverages={movingAverages}
@@ -1526,7 +1539,15 @@ export default function App() {
           );
         }}
       />
+      </SetupDisclosure>
 
+      <SetupDisclosure title="Arquivos disponíveis e preparação do pregão"
+        status={!simulationPlan ? "Primeiro, aplique o plano"
+          : setupFilesReady ? "Todos os arquivos do plano estão disponíveis"
+          : setupFilesPending > 0 ? `${setupFilesPending} arquivo(s) pendente(s)`
+          : "Conferindo o catálogo"}
+        complete={setupFilesReady || !simulationPlan}
+        resetKey={simulationPlan?.targetDate ?? selectedStrategyId}>
       <ReplayCatalogPanel
         plan={simulationPlan}
         asset={simulationPlan?.asset ?? asset}
@@ -1545,8 +1566,15 @@ export default function App() {
           setCatalogRefreshKey((value) => value + 1)
         }
       />
+      </SetupDisclosure>
 
-
+      <SetupDisclosure title="Carregar pregão"
+        status={replay.session ? "Replay carregado · pronto para iniciar" :
+          !simulationPlan ? "Aguardando plano" :
+            setupFilesReady ? "Selecione carregar replay" : "Aguardando os arquivos"}
+        complete={Boolean(replay.session) || !setupFilesReady}
+        expandWhenIncomplete={setupFilesReady}
+        resetKey={simulationPlan?.targetDate ?? selectedStrategyId}>
       <ReplayLoadPanel
         path={replay.path}
         timeframeMinutes={replayTimeframeMinutes}
@@ -1556,6 +1584,7 @@ export default function App() {
         trainingActive={trainingActive}
         onLoad={() => void loadReplay()}
       />
+      </SetupDisclosure>
 
       <TrainingSessionPanel
         session={trainingSession}
@@ -1785,16 +1814,6 @@ export default function App() {
 
 
 
-      <details className="advanced-tools">
-        <summary>
-          <span>Modo de importação alternativo</span>
-          <small>Avançado · preparar um CSV fora do plano atual</small>
-        </summary>
-        <DataPreparationPanel
-          plannedStart={simulationPlan?.targetStartTime}
-          plannedEnd={simulationPlan?.targetEndTime}
-          onPrepared={handlePreparedReplay}
-        />      </details>
       </section>
 
       <section className="app-area available-replays-area" hidden={activeArea !== "PREGOES"}>
