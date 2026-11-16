@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type MouseEvent as ReactMouseEvent } from "react";
+import { useEffect, useId, useRef, useState, type MouseEvent as ReactMouseEvent } from "react";
 import type { MtfConfluencePoint } from "../services/mtfConfluence";
 import { remainingCandleSeconds, formatCandleCountdown } from "../domain/candleCountdown";
 import type { MovingAverageSettings, TradingStrategyId } from "../types";
@@ -129,6 +129,8 @@ export function CandleChart({
   fitAllCandles = false,
   cloudOpacity = 0.2,
 }: Props) {
+  const priceClipId = useId();
+  const volumeClipId = useId();
   const [visibleBars, setVisibleBars] = useState(DEFAULT_VISIBLE_BARS);
   const [priceZoom, setPriceZoom] = useState(1);
   const [panOffset, setPanOffset] = useState(0);
@@ -484,6 +486,16 @@ export function CandleChart({
           didDragRef.current = false;
         }}>
         <rect width={WIDTH} height={HEIGHT} className="chart-bg" />
+        <defs>
+          <clipPath id={priceClipId}>
+            <rect x={PLOT_LEFT} y={PLOT_TOP}
+              width={PLOT_RIGHT - PLOT_LEFT} height={PLOT_BOTTOM - PLOT_TOP} />
+          </clipPath>
+          <clipPath id={volumeClipId}>
+            <rect x={PLOT_LEFT} y={VOLUME_TOP}
+              width={PLOT_RIGHT - PLOT_LEFT} height={VOLUME_BOTTOM - VOLUME_TOP} />
+          </clipPath>
+        </defs>
         {[0, 0.25, 0.5, 0.75, 1].map((ratio) => {
           const value = max - range * ratio;
           const lineY = PLOT_TOP + (PLOT_BOTTOM - PLOT_TOP) * ratio;
@@ -496,6 +508,9 @@ export function CandleChart({
         {uniqueTimeLabelIndices.map((idx) => <line key={"time-grid-" + visible[idx].index}
           x1={xForIndex(idx)} x2={xForIndex(idx)} y1={PLOT_TOP} y2={VOLUME_BOTTOM} className="time-grid" />)}
 
+        {/* Candles, nuvens e médias têm um recorte físico: não podem
+            atravessar o volume, as etiquetas do tempo ou o cabeçalho. */}
+        <g className="chart-price-layer" clipPath={`url(#${priceClipId})`}>
         {showMtf && visible.map((candle, index) => {
           const point = mtfMap.get(candle.timestamp);
           if (!point?.showBackground) return null;
@@ -545,15 +560,11 @@ export function CandleChart({
           const contextClass = candle.source === "context" ? " candle-context" : "";
           const candleClass = (bullish ? "candle-up" : "candle-down") + contextClass;
           const fillClass = (bullish ? "candle-up-fill" : "candle-down-fill") + contextClass;
-          const volumeClass = (bullish ? "volume-up" : "volume-down") + (candle.source === "context" ? " volume-context" : "");
           const bodyWidth = Math.max(2, Math.min(16, xStep * 0.58));
-          const volumeHeight = Math.max(1, (candle.volume / maxVolume) * (VOLUME_BOTTOM - VOLUME_TOP));
           return <g key={candle.source + "-" + candle.index}>
             <line x1={x} x2={x} y1={y(candle.high)} y2={y(candle.low)} className={candleClass} />
             <rect x={x - bodyWidth / 2} width={bodyWidth} y={bodyTop}
               height={Math.max(1.5, bodyBottom - bodyTop)} className={fillClass} rx="1" />
-            <rect x={x - bodyWidth / 2} width={bodyWidth} y={VOLUME_BOTTOM - volumeHeight}
-              height={volumeHeight} className={volumeClass} rx="1" />
           </g>;
         })}
 
@@ -609,6 +620,22 @@ export function CandleChart({
             <text x={x} y={isBuy ? markerY + 25 : markerY - 15} textAnchor="middle" className="signal-label">{signal.label.toUpperCase()}</text>
           </g>;
         })}
+
+        </g>
+        {/* O volume tem uma camada separada e imutável ao pan vertical do preço. */}
+        <g className="chart-volume-layer" clipPath={`url(#${volumeClipId})`}>
+          {visible.map((candle, idx) => {
+            const x = xForIndex(idx);
+            const bullish = candle.close >= candle.open;
+            const width = Math.max(2, Math.min(16, xStep * 0.58));
+            const height = Math.max(1, (candle.volume / maxVolume) * (VOLUME_BOTTOM - VOLUME_TOP));
+            const volumeClass = (bullish ? "volume-up" : "volume-down") +
+              (candle.source === "context" ? " volume-context" : "");
+            return <rect key={`volume-${candle.source}-${candle.index}`}
+              x={x - width / 2} width={width} y={VOLUME_BOTTOM - height}
+              height={height} className={volumeClass} rx="1" />;
+          })}
+        </g>
 
         {visible.map((candle, idx) => {
           const previous = visible[idx - 1];
