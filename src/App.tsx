@@ -1436,6 +1436,7 @@ export default function App() {
 
       <section className="app-area" hidden={activeArea !== "SISTEMAS"}>
         <TradingSystemsPanel selectedStrategyId={selectedStrategyId}
+          movingAverages={movingAverages}
           disabled={!strategySelectionAllowed(trainingActive, Boolean(position), startingTraining || loadingReplay || switchingStrategy)}
           onSelect={selectStrategy} />
       </section>
