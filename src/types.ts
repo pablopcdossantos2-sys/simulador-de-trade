@@ -174,6 +174,12 @@ export interface TradeIntent {
   reentryAuthorized?: boolean;
   reentrySide?: Side;
   reentryAuthorizationId?: string;
+  /** Permissão direcional manual do Sistema 02 (distinta da reentrada MME52). */
+  manualDirectionAuthorization?: {
+    strategyId: "MTF_ANGULACAO";
+    side: Side;
+    id: string;
+  };
 }
 
 

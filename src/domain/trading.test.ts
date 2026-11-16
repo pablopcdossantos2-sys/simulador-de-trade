@@ -624,3 +624,23 @@ describe("reentrada após stop", () => {
     expect(canReenterAfterStop("MANUAL_STOP", 100, 120)).toBe(false);
   });
 });
+
+describe("autorização manual da estratégia M15", () => {
+  const manual = { strategyId: "MTF_ANGULACAO" as const, side: "BUY" as const, id: "mtf-confluence:WINFUT:101:BUY" };
+  it("aceita entrada manual de compra na direção autorizada, com OCO válido", () => {
+    const intent = { ...baseIntent, signal: null, manualDirectionAuthorization: manual };
+    expect(() => validateTradeIntent(intent)).not.toThrow();
+    const position = openPosition(intent);
+    expect(position.signalId).toBe(manual.id);
+  });
+  it("não reutiliza a reentrada MME52 para autorizar o Sistema 02", () => {
+    const opposite = { ...baseIntent, signal: null, side: "SELL" as const,
+      manualDirectionAuthorization: manual };
+    expect(() => validateTradeIntent(opposite)).toThrow(/sentido da confluência/i);
+    const unapproved = { ...baseIntent, signal: null };
+    expect(() => validateTradeIntent(unapproved)).toThrow(/confluência direcional/i);
+    const mixed = { ...baseIntent, signal: null,
+      reentryAuthorized: true, manualDirectionAuthorization: manual };
+    expect(() => validateTradeIntent(mixed)).toThrow(/sentido da confluência/i);
+  });
+});

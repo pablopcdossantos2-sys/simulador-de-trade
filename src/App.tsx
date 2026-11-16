@@ -1104,10 +1104,12 @@ export default function App() {
           entryContext,
           signalAlreadyUsed: entrySignal ? signalAlreadyUsed : false,
           hasOpenPosition: Boolean(position),
-          // A API de execução usa este campo como autorização manual sem sinal.
-          reentryAuthorized: Boolean(useReentry || useMtfPermission),
-          reentrySide: useMtfPermission ? side : useReentry ? reentryAuthorization?.side : undefined,
-          reentryAuthorizationId: mtfPermissionId ?? (useReentry ? reentryAuthorization?.id : undefined),
+          reentryAuthorized: useReentry,
+          reentrySide: useReentry ? reentryAuthorization?.side : undefined,
+          reentryAuthorizationId: useReentry ? reentryAuthorization?.id : undefined,
+          manualDirectionAuthorization: mtfPermissionId ? {
+            strategyId: "MTF_ANGULACAO", side, id: mtfPermissionId,
+          } : undefined,
         },
         openedAt,
       );

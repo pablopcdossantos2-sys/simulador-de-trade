@@ -190,10 +190,14 @@ export function validateTradeIntent(intent: TradeIntent): void {
     );
   }
 
-  if (!signal && !intent.reentryAuthorized) {
+  if (!signal && !intent.reentryAuthorized && !intent.manualDirectionAuthorization) {
     throw new TradingRuleError(
-      "Nenhuma operação pode ser aberta sem sinal ativo ou autorização válida de reentrada pela MME 52.",
+      "Nenhuma operação pode ser aberta sem sinal, reentrada autorizada ou confluência direcional M15 válida.",
     );
+  }
+
+  if (signal && intent.manualDirectionAuthorization) {
+    throw new TradingRuleError("Não misture sinais automáticos e permissões manuais M15 na mesma operação.");
   }
 
   if (signal) {
@@ -213,6 +217,14 @@ export function validateTradeIntent(intent: TradeIntent): void {
       const expected = signal.side === "BUY" ? "compra" : "venda";
       throw new TradingRuleError(
         `O sinal ativo autoriza apenas uma operação de ${expected}.`,
+      );
+    }
+  } else if (intent.manualDirectionAuthorization) {
+    const manual = intent.manualDirectionAuthorization;
+    if (intent.reentryAuthorized || manual.strategyId !== "MTF_ANGULACAO" ||
+        manual.side !== side || !manual.id.startsWith("mtf-confluence:")) {
+      throw new TradingRuleError(
+        "A autorização manual M15 só permite operações no sentido da confluência atual.",
       );
     }
   } else if (!intent.reentryAuthorized || intent.reentrySide !== side) {
@@ -266,7 +278,8 @@ export function openPosition(
     id: crypto.randomUUID(),
     asset: intent.asset,
     side: intent.side,
-    signalId: intent.signal?.id ?? intent.reentryAuthorizationId ?? `MA52_REENTRY_${intent.asset}_${intent.candleIndex}_${intent.side}`,
+    signalId: intent.signal?.id ?? intent.manualDirectionAuthorization?.id ??
+      intent.reentryAuthorizationId ?? `MA52_REENTRY_${intent.asset}_${intent.candleIndex}_${intent.side}`,
     openedCandleIndex: intent.candleIndex,
     openedReplaySequence: intent.replaySequence,
     requestedEntry: intent.entry,
