@@ -114,3 +114,21 @@ export function selectedMovingAveragesLabel(settings: MovingAverageSettings, str
   const { emaFastLength, wmaLength, emaSlowLength } = settings.multiMedias;
   return `MME ${emaFastLength} · MMP ${wmaLength} · MME ${emaSlowLength}`;
 }
+
+/** Resumo legível dos critérios efetivamente habilitados no fundo M15. */
+export function describeMtfVotes(settings: MovingAverageSettings): string {
+  const filters = settings.mtf.filters ?? DEFAULT_MTF_VOTE_FILTERS;
+  const selected = settings.mtf.periods.filter((_, index) => filters.voteOn[index]);
+  const parts: string[] = [];
+  if (filters.useAngles) {
+    if (selected.length) parts.push(`Ângulos MME ${selected.join("/")}`);
+    if (filters.useVwap) parts.push("VWAP");
+  } else if (filters.requireAlignment && selected.length >= 2) {
+    parts.push("Alinhamento das médias");
+  }
+  if (filters.requireAlignment && selected.length >= 2 && filters.useAngles) {
+    parts.push("Alinhamento obrigatório");
+  }
+  if (filters.useTpv) parts.push("TPV");
+  return parts.length ? parts.join(" · ") : "Nenhum critério votante — entradas bloqueadas";
+}
