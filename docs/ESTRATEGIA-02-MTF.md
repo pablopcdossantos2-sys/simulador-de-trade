@@ -83,3 +83,9 @@ A leitura do M15 passou a usar um bloco de grade fixa logo abaixo do OHLCV: valo
 ## Localização dos editores e backup — novembro de 2026
 
 Os editores das estratégias foram reunidos em **Sistemas de trading**. Escolha e configure os indicadores e filtros nesse local, salve, então selecione o sistema para acessar o **Simulador**, que apenas consome os parâmetros salvos. O backup JSON desktop inclui as preferências de ambas as estratégias como `strategySettings`; a importação no modo `Mesclar` mantém as preferências locais, enquanto `Substituir tudo` as restaura quando presentes. Backups sem essa chave continuam compatíveis.
+
+## Preparação de pregões fora do Simulador — novembro de 2026
+
+A seção **Pregões e replays** reúne a importação direta de CSVs M1/M2 do Profit, a criação dos arquivos de replay, a verificação dos pregões necessários ao aquecimento de uma estratégia e a lista de arquivos catalogados. A preparação guiada usa a estratégia atualmente selecionada para estimar os dias anteriores necessários.
+
+O **Simulador** apresenta somente replays catalogados. O usuário pode escolher um ativo/dia da lista ou consultar uma data. Se não houver replay válido para o alvo ou se faltarem pregões de aquecimento (incluindo incompatibilidade de contrato), o início do treino fica bloqueado e a interface oferece acesso a **Pregões e replays** para completar os arquivos necessários. Nenhum candle é inventado para preencher lacunas dos arquivos.

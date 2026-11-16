@@ -13,6 +13,7 @@ interface Props {
   plan: SimulationPlan | null;
   matches: RequirementMatch[];
   onCatalogUpdated: () => void;
+  disabled?: boolean;
 }
 
 function readableError(error: unknown, fallback: string): string {
@@ -48,7 +49,7 @@ function brDate(value: string): string {
   return `${day}/${month}/${year}`;
 }
 
-export function PlanDataPreparationPanel({ plan, matches, onCatalogUpdated }: Props) {
+export function PlanDataPreparationPanel({ plan, matches, onCatalogUpdated, disabled = false }: Props) {
   const [rows, setRows] = useState<Record<string, RowState>>({});
   const [processing, setProcessing] = useState(false);
 
@@ -83,6 +84,7 @@ export function PlanDataPreparationPanel({ plan, matches, onCatalogUpdated }: Pr
   }
 
   async function chooseSourceFile(key: string) {
+    if (disabled || processing) return;
     if (!( "__TAURI_INTERNALS__" in window)) {
       updateRow(key, { status: "error", message: "A seleção de arquivos locais está disponível no aplicativo desktop." });
       return;
@@ -105,7 +107,7 @@ export function PlanDataPreparationPanel({ plan, matches, onCatalogUpdated }: Pr
   }
 
   async function processMatch(match: RequirementMatch): Promise<boolean> {
-    if (!plan) return false;
+    if (!plan || disabled || processing) return false;
     const key = keyFor(match.requirement.role, match.requirement.date);
     const sourcePath = rows[key]?.sourcePath.trim().replace(/^"(.*)"$/, "$1") ?? "";
     if (!sourcePath) {
@@ -153,7 +155,7 @@ export function PlanDataPreparationPanel({ plan, matches, onCatalogUpdated }: Pr
   }
 
   async function processAll() {
-    if (!plan || processing) return;
+    if (!plan || processing || disabled) return;
     setProcessing(true);
     try {
       for (const match of missing) {
@@ -171,7 +173,7 @@ export function PlanDataPreparationPanel({ plan, matches, onCatalogUpdated }: Pr
     <section className="plan-data-panel card">
       <div className="section-heading">
         <div className="section-title-with-help">
-          <h2>Dados do pregão</h2>
+          <h2>Gerar os replays necessários</h2>
           <InfoTip label="Sobre os arquivos do Profit">
             Selecione o timeframe real do CSV. O sistema separa a data solicitada, gera M2 e preserva M1 para replay sintético. Horário planejado não garante candle exatamente naquele minuto: diferenças nas bordas são exibidas, sem bloquear nem criar candles fictícios. Rótulos de série contínua WINFUT/WDOFUT não identificam o vencimento específico.
           </InfoTip>
@@ -209,13 +211,13 @@ export function PlanDataPreparationPanel({ plan, matches, onCatalogUpdated }: Pr
                         value={row?.sourcePath ?? ""}
                         onChange={(event) => updateRow(key, { sourcePath: event.target.value })}
                         placeholder={`CSV com ${brDate(match.requirement.date)}`}
-                        disabled={processing || row?.status === "working"}
+                        disabled={disabled || processing || row?.status === "working"}
                       />
                       <button
                         type="button"
                         className="secondary"
                         onClick={() => void chooseSourceFile(key)}
-                        disabled={processing || row?.status === "working"}
+                        disabled={disabled || processing || row?.status === "working"}
                       >
                         Selecionar CSV
                       </button>
@@ -228,7 +230,7 @@ export function PlanDataPreparationPanel({ plan, matches, onCatalogUpdated }: Pr
                         id={`source-timeframe-${key}`}
                         value={row?.sourceTimeframeMinutes ?? 1}
                         onChange={(event) => updateRow(key, { sourceTimeframeMinutes: Number(event.target.value) as 1 | 2 })}
-                        disabled={processing || row?.status === "working"}
+                        disabled={disabled || processing || row?.status === "working"}
                       >
                         <option value={1}>M1</option>
                         <option value={2}>M2</option>
@@ -236,7 +238,7 @@ export function PlanDataPreparationPanel({ plan, matches, onCatalogUpdated }: Pr
                       <button
                         type="button"
                         onClick={() => void processMatch(match)}
-                        disabled={processing || row?.status === "working" || !(row?.sourcePath ?? "").trim()}
+                        disabled={disabled || processing || row?.status === "working" || !(row?.sourcePath ?? "").trim()}
                       >
                         {row?.status === "working" ? "Preparando..." : "Preparar replay"}
                       </button>
@@ -263,14 +265,14 @@ export function PlanDataPreparationPanel({ plan, matches, onCatalogUpdated }: Pr
           type="button"
           className="planner-apply"
           onClick={() => void processAll()}
-          disabled={processing || !missing.some((match) => Boolean(rows[keyFor(match.requirement.role, match.requirement.date)]?.sourcePath.trim()))}
+          disabled={disabled || processing || !missing.some((match) => Boolean(rows[keyFor(match.requirement.role, match.requirement.date)]?.sourcePath.trim()))}
         >
           {processing ? "Preparando arquivos..." : "Preparar todos os caminhos informados"}
         </button>
       )}
 
       {missing.length === 0 && (
-        <div className="data-status success">Nenhuma importação adicional é necessária para este plano.</div>
+        <div className="data-status success">Todos os arquivos necessários para este pregão e o aquecimento estão catalogados.</div>
       )}
     </section>
   );

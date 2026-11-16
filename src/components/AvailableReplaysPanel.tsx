@@ -94,7 +94,7 @@ export function AvailableReplaysPanel({ refreshKey, onCatalogUpdated }: Props) {
       <div className="section-heading">
         <div>
           <h2>Pregões e replays disponíveis</h2>
-          <p className="data-description">Consulte os replays preparados. Para importar CSVs brutos, use o formulário acima; para registrar arquivos de replay já gerados, use o botão ao lado.</p>
+          <p className="data-description">Consulte os arquivos de replay preparados e catalogados. Para gerar outros ou completar o histórico de um dia, utilize os formulários acima. O início do treino também depende dos pregões de aquecimento.</p>
         </div>
         <div className="catalog-library-actions">
           <button type="button" className="secondary" onClick={() => void addExistingReplay()} disabled={loading || modifying}>

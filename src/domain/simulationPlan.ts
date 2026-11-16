@@ -4,7 +4,7 @@ import { DEFAULT_MULTI_MEDIAS_CONFIG } from "../services/indicator";
 export const DEFAULT_TIMEFRAME_MINUTES = 2;
 export const SUPPORTED_TIMEFRAMES_MINUTES = [2] as const;
 export const STANDARD_WARMUP_MULTIPLIER = 5;
-// A estratégia MTF depende da média+desvio do TPV de 50 candles M15.
+// A estratégia MTF depende da média do TPV de 50 candles M15 (sem desvio).
 // 60 barras M15 de histórico anterior oferecem folga para EMA/ATR e evitam
 // que a sessão-alvo comece quase inteira sem TPV. 2min é a grade de origem.
 export const MTF_WARMUP_M15_BARS = 60;

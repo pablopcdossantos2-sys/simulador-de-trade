@@ -7,6 +7,7 @@ interface Props {
   session: ReplaySessionInfo | null;
   playing: boolean;
   busy: boolean;
+  canLoad: boolean;
   trainingActive: boolean;
   onLoad: () => void;
 }
@@ -17,6 +18,7 @@ export function ReplayLoadPanel({
   session,
   playing,
   busy,
+  canLoad,
   trainingActive,
   onLoad,
 }: Props) {
@@ -34,7 +36,7 @@ export function ReplayLoadPanel({
       <div className="section-heading replay-heading">
         <div className="replay-load-title">
           <h2>Carregar pregão · M{timeframeMinutes}</h2>
-          <InfoTip label="Sobre o replay">Selecione o arquivo M1 ou M2 gerado pelo fluxo de preparação de dados. O arquivo tratado é salvo na mesma pasta do CSV de origem.</InfoTip>
+          <InfoTip label="Sobre o replay">Escolha um pregão na lista de replays preparados. A importação e a criação dos arquivos são feitas exclusivamente em Pregões e replays.</InfoTip>
         </div>
         <span className={`replay-status ${finished ? "finished" : session ? "ready" : ""}`}>
           {finished ? "Sessão concluída" : session ? "Arquivo carregado" : "Aguardando arquivo"}
@@ -44,9 +46,9 @@ export function ReplayLoadPanel({
       <div className="replay-load-row">
         <label>
           Arquivo do pregão-alvo selecionado pelo catálogo
-          <input value={path} readOnly placeholder="Prepare os dados necessários ao plano" />
+          <input value={path} readOnly placeholder="Selecione um replay preparado acima" />
         </label>
-        <button type="button" onClick={onLoad} disabled={busy || playing || trainingActive}>
+        <button type="button" onClick={onLoad} disabled={!canLoad || busy || playing || trainingActive}>
           {busy ? "Carregando..." : "Carregar replay"}
         </button>
       </div>

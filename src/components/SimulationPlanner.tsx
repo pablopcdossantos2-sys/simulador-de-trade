@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   calculateSimulationPlan,
   DEFAULT_TIMEFRAME_MINUTES,
@@ -11,6 +11,8 @@ interface Props {
   strategyId?: TradingStrategyId;
   movingAverages?: MovingAverageSettings;
   disabled?: boolean;
+  initialAsset?: Asset;
+  initialDate?: string;
 }
 
 function currentLocalDate(): string {
@@ -26,9 +28,16 @@ function brDate(value: string): string {
   return `${day}/${month}/${year}`;
 }
 
-export function SimulationPlanner({ onPlanChange, strategyId = "MULTI_MEDIAS", movingAverages, disabled = false }: Props) {
-  const [asset, setAsset] = useState<Asset>("WINFUT");
-  const [date, setDate] = useState(currentLocalDate);
+export function SimulationPlanner({
+  onPlanChange, strategyId = "MULTI_MEDIAS", movingAverages, disabled = false,
+  initialAsset, initialDate,
+}: Props) {
+  const [asset, setAsset] = useState<Asset>(initialAsset ?? "WINFUT");
+  const [date, setDate] = useState(initialDate ?? currentLocalDate);
+  useEffect(() => {
+    if (initialAsset) setAsset(initialAsset);
+    if (initialDate) setDate(initialDate);
+  }, [initialAsset, initialDate]);
   const timeframeMinutes = DEFAULT_TIMEFRAME_MINUTES;
 
   const result = useMemo(() => {
@@ -52,8 +61,9 @@ export function SimulationPlanner({ onPlanChange, strategyId = "MULTI_MEDIAS", m
 
   return (
     <section className="simulation-planner card">
+      <p className="data-description">Escolha o ativo e o dia que deseja preparar. Esta verificação encontra também os pregões anteriores exigidos para aquecer os indicadores da estratégia atualmente selecionada.</p>
       <div className="section-heading">
-        <h2>Planejar simulação</h2>
+        <h2>Verificar arquivos necessários ao pregão</h2>
         <span className="session-window">Pregão completo · M{timeframeMinutes}</span>
       </div>
 
@@ -113,7 +123,7 @@ export function SimulationPlanner({ onPlanChange, strategyId = "MULTI_MEDIAS", m
             onClick={applyPlan}
             disabled={disabled}
           >
-            Usar pregão completo
+            Verificar arquivos do pregão
           </button>
         </div>
       )}

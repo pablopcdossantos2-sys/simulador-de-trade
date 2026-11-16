@@ -116,3 +116,9 @@ Os arquivos de mercado, o catálogo e o banco de operações são processados lo
 ## Aviso
 
 Este software tem finalidade educacional e de treinamento. Não envia ordens reais para corretoras e não constitui recomendação de investimento.
+
+### Preparar pregões e iniciar treinos
+
+1. Em **Pregões e replays**, importe os CSVs M1/M2 do Profit e gere replays catalogados. Use a preparação guiada para identificar e completar o histórico de aquecimento necessário aos indicadores.
+2. Em **Sistemas de trading**, configure e selecione a estratégia.
+3. No **Simulador**, escolha um replay já disponível e carregue-o para iniciar o treino. Caso o pregão ou seu aquecimento esteja indisponível, a interface indica as pendências e oferece um atalho para **Pregões e replays**. O Simulador não prepara arquivos CSV.
