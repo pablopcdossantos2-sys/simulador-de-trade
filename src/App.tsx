@@ -1534,8 +1534,14 @@ export default function App() {
       <section className="workspace">
         <div className="market card">
           <div className="section-heading">
-            <div>
+            <div className="section-title-with-help">
               <h2>{asset}</h2>
+              <InfoTip label="Sobre os dados e controles do gráfico">
+                <p>{dataMode === "replay"
+                  ? `O replay usa candles M${replayTimeframeMinutes} do Profit e atualiza o candle aberto com dados sintéticos revelados ao longo do tempo. Candles futuros permanecem ocultos.`
+                  : "O modo demonstrativo utiliza candles sintéticos. Para reproduzir dados do Profit Ultra, use os CSVs de um pregão."}</p>
+                <p>Arraste os candles para navegar pelo gráfico. Amplie ou reduza pelas opções de zoom. Quando uma direção estiver autorizada, clique no preço para preparar uma entrada manual. O alvo pode ser ajustado; o Stop só pode avançar para reduzir o risco.</p>
+              </InfoTip>
             </div>
             <SignalBadge strategyId={selectedStrategyId} evaluation={indicatorEvaluation} signalAlreadyUsed={signalAlreadyUsed} reentrySide={reentryAuthorization?.side ?? null} reentryMethod={reentryAuthorization?.method ?? null} />
           </div>
@@ -1561,13 +1567,6 @@ export default function App() {
             </div>
           )}
 
-          <div className="chart-note">
-            <InfoTip label="Sobre os dados do gráfico">
-              {dataMode === "replay"
-                ? `Cada negócio revelado atualiza o candle M${replayTimeframeMinutes} aberto, o volume, o indicador e as regras de execução. Candles futuros permanecem ocultos.`
-                : "O modo demonstrativo utiliza candles sintéticos. Para reproduzir dados do Profit Ultra, prepare o arquivo pelo fluxo de dados do pregão."}
-            </InfoTip>
-          </div>
         </div>
 
         <aside className="order-panel card">
@@ -1700,11 +1699,6 @@ export default function App() {
           <span>Modo de importação alternativo</span>
           <small>Avançado · preparar um CSV fora do plano atual</small>
         </summary>
-        <div className="advanced-tools-help">
-          <InfoTip label="Quando usar a importação avançada">
-            Utilize esta ferramenta para preparar um arquivo avulso, testar um CSV ou adicionar ao catálogo um replay que não pertence ao plano ativo. Para os pregões planejados, use a importação guiada.
-          </InfoTip>
-        </div>
         <DataPreparationPanel
           plannedStart={simulationPlan?.targetStartTime}
           plannedEnd={simulationPlan?.targetEndTime}

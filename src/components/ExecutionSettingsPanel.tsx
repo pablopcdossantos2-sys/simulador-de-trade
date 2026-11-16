@@ -110,14 +110,21 @@ export function ExecutionSettingsPanel({ settings, cloudOpacity, onCloudOpacityS
   return (
     <section className="execution-settings card">
       <div className="section-heading">
-        <h2>Execução simulada</h2>
+        <div className="section-title-with-help">
+          <h2>Execução simulada</h2>
+          <InfoTip label="Custos por operação e referências">
+            Informe o custo estimado de ida e volta por contrato, não o custo de cada lado separadamente. Confira sua nota de corretagem e ajuste os valores de referência.{" "}
+            <a href={COST_REFERENCE_URL} target="_blank" rel="noreferrer">Referência B3</a> ·{" "}
+            <a href={WIN_TARIFF_URL} target="_blank" rel="noreferrer">Tarifas WIN</a> ·{" "}
+            <a href={WDO_TARIFF_URL} target="_blank" rel="noreferrer">Tarifas WDO</a>.
+          </InfoTip>
+        </div>
       </div>
 
       <div className="execution-settings-grid">
         <label>
           WINFUT · custo por contrato (R$)
           <input type="number" min="0" step="0.01" value={winCost} onChange={(event) => setWinCost(event.target.value)} />
-          <InfoTip label="Custo por operação completa">Informe o custo total estimado de ida e volta por contrato, não o custo de cada lado separadamente.</InfoTip>
         </label>
         <label>
           WDOFUT · custo por contrato (R$)
@@ -202,14 +209,7 @@ export function ExecutionSettingsPanel({ settings, cloudOpacity, onCloudOpacityS
         <small>Os sons são emitidos quando um novo sinal é confirmado durante a simulação ou replay.</small>
       </div>
 
-      <div className="cost-source-help">
-        <InfoTip label="Referências de custos e tarifas">
-          Os custos são valores de referência aproximados. Confira sua nota de corretagem e ajuste os valores.{" "}
-          <a href={COST_REFERENCE_URL} target="_blank" rel="noreferrer">Referência B3</a> ·{" "}
-          <a href={WIN_TARIFF_URL} target="_blank" rel="noreferrer">Tarifas WIN</a> ·{" "}
-          <a href={WDO_TARIFF_URL} target="_blank" rel="noreferrer">Tarifas WDO</a>.
-        </InfoTip>
-      </div>
+
 
       <div className="execution-settings-actions">
         <button type="button" onClick={() => void save()} disabled={saving}>

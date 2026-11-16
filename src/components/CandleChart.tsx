@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState, type MouseEvent as ReactMouseEvent } from "react";
-import { InfoTip } from "./InfoTip";
 import type { MtfConfluencePoint } from "../services/mtfConfluence";
 import type { TradingStrategyId } from "../types";
 import type { Asset, Candle, IndicatorEvaluation, IndicatorPoint, Position, Side } from "../types";
@@ -398,10 +397,6 @@ export function CandleChart({
           </div>
         )}
         <div className="chart-controls" aria-label="Controles de zoom do gráfico">
-          <InfoTip label="Como interagir com o gráfico" className="chart-info-tip">
-            <p>Clique em um preço do gráfico para posicionar a entrada. Arraste a área dos candles para mover o gráfico. A linha de Alvo pode ser ajustada; o Stop só pode ser movido na direção favorável à operação, reduzindo o risco, e nunca em direção contrária.</p>
-            <p>Os candles anteriores são apenas contexto visual; o replay continua revelando somente os negócios do pregão selecionado.</p>
-          </InfoTip>
           {fitAllCandles ? (
             <span>{visible.length.toLocaleString("pt-BR")} candles · visão completa</span>
           ) : (

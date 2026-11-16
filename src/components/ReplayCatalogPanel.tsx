@@ -65,7 +65,7 @@ export function ReplayCatalogPanel({
       <div className="section-heading">
         <div className="catalog-title">
           <h2>Arquivos disponíveis</h2>
-          <InfoTip label="Sobre o catálogo">O catálogo valida ativo, data, contrato e metadados. O horário programado não garante candles em todos os minutos: diferenças nas extremidades são observações, não bloqueios. O replay usa somente candles existentes. WINFUT/WDOFUT contínuos não comprovam vencimento.</InfoTip>
+          <InfoTip label="Sobre o catálogo">O catálogo valida ativo, data, contrato e metadados. O horário programado não garante candles em todos os minutos: diferenças nas extremidades são observações, não bloqueios. O replay usa somente candles existentes. WINFUT/WDOFUT contínuos não comprovam vencimento. Arquivos movidos ou apagados são marcados como indisponíveis: o botão Atualizar catálogo remove as referências a arquivos que não existem mais.</InfoTip>
         </div>
         <button type="button" className="catalog-refresh" onClick={() => void refresh(true)}>
           Atualizar catálogo
@@ -144,11 +144,7 @@ export function ReplayCatalogPanel({
             ))}
           </div>
 
-          <div className="catalog-footnote">
-            <InfoTip label="Atualização do catálogo">
-              Arquivos movidos ou apagados são marcados como indisponíveis. O botão Atualizar catálogo remove referências a arquivos que não existem mais.
-            </InfoTip>
-          </div>
+
         </>
       )}
     </section>

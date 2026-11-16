@@ -99,16 +99,13 @@ export function DataPreparationPanel({
   return (
     <section className="data-preparation card">
       <div className="section-heading data-heading">
-        <div>
+        <div className="section-title-with-help">
           <h2>Preparar arquivo para replay</h2>
+          <InfoTip label="Como funciona a importação avançada">
+            Use este formulário para preparar CSVs fora do plano atual ou testar um arquivo avulso. Exporte do Profit as colunas Ativo/Contrato, Data, Hora, Abertura, Máxima, Mínima, Fechamento e Quantidade. Se houver Volume Financeiro e Quantidade, o sistema usa Quantidade. O replay M1 ou M2 simula trajetórias dentro do candle; não representa negócios tick a tick. A janela é inclusiva no início e exclusiva no final.
+          </InfoTip>
         </div>
         <span className="session-window">{sessionStart} → {sessionEnd}</span>
-      </div>
-
-      <div className="data-preparation-help">
-        <InfoTip label="Formato dos arquivos aceitos">
-          Exporte do Profit as colunas Ativo/Contrato, Data, Hora, Abertura, Máxima, Mínima, Fechamento e Quantidade. Se houver Volume Financeiro e Quantidade, o sistema utiliza Quantidade. O replay M1 ou M2 gera trajetórias sintéticas dentro de cada candle; não representa negócios históricos tick a tick. Arquivos antigos de negócios individuais continuam aceitos para compatibilidade.
-        </InfoTip>
       </div>
 
       <div className="data-window-grid">
@@ -222,11 +219,7 @@ export function DataPreparationPanel({
         </div>
       )}
 
-      <div className="data-footnote">
-        <InfoTip label="Sobre a faixa de horário">
-          O horário inicial é inclusivo e o horário final é exclusivo. O planejador indicará também os dados anteriores necessários para aquecer o indicador.
-        </InfoTip>
-      </div>
+
     </section>
   );
 }

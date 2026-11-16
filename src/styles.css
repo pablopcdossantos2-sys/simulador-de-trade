@@ -255,7 +255,6 @@ h2 {
 }
 .chart-shell-maximized .chart-toolbar { padding-top: 0; }
 .chart-shell-maximized .chart-context-note { margin-bottom: 0; }
-.chart-shell-maximized .chart-controls .info-tip { margin-right: 4px; }
 .replay-countdown strong { color: #f2d17b; }
 
 .chart-shell {
@@ -288,11 +287,6 @@ h2 {
 .chart-candle-zoom { display: inline-flex; align-items: center; gap: 4px; padding: 3px; border: 1px solid #2b4059; border-radius: 9px; background: #0d1b2c; }
 .chart-candle-zoom span { min-width: 76px; color: #a9bdd1; font-size: .72rem; text-align: center; font-variant-numeric: tabular-nums; }
 .chart-controls button.chart-candle-step { display: grid; place-items: center; width: 30px; min-width: 30px; height: 29px; min-height: 29px; padding: 0; border-radius: 6px; font-size: 1.05rem; line-height: 1; }
-.chart-controls .chart-info-tip { position: relative; align-self: center; }
-.chart-controls .chart-info-tip > summary { width: 28px; height: 28px; background: #14263a; color: #d6e6f5; }
-.chart-controls .chart-info-tip .info-tip-symbol { width: 23px; height: 23px; flex-basis: 23px; }
-.chart-controls .chart-info-tip .info-tip-content { left: 0; right: auto; width: min(360px, calc(100vw - 40px)); }
-.chart-shell:has(.chart-info-tip[open]) { overflow: visible; position: relative; z-index: 5; }
 .chart-controls button {
   min-width: 30px;
   min-height: 29px;
@@ -1089,7 +1083,6 @@ td {
 :root[data-theme="light"] .chart-controls button { border-color: #bfd0df; background: #edf4fa; color: #263c51; }
 :root[data-theme="light"] .chart-candle-zoom { border-color: #c5d5e2; background: #f3f7fa; }
 :root[data-theme="light"] .chart-candle-zoom span { color: #526c83; }
-:root[data-theme="light"] .chart-controls .chart-info-tip > summary { border-color: #a9bed0; background: #f1f6fa; color: #31516e; }
 :root[data-theme="light"] .chart-controls span,
 :root[data-theme="light"] .chart-context-note { color: #687f94; }
 :root[data-theme="light"] .session-divider,
@@ -3872,12 +3865,7 @@ td {
   color: #c4d3e2; box-shadow: 0 12px 30px #0008; font-size: .78rem; line-height: 1.5;
 }
 .info-tip-content strong { display: block; margin-bottom: 5px; color: #eef5fc; }
-.plan-data-help, .data-preparation-help, .data-footnote, .advanced-tools-help {
-  display: flex; justify-content: flex-end; margin: 0 0 8px;
-}
-.data-footnote { margin: 10px 0 0; }
 .replay-load-title { display: flex; align-items: center; gap: 9px; }
-.chart-note { display: flex; justify-content: flex-end; min-height: 26px; }
 :root[data-theme="light"] .info-tip > summary { border-color: #a9bed0; background: #f1f6fa; color: #31516e; }
 :root[data-theme="light"] .info-tip > summary:hover,
 :root[data-theme="light"] .info-tip[open] > summary { border-color: #7398b8; background: #e2edf6; }
@@ -3887,7 +3875,6 @@ td {
 :root[data-theme="light"] .info-tip-content strong { color: #203d58; }
 
 .catalog-title, .capital-heading { display: flex; align-items: center; gap: 9px; }
-.catalog-footnote, .cost-source-help { display: flex; justify-content: flex-end; margin-top: 8px; }
 .replay-synthetic-warning {
   margin: 12px 0 0;
   padding: 11px 13px;
@@ -3913,7 +3900,6 @@ td {
   color: #59451f;
 }
 
-.replay-note-help { display: flex; justify-content: flex-end; }
 
 
 /* Orientação para iniciar o treino e liberar o replay */
