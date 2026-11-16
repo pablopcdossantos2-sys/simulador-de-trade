@@ -127,7 +127,7 @@ it("prioriza M1 original ao escolher fontes do plano, sem excluir M2 legado", ()
     entry({
       outputPath: "target-m1.csv", tradeDate: "2026-10-14",
       dataMode: "CANDLES_M1_SYNTHETIC",
-      firstTimestamp: "2026-10-14T09:00:00", lastTimestamp: "2026-10-14T17:59:00",
+      firstTimestamp: "2026-10-14T09:00:00", lastTimestamp: "2026-10-14T18:24:00",
     }),
   ]);
   expect(planIsReady(matches)).toBe(true);
@@ -193,7 +193,7 @@ describe("cobertura efetiva dos candles no catálogo", () => {
         tradeDate: "2026-10-14",
         dataMode: "CANDLES_M2_SYNTHETIC",
         firstTimestamp: "2026-10-14T09:00:00",
-        lastTimestamp: "2026-10-14T17:58:00",
+        lastTimestamp: "2026-10-14T18:24:00",
       }),
     ]);
     expect(planIsReady(matches)).toBe(true);
