@@ -1,11 +1,15 @@
 import { useEffect, useState } from "react";
+import { open } from "@tauri-apps/plugin-dialog";
 import {
   listReplayCatalog,
+  registerReplayFile,
+  pruneMissingReplayCatalog,
   type ReplayCatalogEntry,
 } from "../services/replayCatalog";
 
 interface Props {
   refreshKey: number;
+  onCatalogUpdated?: () => void;
 }
 
 function formatDate(value: string): string {
@@ -18,10 +22,12 @@ function formatBytes(value: number): string {
   return `${(value / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-export function AvailableReplaysPanel({ refreshKey }: Props) {
+export function AvailableReplaysPanel({ refreshKey, onCatalogUpdated }: Props) {
   const [entries, setEntries] = useState<ReplayCatalogEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+  const [modifying, setModifying] = useState(false);
 
   async function refresh() {
     setLoading(true);
@@ -40,6 +46,44 @@ export function AvailableReplaysPanel({ refreshKey }: Props) {
     }
   }
 
+  async function addExistingReplay() {
+    if (modifying) return;
+    setModifying(true);
+    try {
+      const selected = await open({
+        directory: false, multiple: false,
+        filters: [{ name: "Replays preparados", extensions: ["csv"] }],
+      });
+      if (typeof selected !== "string") return;
+      if (!selected.toLowerCase().endsWith(".replay.csv")) {
+        throw new Error("Selecione um arquivo *.replay.csv gerado pelo Simulador de Trade, com seus metadados ao lado.");
+      }
+      const added = await registerReplayFile(selected);
+      setNotice(`Replay ${added.asset} de ${formatDate(added.tradeDate)} adicionado ao catálogo.`);
+      onCatalogUpdated?.();
+      await refresh();
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : String(reason));
+    } finally {
+      setModifying(false);
+    }
+  }
+
+  async function clearMissing() {
+    if (modifying) return;
+    setModifying(true);
+    try {
+      await pruneMissingReplayCatalog();
+      setNotice("Referências a arquivos removidos foram limpas. Os replays existentes foram preservados.");
+      onCatalogUpdated?.();
+      await refresh();
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : String(reason));
+    } finally {
+      setModifying(false);
+    }
+  }
+
   useEffect(() => { void refresh(); }, [refreshKey]);
 
   const available = entries.filter((entry) => entry.exists);
@@ -50,11 +94,16 @@ export function AvailableReplaysPanel({ refreshKey }: Props) {
       <div className="section-heading">
         <div>
           <h2>Pregões e replays disponíveis</h2>
-          <p className="data-description">Consulte os pregões já preparados e selecione um replay para carregá-lo no simulador.</p>
+          <p className="data-description">Consulte os replays preparados. Para importar CSVs brutos, use o formulário acima; para registrar arquivos de replay já gerados, use o botão ao lado.</p>
         </div>
-        <button type="button" className="catalog-refresh" onClick={() => void refresh()} disabled={loading}>
-          {loading ? "Atualizando..." : "Atualizar lista"}
-        </button>
+        <div className="catalog-library-actions">
+          <button type="button" className="secondary" onClick={() => void addExistingReplay()} disabled={loading || modifying}>
+            {modifying ? "Aguarde..." : "Adicionar replay pronto"}
+          </button>
+          <button type="button" className="catalog-refresh" onClick={() => void refresh()} disabled={loading || modifying}>
+            {loading ? "Atualizando..." : "Atualizar lista"}
+          </button>
+        </div>
       </div>
 
       <div className="available-replays-summary">
@@ -63,8 +112,9 @@ export function AvailableReplaysPanel({ refreshKey }: Props) {
       </div>
 
       {error && <div className="data-status error">{error}</div>}
+      {notice && <div className="data-status success" role="status">{notice}</div>}
       {!error && !loading && available.length === 0 && (
-        <p className="empty-state">Nenhum replay foi catalogado ainda. Prepare um arquivo do Profit na seção Simulador para adicioná-lo a esta lista.</p>
+        <p className="empty-state">Nenhum replay foi catalogado ainda. Selecione um CSV do Profit no formulário acima ou adicione um replay já preparado.</p>
       )}
 
       <div className="available-replays-list">
@@ -84,7 +134,10 @@ export function AvailableReplaysPanel({ refreshKey }: Props) {
         ))}
       </div>
       {unavailable > 0 && (
-        <p className="catalog-footnote">{unavailable} referência(s) apontam para arquivos que não estão mais no local original. Use “Atualizar catálogo” na seção Simulador para removê-las.</p>
+        <div className="catalog-footnote">
+          {unavailable} referência(s) apontam para arquivos ausentes.
+          <button type="button" className="secondary" onClick={() => void clearMissing()} disabled={modifying || loading}>Remover referências ausentes</button>
+        </div>
       )}
     </section>
   );
