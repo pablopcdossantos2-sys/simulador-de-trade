@@ -2,6 +2,14 @@
 
 Aplicativo desktop educacional para treinar execução disciplinada em WINFUT e WDOFUT, com replay histórico, **seleção de duas estratégias**, ordens OCO e análise dos resultados. A estratégia 01 está consolidada; a segunda está liberada como **beta para validação com o Pine original**.
 
+## Testar a versão atual no Windows
+
+**Não confunda CI aprovada com executável atualizado.** O workflow de instalação é manual; por isso, o [pacote Windows da execução 43781902065](https://github.com/pablopcdossantos2-sys/simulador-de-trade/actions/runs/43781902065) foi compilado do commit **`7446a18`**, anterior à escolha das estratégias e às correções recentes da interface.
+
+Para testar a versão atual, abra [Windows packaging (on demand)](https://github.com/pablopcdossantos2-sys/simulador-de-trade/actions/workflows/windows-build.yml), selecione **Run workflow → Branch: main → Run workflow** e baixe o **artefato dessa nova execução** (não de uma execução antiga).
+
+O pacote atualizado inclui `BUILD-INFO.txt` com o commit completo e o link da compilação. O programa também mostra **Compilação: <sete caracteres>** abaixo do título. Confira que os sete caracteres coincidem com o início do commit registrado no `BUILD-INFO.txt`. Consulte o [guia de instalação](docs/INSTALACAO-WINDOWS.md) para o procedimento ilustrado em texto.
+
 ## Como funciona
 
 O simulador recebe **candles M1 (1 minuto, formato recomendado) ou M2 (2 minutos)** exportados do Profit, sem exigir negócios tick a tick. Ao importar M1, preserva um replay M1 e gera um segundo arquivo M2 agregado; ambos podem ser selecionados automaticamente pelo catálogo. Os candles originais contêm OHLCV: abertura, máxima, mínima, fechamento e quantidade negociada.

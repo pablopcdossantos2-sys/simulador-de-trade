@@ -21,17 +21,18 @@ A criação de executáveis é **sob demanda**, não acontece a cada commit.
 
 1. Entre em https://github.com/pablopcdossantos2-sys/simulador-de-trade/actions .
 2. Selecione o workflow **Windows packaging (on demand)**.
-3. Caso ainda não exista um artefato de teste da `main` atual, clique em **Run workflow** → selecione **main** → **Run workflow**. A página do GitHub exibirá a situação da execução.
+3. **Mesmo que existam pacotes Windows antigos na lista**, clique em **Run workflow** → selecione **main** → **Run workflow**. A página do GitHub exibirá a nova execução. O [pacote 43781902065](https://github.com/pablopcdossantos2-sys/simulador-de-trade/actions/runs/43781902065), por exemplo, foi gerado do commit `7446a18` e não contém o seletor de estratégias.
 4. Após o status **Success**, abra a execução e procure, no final da página, **Artifacts**.
 5. Baixe `simulador-de-trade-windows-x64`, descompacte o ZIP e encontre:
    - `Simulador-de-Trade-Portable.exe`
    - `Simulador-de-Trade-Instalador.exe`
-   - `SHA256SUMS.txt` (somas de integridade).
-6. Para o primeiro teste, abra o **Portable.exe** com dois cliques. O **Instalador.exe** deve ser testado depois.
+   - `SHA256SUMS.txt` (somas de integridade);
+   - `BUILD-INFO.txt` (commit exato e endereço da execução).
+6. Confira em `BUILD-INFO.txt` a linha **Commit:**. Ao abrir o aplicativo, a pequena inscrição **Compilação: XXXXXXX** abaixo do título deve coincidir com os sete primeiros caracteres desse commit. Se estiver ausente, você abriu uma versão antiga. Para o primeiro teste, abra o **Portable.exe** com dois cliques. O **Instalador.exe** deve ser testado depois.
 7. Se o Windows solicitar confirmação de confiança/SmartScreen por ser binário não assinado, confira primeiro se foi obtido do workflow do repositório correto. Nunca ignore um aviso para arquivos de origem desconhecida.
 8. Se aparecer erro do **Microsoft WebView2**, registre a mensagem; o instalador pode ser a alternativa apropriada.
 
-**Não existe necessidade de publicar uma release** só para fazer estes testes.
+**Não existe necessidade de publicar uma release** só para fazer estes testes. Abra o ZIP em uma pasta nova, feche o programa antigo antes de substituir o executável e preserve seu banco de dados e backups.
 
 ## Etapa 3 — Importar o WINFUT sem omitir o fechamento oficial
 
@@ -148,3 +149,15 @@ Para qualquer **FALHOU**, envie a mensagem de erro exata, a etapa do roteiro e, 
 8. **Conferir persistência:** finalize a sessão, abra **Resultados**, verifique se a estratégia aparece na sessão e no CSV da operação. Faça um backup e confira no JSON que a sessão contém **strategyId: MTF_ANGULACAO**; após reabrir o programa, o sistema anteriormente escolhido deve continuar selecionado. Teste importação/restauração somente com uma cópia de segurança, não no seu histórico principal.
 
 **O que informar em caso de divergência:** etapa, WIN/WDO, data, horário do candle, captura de tela, valor do Pine e valor do simulador. Os arquivos completos de mercado não devem ser publicados no GitHub.
+
+
+## Verificação visual dirigida — versão corrigida após relato de layout
+
+Esses pontos são independentes das auditorias anteriores dos CSVs; não é preciso repetir os testes de desempenho já concluídos.
+
+1. Confira o identificador **Compilação** embaixo do título e compare com `BUILD-INFO.txt` para ter certeza de que está usando a `main` atual, não a execução antiga `43781902065`.
+2. No **Sistema 01**, a legenda do gráfico deve conter MME 8, MMP 20, MME 52 e VWAP, **sem** M15 MME 8/20/50/200. No **Sistema 02 (beta)**, as quatro médias M15 devem ser visíveis e as linhas próprias do sistema 01 não podem aparecer.
+3. Observe os ícones de informação em **Dados do pregão**, **Arquivos disponíveis**, **Carregar pregão**, **Controles de reprodução**, **Configurações** e **Evolução do Trader**: o círculo e o “i” devem estar centralizados; as explicações devem abrir perto do título, sem deslocar campos e botões.
+4. Em **Dados do pregão**, selecione uma data para a qual falte arquivo no catálogo. Cada linha deve mostrar de modo organizado a **data e janela**, o campo **Arquivo CSV do Profit**, o botão **Selecionar CSV**, o seletor **Timeframe do CSV** e **Preparar replay**. Redimensione a janela para verificar o empilhamento em vez de rolagem horizontal.
+5. Escolha uma estratégia na aba **Sistemas de trading** e confirme que o seletor do **Simulador** reflete a escolha. Durante sessão ativa ou posição aberta, a troca deve ficar bloqueada.
+6. Se algum elemento permanecer desalinhado, envie uma captura de tela com a área visível e informe o identificador de **Compilação**, sem compartilhar seus arquivos de mercado publicamente.

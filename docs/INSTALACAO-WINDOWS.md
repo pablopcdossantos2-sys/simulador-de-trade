@@ -2,6 +2,19 @@
 
 Este tutorial é destinado a usuários que não trabalham habitualmente com terminal, Rust, Node.js ou compilação de programas.
 
+## Primeiro: obter um pacote que realmente corresponde à main
+
+O pacote Windows não é recompilado a cada alteração de código. **O artefato da execução [43781902065](https://github.com/pablopcdossantos2-sys/simulador-de-trade/actions/runs/43781902065) contém o commit `7446a18`** e é anterior ao seletor das duas estratégias, à revisão do ícone de informação e ao novo layout de importação.
+
+1. Acesse [Windows packaging (on demand)](https://github.com/pablopcdossantos2-sys/simulador-de-trade/actions/workflows/windows-build.yml).
+2. Clique em **Run workflow** (no canto superior direito da lista). Selecione **Branch: main** e clique em **Run workflow** novamente.
+3. Abra **a execução que acabou de iniciar**. Após aparecer a marca **Success**, procure **Artifacts**, na parte inferior da página.
+4. Baixe `simulador-de-trade-windows-x64` **dessa execução**; descompacte o ZIP em uma nova pasta. Não use um ZIP baixado anteriormente.
+5. Confira `BUILD-INFO.txt`: a linha **Commit:** identifica a revisão efetivamente compilada e **Build:** aponta para a execução exata do GitHub.
+6. Execute `Simulador-de-Trade-Portable.exe` e observe o texto discreto **Compilação: XXXXXXX** abaixo de “Simulador de Trade”. Os sete caracteres devem coincidir com os sete primeiros caracteres da linha **Commit:**. Se o texto não existir, o executável é anterior a esse recurso.
+
+Nenhuma dessas etapas exige Git, Node ou terminal. Não é necessário criar uma release para testar as correções.
+
 ## Opção recomendada: instalador
 
 A forma mais simples de usar o Simulador de Trade é o arquivo:
