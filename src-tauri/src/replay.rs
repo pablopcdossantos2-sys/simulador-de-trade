@@ -812,10 +812,14 @@ fn expand_m1_candle(candle: &ReplayCandleRecord, asset: &str, sequence_start: u6
     let high = to_tick(candle.high)?;
     let low = to_tick(candle.low)?;
     let close = to_tick(candle.close)?;
-    let high_second = 18 + (stable_seed(&format!("{}|{}|m1-high", asset, candle.timestamp)) % 10) as usize;
-    let low_second = 38 + (stable_seed(&format!("{}|{}|m1-low", asset, candle.timestamp)) % 10) as usize;
-    let (first_second, first_price, second_second, second_price) =
-        if stable_seed(&candle.timestamp) % 2 == 0 { (high_second, high, low_second, low) } else { (low_second, low, high_second, high) };
+    // Os instantes são sempre crescentes. A semente decide QUAL extremo
+    // vem primeiro, nunca troca a ordem dos segundos: do contrário, o último
+    // segmento sobrescreve a mínima/máxima e altera stops sintéticos.
+    let first_second = 18 + (stable_seed(&format!("{}|{}|m1-high", asset, candle.timestamp)) % 10) as usize;
+    let second_second = 38 + (stable_seed(&format!("{}|{}|m1-low", asset, candle.timestamp)) % 10) as usize;
+    let high_first = stable_seed(&candle.timestamp) % 2 == 0;
+    let first_price = if high_first { high } else { low };
+    let second_price = if high_first { low } else { high };
     let waypoints = [(0usize, open), (first_second, first_price), (second_second, second_price), (59usize, close)];
     let mut prices = [open; 60];
     for pair in waypoints.windows(2) {
@@ -2226,6 +2230,30 @@ mod tests {
         let _ = std::fs::remove_file(path);
     }
 
+
+    #[test]
+    fn both_m1_extreme_orders_visit_exact_high_and_low_without_overwriting() {
+        let mut observed_high_first = false;
+        let mut observed_low_first = false;
+        // Gera timestamps que exercitam ambas as ordens determinísticas.
+        for minute in 0..60_u32 {
+            let timestamp = format!("2026-11-10T09:{minute:02}:00");
+            let line = format!("WDOFUT,{timestamp},1,5500,5501,5499,5500.5,17,1");
+            let candle = parse_replay_m1_candle_line(&line, "WDOFUT").unwrap();
+            let events = expand_m1_candle(&candle, "WDOFUT", 0).unwrap();
+            let high_first = stable_seed(&timestamp) % 2 == 0;
+            observed_high_first |= high_first;
+            observed_low_first |= !high_first;
+            assert_eq!(events.len(), 60);
+            assert_eq!(events.front().unwrap().price, candle.open);
+            assert_eq!(events.back().unwrap().price, candle.close);
+            assert_eq!(events.iter().map(|e| e.price).fold(f64::INFINITY, f64::min), candle.low);
+            assert_eq!(events.iter().map(|e| e.price).fold(f64::NEG_INFINITY, f64::max), candle.high);
+            assert_eq!(events.iter().map(|e| e.quantity).sum::<f64>(), candle.volume);
+            assert!(events.iter().all(|e| e.price >= candle.low && e.price <= candle.high));
+        }
+        assert!(observed_high_first && observed_low_first);
+    }
 
     #[test]
     fn full_wdo_m1_session_streams_every_second_and_rewinds_deterministically() {
