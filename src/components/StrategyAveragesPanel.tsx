@@ -108,7 +108,7 @@ export function StrategyAveragesPanel({ strategyId, settings, disabled, onSave }
     <details className="strategy-averages-panel card">
       <summary className="strategy-averages-toggle">
         <span className="strategy-averages-summary">
-          <strong>Configurar médias e filtros da estratégia</strong>
+          <strong>Configurar médias da estratégia</strong>
           <small>{selectedMovingAveragesLabel(settings, strategyId)} · períodos em candles</small>
         </span>
         <span aria-hidden="true" className="strategy-averages-chevron">⌄</span>
@@ -193,7 +193,7 @@ export function StrategyAveragesPanel({ strategyId, settings, disabled, onSave }
             Preencher valores padrão
           </button>
           <button type="button" onClick={() => void save()} disabled={disabled || saving}>
-            {saving ? "Salvando..." : "Salvar configurações"}
+            {saving ? "Salvando..." : "Salvar médias e filtros"}
           </button>
         </div>
         {disabled && <p className="strategy-averages-disabled">Finalize o treino e qualquer posição aberta antes de alterar as médias.</p>}
