@@ -12,7 +12,7 @@ O pacote atualizado inclui `BUILD-INFO.txt` com o commit completo e o link da co
 
 ## Organizar seu acervo sem iniciar um treinamento
 
-Na página **Pregões e replays**, importe os CSVs históricos do Profit diretamente, sem passar pela área inicial do Simulador. Use **Selecionar CSV**, escolha o timeframe real (M1 ou M2), opcionalmente selecione a **data específica** caso o CSV reúna vários pregões, confirme os horários e clique **Preparar e adicionar**. O programa gera os replays e os registra no catálogo, preservando o arquivo bruto. Repita para outras datas.
+Na página **Pregões e replays**, importe os CSVs históricos do Profit diretamente, sem passar pela área inicial do Simulador. Use **Selecionar CSV**, escolha o **ativo WINFUT/WDOFUT**, o timeframe real (M1 ou M2) e, se necessário, a **data específica** caso o CSV reúna vários pregões. A janela padrão corresponde ao pregão integral (WIN encerra normalmente às 18:25 após 09/03/2026; WDO às 18:30). Confirme os horários e clique **Preparar e adicionar**. O programa gera os replays e os registra no catálogo, preservando o arquivo bruto. Repita para outras datas.
 
 Se você já tem um arquivo `.replay.csv` gerado pelo sistema com seus metadados, use **Adicionar replay pronto**. A lista pode ser atualizada e referências ausentes removidas sem excluir arquivos existentes.
 

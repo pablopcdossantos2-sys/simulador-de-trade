@@ -199,7 +199,7 @@ Se o fundo do Pine original divergir, registre ativo, contrato, data, horário, 
 
 Use um **novo pacote Windows da main**, verifique o identificador de **Compilação** e preserve o banco e os CSVs originais. Esta seção complementa os testes anteriores sem exigir que sejam repetidos.
 
-1. Abra **Pregões e replays** sem passar por **Simulador**. Confirme que há **Selecionar CSV**, campos de timeframe M1/M2, data específica do pregão (opcional), horários de início/fim e **Preparar e adicionar**.
+1. Abra **Pregões e replays** sem passar por **Simulador**. Confirme que há **Selecionar CSV**, escolha de ativo WINFUT/WDOFUT, timeframe M1/M2, data específica do pregão (opcional), horários de início/fim e **Preparar e adicionar**. Para 11/11/2026, confira o fim sugerido às 18:25 no WIN e às 18:30 no WDO; para 18/02/2026, confira o início especial às 13:00.
 2. Use um CSV conhecido do Profit, por exemplo um dos pregões M1 já auditados. Confirme a data (quando o arquivo contiver várias datas), horário e quantidade de registros. Ao concluir, veja o arquivo na lista **Pregões e replays disponíveis**. Caso a origem seja M1, confira também o replay M1 preservado.
 3. Clique em **Adicionar replay pronto**, escolha um `*.replay.csv` acompanhado de seus metadados e confira que foi incorporado ao catálogo. A seleção de um CSV bruto nesse botão deve ser recusada com mensagem compreensível.
 4. Volte ao **Simulador**. **Estratégia de treinamento** deve estar contraída com o nome do sistema selecionado. **Configurar médias da estratégia** também deve iniciar contraída. Clique no título para revisar; salvar alterações válidas deve recolher a seção.

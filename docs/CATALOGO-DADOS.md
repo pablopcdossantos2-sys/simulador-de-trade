@@ -24,7 +24,7 @@ Veja o [tutorial prático de validação no Windows](VALIDACAO-HUMANA-PASSO-A-PA
 ## Adicionar arquivos pela página Pregões e replays
 
 1. Abra **Pregões e replays**, sem passar pelo Simulador.
-2. Na importação de CSV bruto, clique **Selecionar CSV**, confira se a origem é M1 ou M2 e, se o arquivo possuir mais de uma data, preencha **Data específica do pregão**. Se o campo ficar vazio, o sistema usa a primeira data registrada.
+2. Na importação de CSV bruto, clique **Selecionar CSV**, indique WINFUT/WDOFUT e confira se a origem é M1 ou M2. Se o arquivo possuir mais de uma data, preencha **Data específica do pregão**; senão, usa a primeira data registrada. O formulário sugere a janela integral da B3 conforme ativo/data (WIN 09:00–18:25 a partir de 09/03/2026, WDO 09:00–18:30, ressalvadas exceções).
 3. Configure a janela de horas e clique **Preparar e adicionar**. O tratamento é local, exibe progresso e, se bem-sucedido, registra os arquivos gerados no catálogo. Com CSVs M1, o M1 original e o M2 agregado são registrados.
 4. Para incorporar um **.replay.csv já preparado**, com seu arquivo de metadados na mesma pasta, clique **Adicionar replay pronto**.
 5. Use **Atualizar lista** para ver o acervo e **Remover referências ausentes** caso o arquivo tenha sido movido ou apagado. Essa limpeza não remove arquivos existentes.

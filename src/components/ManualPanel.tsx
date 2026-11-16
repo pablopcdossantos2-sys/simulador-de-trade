@@ -12,8 +12,8 @@ export function ManualPanel() {
         <ol>
           <li>Abra <strong>Pregões e replays</strong> no menu principal. Não é necessário passar pelo Simulador nem criar um plano de treino para importar seus arquivos.</li>
           <li>Em <strong>Preparar arquivo para replay</strong>, clique em <strong>Selecionar CSV</strong> e escolha o arquivo de candles exportado pelo Profit Ultra.</li>
-          <li>Selecione corretamente o <strong>timeframe M1 ou M2</strong> do CSV. Para um CSV que contenha vários dias, preencha <strong>Data específica do pregão</strong>. Quando esse campo estiver vazio, será utilizada a primeira data encontrada no arquivo.</li>
-          <li>Confira os horários de início e fim; a janela começa no horário informado e termina imediatamente antes do horário final. Clique em <strong>Preparar e adicionar</strong>.</li>
+          <li>Selecione o <strong>ativo WINFUT ou WDOFUT</strong> e o <strong>timeframe M1 ou M2</strong> do CSV. Para um CSV com vários dias, preencha <strong>Data específica do pregão</strong>. Sem essa data, será usada a primeira encontrada no arquivo.</li>
+          <li>O formulário já sugere a <strong>janela integral do pregão</strong>: em novembro de 2026, WINFUT 09:00–18:25 e WDOFUT 09:00–18:30. Confira os horários e ajuste-os se necessário; o início é inclusivo e o fim exclusivo. Clique em <strong>Preparar e adicionar</strong>.</li>
           <li>Acompanhe o percentual de preparação. Ao concluir, o replay M2 é registrado no catálogo; arquivos M1 também preservam uma versão original M1, catalogada separadamente. Repita o processo para as outras datas que possui.</li>
           <li>Se já tiver um arquivo <strong>.replay.csv</strong> criado pelo programa e seus metadados correspondentes, clique em <strong>Adicionar replay pronto</strong> na lista do acervo, sem prepará-lo novamente.</li>
           <li>Em <strong>Pregões e replays disponíveis</strong>, use <strong>Atualizar lista</strong> para conferir o acervo. Se mover ou apagar arquivos, use <strong>Remover referências ausentes</strong>; isso não apaga os replays válidos.</li>
