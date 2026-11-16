@@ -192,3 +192,6 @@
   .evolution-section-heading { align-items: flex-start; }
   .evolution-section-heading > span { flex-basis: 100%; }
 }
+
+/* A ajuda abre a partir do próprio título e não cria colunas extras. */
+.evolution-heading-title .info-tip-content { left: 0; right: auto; }
