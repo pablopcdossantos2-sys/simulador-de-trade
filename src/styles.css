@@ -4475,3 +4475,13 @@ td {
   font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
   color: #809bb4; letter-spacing: .015em; }
 :root[data-theme="light"] .build-identity { color: #637c93; }
+
+/* Popovers em cabeçalhos abrem abaixo do título, sem surgir fora da
+   borda esquerda da tela ou ocupar espaço no fluxo dos controles. */
+.section-title-with-help .info-tip-content,
+.catalog-title .info-tip-content,
+.replay-load-title .info-tip-content,
+.capital-heading .info-tip-content {
+  left: 0;
+  right: auto;
+}
