@@ -753,6 +753,12 @@ export default function App() {
 
   function changeAsset(next: Asset) {
     if (dataMode === "replay") return;
+    if (simulationPlan && simulationPlan.asset !== next) {
+      // A escolha do replay pertence ao ativo selecionado no catálogo.
+      setSimulationPlan(null);
+      replay.setPath("");
+      setWarmupCandles([]);
+    }
     setLastClosedTradeMarker(null);
     setDraftEntryPrice(null);
     setDraftSide(null);
@@ -1318,6 +1324,7 @@ export default function App() {
         return;
       }
       setSimulationPlan(null);
+      replay.setPath("");
       setPreparationPlan(null);
       setPreparationMatches([]);
       setWarmupCandles([]);
@@ -1367,6 +1374,7 @@ export default function App() {
       setSelectedStrategyId(next);
       try { localStorage.setItem(STRATEGY_KEY, next); } catch { /* preferência opcional */ }
       setSimulationPlan(null);
+      replay.setPath("");
       setPreparationPlan(null);
       setPreparationMatches([]);
       setWarmupCandles([]);
@@ -1519,6 +1527,9 @@ export default function App() {
                 strategyId: selectedStrategyId, movingAverages,
               }));
             } catch { setPreparationPlan(null); }
+            setPreparationMatches([]);
+          } else {
+            setPreparationPlan(null);
             setPreparationMatches([]);
           }
           setActiveArea("PREGOES");
@@ -2005,6 +2016,7 @@ export default function App() {
               await replay.unload();
             }
             setSimulationPlan(null);
+            replay.setPath("");
             setPreparationPlan(null);
             setPreparationMatches([]);
             setWarmupCandles([]);
