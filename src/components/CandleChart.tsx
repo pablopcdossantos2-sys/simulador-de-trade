@@ -667,29 +667,40 @@ export function CandleChart({
           </>}
           <circle cx={rulerStart.x} cy={rulerStart.y} r="5" className="ruler-measure-point" />
         </>}
-        {showCountdown && (
-          <g className="candle-close-countdown" pointerEvents="none"
-            transform={`translate(${PLOT_RIGHT - 176}, ${PLOT_BOTTOM - 103})`}
-            aria-label={`Fechamento do candle M${replayTimeframeMinutes}: ${formatCandleCountdown(candleRemaining)} de tempo do replay`}>
-            <rect width="166" height="54" rx="8" />
-            <text className="candle-countdown-title" x="12" y="19">Fechamento M{replayTimeframeMinutes}</text>
-            <text className="candle-countdown-value" x="154" y="43" textAnchor="end">{formatCandleCountdown(candleRemaining)}</text>
-          </g>
-        )}
         {crosshair && crosshairX !== null && <>
           <line x1={crosshairX} x2={crosshairX} y1={PLOT_TOP} y2={VOLUME_BOTTOM} className="crosshair-line" />
           <line x1={PLOT_LEFT} x2={PLOT_RIGHT} y1={crosshair.y} y2={crosshair.y} className="crosshair-line" />
-          <g className="crosshair-readout">
-            <rect x={PLOT_RIGHT - 190} y={PLOT_BOTTOM - 42} width="184" height="36" rx="6" />
-            <text x={PLOT_RIGHT - 180} y={PLOT_BOTTOM - 27}>Preço: {formatPrice(max - ((crosshair.y - PLOT_TOP) / (PLOT_BOTTOM - PLOT_TOP)) * range, asset)}</text>
-            <text x={PLOT_RIGHT - 180} y={PLOT_BOTTOM - 13}>Horário: {formatTime(hoveredCandle?.timestamp ?? lastCandle.timestamp)}</text>
-          </g>
+
         </>}
 
         {uniqueTimeLabelIndices.map((idx) => <text key={"time-label-" + visible[idx].index}
           x={xForIndex(idx)} y={TIME_LABEL_Y} textAnchor="middle" className="axis-label time-axis-label">{formatTime(visible[idx].timestamp)}</text>)}
         <text x={PLOT_LEFT} y={VOLUME_BOTTOM + 17} className="volume-label">VOL</text>
       </svg>
+
+      <div className={showCountdown ? "chart-status-cards" : "chart-status-cards chart-status-cards-single"}
+        aria-label="Informações do gráfico">
+        {showCountdown && (
+          <div className="chart-status-card chart-countdown-card"
+            aria-label={`Fechamento do candle M${replayTimeframeMinutes}: ${formatCandleCountdown(candleRemaining)} de tempo do replay`}>
+            <span>Fechamento M{replayTimeframeMinutes}</span>
+            <strong className="chart-countdown-value">{formatCandleCountdown(candleRemaining)}</strong>
+          </div>
+        )}
+        <div className="chart-status-card chart-cursor-card" aria-label="Preço e horário sob o cursor">
+          <span>Leitura do cursor</span>
+          <div className="chart-cursor-values" aria-live="off">
+            {crosshair && hoveredCandle ? (
+              <>
+                <span>Preço: <strong>{formatPrice(max - ((crosshair.y - PLOT_TOP) / (PLOT_BOTTOM - PLOT_TOP)) * range, asset)}</strong></span>
+                <span>Horário: <strong>{formatTime(hoveredCandle.timestamp)}</strong></span>
+              </>
+            ) : (
+              <span className="chart-cursor-placeholder">Passe o mouse sobre o gráfico para consultar preço e horário.</span>
+            )}
+          </div>
+        </div>
+      </div>
 
       <p className="chart-axis-hint">
         {rulerEnabled ? "Régua ativa: clique em dois pontos do gráfico para medir a amplitude em pontos. Clique em Régua novamente para cancelar." : entryPlacementEnabled ? "Consulte o ícone de informação para ver os gestos de interação com o gráfico." : "Arraste dentro da área dos candles para mover o gráfico na horizontal e vertical. Arraste o eixo de preços (à direita) para ajustar o zoom vertical e o eixo de horários (embaixo) para ajustar o zoom horizontal."}

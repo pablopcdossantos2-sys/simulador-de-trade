@@ -248,9 +248,9 @@ h2 {
 .chart-shell-maximized .chart {
   flex: 1 1 auto;
   width: 100%;
-  height: calc(100vh - 210px);
-  min-height: 360px;
-  max-height: calc(100vh - 210px);
+  height: calc(100vh - 290px);
+  min-height: 300px;
+  max-height: calc(100vh - 290px);
   aspect-ratio: auto;
 }
 .chart-shell-maximized .chart-toolbar { padding-top: 0; }
@@ -3952,28 +3952,57 @@ td {
 :root[data-theme="light"] .cloud-opacity-input output { color: #2d465d; }
 
 
-/* Leitura precisa do cursor no gráfico */
-.crosshair-readout rect {
-  fill: #102238;
-  stroke: #6b8eae;
-  stroke-width: 1;
-  opacity: .96;
+/* Leituras de tempo e cursor ficam fora da área de plotagem, logo após o SVG. */
+.chart-status-cards {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin: 8px 4px 0;
 }
-.crosshair-readout text {
-  fill: #f0f6fc;
-  font-size: 11px;
-  font-weight: 750;
+.chart-status-cards-single { grid-template-columns: minmax(0, 1fr); }
+.chart-status-card {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 7px 14px;
+  min-width: 0;
+  padding: 10px 13px;
+  border: 1px solid #36516b;
+  border-radius: 9px;
+  background: #102238;
+  color: #dce8f5;
+}
+.chart-status-card > span { color: #a9c3db; font-size: .78rem; font-weight: 700; }
+.chart-countdown-value {
+  color: #f5d58b;
+  font-size: 1.25rem;
+  font-weight: 800;
   font-variant-numeric: tabular-nums;
-  pointer-events: none;
 }
-:root[data-theme="light"] .crosshair-readout rect {
-  fill: #ffffff;
-  stroke: #7898b5;
+.chart-cursor-values {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  min-width: 0;
+  font-size: .83rem;
+  font-variant-numeric: tabular-nums;
 }
-:root[data-theme="light"] .crosshair-readout text {
-  fill: #203d58;
+.chart-cursor-values strong { color: #f0f6fc; }
+.chart-cursor-placeholder { color: #92a9bf; font-size: .77rem; }
+.chart-shell-maximized .chart-status-cards { flex: 0 0 auto; }
+:root[data-theme="light"] .chart-status-card {
+  background: #f7fafc;
+  border-color: #91a9c1;
+  color: #203d58;
 }
-
+:root[data-theme="light"] .chart-status-card > span { color: #506c84; }
+:root[data-theme="light"] .chart-countdown-value { color: #936015; }
+:root[data-theme="light"] .chart-cursor-values strong { color: #203d58; }
+:root[data-theme="light"] .chart-cursor-placeholder { color: #627e96; }
+@media (max-width: 640px) {
+  .chart-status-cards { grid-template-columns: minmax(0, 1fr); }
+}
 
 /* Respiro interno e hierarquia visual do manual e manutenção do banco */
 .manual-panel {
@@ -4547,15 +4576,7 @@ td {
 @media (max-width: 510px) {
   .chart-ohlc { grid-template-columns: repeat(2, minmax(0, 1fr)); min-height: 115px; }
 }
-.candle-close-countdown rect { fill: #15263a; stroke: #587896; stroke-width: 1.2; }
-.candle-close-countdown .candle-countdown-title { fill: #a9c3db; font-size: 13px; font-weight: 650; }
-.candle-close-countdown .candle-countdown-value {
-  fill: #f5d58b; font-size: 21px; font-weight: 800; font-variant-numeric: tabular-nums;
-}
 :root[data-theme="light"] .chart-mtf-readout { background: #f3f6fa; border-color: #c5d2e0; }
-:root[data-theme="light"] .candle-close-countdown rect { fill: #f7fafc; stroke: #91a9c1; }
-:root[data-theme="light"] .candle-close-countdown .candle-countdown-title { fill: #506c84; }
-:root[data-theme="light"] .candle-close-countdown .candle-countdown-value { fill: #936015; }
 .strategy-confluence-controls { display: grid; gap: 11px; border: 1px solid #33465d;
   padding: 13px; border-radius: 10px; background: #101f30; min-width: 0; }
 .strategy-confluence-switches { display: grid; grid-template-columns: repeat(auto-fit, minmax(195px, 1fr)); gap: 9px 16px; }

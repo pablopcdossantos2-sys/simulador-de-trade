@@ -88,7 +88,29 @@ it("reserva a leitura do M15 em faixa própria e exibe contagem regressiva de te
   expect(markup.indexOf('class="chart-mtf-readout"')).toBeLessThan(markup.indexOf('class="chart-controls"'));
   expect(markup).toContain("Fechamento M2");
   expect(markup).toContain("02:00");
-  expect(markup).toContain('class="candle-close-countdown"');
+  expect(markup).toContain('class="chart-status-cards"');
+  expect(markup).toContain('class="chart-status-card chart-countdown-card"');
+  expect(markup).toContain('class="chart-status-card chart-cursor-card"');
+  expect(markup).toContain("Passe o mouse sobre o gráfico");
+  expect(markup).not.toContain('class="candle-close-countdown"');
+  expect(markup).not.toContain('class="crosshair-readout"');
+  const endOfSvg = markup.indexOf("</svg>");
+  expect(markup.indexOf('class="chart-status-cards"')).toBeGreaterThan(endOfSvg);
+  expect(markup.indexOf('class="chart-countdown-value"')).toBeGreaterThan(endOfSvg);
+  expect(markup.indexOf('class="chart-cursor-values"')).toBeGreaterThan(endOfSvg);
+});
+
+it("mantém a leitura do cursor abaixo do gráfico mesmo quando o cronômetro está desativado", () => {
+  const candles = INDICATOR_V1_REGRESSION_CANDLES;
+  const markup = renderToStaticMarkup(
+    <CandleChart candles={candles}
+      evaluation={new MultiMediasNuvemAdapter().calculate("WINFUT", candles)}
+      asset="WINFUT" position={null} />,
+  );
+  expect(markup).toContain('class="chart-status-cards chart-status-cards-single"');
+  expect(markup).toContain('class="chart-status-card chart-cursor-card"');
+  expect(markup).not.toContain("chart-countdown-card");
+  expect(markup.indexOf('class="chart-cursor-values"')).toBeGreaterThan(markup.indexOf("</svg>"));
 });
 
 it("recorta preços e médias na área de preço, mantendo barras de volume fora dela", () => {
