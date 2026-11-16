@@ -1318,6 +1318,8 @@ export default function App() {
         return;
       }
       setSimulationPlan(null);
+      setPreparationPlan(null);
+      setPreparationMatches([]);
       setWarmupCandles([]);
       setDataMode("demo");
       replaceCandles(createDemoCandles(asset));
@@ -1365,6 +1367,8 @@ export default function App() {
       setSelectedStrategyId(next);
       try { localStorage.setItem(STRATEGY_KEY, next); } catch { /* preferência opcional */ }
       setSimulationPlan(null);
+      setPreparationPlan(null);
+      setPreparationMatches([]);
       setWarmupCandles([]);
       setDataMode("demo");
       replaceCandles(createDemoCandles(asset));
@@ -1520,6 +1524,10 @@ export default function App() {
           setActiveArea("PREGOES");
         }}
         onSelect={async (plan) => {
+          if (!planIsReady(matchSimulationPlan(plan, plan.asset, catalogEntries))) {
+            setFeedback("Faltam arquivos do pregão ou do aquecimento. Complete os dados em Pregões e replays.");
+            return;
+          }
           if (trainingActive || position || startingTrainingRef.current || loadingReplay ||
               switchingStrategyRef.current) {
             setFeedback("Finalize a sessão atual antes de selecionar outro replay.");
@@ -1843,6 +1851,7 @@ export default function App() {
             asset={preparationPlan?.asset ?? asset}
             refreshKey={catalogRefreshKey}
             onMatchesChange={setPreparationMatches}
+            onCatalogUpdated={() => setCatalogRefreshKey((value) => value + 1)}
           />
           <PlanDataPreparationPanel
             plan={preparationPlan}
@@ -1996,7 +2005,9 @@ export default function App() {
               await replay.unload();
             }
             setSimulationPlan(null);
-                  setWarmupCandles([]);
+            setPreparationPlan(null);
+            setPreparationMatches([]);
+            setWarmupCandles([]);
             setDataMode("demo");
             replaceCandles(createDemoCandles(asset));
             setCurrentReplayTrade(null);

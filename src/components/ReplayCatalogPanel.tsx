@@ -19,6 +19,7 @@ interface Props {
   asset: Asset;
   refreshKey: number;
   onMatchesChange?: (matches: RequirementMatch[]) => void;
+  onCatalogUpdated?: () => void;
 }
 
 function brDate(value: string): string {
@@ -31,6 +32,7 @@ export function ReplayCatalogPanel({
   asset,
   refreshKey,
   onMatchesChange,
+  onCatalogUpdated,
 }: Props) {
   const [entries, setEntries] = useState<ReplayCatalogEntry[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -42,6 +44,7 @@ export function ReplayCatalogPanel({
         : await listReplayCatalog();
       setEntries(next);
       setError(null);
+      if (prune) onCatalogUpdated?.();
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : String(reason));
     }

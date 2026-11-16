@@ -3,7 +3,6 @@ import type { Asset, MovingAverageSettings, TradingStrategyId } from "../types";
 import type { ReplayCatalogEntry } from "../services/replayCatalog";
 import type { SimulationPlan } from "../domain/simulationPlan";
 import { replayChoiceForDate, replayChoicesFromCatalog } from "../domain/replayChoices";
-import { matchIsUsable } from "../domain/catalogMatch";
 import { InfoTip } from "./InfoTip";
 
 interface Props {
