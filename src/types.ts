@@ -6,13 +6,27 @@ export type IndicatorZone = "GREEN" | "RED" | "NONE";
 export type VwapAnchor = "Session" | "Week" | "Month" | "Year";
 export type IntrabarPolicy = "STOP_FIRST" | "TARGET_FIRST";
 
+/** Critérios opcionais do fundo da estratégia 02 (Pine v13). */
+export interface MtfVoteFilters {
+  useAngles: boolean;
+  requireAlignment: boolean;
+  /** Cada média participa independentemente; a quarta começa desmarcada. */
+  voteOn: [boolean, boolean, boolean, boolean];
+  useVwap: boolean;
+  useTpv: boolean;
+}
+
 export interface MovingAverageSettings {
   multiMedias: {
     emaFastLength: number;
     wmaLength: number;
     emaSlowLength: number;
   };
-  mtf: { periods: [number, number, number, number] };
+  mtf: {
+    periods: [number, number, number, number];
+    /** Opcional para ler configurações e backups das versões anteriores. */
+    filters?: MtfVoteFilters;
+  };
 }
 
 export interface Candle {

@@ -1,4 +1,4 @@
-import type { Candle, IndicatorZone } from "../types";
+import type { Candle, IndicatorZone, MtfVoteFilters } from "../types";
 import {
   calculateCausalMtfAverages,
   DEFAULT_CAUSAL_MTF_CONFIG,
@@ -20,6 +20,14 @@ export const MTF_CONFLUENCE_DEFAULTS = {
   tpvProximity: 0.45,
   requireAlignment: true,
 } as const;
+
+export const DEFAULT_MTF_VOTE_FILTERS: MtfVoteFilters = {
+  useAngles: true,
+  requireAlignment: true,
+  voteOn: [true, true, true, false],
+  useVwap: true,
+  useTpv: true,
+};
 
 export type MtfRegime = "GREEN" | "RED" | "NONE";
 
@@ -127,6 +135,7 @@ function angle(values: (number | null)[], index: number, lookback: number, atr: 
 function evaluateBars(
   bars: Bar[],
   periods: readonly [number, number, number, number],
+  filters: MtfVoteFilters,
 ): Omit<MtfConfluencePoint, "candleIndex" | "timestamp" | "availableAt" | "barStart"> {
   const config = { ...MTF_CONFLUENCE_DEFAULTS, periods };
   const index = bars.length - 1;
@@ -143,13 +152,15 @@ function evaluateBars(
     averages[ids[j]] = ma[j][index] ?? null;
     const ang = angle(ma[j], index, config.angleLookback, atr);
     angles[ids[j]] = ang;
-    if (config.voteOn[j]) {
+    // Com angulação desligada, as médias participam apenas do voto único
+    // de alinhamento (se a trava estiver ligada), como no Pine v13.
+    if (filters.useAngles && filters.voteOn[j]) {
       if (ang === null) requiredData = false;
       votes.push(voteForAngle(ang, config.angleThresholds[j]));
     }
   }
 
-  const selected = ids.filter((_, i) => config.voteOn[i]);
+  const selected = ids.filter((_, i) => filters.voteOn[i]);
   const ascending = selected.every((id, i) =>
     i === 0 || (averages[selected[i - 1]] !== null && averages[id] !== null &&
       averages[selected[i - 1]]! > averages[id]!));
@@ -171,7 +182,10 @@ function evaluateBars(
   const vwapAngle = index - dayBarIndex >= config.vwapAngleLookback
     ? angle(vwaps, index, config.vwapAngleLookback, atr)
     : null;
-  votes.push(voteForAngle(vwapAngle, config.vwapAngleThreshold));
+  if (filters.useAngles && filters.useVwap) {
+    // Ângulo da VWAP indisponível equivale a um voto neutro.
+    votes.push(voteForAngle(vwapAngle, config.vwapAngleThreshold));
+  }
 
   const tpvs = tpvSeries(bars);
   const tpv = tpvs[index];
@@ -187,21 +201,31 @@ function evaluateBars(
     tpvVote = Math.abs(tpv - tpvMean) <= tpvDeviation * config.tpvProximity
       ? 0 : tpv > tpvMean ? 1 : -1;
   }
-  if (tpvVote === null) requiredData = false;
-  votes.push(tpvVote ?? 0);
+  if (filters.useTpv) {
+    if (tpvVote === null) requiredData = false;
+    votes.push(tpvVote ?? 0);
+  }
+  // Pine v13: com o interruptor global de angulação desligado, o
+  // alinhamento das médias usadas passa a ser UM critério votante.
+  const alignmentEnabled = filters.requireAlignment && selected.length >= 2;
+  if (!filters.useAngles && alignmentEnabled) {
+    votes.push(aligned === "BUY" ? 1 : aligned === "SELL" ? -1 : 0);
+    if (selected.some((id) => averages[id] === null)) requiredData = false;
+  }
 
   // A VWAP sem ângulo não fornece voto; nunca usar ausência de dado como alta/baixa.
-  const allBuy = requiredData && votes.every((value) => value === 1);
-  const allSell = requiredData && votes.every((value) => value === -1);
-  const alignmentOk = !config.requireAlignment || aligned !== null;
+  const hasVotes = votes.length > 0;
+  const allBuy = requiredData && hasVotes && votes.every((value) => value === 1);
+  const allSell = requiredData && hasVotes && votes.every((value) => value === -1);
+  const alignmentOk = !alignmentEnabled || aligned !== null;
   const zone: IndicatorZone =
-    alignmentOk && allBuy && aligned === "BUY" ? "GREEN" :
-    alignmentOk && allSell && aligned === "SELL" ? "RED" : "NONE";
+    alignmentOk && allBuy && (!alignmentEnabled || aligned === "BUY") ? "GREEN" :
+    alignmentOk && allSell && (!alignmentEnabled || aligned === "SELL") ? "RED" : "NONE";
 
   return {
     averages, angles, atr, vwap, vwapAngle, tpv, tpvMean,
     tpvDeviation, tpvVote, aligned, zone,
-    showBackground: requiredData && alignmentOk,
+    showBackground: requiredData && alignmentOk && hasVotes,
   };
 }
 
@@ -209,10 +233,19 @@ function evaluateBars(
 export function calculateMtfConfluence(
   candles: Candle[],
   periods: readonly [number, number, number, number] = MTF_CONFLUENCE_DEFAULTS.periods,
+  filters: MtfVoteFilters = DEFAULT_MTF_VOTE_FILTERS,
 ): MtfConfluenceEvaluation {
   if (periods.length !== 4 || periods.some((n) => !Number.isInteger(n) || n < 2 || n > 300)) {
     throw new Error("Períodos MTF inválidos: informe quatro inteiros entre 2 e 300.");
   }
+  if (
+    typeof filters.useAngles !== "boolean" ||
+    typeof filters.requireAlignment !== "boolean" ||
+    typeof filters.useVwap !== "boolean" ||
+    typeof filters.useTpv !== "boolean" ||
+    !Array.isArray(filters.voteOn) || filters.voteOn.length !== 4 ||
+    !filters.voteOn.every((vote) => typeof vote === "boolean")
+  ) throw new Error("Filtros de confluência MTF inválidos.");
   if (candles.length === 0) return { points: [], zone: "NONE" };
   const source = calculateCausalMtfAverages(candles, DEFAULT_CAUSAL_MTF_CONFIG);
   const completed: Bar[] = [];
@@ -226,7 +259,7 @@ export function calculateMtfConfluence(
       ...completed,
       { ...snapshot.aggregatedBar, start: snapshot.indicatorBarStart },
     ];
-    const evaluated = evaluateBars(bars, periods);
+    const evaluated = evaluateBars(bars, periods, filters);
     points.push({
       candleIndex: snapshot.candleIndex,
       timestamp: snapshot.timestamp,

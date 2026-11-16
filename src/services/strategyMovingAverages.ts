@@ -1,6 +1,6 @@
 import type { MovingAverageSettings, TradingStrategyId } from "../types";
 import { DEFAULT_MULTI_MEDIAS_CONFIG } from "./indicator";
-import { MTF_CONFLUENCE_DEFAULTS } from "./mtfConfluence";
+import { MTF_CONFLUENCE_DEFAULTS, DEFAULT_MTF_VOTE_FILTERS } from "./mtfConfluence";
 
 const STORAGE_KEY = "simulador-de-trade:moving-average-config-v1";
 export const MIN_MOVING_AVERAGE_PERIOD = 2;
@@ -14,6 +14,7 @@ export const DEFAULT_MOVING_AVERAGE_SETTINGS: MovingAverageSettings = {
   },
   mtf: {
     periods: [...MTF_CONFLUENCE_DEFAULTS.periods] as [number, number, number, number],
+    filters: { ...DEFAULT_MTF_VOTE_FILTERS, voteOn: [...DEFAULT_MTF_VOTE_FILTERS.voteOn] },
   },
 };
 
@@ -31,18 +32,34 @@ function validMulti(value: unknown): value is MovingAverageSettings["multiMedias
     item.emaFastLength < item.wmaLength && item.wmaLength < item.emaSlowLength;
 }
 
+function validFilters(raw: unknown): boolean {
+  if (!raw || typeof raw !== "object") return false;
+  const filters = raw as Record<string, unknown>;
+  return typeof filters.useAngles === "boolean" &&
+    typeof filters.requireAlignment === "boolean" &&
+    typeof filters.useVwap === "boolean" &&
+    typeof filters.useTpv === "boolean" &&
+    Array.isArray(filters.voteOn) && filters.voteOn.length === 4 &&
+    filters.voteOn.every((flag: unknown) => typeof flag === "boolean");
+}
+
 function validMtf(value: unknown): value is MovingAverageSettings["mtf"] {
   if (!value || typeof value !== "object") return false;
   const periods = (value as Record<string, unknown>).periods;
   return Array.isArray(periods) && periods.length === 4 &&
     periods.every(validPeriod) &&
-    periods.every((item, index) => index === 0 || periods[index - 1] < item);
+    periods.every((item, index) => index === 0 || periods[index - 1] < item) &&
+    (Object.prototype.hasOwnProperty.call(value, "filters") === false ||
+     validFilters((value as Record<string, unknown>).filters));
 }
 
 export function defaultsForMovingAverages(): MovingAverageSettings {
   return {
     multiMedias: { ...DEFAULT_MOVING_AVERAGE_SETTINGS.multiMedias },
-    mtf: { periods: [...DEFAULT_MOVING_AVERAGE_SETTINGS.mtf.periods] as [number, number, number, number] },
+    mtf: {
+      periods: [...DEFAULT_MOVING_AVERAGE_SETTINGS.mtf.periods] as [number, number, number, number],
+      filters: { ...DEFAULT_MTF_VOTE_FILTERS, voteOn: [...DEFAULT_MTF_VOTE_FILTERS.voteOn] },
+    },
   };
 }
 
@@ -53,7 +70,12 @@ export function normalizeMovingAverageSettings(raw: unknown): MovingAverageSetti
   const value = raw as Record<string, unknown>;
   return {
     multiMedias: validMulti(value.multiMedias) ? { ...value.multiMedias } : defaults.multiMedias,
-    mtf: validMtf(value.mtf) ? { periods: [...value.mtf.periods] as [number,number,number,number] } : defaults.mtf,
+    mtf: validMtf(value.mtf) ? {
+      periods: [...value.mtf.periods] as [number,number,number,number],
+      filters: value.mtf.filters ? {
+        ...value.mtf.filters, voteOn: [...value.mtf.filters.voteOn] as [boolean, boolean, boolean, boolean],
+      } : defaults.mtf.filters,
+    } : defaults.mtf,
   };
 }
 
