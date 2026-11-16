@@ -39,10 +39,13 @@ const B3_CLOSED_DATES = new Set([
   "2026-12-31",
 ]);
 
-const FULL_SESSION_END_2026: Record<Asset, string> = {
-  WINFUT: "18:00",
-  WDOFUT: "18:30",
-};
+// B3 Ofícios 005/2026-PRE e 055/2026-VNC: WIN encerra normalmente
+// às 18:25 desde 09/03/2026. No vencimento do contrato vincendo, há
+// uma exceção às 18:00; rótulos WINFUT contínuos não provam vencimento.
+function fullSessionEndForDate(asset: Asset, date: string): string {
+  if (asset === "WDOFUT") return "18:30";
+  return date >= "2026-03-09" ? "18:25" : "18:00";
+}
 
 const B3_SPECIAL_SESSION_START_2026: Record<string, string> = {
   "2026-02-18": "13:00",
@@ -149,8 +152,8 @@ function barsForWindow(
   if (end <= start) {
     throw new Error("O horário final precisa ser posterior ao horário inicial.");
   }
-  if (timeframeMinutes === 2 && (start % 2 !== 0 || end % 2 !== 0)) {
-    throw new Error("Como a fonte do replay é M2, os horários inicial e final precisam estar alinhados a minutos pares (por exemplo, 09:00–12:00).");
+  if (timeframeMinutes === 2 && start % 2 !== 0) {
+    throw new Error("A grade de candles M2 deve começar em minuto par.");
   }
   if (!Number.isFinite(timeframeMinutes) || timeframeMinutes <= 0) {
     throw new Error("Timeframe inválido.");
@@ -159,7 +162,9 @@ function barsForWindow(
   const minutes = end - start;
   return {
     minutes,
-    bars: Math.floor(minutes / timeframeMinutes),
+    // O encerramento WIN 18:25 é ímpar: a última posição M2 pode
+    // conter somente um M1. Contar a posição, sem inventar OHLCV.
+    bars: Math.ceil(minutes / timeframeMinutes),
   };
 }
 
@@ -232,7 +237,7 @@ export function calculateSimulationPlan(
   }
 
   const fullSessionStart = B3_SPECIAL_SESSION_START_2026[input.date] ?? "09:00";
-  const fullSessionEnd = FULL_SESSION_END_2026[input.asset];
+  const fullSessionEnd = fullSessionEndForDate(input.asset, input.date);
   const visible = barsForWindow(
     fullSessionStart,
     fullSessionEnd,
@@ -262,11 +267,11 @@ export function calculateSimulationPlan(
       role: "WARMUP",
       date: previousDate,
       startTime: sessionStart,
-      endTime: fullSessionEnd,
+      endTime: fullSessionEndForDate(input.asset, previousDate),
     });
     fullSessionBars += barsForWindow(
       sessionStart,
-      fullSessionEnd,
+      fullSessionEndForDate(input.asset, previousDate),
       input.timeframeMinutes,
     ).bars;
     cursorCount += 1;

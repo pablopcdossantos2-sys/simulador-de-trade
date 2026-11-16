@@ -50,10 +50,10 @@ describe("planejamento de simulação", () => {
       timeframeMinutes: 2,
     });
 
-    expect(plan.visibleMinutes).toBe(540);
-    expect(plan.visibleBars).toBe(270);
+    expect(plan.visibleMinutes).toBe(565);
+    expect(plan.visibleBars).toBe(283);
     expect(plan.targetStartTime).toBe("09:00");
-    expect(plan.targetEndTime).toBe("18:00");
+    expect(plan.targetEndTime).toBe("18:25");
     expect(plan.warmupBars).toBe(260);
     expect(plan.warmupMinutes).toBe(520);
     expect(plan.fullSessionsNeeded).toBe(1);
@@ -63,13 +63,13 @@ describe("planejamento de simulação", () => {
         role: "WARMUP",
         date: "2026-10-13",
         startTime: "09:00",
-        endTime: "18:00",
+        endTime: "18:25",
       },
       {
         role: "TARGET",
         date: "2026-10-14",
         startTime: "09:00",
-        endTime: "18:00",
+        endTime: "18:25",
       },
     ]);
     expect(plan.contractWarning).toMatch(/vencimento mensal do WIN/i);
@@ -103,4 +103,15 @@ describe("planejamento de simulação", () => {
     expect(plan.targetStartTime).toBe("13:00");
     expect(plan.targetEndTime).toBe("18:00");
   });
+});
+
+it("usa 18:25 para o WIN em novembro, preservando o fechamento 18:00 pré-09/03", () => {
+  const november = calculateSimulationPlan({
+    asset: "WINFUT", date: "2026-11-04", timeframeMinutes: 2,
+  });
+  expect(november.targetEndTime).toBe("18:25");
+  expect(november.visibleMinutes).toBe(565);
+  expect(november.visibleBars).toBe(283); // última posição M2 pode ser parcial
+  expect(november.dataRequirements[0].date).toBe("2026-11-03");
+  expect(november.dataRequirements[0].endTime).toBe("18:25");
 });
