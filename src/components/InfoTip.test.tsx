@@ -12,7 +12,11 @@ describe("ícone de ajuda contextual", () => {
     expect(html).toContain('class="info-tip chart-info-tip"');
     expect(html).toContain('aria-label="Sobre os dados"');
     expect(html).toContain('class="info-tip-symbol"');
-    expect(html).toContain('viewBox="0 0 20 20"');
+    expect(html).toContain('viewBox="0 0 24 24"');
+    expect(html).toContain('class="info-tip-ring"');
+    expect(html).toContain('cx="12" cy="12" r="10.2"');
+    expect(html).toContain('cx="12" cy="7.3"');
+    expect(html).toContain('d="M12 11v6.1"');
     expect(html).toContain("<circle");
     expect(html).toContain("<path");
     expect(html).toContain("Exibe uma explicação contextual.");

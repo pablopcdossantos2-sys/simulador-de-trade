@@ -289,8 +289,8 @@ h2 {
 .chart-candle-zoom span { min-width: 76px; color: #a9bdd1; font-size: .72rem; text-align: center; font-variant-numeric: tabular-nums; }
 .chart-controls button.chart-candle-step { display: grid; place-items: center; width: 30px; min-width: 30px; height: 29px; min-height: 29px; padding: 0; border-radius: 6px; font-size: 1.05rem; line-height: 1; }
 .chart-controls .chart-info-tip { position: relative; align-self: center; }
-.chart-controls .chart-info-tip > summary { width: 28px; height: 28px; border-color: #58718c; background: #14263a; color: #d6e6f5; }
-.chart-controls .chart-info-tip .info-tip-symbol { width: 16px; height: 16px; }
+.chart-controls .chart-info-tip > summary { width: 28px; height: 28px; background: #14263a; color: #d6e6f5; }
+.chart-controls .chart-info-tip .info-tip-symbol { width: 23px; height: 23px; flex-basis: 23px; }
 .chart-controls .chart-info-tip .info-tip-content { left: 0; right: auto; width: min(360px, calc(100vw - 40px)); }
 .chart-shell:has(.chart-info-tip[open]) { overflow: visible; position: relative; z-index: 5; }
 .chart-controls button {
@@ -3849,20 +3849,22 @@ td {
 
 
 /* Ajuda contextual: explicações secundárias ficam disponíveis sem ocupar a tela. */
-.info-tip { position: relative; display: inline-flex; flex: 0 0 auto; vertical-align: middle; }
+.info-tip { position: relative; display: inline-flex; flex: 0 0 auto; vertical-align: middle; z-index: 1; }
+.info-tip[open] { z-index: 50; }
 .info-tip > summary {
-  display: inline-flex; align-items: center; justify-content: center;
-  width: 23px; height: 23px; min-width: 23px; min-height: 23px;
-  margin: 0; padding: 0; flex-shrink: 0;
-  border: 1px solid #58718c; border-radius: 50%; background: #14263a;
-  color: #c6d8e9; cursor: pointer; list-style: none; line-height: 1;
+  box-sizing: border-box; display: flex; align-items: center; justify-content: center;
+  width: 26px; height: 26px; min-width: 26px; min-height: 26px;
+  margin: 0; padding: 0; flex: none;
+  border: 0; border-radius: 50%; background: #14263a;
+  color: #c6d8e9; cursor: pointer; list-style: none; list-style-type: none;
 }
-.info-tip > summary::marker { content: ""; font-size: 0; }
+.info-tip > summary::marker { content: ""; display: none; font-size: 0; }
 .info-tip > summary::-webkit-details-marker { display: none; }
 .info-tip-symbol {
-  display: block; width: 14px; height: 14px; flex: none; pointer-events: none;
+  display: block; width: 22px; height: 22px; flex: 0 0 22px;
+  overflow: visible; pointer-events: none;
 }
-.info-tip > summary:hover, .info-tip[open] > summary { border-color: #8db8df; background: #203b58; color: #fff; }
+.info-tip > summary:hover, .info-tip[open] > summary { background: #203b58; color: #fff; }
 .info-tip-content {
   position: absolute; z-index: 30; top: calc(100% + 8px); right: 0;
   width: min(340px, calc(100vw - 40px)); padding: 12px 14px;
@@ -4405,3 +4407,79 @@ td {
 :root[data-theme="light"] .chart-mtf-readout { color: #654f79; }
 :root[data-theme="light"] .chart-mtf-readout strong { color: #56396f; }
 @media (max-width: 700px) { .strategy-selection-panel label { flex: 1 1 100%; min-width: 0; } }
+
+/* Grade previsível dos CSVs: o campo de arquivo e o timeframe mantêm
+   seus próprios rótulos e botões, sem deslocamento ou rolagem horizontal. */
+.section-title-with-help {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-width: 0;
+}
+.section-title-with-help > h2,
+.section-title-with-help > h3 { margin: 0; }
+.section-heading { gap: 12px; }
+.plan-data-list article { align-items: start; min-width: 0; }
+.plan-data-identity, .plan-data-existing { min-width: 0; }
+.plan-data-input {
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+  align-items: end;
+  gap: 12px;
+  min-width: 0;
+}
+.plan-data-file-field, .plan-data-timeframe-field {
+  display: grid;
+  gap: 7px;
+  min-width: 0;
+}
+.plan-data-file-field > label, .plan-data-timeframe-field > label {
+  font-size: .75rem;
+  font-weight: 700;
+  color: #abc1d8;
+}
+.plan-data-file-row, .plan-data-timeframe-row {
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+  min-width: 0;
+}
+.plan-data-file-row > input { width: 100%; flex: 1 1 0; min-width: 0; }
+.plan-data-timeframe-row > select {
+  min-height: 40px;
+  flex: 1 1 86px;
+  min-width: 76px;
+  border: 1px solid #2a3e58;
+  border-radius: 9px;
+  padding: 8px 10px;
+  background: #091522;
+  color: #e7eff8;
+}
+.plan-data-input .plan-data-file-row > button,
+.plan-data-input .plan-data-timeframe-row > button { flex: 0 0 auto; white-space: nowrap; }
+.plan-data-input .plan-data-file-row > .secondary {
+  border: 1px solid #35516f;
+  background: #16283c;
+  color: #cfe0ef;
+}
+:root[data-theme="light"] .plan-data-file-field > label,
+:root[data-theme="light"] .plan-data-timeframe-field > label { color: #49637a; }
+:root[data-theme="light"] .plan-data-timeframe-row > select {
+  background: #fff;
+  border-color: #bdcddd;
+  color: #1c3144;
+}
+:root[data-theme="light"] .plan-data-input .plan-data-file-row > .secondary {
+  border-color: #b7cadb;
+  background: #edf4fa;
+  color: #35516c;
+}
+@media (max-width: 1180px) {
+  .plan-data-input { grid-template-columns: 1fr; }
+}
+@media (max-width: 700px) {
+  .plan-data-file-row, .plan-data-timeframe-row { flex-wrap: wrap; }
+  .plan-data-file-row > input { flex-basis: 100%; }
+  .plan-data-timeframe-row > select { flex: 1 1 90px; }
+  .plan-data-input button { flex: 1 1 auto; }
+}

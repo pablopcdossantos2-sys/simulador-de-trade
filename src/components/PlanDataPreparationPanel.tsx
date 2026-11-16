@@ -170,16 +170,15 @@ export function PlanDataPreparationPanel({ plan, matches, onCatalogUpdated }: Pr
   return (
     <section className="plan-data-panel card">
       <div className="section-heading">
-        <h2>Dados do pregão</h2>
+        <div className="section-title-with-help">
+          <h2>Dados do pregão</h2>
+          <InfoTip label="Sobre os arquivos do Profit">
+            Selecione o timeframe real do CSV. O sistema separa a data solicitada, gera M2 e preserva M1 para replay sintético. Horário planejado não garante candle exatamente naquele minuto: diferenças nas bordas são exibidas, sem bloquear nem criar candles fictícios. Rótulos de série contínua WINFUT/WDOFUT não identificam o vencimento específico.
+          </InfoTip>
+        </div>
         <span className="history-count">
           {missing.length} pendência{missing.length === 1 ? "" : "s"}
         </span>
-      </div>
-
-      <div className="plan-data-help">
-        <InfoTip label="Sobre os arquivos do Profit">
-          Selecione o timeframe real do CSV. O sistema separa a data solicitada, gera M2 e preserva M1 para replay sintético. Horário planejado não garante candle exatamente naquele minuto: diferenças nas bordas são exibidas, sem bloquear nem criar candles fictícios. Rótulos de série contínua WINFUT/WDOFUT não identificam o vencimento específico.
-        </InfoTip>
       </div>
 
       <div className="plan-data-list">
@@ -202,35 +201,46 @@ export function PlanDataPreparationPanel({ plan, matches, onCatalogUpdated }: Pr
                 </div>
               ) : (
                 <div className="plan-data-input">
-                  <label>
-                    Timeframe do CSV
-                    <select value={row?.sourceTimeframeMinutes ?? 1} onChange={(event) => updateRow(key, { sourceTimeframeMinutes: Number(event.target.value) as 1 | 2 })} disabled={processing || row?.status === "working"}>
-                      <option value={1}>M1</option>
-                      <option value={2}>M2</option>
-                    </select>
-                  </label>
-                  <input
-                    value={row?.sourcePath ?? ""}
-                    onChange={(event) => updateRow(key, { sourcePath: event.target.value })}
-                    placeholder={`CSV com ${brDate(match.requirement.date)}`}
-                    disabled={processing || row?.status === "working"}
-                  />
-                  <div className="plan-data-actions">
-                    <button
-                      type="button"
-                      className="secondary"
-                      onClick={() => void chooseSourceFile(key)}
-                      disabled={processing || row?.status === "working"}
-                    >
-                      Selecionar CSV
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => void processMatch(match)}
-                      disabled={processing || row?.status === "working" || !(row?.sourcePath ?? "").trim()}
-                    >
-                      {row?.status === "working" ? "Preparando..." : "Preparar replay"}
-                    </button>
+                  <div className="plan-data-file-field">
+                    <label htmlFor={`source-csv-${key}`}>Arquivo CSV do Profit</label>
+                    <div className="plan-data-file-row">
+                      <input
+                        id={`source-csv-${key}`}
+                        value={row?.sourcePath ?? ""}
+                        onChange={(event) => updateRow(key, { sourcePath: event.target.value })}
+                        placeholder={`CSV com ${brDate(match.requirement.date)}`}
+                        disabled={processing || row?.status === "working"}
+                      />
+                      <button
+                        type="button"
+                        className="secondary"
+                        onClick={() => void chooseSourceFile(key)}
+                        disabled={processing || row?.status === "working"}
+                      >
+                        Selecionar CSV
+                      </button>
+                    </div>
+                  </div>
+                  <div className="plan-data-timeframe-field">
+                    <label htmlFor={`source-timeframe-${key}`}>Timeframe do CSV</label>
+                    <div className="plan-data-timeframe-row">
+                      <select
+                        id={`source-timeframe-${key}`}
+                        value={row?.sourceTimeframeMinutes ?? 1}
+                        onChange={(event) => updateRow(key, { sourceTimeframeMinutes: Number(event.target.value) as 1 | 2 })}
+                        disabled={processing || row?.status === "working"}
+                      >
+                        <option value={1}>M1</option>
+                        <option value={2}>M2</option>
+                      </select>
+                      <button
+                        type="button"
+                        onClick={() => void processMatch(match)}
+                        disabled={processing || row?.status === "working" || !(row?.sourcePath ?? "").trim()}
+                      >
+                        {row?.status === "working" ? "Preparando..." : "Preparar replay"}
+                      </button>
+                    </div>
                   </div>
                 </div>
               )}
