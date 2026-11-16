@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type MouseEvent as ReactMouseEvent } from "react";
 import type { MtfConfluencePoint } from "../services/mtfConfluence";
+import { remainingCandleSeconds, formatCandleCountdown } from "../domain/candleCountdown";
 import type { MovingAverageSettings, TradingStrategyId } from "../types";
 import { DEFAULT_MOVING_AVERAGE_SETTINGS } from "../services/strategyMovingAverages";
 import type { Asset, Candle, IndicatorEvaluation, IndicatorPoint, Position, Side } from "../types";
@@ -11,6 +12,10 @@ interface Props {
   strategyId?: TradingStrategyId;
   mtfPoints?: MtfConfluencePoint[];
   movingAverages?: MovingAverageSettings;
+  /** Horário do último evento de mercado revelado pelo replay. */
+  replayTimestamp?: string | null;
+  replayTimeframeMinutes?: number;
+  showCountdown?: boolean;
   position: Position | null;
   asset: Asset;
   draftOrder?: { side: Side; entry: number; stopLoss: number; target: number } | null;
@@ -112,6 +117,9 @@ export function CandleChart({
   strategyId = "MULTI_MEDIAS",
   mtfPoints = [],
   movingAverages = DEFAULT_MOVING_AVERAGE_SETTINGS,
+  replayTimestamp = null,
+  replayTimeframeMinutes = 2,
+  showCountdown = false,
   position,
   asset,
   draftOrder = null,
@@ -222,6 +230,11 @@ export function CandleChart({
     : null;
   const readoutCandle = hoveredCandle ?? lastCandle;
   const readoutMtf = mtfMap.get(readoutCandle.timestamp);
+  // O cronômetro acompanha o último candle do pregão, não o candle sob o mouse.
+  const activeCandle = candles.at(-1);
+  const candleRemaining = remainingCandleSeconds(
+    activeCandle?.timestamp ?? null, replayTimestamp, replayTimeframeMinutes,
+  );
   const targetStartIndex = visible.findIndex((candle) => candle.source === "target");
   const hasVisibleContext = visible.some((candle) => candle.source === "context");
   const labelCount = Math.min(6, visible.length);
@@ -378,7 +391,8 @@ export function CandleChart({
   return (
     <div className={maximized ? "chart-shell chart-shell-maximized" : "chart-shell"}>
       <div className="chart-toolbar">
-        <div className="chart-ohlc" aria-live="polite" aria-label="Dados do candle selecionado">
+        <div className="chart-readouts">
+          <div className="chart-ohlc" aria-live="polite" aria-label="Dados do candle selecionado">
           <strong>{hoveredCandle ? "Candle selecionado" : "Último candle"}</strong>
           <span>{formatDate(readoutCandle.timestamp)} {formatTime(readoutCandle.timestamp)}</span>
           <span>O {formatPrice(readoutCandle.open, asset)}</span>
@@ -399,6 +413,7 @@ export function CandleChart({
             <span>TPV: {readoutMtf?.tpvVote == null ? "Aquecendo" : readoutMtf.tpvVote > 0 ? "Alta" : readoutMtf.tpvVote < 0 ? "Baixa" : "Neutro"}</span>
           </div>
         )}
+        </div>
         <div className="chart-controls" aria-label="Controles de zoom do gráfico">
           {fitAllCandles ? (
             <span>{visible.length.toLocaleString("pt-BR")} candles · visão completa</span>
@@ -625,6 +640,15 @@ export function CandleChart({
           </>}
           <circle cx={rulerStart.x} cy={rulerStart.y} r="5" className="ruler-measure-point" />
         </>}
+        {showCountdown && (
+          <g className="candle-close-countdown" pointerEvents="none"
+            transform={`translate(${PLOT_RIGHT - 176}, ${PLOT_BOTTOM - 103})`}
+            aria-label={`Fechamento do candle M${replayTimeframeMinutes}: ${formatCandleCountdown(candleRemaining)} de tempo do replay`}>
+            <rect width="166" height="54" rx="8" />
+            <text className="candle-countdown-title" x="12" y="19">Fechamento M{replayTimeframeMinutes}</text>
+            <text className="candle-countdown-value" x="154" y="43" textAnchor="end">{formatCandleCountdown(candleRemaining)}</text>
+          </g>
+        )}
         {crosshair && crosshairX !== null && <>
           <line x1={crosshairX} x2={crosshairX} y1={PLOT_TOP} y2={VOLUME_BOTTOM} className="crosshair-line" />
           <line x1={PLOT_LEFT} x2={PLOT_RIGHT} y1={crosshair.y} y2={crosshair.y} className="crosshair-line" />
