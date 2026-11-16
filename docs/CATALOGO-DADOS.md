@@ -1,127 +1,21 @@
-# Catálogo local de dados preparados
+# Catálogo de replays e comparação com o plano
 
-## Objetivo
+O catálogo local registra caminho, metadados, ativo, símbolo, data, **janela solicitada**, **primeiro e último registros reais**, modalidade M1/M2/negócios e tamanho do arquivo. O CSV bruto do Profit não é modificado.
 
-O catálogo elimina a necessidade de o usuário lembrar manualmente quais arquivos já foram tratados.
+## Estados
 
-Sempre que um arquivo `.replay.csv` é gerado pela ferramenta de tratamento, ele pode ser registrado na biblioteca local com:
+- **Disponível**: arquivo existente, ativo/data/contrato compatíveis e candles presentes desde o início até o fim da janela programada.
+- **Disponível com observação**: arquivo válido, mas o primeiro ou o último candle ocorre em horário diferente do planejado. O plano **pode ser iniciado**, reproduzindo apenas os registros presentes.
+- **Metadados inválidos**: timestamps ausentes, invertidos, de data diferente ou sem interseção com a janela; requer correção/repreparação.
+- **Contrato incompatível**: o aquecimento e o pregão-alvo usam símbolos diferentes; exige uniformidade ou política de rolagem que não foi implementada.
+- **Faltando**: não há arquivo catalogado para a data/janela requerida.
 
-- caminho do replay;
-- caminho do `.meta.json`;
-- contrato;
-- família WINFUT/WDOFUT;
-- data do pregão;
-- horário inicial;
-- horário final;
-- primeiro/último timestamp;
-- tamanho do arquivo.
+**Exemplo real:** WINFUT 04/11/2026, janela programada **09:00–18:25**, registros **09:03–18:24**. O catálogo exibe `Disponível com observação`; o replay M1 inicia às 09:03, **não fabrica** candles 09:00–09:02.
 
-O catálogo é persistido no diretório local do aplicativo.
+A janela **declarada** deve ainda ser compatível: o pregão-alvo exige exatamente a janela do plano; arquivos de aquecimento podem ter uma janela declarada mais ampla. Horários observados menores **não indicam automaticamente erro**.
 
-## Comparação com o plano
+O replay M1 contém candles originais de um minuto; o M2 é derivado de pares cronológicos completos. O M1 isolado às 18:24 do WIN não deve virar um M2 com OHLCV inventado. O aquecimento do indicador é processado sem mostrar os candles anteriores na área visível.
 
-Depois que o usuário aplica um plano, cada requisito recebe um estado:
+O catálogo usa o símbolo do alvo como referência para aquecimento. Dados contínuos com `WINFUT`/`WDOFUT` não comprovam qual contrato de vencimento está presente. O aplicativo distingue os modos de replay, mas nenhum movimento sintético corresponde a negócios históricos reais.
 
-- **Disponível** — existe arquivo compatível;
-- **Faltando** — nenhuma fonte preparada cobre a data/janela;
-- **Contrato incompatível** — existe dado da mesma família, mas de outro contrato.
-
-Exemplo:
-
-~~~text
-Aquecimento 13/10/2026 09:00–18:00  ✓ Disponível
-Alvo        14/10/2026 09:00–12:00  ✓ Disponível
-~~~
-
-ou:
-
-~~~text
-Aquecimento 13/10/2026 09:00–18:00  ⚠ WINQ26
-Alvo        14/10/2026 09:00–12:00  ✓ WINV26
-~~~
-
-No segundo caso, a simulação não é considerada pronta.
-
-## Cobertura de horário
-
-As regras são diferentes conforme o papel do arquivo.
-
-### Pregão-alvo
-
-A janela precisa ser **exatamente igual** ao plano.
-
-~~~text
-Plano-alvo: 09:00–12:00
-Arquivo:    09:00–18:00
-Resultado:  incompatível como alvo
-~~~
-
-Isso garante que o replay termine exatamente no horário configurado.
-
-### Aquecimento
-
-Um arquivo mais amplo pode atender a um requisito menor, desde que cubra integralmente a janela exigida.
-
-~~~text
-Aquecimento exigido: 09:00–12:00
-Arquivo disponível:  09:00–18:00
-Resultado: compatível
-~~~
-
-Mas um arquivo curto não pode atender um requisito maior:
-
-~~~text
-Aquecimento exigido: 09:00–18:00
-Arquivo disponível:  09:00–12:00
-Resultado: insuficiente
-~~~
-
-## Tratamento orientado pelo plano
-
-A seção **Tratar dados necessários** mostra apenas o que o plano exige.
-
-Para cada requisito ainda não atendido, o usuário informa o CSV bruto do Profit. O sistema aplica automaticamente o horário correto daquela linha.
-
-Exemplo:
-
-~~~text
-13/10/2026 · Aquecimento · 09:00–18:00
-14/10/2026 · Pregão-alvo · 09:00–12:00
-~~~
-
-É possível processar individualmente ou usar **Tratar todos os caminhos informados**.
-
-Após o tratamento, o arquivo é registrado no catálogo automaticamente.
-
-## Verificação da data
-
-O sistema não confia apenas no nome do arquivo bruto.
-
-Depois de tratar o CSV, a data é extraída do conteúdo. Se o usuário associar por engano o CSV de 13/10 à linha de 14/10, o sistema informa a divergência.
-
-## Aquecimento invisível
-
-Quando todos os requisitos estão disponíveis:
-
-1. os arquivos de aquecimento M2 são ordenados cronologicamente;
-2. o backend lê diretamente os registros OHLCV;
-3. somente os últimos candles definidos pela política de aquecimento são mantidos;
-4. esses candles alimentam o indicador;
-5. eles **não são desenhados no gráfico**;
-6. o replay visual começa apenas no pregão-alvo.
-
-O aquecimento não precisa sintetizar preços segundo a segundo: as barras OHLCV são suficientes para calcular as médias. A geração de movimento sintético acontece apenas durante o replay visível.
-
-## Contrato
-
-O catálogo usa o contrato do pregão-alvo como referência.
-
-Se o alvo for `WINV26`, o aquecimento precisa usar `WINV26` também na política atual.
-
-Uma futura política de série contínua/rolagem poderá permitir combinações diferentes, mas isso será explicitamente configurável em vez de ocorrer silenciosamente.
-
-## Arquivos ausentes
-
-O catálogo verifica se o replay e o metadado continuam existindo.
-
-Se o usuário mover ou apagar arquivos, eles deixam de atender ao plano. A opção **Atualizar catálogo** remove as referências que não existem mais.
+Veja o [tutorial prático de validação no Windows](VALIDACAO-HUMANA-PASSO-A-PASSO.md).

@@ -7,12 +7,12 @@ Este tutorial é destinado a usuários que não trabalham habitualmente com term
 A forma mais simples de usar o Simulador de Trade é o arquivo:
 
 ~~~text
-Simulador-de-Trade-setup.exe
+Simulador-de-Trade-Instalador.exe
 ~~~
 
 Quando ele estiver disponível nos artefatos de uma versão:
 
-1. baixe o arquivo `Simulador-de-Trade-setup.exe`;
+1. baixe o arquivo `Simulador-de-Trade-Instalador.exe`;
 2. dê dois cliques nele;
 3. siga as telas do instalador;
 4. ao final, abra **Simulador de Trade** normalmente pelo Windows.
@@ -26,7 +26,7 @@ Ele também utiliza o modo padrão de bootstrap do WebView2. Se o runtime não e
 O pipeline também produz:
 
 ~~~text
-Simulador-de-Trade-portable.exe
+Simulador-de-Trade-Portable.exe
 ~~~
 
 Essa versão não possui instalador.
@@ -39,7 +39,7 @@ Uso:
 C:\Programas Portateis\Simulador de Trade
 ~~~
 
-2. coloque o arquivo `Simulador-de-Trade-portable.exe` nessa pasta;
+2. coloque o arquivo `Simulador-de-Trade-Portable.exe` nessa pasta;
 3. dê dois cliques no executável.
 
 ### Importante sobre o portátil
@@ -98,8 +98,8 @@ O repositório possui o workflow:
 Ele executa em Windows e produz:
 
 ~~~text
-Simulador-de-Trade-setup.exe
-Simulador-de-Trade-portable.exe
+Simulador-de-Trade-Instalador.exe
+Simulador-de-Trade-Portable.exe
 ~~~
 
 Os dois arquivos são reunidos em um artefato do GitHub Actions chamado:
@@ -132,3 +132,8 @@ src-tauri\target\release\
 ~~~
 
 Usuários comuns não precisam executar esses comandos quando os artefatos do GitHub Actions estiverem disponíveis.
+
+
+## Primeiro teste de aceitação
+
+Para obter os binários mais recentes pela execução sob demanda e executar o roteiro de validação em WINFUT/WDOFUT, siga o [tutorial humano detalhado](VALIDACAO-HUMANA-PASSO-A-PASSO.md). O workflow não roda automaticamente em cada commit.

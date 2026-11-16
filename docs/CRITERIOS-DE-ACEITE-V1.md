@@ -14,7 +14,7 @@ Este documento separa **o que impede a primeira entrega** do que poderá vir dep
 
 - [ ] **Prova real no Windows:** abrir e encerrar o aplicativo, importar pelo menos um pregão WIN e outro WDO e iniciar replay pelo plano e catálogo, sem intervenção no terminal.
 - [ ] **Sessão completa:** reproduzir, pausar, avançar 1 segundo/candle, reiniciar, finalizar; verificar gráfico, aquecimento oculto, bloqueio de operações sem sinal e ordens OCO.
-- [ ] **Fidelidade do tempo:** confirmar no Profit se o timestamp do M1 indica a abertura ou o fechamento do minuto. Ajustar o parser **somente com evidência** e revalidar o alinhamento M2/MTF.
+- [ ] **Fidelidade do tempo:** confirmar no Profit se o timestamp do M1 indica a abertura ou o fechamento do minuto. Respeitar a janela oficial WIN 09:00–18:25 (novembro de 2026) e os limites observados; ajustar o parser **somente com evidência** e revalidar o alinhamento M2/MTF.
 - [ ] **Conferência com TradingView:** mesmo pregão, timeframe, contrato/série e histórico anterior; comparar MME 8, MMP 20, MME 52, VWAP, zonas e sinais em candles fechados. Documentar diferenças justificadas (VWAP OHLCV e execução sintética).
 - [ ] **Integridade funcional:** validar resultados e encerramentos OCO em cenários com stop e alvo no mesmo candle, confirmando que o relatório indica a natureza sintética e não apresenta o resultado como execução histórica real.
 - [ ] **Dados e restauração:** concluir sessão com trades, conferir relatório/CSV/JSON e validar backup/restauração de histórico após reinício.
@@ -25,7 +25,7 @@ Este documento separa **o que impede a primeira entrega** do que poderá vir dep
 - 18 CSVs M1 reais WIN/WDO de novembro de 2026 foram conferidos independentemente: OHLC, volumes, ticks, sequência e agregação em M2.
 - Testes Rust do parser com amostras reais e do replay M1/M2, com conservação da quantidade e determinismo.
 - Testes de MMEs e MMP com 104 fechamentos reais derivados de WIN/WDO de 10/11/2026.
-- Testes de janela declarada versus os horários reais: arquivos M1/M2 com bordas ausentes não podem completar artificialmente o plano.
+- Testes de janela declarada versus os horários observados: diferenças legítimas nas bordas são exibidas como aviso não bloqueante; metadados inválidos continuam bloqueados. O sistema não fabrica candles.
 - Teste Rust de pregão inteiro gerado (570 M1 WDO, 34.200 observações), **não confundir com teste do executável Windows**.
 
 ## Conhecimentos/limitações que devem aparecer na entrega
@@ -42,4 +42,4 @@ Este documento separa **o que impede a primeira entrega** do que poderá vir dep
 - Atualizador automático Tauri, assinatura digital paga, novas preferências e publicação em lojas.
 - Reconstrução de negócios tick a tick a partir de OHLCV (tecnicamente impossível sem dados adicionais).
 
-Concluir os itens obrigatórios acima, registrar os resultados e então congelar o código para a versão candidata.
+Use o [tutorial humano passo a passo](VALIDACAO-HUMANA-PASSO-A-PASSO.md) para os itens de aceitação restantes. Concluir os itens obrigatórios acima, registrar os resultados e então congelar o código para a versão candidata.
