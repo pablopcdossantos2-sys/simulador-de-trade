@@ -11,7 +11,7 @@ describe("configuração das médias no Simulador", () => {
       <StrategyAveragesPanel strategyId="MULTI_MEDIAS" settings={settings}
         disabled={false} onSave={async () => undefined} />,
     );
-    expect(html).toContain("Configurar médias da estratégia");
+    expect(html).toContain("Editar parâmetros da estratégia");
     expect(html).toContain("MME rápida");
     expect(html).toContain("MMP intermediária");
     expect(html).toContain("MME lenta");

@@ -32,6 +32,8 @@ export function TradingSystemsPanel({ selectedStrategyId, movingAverages = DEFAU
           <div className="trading-system-indicators">
             <span>MME {emaFastLength}</span><span>MMP {wmaLength}</span><span>MME {emaSlowLength}</span><span>VWAP de sessão</span>
           </div>
+          <StrategyAveragesPanel strategyId="MULTI_MEDIAS" settings={movingAverages}
+            disabled={disabled} onSave={(value) => onSaveStrategy(value, "MULTI_MEDIAS")} />
           <h4>Condições de compra</h4>
           <ul>
             <li>MME {emaFastLength} acima da MMP {wmaLength}, e MMP {wmaLength} acima da MME {emaSlowLength}.</li>
@@ -43,8 +45,6 @@ export function TradingSystemsPanel({ selectedStrategyId, movingAverages = DEFAU
             <li>Candle de baixa para iniciar a zona vendedora.</li>
           </ul>
           <p className="trading-system-footnote">O sinal é gerado quando uma nova zona direcional começa. A zona permanece ativa enquanto o alinhamento correspondente continuar válido. Os períodos podem ser personalizados no editor desta estratégia, abaixo.</p>
-          <StrategyAveragesPanel strategyId="MULTI_MEDIAS" settings={movingAverages}
-            disabled={disabled} onSave={(value) => onSaveStrategy(value, "MULTI_MEDIAS")} />
           <button type="button" className="trading-system-select" disabled={disabled}
             onClick={() => onSelect("MULTI_MEDIAS")}>
             {selectedStrategyId === "MULTI_MEDIAS" ? "Ir ao Simulador com este sistema" : "Selecionar e treinar com este sistema"}
@@ -63,6 +63,8 @@ export function TradingSystemsPanel({ selectedStrategyId, movingAverages = DEFAU
           <div className="trading-system-indicators">
             <span>Gráfico M2</span><span>Médias M15</span><span>VWAP MTF</span><span>TPV</span><span>ATR e ângulos</span>
           </div>
+          <StrategyAveragesPanel strategyId="MTF_ANGULACAO" settings={movingAverages}
+            disabled={disabled} onSave={(value) => onSaveStrategy(value, "MTF_ANGULACAO")} />
           <h4>Filtros utilizados na configuração atual</h4>
           <p className="trading-system-footnote">{describeMtfVotes(movingAverages)}</p>
           <h4>Configuração inicial definida</h4>
@@ -81,8 +83,6 @@ export function TradingSystemsPanel({ selectedStrategyId, movingAverages = DEFAU
             <li>A entrada será posicionada manualmente pelo usuário no gráfico. O sistema não abrirá operações nem criará gatilhos automáticos.</li>
           </ul>
           <p className="trading-system-footnote">Beta experimental: M15 aproximado a partir de M2 completo, sem lookahead. A fronteira 2→15 minutos não pode ser repartida exatamente sem M1/ticks; VWAP e TPV também usam OHLCV agregado. A validação numérica com o Pine v13 original permanece necessária.</p>
-          <StrategyAveragesPanel strategyId="MTF_ANGULACAO" settings={movingAverages}
-            disabled={disabled} onSave={(value) => onSaveStrategy(value, "MTF_ANGULACAO")} />
           <button type="button" className="trading-system-select" disabled={disabled}
             onClick={() => onSelect("MTF_ANGULACAO")}>
             {selectedStrategyId === "MTF_ANGULACAO" ? "Ir ao Simulador com este sistema" : "Selecionar e treinar com este sistema (beta)"}
