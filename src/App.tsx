@@ -62,6 +62,10 @@ import {
 } from "./data/demoMarket";
 import { useReplayPlayer } from "./hooks/useReplayPlayer";
 import { indicator } from "./services/indicator";
+import { calculateMtfConfluence, MTF_CONFLUENCE_VERSION } from "./services/mtfConfluence";
+import {
+  normalizeStrategyId, strategyLabel, strategySelectionAllowed,
+} from "./domain/tradingStrategies";
 import {
   deleteAllDatabaseData,
   deleteAllTrades,
@@ -92,10 +96,17 @@ import type {
   TrainingEvent,
   TrainingMode,
   TrainingSession,
+  TradingStrategyId,
 } from "./types";
 import type { SimulationPlan } from "./domain/simulationPlan";
 
 const THEME_KEY = "simulador-de-trade:theme";
+const STRATEGY_KEY = "simulador-de-trade:strategy";
+
+function initialStrategyId(): TradingStrategyId {
+  try { return normalizeStrategyId(localStorage.getItem(STRATEGY_KEY)); }
+  catch { return "MULTI_MEDIAS"; }
+}
 
 const money = new Intl.NumberFormat("pt-BR", {
   maximumFractionDigits: 2,
@@ -153,6 +164,7 @@ function ocoLevelsFromDistances(asset: Asset, side: Side, entry: number, stopPoi
 export default function App() {
   const [activeArea, setActiveArea] = useState<"SIMULADOR" | "PREGOES" | "RESULTADOS" | "EVOLUCAO" | "SISTEMAS" | "MANUAL" | "CONFIGURACOES">("SIMULADOR");
   const [asset, setAsset] = useState<Asset>("WINFUT");
+  const [selectedStrategyId, setSelectedStrategyId] = useState<TradingStrategyId>(initialStrategyId);
   const [dataMode, setDataMode] = useState<DataMode>("demo");
   const [candles, setCandles] = useState(() => createDemoCandles("WINFUT"));
   const [currentReplayTrade, setCurrentReplayTrade] =
@@ -258,6 +270,7 @@ export default function App() {
         ...candle,
         index: offset + index,
       }));
+      if (selectedStrategyId === "MTF_ANGULACAO") return;
       const closedEvaluation = indicator.calculate(
         asset,
         [...hidden, ...closedVisible],
@@ -278,7 +291,7 @@ export default function App() {
         );
       }
     },
-    [asset, dataMode, replayTimeframeMinutes, trainingSession?.id, trainingSession?.status, warmupCandles],
+    [asset, dataMode, replayTimeframeMinutes, trainingSession?.id, trainingSession?.status, warmupCandles, selectedStrategyId],
   );
 
   const flushReplayBatch = useCallback((lastTrade: ReplayTrade) => {
@@ -317,16 +330,23 @@ export default function App() {
     return [...hidden, ...visibleCandles.slice(0, -1)];
   }, [candles, dataMode, visibleCandles, warmupCandles]);
 
-  const indicatorEvaluation = useMemo(
-    () => indicator.calculate(asset, indicatorCandles, trainingSession?.id ?? "preview"),
-    [asset, indicatorCandles, trainingSession?.id],
+  const mtfEvaluation = useMemo(
+    () => selectedStrategyId === "MTF_ANGULACAO"
+      ? calculateMtfConfluence(indicatorCandles) : null,
+    [selectedStrategyId, indicatorCandles],
+  );
+  const indicatorEvaluation: IndicatorEvaluation = useMemo(
+    () => selectedStrategyId === "MTF_ANGULACAO"
+      ? { authorization: null, signals: [], series: [], zone: mtfEvaluation?.zone ?? "NONE" }
+      : indicator.calculate(asset, indicatorCandles, trainingSession?.id ?? "preview"),
+    [selectedStrategyId, asset, indicatorCandles, trainingSession?.id, mtfEvaluation?.zone],
   );
   const signal = indicatorEvaluation.authorization;
   const signalAlreadyUsed = Boolean(
     signal && usedSignalIdsRef.current.has(signal.id),
   );
   const reentryAuthorization = useMemo(() => {
-    if (!lastClosedTradeMarker) return null;
+    if (selectedStrategyId === "MTF_ANGULACAO" || !lastClosedTradeMarker) return null;
     const side = lastClosedTradeMarker.trade.side;
     const requiredZone = side === "BUY" ? "GREEN" : "RED";
     if (indicatorEvaluation.zone !== requiredZone) return null;
@@ -368,10 +388,10 @@ export default function App() {
       price: authorizationCandle.close,
       method,
     };
-  }, [lastClosedTradeMarker, signal?.id, signalAlreadyUsed, indicatorEvaluation.series, indicatorEvaluation.zone, indicatorCandles]);
-  const authorizedSideForChart = signal && !signalAlreadyUsed
-    ? signal.side
-    : reentryAuthorization?.side ?? null;
+  }, [selectedStrategyId, lastClosedTradeMarker, signal?.id, signalAlreadyUsed, indicatorEvaluation.series, indicatorEvaluation.zone, indicatorCandles]);
+  const authorizedSideForChart: Side | null = selectedStrategyId === "MTF_ANGULACAO"
+    ? mtfEvaluation?.zone === "GREEN" ? "BUY" : mtfEvaluation?.zone === "RED" ? "SELL" : null
+    : signal && !signalAlreadyUsed ? signal.side : reentryAuthorization?.side ?? null;
   const lastCandle = visibleCandles[visibleCandles.length - 1];
   const lastPrice = lastCandle?.close ?? 0;
   const trainingActive = trainingSession?.status === "ACTIVE";
@@ -554,7 +574,7 @@ export default function App() {
   }, [dataMode, lastCandle, position]);
 
   useEffect(() => {
-    if (!signal || position || !lastCandle) return;
+    if (selectedStrategyId === "MTF_ANGULACAO" || !signal || position || !lastCandle) return;
 
     if (protectNextAutoFeedbackRef.current) {
       protectNextAutoFeedbackRef.current = false;
@@ -596,7 +616,7 @@ export default function App() {
   ]);
 
   useEffect(() => {
-    if (signal || position || !lastCandle) return;
+    if (selectedStrategyId === "MTF_ANGULACAO" || signal || position || !lastCandle) return;
 
     if (protectNextAutoFeedbackRef.current) {
       protectNextAutoFeedbackRef.current = false;
@@ -610,7 +630,17 @@ export default function App() {
           : `Candle posterior tocou na MME 52. Reentrada de ${sideLabel(reentryAuthorization.side).toLowerCase()} autorizada.`
         : "Sem zona autorizadora ativa, toque na MME 52 ou dez candles fechados após um stop. Compra e Venda permanecem bloqueadas.",
     );
-  }, [indicatorEvaluation.zone, signal, position, lastCandle?.index, reentryAuthorization?.id]);
+  }, [selectedStrategyId, indicatorEvaluation.zone, signal, position, lastCandle?.index, reentryAuthorization?.id]);
+
+  useEffect(() => {
+    if (selectedStrategyId !== "MTF_ANGULACAO" || position || !lastCandle) return;
+    const message = mtfEvaluation?.zone === "GREEN"
+      ? "Confluência M15 positiva: somente compras manuais autorizadas."
+      : mtfEvaluation?.zone === "RED"
+        ? "Confluência M15 negativa: somente vendas manuais autorizadas."
+        : "Confluência M15 neutra ou incompleta: novas entradas bloqueadas.";
+    setFeedback(message);
+  }, [selectedStrategyId, mtfEvaluation?.zone, position, lastCandle?.index]);
 
   useEffect(() => {
     if (!replay.error) return;
@@ -840,6 +870,7 @@ export default function App() {
       timeframeMinutes,
       warmupBars: simulationPlan.warmupBars,
       mode: trainingMode,
+      strategyId: selectedStrategyId,
       startingBalanceBRL,
     });
     const startedEvent = createTrainingEvent({
@@ -858,7 +889,7 @@ export default function App() {
     );
 
     setFeedback(
-      `Treino iniciado para ${session.tradeDate}, das ${session.startTime} às ${session.endTime}.`,
+      `Treino com ${strategyLabel(selectedStrategyId)} iniciado para ${session.tradeDate}, das ${session.startTime} às ${session.endTime}.`,
     );
     startingTrainingRef.current = false;
     setStartingTraining(false);
@@ -1008,10 +1039,17 @@ export default function App() {
       if (!lastCandle) {
         throw new TradingRuleError("Não há candle disponível para executar a entrada.");
       }
-      const useFreshSignal = Boolean(signal && !signalAlreadyUsed);
-      const useReentry = !useFreshSignal && Boolean(reentryAuthorization && reentryAuthorization.side === side);
-      if (!useFreshSignal && !useReentry) {
-        throw new TradingRuleError("Entrada fora do operacional: aguarde um sinal válido, um toque posterior na MME 52 ou dez candles fechados após um stop.");
+      // Sistema 02: o fundo direcional autoriza apenas a DIREÇÃO. Não cria
+      // gatilho automático nem depende da regra de reentrada da estratégia 01.
+      const useMtfPermission = selectedStrategyId === "MTF_ANGULACAO" &&
+        authorizedSideForChart === side && mtfEvaluation?.points.length;
+      const useFreshSignal = selectedStrategyId === "MULTI_MEDIAS" && Boolean(signal && !signalAlreadyUsed);
+      const useReentry = selectedStrategyId === "MULTI_MEDIAS" && !useFreshSignal &&
+        Boolean(reentryAuthorization && reentryAuthorization.side === side);
+      if (!useFreshSignal && !useReentry && !useMtfPermission) {
+        throw new TradingRuleError(selectedStrategyId === "MTF_ANGULACAO"
+          ? "Entrada bloqueada: aguarde confluência M15 verde para comprar ou vermelha para vender. Em cinza, não há autorização."
+          : "Entrada fora do operacional: aguarde um sinal válido, um toque posterior na MME 52 ou dez candles fechados após um stop.");
       }
       const entrySignal = useFreshSignal ? signal : null;
       const orderEntry = draftEntryPrice !== null && draftSide === side ? draftEntryPrice : lastPrice;
@@ -1022,14 +1060,16 @@ export default function App() {
         ? currentReplayTrade.timestamp
         : new Date().toISOString();
 
+      const mtfPermissionId = useMtfPermission
+        ? `mtf-confluence:${asset}:${lastCandle.index}:${side}` : null;
       const contextSignal: IndicatorSignal | null = entrySignal ?? (
-        useReentry && reentryAuthorization
+        useMtfPermission || (useReentry && reentryAuthorization)
           ? {
-              id: reentryAuthorization.id,
+              id: mtfPermissionId ?? reentryAuthorization!.id,
               asset,
               side,
-              candleIndex: reentryAuthorization.candleIndex,
-              timestamp: reentryAuthorization.timestamp,
+              candleIndex: useMtfPermission ? lastCandle.index : reentryAuthorization!.candleIndex,
+              timestamp: useMtfPermission ? lastCandle.timestamp : reentryAuthorization!.timestamp,
               price: orderEntry,
               label: side === "BUY" ? "Compra" : "Venda",
             }
@@ -1041,7 +1081,8 @@ export default function App() {
         evaluation: indicatorEvaluation,
         signal: contextSignal,
         marketTimestamp,
-        indicatorVersion: indicator.version,
+        indicatorVersion: selectedStrategyId === "MTF_ANGULACAO"
+          ? MTF_CONFLUENCE_VERSION : indicator.version,
       });
 
       const nextPosition = openPosition(
@@ -1061,9 +1102,10 @@ export default function App() {
           entryContext,
           signalAlreadyUsed: entrySignal ? signalAlreadyUsed : false,
           hasOpenPosition: Boolean(position),
-          reentryAuthorized: useReentry,
-          reentrySide: useReentry ? reentryAuthorization?.side : undefined,
-          reentryAuthorizationId: useReentry ? reentryAuthorization?.id : undefined,
+          // A API de execução usa este campo como autorização manual sem sinal.
+          reentryAuthorized: Boolean(useReentry || useMtfPermission),
+          reentrySide: useMtfPermission ? side : useReentry ? reentryAuthorization?.side : undefined,
+          reentryAuthorizationId: mtfPermissionId ?? (useReentry ? reentryAuthorization?.id : undefined),
         },
         openedAt,
       );
@@ -1076,12 +1118,12 @@ export default function App() {
       recordTrainingEvent({
         type: "TRADE_OPENED",
         marketTimestamp: currentReplayTrade?.timestamp ?? null,
-        signalId: entrySignal?.id ?? (useReentry ? reentryAuthorization?.id ?? null : null),
+        signalId: entrySignal?.id ?? mtfPermissionId ?? (useReentry ? reentryAuthorization?.id ?? null : null),
         side,
         tradeId: nextPosition.id,
       });
       setFeedback(
-        `${sideLabel(side)} aberta em ${money.format(orderEntry)} com OCO obrigatório ativo.${useReentry ? reentryAuthorization?.method === "STOP_COOLDOWN" ? " Reentrada autorizada após dez candles fechados desde o stop." : " Reentrada autorizada pelo toque posterior na MME 52." : ""}`,
+        `${sideLabel(side)} aberta em ${money.format(orderEntry)} com OCO obrigatório ativo.${useMtfPermission ? " Entrada manual autorizada pela confluência M15." : useReentry ? reentryAuthorization?.method === "STOP_COOLDOWN" ? " Reentrada autorizada após dez candles fechados desde o stop." : " Reentrada autorizada pelo toque posterior na MME 52." : ""}`,
       );
       // Após a entrada, a reprodução continua com a posição sendo monitorada.
       if (dataMode === "replay" && replay.session && !replay.finished) {
@@ -1205,6 +1247,30 @@ export default function App() {
     }
   }
 
+  function selectStrategy(next: TradingStrategyId) {
+    if (!strategySelectionAllowed(trainingActive, Boolean(position), startingTraining || loadingReplay)) {
+      setFeedback("Finalize a sessão e a posição antes de trocar de sistema.");
+      return;
+    }
+    if (next === selectedStrategyId) { setActiveArea("SIMULADOR"); return; }
+    setSelectedStrategyId(next);
+    try { localStorage.setItem(STRATEGY_KEY, next); } catch { /* preferência opcional */ }
+    setTrainingSession(null);
+    setTrainingEvents([]);
+    setLastClosedTradeMarker(null);
+    setDraftEntryPrice(null);
+    setDraftSide(null);
+    setStopDistance("");
+    setTargetDistance("");
+    activeSignalRef.current = null;
+    lastSeenReplaySignalRef.current = null;
+    usedSignalIdsRef.current = new Set();
+    ignoredSignalIdsRef.current = new Set();
+    lastSuggestedSignalIdRef.current = null;
+    setActiveArea("SIMULADOR");
+    setFeedback(`Sistema selecionado: ${strategyLabel(next)}. O replay e os dados já importados continuam disponíveis.`);
+  }
+
   const historyTradesForDisplay = visibleTradesForTrainingState(
     trades,
     trainingSession,
@@ -1217,7 +1283,7 @@ export default function App() {
         <div>
           <h1>Simulador de Trade</h1>
           <p className="subtitle">
-            WINFUT e WDOFUT · Multi Médias - Nuvem e Sinais · OCO obrigatório
+            WINFUT e WDOFUT · {strategyLabel(selectedStrategyId)} · OCO obrigatório
           </p>
         </div>
 
@@ -1254,9 +1320,11 @@ export default function App() {
         </div>
 
         <div className="indicator-name">
-          <span>Indicador</span>
-          <strong>{indicator.name}</strong>
-          <small>MME 8 · MMP 20 · MME 52 · VWAP Session</small>
+          <span>Sistema de trading</span>
+          <strong>{strategyLabel(selectedStrategyId)}</strong>
+          <small>{selectedStrategyId === "MTF_ANGULACAO"
+            ? "M15 MME 8/20/50/200 · ATR · VWAP · TPV · entrada manual"
+            : "MME 8 · MMP 20 · MME 52 · VWAP Session"}</small>
         </div>
       </section>
 
@@ -1271,11 +1339,27 @@ export default function App() {
       </nav>
 
       <section className="app-area" hidden={activeArea !== "SISTEMAS"}>
-        <TradingSystemsPanel />
+        <TradingSystemsPanel selectedStrategyId={selectedStrategyId}
+          disabled={!strategySelectionAllowed(trainingActive, Boolean(position), startingTraining || loadingReplay)}
+          onSelect={selectStrategy} />
       </section>
 
       <section className="app-area simulator-area" hidden={activeArea !== "SIMULADOR"}>
-      {/* Fluxo principal: planejar → conferir → preparar → carregar → treinar. */}
+      {/* Fluxo principal: escolher sistema → planejar → preparar → carregar → treinar. */}
+      <section className="strategy-selection-panel card" aria-label="Escolher estratégia de treinamento">
+        <div>
+          <h2>Estratégia de treinamento</h2>
+          <p>Escolha antes de iniciar a sessão. Cada sistema possui sua própria autorização de entradas.</p>
+        </div>
+        <label htmlFor="strategy-select">Sistema
+          <select id="strategy-select" value={selectedStrategyId}
+            disabled={!strategySelectionAllowed(trainingActive, Boolean(position), startingTraining || loadingReplay)}
+            onChange={(event) => selectStrategy(event.target.value as TradingStrategyId)}>
+            <option value="MULTI_MEDIAS">01 — Multi Médias · Nuvem e Sinais</option>
+            <option value="MTF_ANGULACAO">02 — MMs MTF + Angulação (beta)</option>
+          </select>
+        </label>
+      </section>
       <SimulationPlanner
         disabled={trainingActive || Boolean(position) || startingTraining}
         onPlanChange={async (plan) => {
@@ -1359,6 +1443,7 @@ export default function App() {
         summary={trainingSummary}
         events={trainingEvents}
         mode={trainingMode}
+        selectedStrategyId={selectedStrategyId}
         startingBalanceBRL={executionSettings.disciplinedTrainingStartingBalanceBRL ?? null}
         onModeChange={setTrainingMode}
         canStart={
@@ -1420,7 +1505,7 @@ export default function App() {
             <div>
               <h2>{asset}</h2>
             </div>
-            <SignalBadge evaluation={indicatorEvaluation} signalAlreadyUsed={signalAlreadyUsed} reentrySide={reentryAuthorization?.side ?? null} reentryMethod={reentryAuthorization?.method ?? null} />
+            <SignalBadge strategyId={selectedStrategyId} evaluation={indicatorEvaluation} signalAlreadyUsed={signalAlreadyUsed} reentrySide={reentryAuthorization?.side ?? null} reentryMethod={reentryAuthorization?.method ?? null} />
           </div>
 
           {visibleCandles.length || warmupCandles.length ? (
@@ -1428,6 +1513,8 @@ export default function App() {
               candles={visibleCandles}
               contextCandles={warmupCandles}
               evaluation={indicatorEvaluation}
+              strategyId={selectedStrategyId}
+              mtfPoints={mtfEvaluation?.points ?? []}
               position={position}
               asset={asset}
               draftOrder={draftOrder}
@@ -1456,7 +1543,9 @@ export default function App() {
 
           <div className="rule-box">
             <strong>Regras</strong>
-            <span>Compra na zona verde; venda na vermelha. Risco/retorno mínimo: 1:2. Reentrada após toque na MME 52 ou dez candles fechados depois de um stop.</span>
+            <span>{selectedStrategyId === "MTF_ANGULACAO"
+              ? "Confluência M15 verde: somente compra manual; vermelha: somente venda manual; cinza: bloqueado. OCO e risco/retorno mínimo de 1:2 são obrigatórios."
+              : "Compra na zona verde; venda na vermelha. Risco/retorno mínimo: 1:2. Reentrada após toque na MME 52 ou dez candles fechados depois de um stop."}</span>
           </div>
 
           <label>
@@ -1780,16 +1869,29 @@ export default function App() {
 }
 
 function SignalBadge({
+  strategyId,
   evaluation,
   signalAlreadyUsed = false,
   reentrySide = null,
   reentryMethod = null,
 }: {
+  strategyId: TradingStrategyId;
   evaluation: IndicatorEvaluation;
   signalAlreadyUsed?: boolean;
   reentrySide?: Side | null;
   reentryMethod?: "MA52" | "STOP_COOLDOWN" | null;
 }) {
+  if (strategyId === "MTF_ANGULACAO") {
+    return (
+      <div className={`signal-badge ${evaluation.zone === "GREEN" ? "buy" : evaluation.zone === "RED" ? "sell" : "neutral"}`}>
+        {evaluation.zone === "GREEN"
+          ? "M15 · somente compra manual autorizada"
+          : evaluation.zone === "RED"
+            ? "M15 · somente venda manual autorizada"
+            : "M15 · sem confluência para nova entrada"}
+      </div>
+    );
+  }
   const signal = evaluation.authorization;
 
   if (reentrySide && (!signal || signalAlreadyUsed)) {
