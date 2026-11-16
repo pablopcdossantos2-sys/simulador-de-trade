@@ -81,8 +81,7 @@ export function StrategyAveragesPanel({ strategyId, settings, disabled, onSave }
           ...settings.mtf.filters, ...filters,
           voteOn: [...filters.voteOn] as [boolean, boolean, boolean, boolean],
           angleThresholds: angleFields.map((value) =>
-            value.trim() === "" ? Number.NaN : Number(value.replace(",", ".")))
-            as [number, number, number, number],
+            value.trim() === "" ? Number.NaN : Number(value.replace(",", "."))) as [number, number, number, number],
         },
       },
     };

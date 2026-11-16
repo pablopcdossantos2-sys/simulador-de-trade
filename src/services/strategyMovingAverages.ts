@@ -95,8 +95,7 @@ export function normalizeMovingAverageSettings(raw: unknown): MovingAverageSetti
         ...DEFAULT_MTF_VOTE_FILTERS,
         ...value.mtf.filters,
         voteOn: [...value.mtf.filters.voteOn] as [boolean, boolean, boolean, boolean],
-        angleThresholds: [...(value.mtf.filters.angleThresholds ?? MTF_CONFLUENCE_DEFAULTS.angleThresholds)]
-          as [number, number, number, number],
+        angleThresholds: [...(value.mtf.filters.angleThresholds ?? MTF_CONFLUENCE_DEFAULTS.angleThresholds)] as [number, number, number, number],
       } : defaults.mtf.filters,
     } : defaults.mtf,
   };
