@@ -172,3 +172,12 @@ it("aquecimento considera a quarta média somente quando participa do fundo", ()
   input.movingAverages.mtf.filters.voteOn[3] = false;
   expect(calculateSimulationPlan(input).warmupBars).toBe(450);
 });
+
+it("usa janelas integrais de pregão por ativo e data na importação independente", async () => {
+  const { fullSessionStartForDate, fullSessionEndForDate } = await import("./simulationPlan");
+  expect(fullSessionStartForDate("2026-02-18")).toBe("13:00");
+  expect(fullSessionStartForDate("2026-11-11")).toBe("09:00");
+  expect(fullSessionEndForDate("WINFUT", "2026-11-11")).toBe("18:25");
+  expect(fullSessionEndForDate("WINFUT", "2026-02-11")).toBe("18:00");
+  expect(fullSessionEndForDate("WDOFUT", "2026-11-11")).toBe("18:30");
+});
