@@ -1,4 +1,12 @@
-export function TradingSystemsPanel() {
+import type { TradingStrategyId } from "../types";
+
+interface Props {
+  selectedStrategyId: TradingStrategyId;
+  disabled: boolean;
+  onSelect: (id: TradingStrategyId) => void;
+}
+
+export function TradingSystemsPanel({ selectedStrategyId, disabled, onSelect }: Props) {
   return (
     <section className="trading-systems-page">
       <header className="trading-systems-intro card">
@@ -13,7 +21,7 @@ export function TradingSystemsPanel() {
               <span className="trading-system-index">SISTEMA 01</span>
               <h3>Multi Médias — Nuvem e Sinais</h3>
             </div>
-            <span className="trading-system-status available">Sistema atual</span>
+            <span className="trading-system-status available">Disponível</span>
           </div>
           <p className="trading-system-summary">Sistema direcional baseado no alinhamento de três médias móveis e na posição do preço em relação à VWAP.</p>
           <div className="trading-system-indicators">
@@ -30,6 +38,10 @@ export function TradingSystemsPanel() {
             <li>Candle de baixa para iniciar a zona vendedora.</li>
           </ul>
           <p className="trading-system-footnote">O sinal é gerado quando uma nova zona direcional começa. A zona permanece ativa enquanto o alinhamento correspondente continuar válido.</p>
+          <button type="button" className="trading-system-select" disabled={disabled || selectedStrategyId === "MULTI_MEDIAS"}
+            onClick={() => onSelect("MULTI_MEDIAS")}>
+            {selectedStrategyId === "MULTI_MEDIAS" ? "Sistema selecionado" : "Treinar com este sistema"}
+          </button>
         </article>
 
         <article className="trading-system-card card">
@@ -38,9 +50,9 @@ export function TradingSystemsPanel() {
               <span className="trading-system-index">SISTEMA 02</span>
               <h3>MMs MTF + Angulação</h3>
             </div>
-            <span className="trading-system-status planned">Em implementação</span>
+            <span className="trading-system-status planned">Beta para testes</span>
           </div>
-          <p className="trading-system-summary">Sistema de contexto multi-timeframe. A base de agregação causal já está sendo preparada para calcular as médias de 15 minutos a partir do replay de 2 minutos, sem utilizar candles futuros.</p>
+          <p className="trading-system-summary">Estratégia de confluência causal em M15: três médias participantes (8, 20, 50), VWAP ancorada, TPV e alinhamento. A EMA 200 é exibida, mas não vota por padrão.</p>
           <div className="trading-system-indicators">
             <span>Gráfico M2</span><span>Médias M15</span><span>VWAP MTF</span><span>TPV</span><span>ATR e ângulos</span>
           </div>
@@ -48,8 +60,9 @@ export function TradingSystemsPanel() {
           <ul>
             <li>Gráfico principal de 2 minutos e timeframe de contexto de 15 minutos.</li>
             <li>Modo causal, sem lookahead: cada atualização considera somente os candles de 2 minutos já disponíveis naquele ponto do replay.</li>
-            <li>Quatro médias EMA, com períodos iniciais 8, 20, 50 e 200; fonte de preço de fechamento e reinício diário.</li>
-            <li>VWAP MTF, TPV, filtros de angulação e alinhamento serão incorporados conforme a especificação do indicador.</li>
+            <li>MME 8, 20, 50 e 200 em M15; por padrão, a MME 200 não participa da confluência, conforme Pine v13.</li>
+            <li>ATR 14 e ângulos das três médias participantes: limiares 2°/1°/1,5°. A VWAP diária usa limiar de 1°, e o TPV usa média de 50 barras e proximidade de 0,45 desvio.</li>
+            <li>O fundo verde/vermelho exige todos os votos concordantes e alinhamento estrito das médias; em caso contrário, não há autorização operacional.</li>
           </ul>
           <h4>Autorização operacional</h4>
           <ul>
@@ -58,7 +71,11 @@ export function TradingSystemsPanel() {
             <li>Fundo cinza: não autoriza novas operações.</li>
             <li>A entrada será posicionada manualmente pelo usuário no gráfico. O sistema não abrirá operações nem criará gatilhos automáticos.</li>
           </ul>
-          <p className="trading-system-footnote">A agregação M2 → M15 utiliza candles completos de 2 minutos. Como 2 não divide 15, um candle M2 pode atravessar a fronteira de um candle M15; sem os negócios individuais não é possível repartir seu OHLCV com exatidão. Para preservar a causalidade, ele só é incorporado depois de fechado, podendo atrasar a atualização do contexto em até um candle M2.</p>
+          <p className="trading-system-footnote">Beta experimental: M15 aproximado a partir de M2 completo, sem lookahead. A fronteira 2→15 minutos não pode ser repartida exatamente sem M1/ticks; VWAP e TPV também usam OHLCV agregado. A validação numérica com o Pine v13 original permanece necessária.</p>
+          <button type="button" className="trading-system-select" disabled={disabled || selectedStrategyId === "MTF_ANGULACAO"}
+            onClick={() => onSelect("MTF_ANGULACAO")}>
+            {selectedStrategyId === "MTF_ANGULACAO" ? "Sistema selecionado" : "Treinar com este sistema (beta)"}
+          </button>
         </article>
       </div>
     </section>
