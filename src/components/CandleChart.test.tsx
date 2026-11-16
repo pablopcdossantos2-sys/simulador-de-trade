@@ -44,3 +44,30 @@ describe("gráfico da primeira estratégia: Multi Médias", () => {
     expect(html).not.toContain("MMP 20");
   });
 });
+
+it("mostra no gráfico exatamente os períodos personalizados para cada estratégia", () => {
+  const candles = INDICATOR_V1_REGRESSION_CANDLES;
+  const settings = {
+    multiMedias: { emaFastLength: 5, wmaLength: 12, emaSlowLength: 30 },
+    mtf: { periods: [10, 24, 60, 250] as [number,number,number,number] },
+  };
+  const first = renderToStaticMarkup(
+    <CandleChart candles={candles} evaluation={new MultiMediasNuvemAdapter({
+      ...new MultiMediasNuvemAdapter().config, ...settings.multiMedias,
+    }).calculate("WINFUT", candles)} asset="WINFUT" position={null}
+      movingAverages={settings} />,
+  );
+  expect(first).toContain("MME 5");
+  expect(first).toContain("MMP 12");
+  expect(first).toContain("MME 30");
+  expect(first).not.toContain("M15 MME");
+
+  const second = renderToStaticMarkup(
+    <CandleChart candles={candles} evaluation={{ authorization: null, signals: [], series: [], zone: "NONE" }}
+      strategyId="MTF_ANGULACAO" mtfPoints={calculateMtfConfluence(candles, settings.mtf.periods).points}
+      movingAverages={settings} asset="WINFUT" position={null} />,
+  );
+  expect(second).toContain("M15 MME 10");
+  expect(second).toContain("M15 MME 250");
+  expect(second).not.toContain("MMP 12");
+});

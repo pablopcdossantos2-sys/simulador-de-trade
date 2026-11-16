@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type MouseEvent as ReactMouseEvent } from "react";
 import type { MtfConfluencePoint } from "../services/mtfConfluence";
-import type { TradingStrategyId } from "../types";
+import type { MovingAverageSettings, TradingStrategyId } from "../types";
+import { DEFAULT_MOVING_AVERAGE_SETTINGS } from "../services/strategyMovingAverages";
 import type { Asset, Candle, IndicatorEvaluation, IndicatorPoint, Position, Side } from "../types";
 
 interface Props {
@@ -9,6 +10,7 @@ interface Props {
   evaluation: IndicatorEvaluation;
   strategyId?: TradingStrategyId;
   mtfPoints?: MtfConfluencePoint[];
+  movingAverages?: MovingAverageSettings;
   position: Position | null;
   asset: Asset;
   draftOrder?: { side: Side; entry: number; stopLoss: number; target: number } | null;
@@ -109,6 +111,7 @@ export function CandleChart({
   evaluation,
   strategyId = "MULTI_MEDIAS",
   mtfPoints = [],
+  movingAverages = DEFAULT_MOVING_AVERAGE_SETTINGS,
   position,
   asset,
   draftOrder = null,
@@ -388,7 +391,7 @@ export function CandleChart({
           <div className="chart-mtf-readout" aria-label="Indicadores M15 do candle selecionado">
             <strong>M15</strong>
             {(["M1", "M2", "M3", "M4"] as const).map((id, index) => (
-              <span key={id}>MME {[8, 20, 50, 200][index]}: {readoutMtf?.averages[id] == null
+              <span key={id}>MME {movingAverages.mtf.periods[index]}: {readoutMtf?.averages[id] == null
                 ? "—" : formatPrice(readoutMtf.averages[id]!, asset)}</span>
             ))}
             <span>VWAP: {readoutMtf?.vwap == null ? "—" : formatPrice(readoutMtf.vwap, asset)}</span>
@@ -430,17 +433,16 @@ export function CandleChart({
       <div className="indicator-legend" aria-label="Legenda do indicador">
         {showMtf ? (
           <>
-            <span className="legend-mtf-m1">M15 MME 8</span>
-            <span className="legend-mtf-m2">M15 MME 20</span>
-            <span className="legend-mtf-m3">M15 MME 50</span>
-            <span className="legend-mtf-m4">M15 MME 200</span>
+            {movingAverages.mtf.periods.map((period, index) => (
+              <span key={index} className={`legend-mtf-m${index+1}`}>M15 MME {period}</span>
+            ))}
             <span className="legend-mtf-vwap">VWAP M15</span>
             <span className="legend-volume">Volume</span>
           </>
         ) : (
           <>
-            <span className="legend-wma">MMP 20</span><span className="legend-vwap">VWAP</span>
-            <span className="legend-ema8">MME 8</span><span className="legend-ema52">MME 52</span>
+            <span className="legend-wma">MMP {movingAverages.multiMedias.wmaLength}</span><span className="legend-vwap">VWAP</span>
+            <span className="legend-ema8">MME {movingAverages.multiMedias.emaFastLength}</span><span className="legend-ema52">MME {movingAverages.multiMedias.emaSlowLength}</span>
             <span className="legend-volume">Volume</span>
           </>
         )}

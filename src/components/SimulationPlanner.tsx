@@ -4,11 +4,12 @@ import {
   DEFAULT_TIMEFRAME_MINUTES,
   type SimulationPlan,
 } from "../domain/simulationPlan";
-import type { Asset, TradingStrategyId } from "../types";
+import type { Asset, MovingAverageSettings, TradingStrategyId } from "../types";
 
 interface Props {
   onPlanChange?: (plan: SimulationPlan) => void | Promise<void>;
   strategyId?: TradingStrategyId;
+  movingAverages?: MovingAverageSettings;
   disabled?: boolean;
 }
 
@@ -25,7 +26,7 @@ function brDate(value: string): string {
   return `${day}/${month}/${year}`;
 }
 
-export function SimulationPlanner({ onPlanChange, strategyId = "MULTI_MEDIAS", disabled = false }: Props) {
+export function SimulationPlanner({ onPlanChange, strategyId = "MULTI_MEDIAS", movingAverages, disabled = false }: Props) {
   const [asset, setAsset] = useState<Asset>("WINFUT");
   const [date, setDate] = useState(currentLocalDate);
   const timeframeMinutes = DEFAULT_TIMEFRAME_MINUTES;
@@ -33,7 +34,7 @@ export function SimulationPlanner({ onPlanChange, strategyId = "MULTI_MEDIAS", d
   const result = useMemo(() => {
     try {
       return {
-        plan: calculateSimulationPlan({ asset, date, timeframeMinutes, strategyId }),
+        plan: calculateSimulationPlan({ asset, date, timeframeMinutes, strategyId, movingAverages }),
         error: null,
       };
     } catch (error) {
@@ -42,7 +43,7 @@ export function SimulationPlanner({ onPlanChange, strategyId = "MULTI_MEDIAS", d
         error: error instanceof Error ? error.message : String(error),
       };
     }
-  }, [asset, date, strategyId]);
+  }, [asset, date, strategyId, movingAverages]);
 
   function applyPlan() {
     if (disabled || !result.plan) return;
@@ -96,7 +97,7 @@ export function SimulationPlanner({ onPlanChange, strategyId = "MULTI_MEDIAS", d
               <strong>{result.plan.warmupBars.toLocaleString("pt-BR")} candles</strong>
               <small>{strategyId === "MTF_ANGULACAO"
                 ? "Histórico M2 oculto para aquecer as médias M15, ATR e TPV de 50 períodos"
-                : "Ocultos durante o treino para estabilizar a MME 52"}</small>
+                : `Ocultos durante o treino para estabilizar a MME ${movingAverages?.multiMedias.emaSlowLength ?? 52}`}</small>
             </div>
           </div>
 

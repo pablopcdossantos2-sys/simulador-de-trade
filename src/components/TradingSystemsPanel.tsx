@@ -1,12 +1,15 @@
-import type { TradingStrategyId } from "../types";
+import type { MovingAverageSettings, TradingStrategyId } from "../types";
+import { DEFAULT_MOVING_AVERAGE_SETTINGS } from "../services/strategyMovingAverages";
 
 interface Props {
   selectedStrategyId: TradingStrategyId;
+  movingAverages?: MovingAverageSettings;
   disabled: boolean;
   onSelect: (id: TradingStrategyId) => void;
 }
 
-export function TradingSystemsPanel({ selectedStrategyId, disabled, onSelect }: Props) {
+export function TradingSystemsPanel({ selectedStrategyId, movingAverages = DEFAULT_MOVING_AVERAGE_SETTINGS, disabled, onSelect }: Props) {
+  const { emaFastLength, wmaLength, emaSlowLength } = movingAverages.multiMedias;
   return (
     <section className="trading-systems-page">
       <header className="trading-systems-intro card">
@@ -25,19 +28,19 @@ export function TradingSystemsPanel({ selectedStrategyId, disabled, onSelect }: 
           </div>
           <p className="trading-system-summary">Sistema direcional baseado no alinhamento de três médias móveis e na posição do preço em relação à VWAP.</p>
           <div className="trading-system-indicators">
-            <span>MME 8</span><span>MMP 20</span><span>MME 52</span><span>VWAP de sessão</span>
+            <span>MME {emaFastLength}</span><span>MMP {wmaLength}</span><span>MME {emaSlowLength}</span><span>VWAP de sessão</span>
           </div>
           <h4>Condições de compra</h4>
           <ul>
-            <li>MME 8 acima da MMP 20, e MMP 20 acima da MME 52.</li>
+            <li>MME {emaFastLength} acima da MMP {wmaLength}, e MMP {wmaLength} acima da MME {emaSlowLength}.</li>
             <li>Candle de alta para iniciar a zona compradora.</li>
           </ul>
           <h4>Condições de venda</h4>
           <ul>
-            <li>MME 52 acima da MMP 20, e MMP 20 acima da MME 8.</li>
+            <li>MME {emaSlowLength} acima da MMP {wmaLength}, e MMP {wmaLength} acima da MME {emaFastLength}.</li>
             <li>Candle de baixa para iniciar a zona vendedora.</li>
           </ul>
-          <p className="trading-system-footnote">O sinal é gerado quando uma nova zona direcional começa. A zona permanece ativa enquanto o alinhamento correspondente continuar válido.</p>
+          <p className="trading-system-footnote">O sinal é gerado quando uma nova zona direcional começa. A zona permanece ativa enquanto o alinhamento correspondente continuar válido. Os períodos podem ser personalizados em Simulador → Configurar médias da estratégia.</p>
           <button type="button" className="trading-system-select" disabled={disabled || selectedStrategyId === "MULTI_MEDIAS"}
             onClick={() => onSelect("MULTI_MEDIAS")}>
             {selectedStrategyId === "MULTI_MEDIAS" ? "Sistema selecionado" : "Treinar com este sistema"}
@@ -52,7 +55,7 @@ export function TradingSystemsPanel({ selectedStrategyId, disabled, onSelect }: 
             </div>
             <span className="trading-system-status planned">Beta para testes</span>
           </div>
-          <p className="trading-system-summary">Estratégia de confluência causal em M15: três médias participantes (8, 20, 50), VWAP ancorada, TPV e alinhamento. A EMA 200 é exibida, mas não vota por padrão.</p>
+          <p className="trading-system-summary">Estratégia de confluência causal em M15: três médias participantes (${movingAverages.mtf.periods.slice(0, 3).join(", ")}), VWAP ancorada, TPV e alinhamento. A quarta MME (${movingAverages.mtf.periods[3]}) é exibida, mas não vota por padrão.</p>
           <div className="trading-system-indicators">
             <span>Gráfico M2</span><span>Médias M15</span><span>VWAP MTF</span><span>TPV</span><span>ATR e ângulos</span>
           </div>
@@ -60,7 +63,7 @@ export function TradingSystemsPanel({ selectedStrategyId, disabled, onSelect }: 
           <ul>
             <li>Gráfico principal de 2 minutos e timeframe de contexto de 15 minutos.</li>
             <li>Modo causal, sem lookahead: cada atualização considera somente os candles de 2 minutos já disponíveis naquele ponto do replay.</li>
-            <li>MME 8, 20, 50 e 200 em M15; por padrão, a MME 200 não participa da confluência, conforme Pine v13.</li>
+            <li>MMEs de períodos {movingAverages.mtf.periods.join(", ")} em M15; a quarta não participa da confluência, conforme o padrão do Pine v13.</li>
             <li>ATR 14 e ângulos das três médias participantes: limiares 2°/1°/1,5°. A VWAP diária usa limiar de 1°, e o TPV usa média de 50 barras e proximidade de 0,45 desvio.</li>
             <li>O fundo verde/vermelho exige todos os votos concordantes e alinhamento estrito das médias; em caso contrário, não há autorização operacional.</li>
           </ul>
