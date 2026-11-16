@@ -90,3 +90,24 @@ it("reserva a leitura do M15 em faixa própria e exibe contagem regressiva de te
   expect(markup).toContain("02:00");
   expect(markup).toContain('class="candle-close-countdown"');
 });
+
+it("recorta preços e médias na área de preço, mantendo barras de volume fora dela", () => {
+  const candles = INDICATOR_V1_REGRESSION_CANDLES;
+  const markup = renderToStaticMarkup(
+    <CandleChart candles={candles}
+      evaluation={new MultiMediasNuvemAdapter().calculate("WINFUT", candles)}
+      asset="WINFUT" position={null} />,
+  );
+  expect(markup).toContain('class="chart-price-layer"');
+  expect(markup).toContain('class="chart-volume-layer"');
+  expect(markup).toContain("<clipPath");
+  expect(markup).toMatch(/class="chart-price-layer"[^>]*clip-path="url\(#/);
+  expect(markup).toMatch(/class="chart-volume-layer"[^>]*clip-path="url\(#/);
+  const priceStart = markup.indexOf('class="chart-price-layer"');
+  const volumeStart = markup.indexOf('class="chart-volume-layer"');
+  const priceBody = markup.slice(priceStart, volumeStart);
+  expect(priceBody).toContain("indicator-ema8-line");
+  expect(priceBody).not.toContain("volume-up");
+  expect(markup.slice(volumeStart)).toContain("volume-up");
+  expect(markup.indexOf("JANELA DE TREINO")).toBeGreaterThan(volumeStart);
+});
