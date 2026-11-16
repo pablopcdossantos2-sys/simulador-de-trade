@@ -28,6 +28,7 @@ function inputsFor(settings: MovingAverageSettings, id: TradingStrategyId): stri
 }
 
 export function StrategyAveragesPanel({ strategyId, settings, disabled, onSave }: Props) {
+  const [expanded, setExpanded] = useState(false);
   const [fields, setFields] = useState(() => inputsFor(settings, strategyId));
   const [filters, setFilters] = useState<MtfVoteFilters>(() => ({
     ...DEFAULT_MTF_VOTE_FILTERS, ...settings.mtf.filters,
@@ -38,6 +39,7 @@ export function StrategyAveragesPanel({ strategyId, settings, disabled, onSave }
 
   useEffect(() => {
     setFields(inputsFor(settings, strategyId));
+    setExpanded(false);
     setFilters({
       ...DEFAULT_MTF_VOTE_FILTERS, ...settings.mtf.filters,
       voteOn: [...(settings.mtf.filters?.voteOn ?? DEFAULT_MTF_VOTE_FILTERS.voteOn)],
@@ -74,6 +76,7 @@ export function StrategyAveragesPanel({ strategyId, settings, disabled, onSave }
       setSaving(true);
       await onSave(next);
       setFeedback("Configurações salvas. Reaplique o plano para preparar o aquecimento correto.");
+      setExpanded(false);
     } catch (error) {
       setFeedback(error instanceof Error ? error.message : "Não foi possível salvar as médias.");
     } finally {
@@ -105,7 +108,8 @@ export function StrategyAveragesPanel({ strategyId, settings, disabled, onSave }
   }
 
   return (
-    <details className="strategy-averages-panel card">
+    <details className="strategy-averages-panel card" open={expanded}
+      onToggle={(event) => setExpanded(event.currentTarget.open)}>
       <summary className="strategy-averages-toggle">
         <span className="strategy-averages-summary">
           <strong>Configurar médias da estratégia</strong>
