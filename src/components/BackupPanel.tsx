@@ -89,17 +89,24 @@ export function BackupPanel({ disabled, onImported }: Props) {
         locais são substituídos pelos dados do backup.
       </p>
 
-      <label className="backup-import-mode">
-        Modo de importação
+      <div className="backup-import-mode">
+        <label htmlFor="backup-import-choice">Modo de importação</label>
         <select
+          id="backup-import-choice"
+          aria-describedby="backup-import-explanation"
           value={importMode}
           onChange={(event) => setImportMode(event.target.value as "merge" | "replace_all")}
           disabled={disabled || busy !== null || !available}
         >
-          <option value="merge">Mesclar — preservar registros locais e configurações atuais</option>
-          <option value="replace_all">Substituir tudo — restaurar também as configurações do backup</option>
+          <option value="merge">Mesclar</option>
+          <option value="replace_all">Substituir tudo</option>
         </select>
-      </label>
+        <small id="backup-import-explanation">
+          {importMode === "merge"
+            ? "Preserva registros e configurações locais; acrescenta informações do backup."
+            : "Substitui registros e configurações locais. Confira o conteúdo do backup antes de continuar."}
+        </small>
+      </div>
 
       <div className="backup-actions">
         <button
