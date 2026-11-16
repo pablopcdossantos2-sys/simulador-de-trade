@@ -67,6 +67,30 @@ fn default_training_strategy() -> String {
     "MULTI_MEDIAS".to_string()
 }
 
+/// Snapshot numérico usado para auditar uma sessão: três períodos do sistema 01
+/// e quatro da confluência M15, todos inteiros e em ordem crescente.
+fn valid_strategy_averages(value: &Value) -> bool {
+    fn period(value: Option<&Value>) -> Option<u64> {
+        value.and_then(Value::as_u64).filter(|p| (2..=300).contains(p))
+    }
+    let Some(multi) = value.get("multiMedias") else { return false; };
+    let Some(fast) = period(multi.get("emaFastLength")) else { return false; };
+    let Some(weighted) = period(multi.get("wmaLength")) else { return false; };
+    let Some(slow) = period(multi.get("emaSlowLength")) else { return false; };
+    if !(fast < weighted && weighted < slow) { return false; }
+    let Some(values) = value.pointer("/mtf/periods").and_then(Value::as_array) else {
+        return false;
+    };
+    if values.len() != 4 { return false; }
+    let mut last = 0;
+    for item in values {
+        let Some(length) = period(Some(item)) else { return false; };
+        if length <= last { return false; }
+        last = length;
+    }
+    true
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct TrainingSessionRecord {
@@ -80,6 +104,8 @@ struct TrainingSessionRecord {
     mode: String,
     #[serde(default = "default_training_strategy")]
     strategy_id: String,
+    #[serde(default)]
+    strategy_averages: Option<Value>,
     started_at: String,
     ended_at: Option<String>,
     status: String,
@@ -654,11 +680,11 @@ fn migrate_legacy_trade_reviews(connection: &Connection) -> rusqlite::Result<()>
 fn initialize_database(connection: &Connection) -> rusqlite::Result<()> {
     let current_schema_version: i64 =
         connection.query_row("PRAGMA user_version", [], |row| row.get(0))?;
-    if current_schema_version > 12 {
+    if current_schema_version > 13 {
         return Err(rusqlite::Error::SqliteFailure(
             rusqlite::ffi::Error::new(rusqlite::ffi::SQLITE_SCHEMA),
             Some(format!(
-                "O banco está na versão {current_schema_version}, mais nova que esta versão do aplicativo (12). Atualize o Simulador de Trade."
+                "O banco está na versão {current_schema_version}, mais nova que esta versão do aplicativo (13). Atualize o Simulador de Trade."
             )),
         ));
     }
@@ -710,6 +736,7 @@ fn initialize_database(connection: &Connection) -> rusqlite::Result<()> {
                 warmup_bars INTEGER NOT NULL,
                 mode TEXT NOT NULL DEFAULT 'FREE',
                 strategy_id TEXT NOT NULL DEFAULT 'MULTI_MEDIAS',
+                strategy_averages_json TEXT,
                 started_at TEXT NOT NULL,
                 ended_at TEXT,
                 status TEXT NOT NULL,
@@ -907,6 +934,12 @@ fn initialize_database(connection: &Connection) -> rusqlite::Result<()> {
             [],
         )?;
     }
+    if !column_exists(connection, "training_sessions", "strategy_averages_json")? {
+        connection.execute(
+            "ALTER TABLE training_sessions ADD COLUMN strategy_averages_json TEXT",
+            [],
+        )?;
+    }
     if !column_exists(connection, "training_sessions", "starting_balance_brl")? {
         connection.execute(
             "ALTER TABLE training_sessions ADD COLUMN starting_balance_brl REAL",
@@ -926,7 +959,7 @@ fn initialize_database(connection: &Connection) -> rusqlite::Result<()> {
 
     migrate_legacy_trade_reviews(connection)?;
     connection.execute_batch(
-        "CREATE INDEX IF NOT EXISTS idx_trades_session ON trades(session_id, closed_at ASC); PRAGMA user_version = 12;",
+        "CREATE INDEX IF NOT EXISTS idx_trades_session ON trades(session_id, closed_at ASC); PRAGMA user_version = 13;",
     )?;
     Ok(())
 }
@@ -1200,6 +1233,11 @@ fn save_training_session(
     if !matches!(session.strategy_id.as_str(), "MULTI_MEDIAS" | "MTF_ANGULACAO") {
         return Err("Identificador de estratégia inválido.".to_string());
     }
+    if session.strategy_averages.as_ref().is_some_and(|v| !valid_strategy_averages(v)) {
+        return Err("A configuração das médias móveis da sessão é inválida.".to_string());
+    }
+    let averages_json = session.strategy_averages.as_ref()
+        .map(serde_json::to_string).transpose().map_err(|error| error.to_string())?;
     let connection = state.0.lock().map_err(|error| error.to_string())?;
 
     connection
@@ -1208,9 +1246,9 @@ fn save_training_session(
             INSERT INTO training_sessions (
                 id, asset, trade_date, start_time, end_time,
                 timeframe_minutes, warmup_bars, mode, started_at, ended_at, status,
-                starting_balance_brl, strategy_id
+                starting_balance_brl, strategy_id, strategy_averages_json
             )
-            VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)
+            VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)
             ON CONFLICT(id) DO UPDATE SET
                 asset = excluded.asset,
                 trade_date = excluded.trade_date,
@@ -1223,7 +1261,8 @@ fn save_training_session(
                 ended_at = excluded.ended_at,
                 status = excluded.status,
                 starting_balance_brl = excluded.starting_balance_brl,
-                strategy_id = excluded.strategy_id
+                strategy_id = excluded.strategy_id,
+                strategy_averages_json = excluded.strategy_averages_json
             "#,
             params![
                 session.id,
@@ -1239,6 +1278,7 @@ fn save_training_session(
                 session.status,
                 session.starting_balance_brl,
                 session.strategy_id,
+                averages_json,
             ],
         )
         .map_err(|error| error.to_string())?;
@@ -1296,7 +1336,7 @@ fn list_training_sessions(
             SELECT
                 id, asset, trade_date, start_time, end_time,
                 timeframe_minutes, warmup_bars, mode, started_at, ended_at, status,
-                starting_balance_brl, strategy_id
+                starting_balance_brl, strategy_id, strategy_averages_json
             FROM training_sessions
             ORDER BY started_at DESC, id ASC, id ASC
             LIMIT 500
@@ -1320,6 +1360,8 @@ fn list_training_sessions(
                 status: row.get(10)?,
                 starting_balance_brl: row.get(11)?,
                 strategy_id: row.get(12)?,
+                strategy_averages: row.get::<_, Option<String>>(13)?
+                    .and_then(|raw| serde_json::from_str(&raw).ok()),
             })
         })
         .map_err(|error| error.to_string())?;
@@ -1711,7 +1753,7 @@ fn query_backup_sessions(
             SELECT
                 id, asset, trade_date, start_time, end_time,
                 timeframe_minutes, warmup_bars, mode, started_at, ended_at, status,
-                starting_balance_brl, strategy_id
+                starting_balance_brl, strategy_id, strategy_averages_json
             FROM training_sessions
             ORDER BY started_at ASC, id ASC
             "#,
@@ -1734,6 +1776,8 @@ fn query_backup_sessions(
                 status: row.get(10)?,
                 starting_balance_brl: row.get(11)?,
                 strategy_id: row.get(12)?,
+                strategy_averages: row.get::<_, Option<String>>(13)?
+                    .and_then(|raw| serde_json::from_str(&raw).ok()),
             })
         })
         .map_err(|error| error.to_string())?;
@@ -1928,6 +1972,7 @@ fn validate_backup_bundle(bundle: &BackupBundle) -> Result<(), String> {
         if !matches!(session.asset.as_str(), "WINFUT" | "WDOFUT")
             || !matches!(session.mode.as_str(), "FREE" | "EXAM")
             || !matches!(session.strategy_id.as_str(), "MULTI_MEDIAS" | "MTF_ANGULACAO")
+            || session.strategy_averages.as_ref().is_some_and(|v| !valid_strategy_averages(v))
             || !matches!(session.status.as_str(), "ACTIVE" | "ENDED")
             || session.timeframe_minutes <= 0
             || session.warmup_bars < 0
@@ -2113,15 +2158,17 @@ fn import_backup(
     }
 
     for session in &bundle.training_sessions {
+        let averages_json = session.strategy_averages.as_ref()
+            .map(serde_json::to_string).transpose().map_err(|error| error.to_string())?;
         transaction
             .execute(
                 r#"
                 INSERT INTO training_sessions (
                     id, asset, trade_date, start_time, end_time,
                     timeframe_minutes, warmup_bars, mode, started_at, ended_at, status,
-                    starting_balance_brl, strategy_id
+                    starting_balance_brl, strategy_id, strategy_averages_json
                 )
-                VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)
+                VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)
                 ON CONFLICT(id) DO NOTHING
                 "#,
                 params![
@@ -2138,6 +2185,7 @@ fn import_backup(
                     session.status,
                     session.starting_balance_brl,
                     session.strategy_id,
+                    averages_json,
                 ],
             )
             .map_err(|error| error.to_string())?;
@@ -4460,12 +4508,27 @@ mod tests {
         initialize_database(&connection).unwrap();
         let original = query_backup_sessions(&connection).unwrap();
         assert_eq!(original[0].strategy_id, "MULTI_MEDIAS");
+        assert_eq!(original[0].strategy_averages, None);
         connection.execute(
             "UPDATE training_sessions SET strategy_id = 'MTF_ANGULACAO' WHERE id = 'legacy-strategy'",
             [],
         ).unwrap();
+        let snapshot = serde_json::json!({
+            "multiMedias": { "emaFastLength": 5, "wmaLength": 12, "emaSlowLength": 30 },
+            "mtf": { "periods": [10, 24, 60, 250] }
+        });
+        assert!(valid_strategy_averages(&snapshot));
+        assert!(!valid_strategy_averages(&serde_json::json!({
+            "multiMedias": { "emaFastLength": 5, "wmaLength": 4, "emaSlowLength": 30 },
+            "mtf": { "periods": [10, 24, 60, 250] }
+        })));
+        connection.execute(
+            "UPDATE training_sessions SET strategy_averages_json = ?1 WHERE id = 'legacy-strategy'",
+            [snapshot.to_string()],
+        ).unwrap();
         let updated = query_backup_sessions(&connection).unwrap();
         assert_eq!(updated[0].strategy_id, "MTF_ANGULACAO");
+        assert_eq!(updated[0].strategy_averages, Some(snapshot));
         let json = serde_json::to_string(&updated[0]).unwrap();
         assert!(json.contains("\"strategyId\":\"MTF_ANGULACAO\""));
         let no_strategy = serde_json::json!({
@@ -4477,6 +4540,7 @@ mod tests {
         });
         let imported: TrainingSessionRecord = serde_json::from_value(no_strategy).unwrap();
         assert_eq!(imported.strategy_id, "MULTI_MEDIAS");
+        assert_eq!(imported.strategy_averages, None);
     }
 
     #[test]
