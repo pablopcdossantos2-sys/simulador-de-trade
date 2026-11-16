@@ -63,6 +63,10 @@ struct TradeRecord {
     intrabar_policy: String,
 }
 
+fn default_training_strategy() -> String {
+    "MULTI_MEDIAS".to_string()
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct TrainingSessionRecord {
@@ -74,6 +78,8 @@ struct TrainingSessionRecord {
     timeframe_minutes: i64,
     warmup_bars: i64,
     mode: String,
+    #[serde(default = "default_training_strategy")]
+    strategy_id: String,
     started_at: String,
     ended_at: Option<String>,
     status: String,
@@ -648,11 +654,11 @@ fn migrate_legacy_trade_reviews(connection: &Connection) -> rusqlite::Result<()>
 fn initialize_database(connection: &Connection) -> rusqlite::Result<()> {
     let current_schema_version: i64 =
         connection.query_row("PRAGMA user_version", [], |row| row.get(0))?;
-    if current_schema_version > 11 {
+    if current_schema_version > 12 {
         return Err(rusqlite::Error::SqliteFailure(
             rusqlite::ffi::Error::new(rusqlite::ffi::SQLITE_SCHEMA),
             Some(format!(
-                "O banco está na versão {current_schema_version}, mais nova que esta versão do aplicativo (11). Atualize o Simulador de Trade."
+                "O banco está na versão {current_schema_version}, mais nova que esta versão do aplicativo (12). Atualize o Simulador de Trade."
             )),
         ));
     }
@@ -703,6 +709,7 @@ fn initialize_database(connection: &Connection) -> rusqlite::Result<()> {
                 timeframe_minutes INTEGER NOT NULL,
                 warmup_bars INTEGER NOT NULL,
                 mode TEXT NOT NULL DEFAULT 'FREE',
+                strategy_id TEXT NOT NULL DEFAULT 'MULTI_MEDIAS',
                 started_at TEXT NOT NULL,
                 ended_at TEXT,
                 status TEXT NOT NULL,
@@ -894,6 +901,12 @@ fn initialize_database(connection: &Connection) -> rusqlite::Result<()> {
         )?;
     }
 
+    if !column_exists(connection, "training_sessions", "strategy_id")? {
+        connection.execute(
+            "ALTER TABLE training_sessions ADD COLUMN strategy_id TEXT NOT NULL DEFAULT 'MULTI_MEDIAS'",
+            [],
+        )?;
+    }
     if !column_exists(connection, "training_sessions", "starting_balance_brl")? {
         connection.execute(
             "ALTER TABLE training_sessions ADD COLUMN starting_balance_brl REAL",
@@ -913,7 +926,7 @@ fn initialize_database(connection: &Connection) -> rusqlite::Result<()> {
 
     migrate_legacy_trade_reviews(connection)?;
     connection.execute_batch(
-        "CREATE INDEX IF NOT EXISTS idx_trades_session ON trades(session_id, closed_at ASC); PRAGMA user_version = 11;",
+        "CREATE INDEX IF NOT EXISTS idx_trades_session ON trades(session_id, closed_at ASC); PRAGMA user_version = 12;",
     )?;
     Ok(())
 }
@@ -1184,6 +1197,9 @@ fn save_training_session(
     state: tauri::State<'_, DbState>,
     session: TrainingSessionRecord,
 ) -> Result<(), String> {
+    if !matches!(session.strategy_id.as_str(), "MULTI_MEDIAS" | "MTF_ANGULACAO") {
+        return Err("Identificador de estratégia inválido.".to_string());
+    }
     let connection = state.0.lock().map_err(|error| error.to_string())?;
 
     connection
@@ -1192,9 +1208,9 @@ fn save_training_session(
             INSERT INTO training_sessions (
                 id, asset, trade_date, start_time, end_time,
                 timeframe_minutes, warmup_bars, mode, started_at, ended_at, status,
-                starting_balance_brl
+                starting_balance_brl, strategy_id
             )
-            VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)
+            VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)
             ON CONFLICT(id) DO UPDATE SET
                 asset = excluded.asset,
                 trade_date = excluded.trade_date,
@@ -1206,7 +1222,8 @@ fn save_training_session(
                 started_at = excluded.started_at,
                 ended_at = excluded.ended_at,
                 status = excluded.status,
-                starting_balance_brl = excluded.starting_balance_brl
+                starting_balance_brl = excluded.starting_balance_brl,
+                strategy_id = excluded.strategy_id
             "#,
             params![
                 session.id,
@@ -1221,6 +1238,7 @@ fn save_training_session(
                 session.ended_at,
                 session.status,
                 session.starting_balance_brl,
+                session.strategy_id,
             ],
         )
         .map_err(|error| error.to_string())?;
@@ -1278,7 +1296,7 @@ fn list_training_sessions(
             SELECT
                 id, asset, trade_date, start_time, end_time,
                 timeframe_minutes, warmup_bars, mode, started_at, ended_at, status,
-                starting_balance_brl
+                starting_balance_brl, strategy_id
             FROM training_sessions
             ORDER BY started_at DESC, id ASC, id ASC
             LIMIT 500
@@ -1301,6 +1319,7 @@ fn list_training_sessions(
                 ended_at: row.get(9)?,
                 status: row.get(10)?,
                 starting_balance_brl: row.get(11)?,
+                strategy_id: row.get(12)?,
             })
         })
         .map_err(|error| error.to_string())?;
@@ -1692,7 +1711,7 @@ fn query_backup_sessions(
             SELECT
                 id, asset, trade_date, start_time, end_time,
                 timeframe_minutes, warmup_bars, mode, started_at, ended_at, status,
-                starting_balance_brl
+                starting_balance_brl, strategy_id
             FROM training_sessions
             ORDER BY started_at ASC, id ASC
             "#,
@@ -1714,6 +1733,7 @@ fn query_backup_sessions(
                 ended_at: row.get(9)?,
                 status: row.get(10)?,
                 starting_balance_brl: row.get(11)?,
+                strategy_id: row.get(12)?,
             })
         })
         .map_err(|error| error.to_string())?;
@@ -1907,6 +1927,7 @@ fn validate_backup_bundle(bundle: &BackupBundle) -> Result<(), String> {
     for session in &bundle.training_sessions {
         if !matches!(session.asset.as_str(), "WINFUT" | "WDOFUT")
             || !matches!(session.mode.as_str(), "FREE" | "EXAM")
+            || !matches!(session.strategy_id.as_str(), "MULTI_MEDIAS" | "MTF_ANGULACAO")
             || !matches!(session.status.as_str(), "ACTIVE" | "ENDED")
             || session.timeframe_minutes <= 0
             || session.warmup_bars < 0
@@ -2098,9 +2119,9 @@ fn import_backup(
                 INSERT INTO training_sessions (
                     id, asset, trade_date, start_time, end_time,
                     timeframe_minutes, warmup_bars, mode, started_at, ended_at, status,
-                    starting_balance_brl
+                    starting_balance_brl, strategy_id
                 )
-                VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)
+                VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)
                 ON CONFLICT(id) DO NOTHING
                 "#,
                 params![
@@ -2116,6 +2137,7 @@ fn import_backup(
                     session.ended_at,
                     session.status,
                     session.starting_balance_brl,
+                    session.strategy_id,
                 ],
             )
             .map_err(|error| error.to_string())?;
@@ -4414,6 +4436,47 @@ mod tests {
         assert_eq!(fs::read_to_string(&user_previous).unwrap(), "arquivo do usuário");
         assert!(!temp.exists());
         let _ = fs::remove_dir_all(directory);
+    }
+
+    #[test]
+    fn training_session_strategy_is_migrated_and_preserved_in_backup() {
+        let connection = Connection::open_in_memory().unwrap();
+        connection.execute_batch(
+            "CREATE TABLE training_sessions (
+                id TEXT PRIMARY KEY NOT NULL, asset TEXT NOT NULL,
+                trade_date TEXT NOT NULL, start_time TEXT NOT NULL, end_time TEXT NOT NULL,
+                timeframe_minutes INTEGER NOT NULL, warmup_bars INTEGER NOT NULL,
+                mode TEXT NOT NULL DEFAULT 'FREE', started_at TEXT NOT NULL,
+                ended_at TEXT, status TEXT NOT NULL, starting_balance_brl REAL
+             );
+             INSERT INTO training_sessions (
+                id, asset, trade_date, start_time, end_time, timeframe_minutes,
+                warmup_bars, mode, started_at, ended_at, status
+             ) VALUES (
+                'legacy-strategy', 'WINFUT', '2026-11-04', '09:00', '18:25',
+                2, 260, 'FREE', '2026-11-04T09:00:00Z', NULL, 'ENDED'
+             );"
+        ).unwrap();
+        initialize_database(&connection).unwrap();
+        let original = query_backup_sessions(&connection).unwrap();
+        assert_eq!(original[0].strategy_id, "MULTI_MEDIAS");
+        connection.execute(
+            "UPDATE training_sessions SET strategy_id = 'MTF_ANGULACAO' WHERE id = 'legacy-strategy'",
+            [],
+        ).unwrap();
+        let updated = query_backup_sessions(&connection).unwrap();
+        assert_eq!(updated[0].strategy_id, "MTF_ANGULACAO");
+        let json = serde_json::to_string(&updated[0]).unwrap();
+        assert!(json.contains("\"strategyId\":\"MTF_ANGULACAO\""));
+        let no_strategy = serde_json::json!({
+          "id":"old", "asset":"WINFUT", "tradeDate":"2026-11-04",
+          "startTime":"09:00", "endTime":"18:25",
+          "timeframeMinutes":2, "warmupBars":260,
+          "mode":"FREE", "startedAt":"2026-11-04T09:00:00Z",
+          "endedAt":null, "status":"ENDED", "startingBalanceBRL":null
+        });
+        let imported: TrainingSessionRecord = serde_json::from_value(no_strategy).unwrap();
+        assert_eq!(imported.strategy_id, "MULTI_MEDIAS");
     }
 
     #[test]
