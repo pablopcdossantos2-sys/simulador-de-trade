@@ -90,6 +90,10 @@ fn valid_strategy_averages(value: &Value) -> bool {
     }
     // Registros anteriores não possuíam filtros. Quando presentes, os
     // interruptores devem ser estritamente booleanos para reproduzir a sessão.
+    if let Some(visible) = value.pointer("/mtf/plotOn") {
+        let Some(flags) = visible.as_array() else { return false; };
+        if flags.len() != 4 || flags.iter().any(|flag| !flag.is_boolean()) { return false; }
+    }
     if let Some(filters) = value.pointer("/mtf/filters") {
         for key in ["useAngles", "requireAlignment", "useVwap", "useTpv"] {
             if filters.get(key).and_then(Value::as_bool).is_none() { return false; }
@@ -99,6 +103,12 @@ fn valid_strategy_averages(value: &Value) -> bool {
         };
         if votes.len() != 4 || votes.iter().any(|v| !v.is_boolean()) {
             return false;
+        }
+        if let Some(angles) = filters.get("angleThresholds") {
+            let Some(angles) = angles.as_array() else { return false; };
+            if angles.len() != 4 || angles.iter().any(|angle|
+                angle.as_f64().is_none_or(|v| !v.is_finite() || !(0.1..=89.0).contains(&v))
+            ) { return false; }
         }
     }
     true
@@ -222,6 +232,8 @@ struct BackupBundle {
     #[serde(default)]
     usage_sessions: Vec<UsageSessionRecord>,
     execution_settings: ExecutionSettingsRecord,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    strategy_settings: Option<Value>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -267,7 +279,7 @@ struct BackupExportDocument<'a> {
 impl Serialize for BackupExportDocument<'_> {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where S: serde::Serializer {
-        let mut document = serializer.serialize_struct("BackupExportDocument", 10)?;
+        let mut document = serializer.serialize_struct("BackupExportDocument", 11)?;
         document.serialize_field("format", &self.bundle.format)?;
         document.serialize_field("schemaVersion", &self.bundle.schema_version)?;
         document.serialize_field("appVersion", &self.bundle.app_version)?;
@@ -277,6 +289,7 @@ impl Serialize for BackupExportDocument<'_> {
         document.serialize_field("trainingEvents", &self.bundle.training_events)?;
         document.serialize_field("usageSessions", &self.bundle.usage_sessions)?;
         document.serialize_field("executionSettings", &self.bundle.execution_settings)?;
+        document.serialize_field("strategySettings", &self.bundle.strategy_settings)?;
         document.serialize_field("replayFiles", &self.replay_files)?;
         document.end()
     }
@@ -301,6 +314,8 @@ struct BackupSummary {
     events: usize,
     usage_sessions: usize,
     replays: usize,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    strategy_settings: Option<Value>,
 }
 
 fn encode_base64(bytes: &[u8]) -> String {
@@ -1937,6 +1952,9 @@ fn validate_backup_bundle(bundle: &BackupBundle) -> Result<(), String> {
     for session in &bundle.usage_sessions {
         validate_usage_session(session)?;
     }
+    if bundle.strategy_settings.as_ref().is_some_and(|settings| !valid_strategy_averages(settings)) {
+        return Err("O backup contém configurações de estratégia inválidas.".to_string());
+    }
 
     let settings = &bundle.execution_settings;
     if !settings.cost_per_contract_round_trip_brl.is_finite()
@@ -2038,7 +2056,11 @@ fn export_backup(
     app: tauri::AppHandle,
     state: tauri::State<'_, DbState>,
     destination_path: String,
+    strategy_settings: Option<Value>,
 ) -> Result<BackupSummary, String> {
+    if strategy_settings.as_ref().is_some_and(|settings| !valid_strategy_averages(settings)) {
+        return Err("Configurações de estratégia inválidas para exportação.".to_string());
+    }
     let path = PathBuf::from(destination_path.trim().trim_matches('"'));
     if path.as_os_str().is_empty() {
         return Err("Caminho de destino inválido.".to_string());
@@ -2068,6 +2090,7 @@ fn export_backup(
         training_events: events,
         usage_sessions,
         execution_settings: settings,
+        strategy_settings,
     };
 
     let export_document = BackupExportDocument {
@@ -2107,6 +2130,7 @@ fn export_backup(
         events: bundle.training_events.len(),
         usage_sessions: bundle.usage_sessions.len(),
         replays: replay_sources.len(),
+        strategy_settings: bundle.strategy_settings.clone(),
     })
 }
 
@@ -2352,6 +2376,7 @@ fn import_backup(
         events: bundle.training_events.len(),
         usage_sessions: bundle.usage_sessions.len(),
         replays: replay_files.len(),
+        strategy_settings: bundle.strategy_settings.clone(),
     })
 }
 
@@ -3879,6 +3904,7 @@ mod tests {
             training_sessions: Vec::new(),
             training_events: Vec::new(),
             usage_sessions: Vec::new(),
+            strategy_settings: None,
             execution_settings: settings,
         };
 
@@ -3890,6 +3916,53 @@ mod tests {
         bundle.format = "simulador-de-trade-backup".to_string();
         bundle.schema_version = 2;
         assert!(validate_backup_bundle(&bundle).is_err());
+    }
+
+    #[test]
+    fn backup_serializes_strategy_preferences_and_validates_numeric_angles() {
+        let valid = json!({
+            "multiMedias": {"emaFastLength": 8, "wmaLength": 20, "emaSlowLength": 52},
+            "mtf": {
+                "periods": [8, 20, 50, 200],
+                "plotOn": [true, false, true, true],
+                "filters": {
+                    "useAngles": true,
+                    "requireAlignment": true,
+                    "voteOn": [true, false, true, false],
+                    "useVwap": false,
+                    "useTpv": true,
+                    "angleThresholds": [2, 1.5, 3, 1]
+                }
+            }
+        });
+        assert!(valid_strategy_averages(&valid));
+        let mut invalid = valid.clone();
+        invalid["mtf"]["filters"]["angleThresholds"][1] = json!(100);
+        assert!(!valid_strategy_averages(&invalid));
+        let mut invalid_plot = valid.clone();
+        invalid_plot["mtf"]["plotOn"][1] = json!("not_boolean");
+        assert!(!valid_strategy_averages(&invalid_plot));
+
+        let old = r#"{
+          "format":"simulador-de-trade-backup", "schemaVersion":1,
+          "appVersion":"0.1.0", "exportedAt":"2026-11-16T09:00:00Z",
+          "trades":[], "trainingSessions":[], "trainingEvents":[],
+          "executionSettings":{"costPerContractRoundTripBRL":0,"slippageTicksPerSide":0}
+        }"#;
+        let without_settings: BackupBundle = serde_json::from_str(old).unwrap();
+        assert!(without_settings.strategy_settings.is_none());
+
+        let with_settings = serde_json::to_string(&json!({
+          "format":"simulador-de-trade-backup", "schemaVersion":1,
+          "appVersion":"0.1.0", "exportedAt":"2026-11-16T09:00:00Z",
+          "trades":[], "trainingSessions":[], "trainingEvents":[],
+          "executionSettings":{"costPerContractRoundTripBRL":0,"slippageTicksPerSide":0},
+          "strategySettings": valid
+        })).unwrap();
+        let restored: BackupBundle = serde_json::from_str(&with_settings).unwrap();
+        assert_eq!(restored.strategy_settings.as_ref().unwrap()["mtf"]["periods"], json!([8,20,50,200]));
+        assert_eq!(restored.strategy_settings.as_ref().unwrap()["mtf"]["filters"]["angleThresholds"], json!([2,1.5,3,1]));
+        assert!(validate_backup_bundle(&restored).is_ok());
     }
 
     #[test]
@@ -3928,6 +4001,7 @@ mod tests {
             training_sessions: Vec::new(),
             training_events: Vec::new(),
             usage_sessions: Vec::new(),
+            strategy_settings: None,
             execution_settings: ExecutionSettingsRecord {
                 cost_per_contract_round_trip_brl: 0.0,
                 cost_win_round_trip_brl: Some(0.5),
@@ -3986,6 +4060,7 @@ mod tests {
             training_sessions: Vec::new(),
             training_events: Vec::new(),
             usage_sessions: Vec::new(),
+            strategy_settings: None,
             execution_settings: ExecutionSettingsRecord {
                 cost_per_contract_round_trip_brl: 0.0,
                 cost_win_round_trip_brl: None,
@@ -4123,6 +4198,7 @@ mod tests {
             training_sessions: Vec::new(),
             training_events: Vec::new(),
             usage_sessions: Vec::new(),
+            strategy_settings: None,
             execution_settings: ExecutionSettingsRecord {
                 cost_per_contract_round_trip_brl: -1.0,
                 cost_win_round_trip_brl: None,

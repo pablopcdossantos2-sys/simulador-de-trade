@@ -1,20 +1,22 @@
 import type { MovingAverageSettings, TradingStrategyId } from "../types";
 import { DEFAULT_MOVING_AVERAGE_SETTINGS, describeMtfVotes } from "../services/strategyMovingAverages";
+import { StrategyAveragesPanel } from "./StrategyAveragesPanel";
 
 interface Props {
   selectedStrategyId: TradingStrategyId;
   movingAverages?: MovingAverageSettings;
   disabled: boolean;
   onSelect: (id: TradingStrategyId) => void;
+  onSaveStrategy: (settings: MovingAverageSettings, strategyId: TradingStrategyId) => Promise<void>;
 }
 
-export function TradingSystemsPanel({ selectedStrategyId, movingAverages = DEFAULT_MOVING_AVERAGE_SETTINGS, disabled, onSelect }: Props) {
+export function TradingSystemsPanel({ selectedStrategyId, movingAverages = DEFAULT_MOVING_AVERAGE_SETTINGS, disabled, onSelect, onSaveStrategy }: Props) {
   const { emaFastLength, wmaLength, emaSlowLength } = movingAverages.multiMedias;
   return (
     <section className="trading-systems-page">
       <header className="trading-systems-intro card">
         <h2>Sistemas de trading disponíveis</h2>
-        <p>Conheça a lógica, os indicadores e os critérios de cada sistema antes de utilizá-los nos treinamentos.</p>
+        <p>Configure e salve cada sistema aqui. Depois, selecione a estratégia desejada e prossiga para o Simulador para treinar com os parâmetros salvos.</p>
       </header>
 
       <div className="trading-system-grid">
@@ -40,10 +42,12 @@ export function TradingSystemsPanel({ selectedStrategyId, movingAverages = DEFAU
             <li>MME {emaSlowLength} acima da MMP {wmaLength}, e MMP {wmaLength} acima da MME {emaFastLength}.</li>
             <li>Candle de baixa para iniciar a zona vendedora.</li>
           </ul>
-          <p className="trading-system-footnote">O sinal é gerado quando uma nova zona direcional começa. A zona permanece ativa enquanto o alinhamento correspondente continuar válido. Os períodos podem ser personalizados em Simulador → Configurar médias da estratégia.</p>
-          <button type="button" className="trading-system-select" disabled={disabled || selectedStrategyId === "MULTI_MEDIAS"}
+          <p className="trading-system-footnote">O sinal é gerado quando uma nova zona direcional começa. A zona permanece ativa enquanto o alinhamento correspondente continuar válido. Os períodos podem ser personalizados no editor desta estratégia, abaixo.</p>
+          <StrategyAveragesPanel strategyId="MULTI_MEDIAS" settings={movingAverages}
+            disabled={disabled} onSave={(value) => onSaveStrategy(value, "MULTI_MEDIAS")} />
+          <button type="button" className="trading-system-select" disabled={disabled}
             onClick={() => onSelect("MULTI_MEDIAS")}>
-            {selectedStrategyId === "MULTI_MEDIAS" ? "Sistema selecionado" : "Treinar com este sistema"}
+            {selectedStrategyId === "MULTI_MEDIAS" ? "Ir ao Simulador com este sistema" : "Selecionar e treinar com este sistema"}
           </button>
         </article>
 
@@ -77,9 +81,11 @@ export function TradingSystemsPanel({ selectedStrategyId, movingAverages = DEFAU
             <li>A entrada será posicionada manualmente pelo usuário no gráfico. O sistema não abrirá operações nem criará gatilhos automáticos.</li>
           </ul>
           <p className="trading-system-footnote">Beta experimental: M15 aproximado a partir de M2 completo, sem lookahead. A fronteira 2→15 minutos não pode ser repartida exatamente sem M1/ticks; VWAP e TPV também usam OHLCV agregado. A validação numérica com o Pine v13 original permanece necessária.</p>
-          <button type="button" className="trading-system-select" disabled={disabled || selectedStrategyId === "MTF_ANGULACAO"}
+          <StrategyAveragesPanel strategyId="MTF_ANGULACAO" settings={movingAverages}
+            disabled={disabled} onSave={(value) => onSaveStrategy(value, "MTF_ANGULACAO")} />
+          <button type="button" className="trading-system-select" disabled={disabled}
             onClick={() => onSelect("MTF_ANGULACAO")}>
-            {selectedStrategyId === "MTF_ANGULACAO" ? "Sistema selecionado" : "Treinar com este sistema (beta)"}
+            {selectedStrategyId === "MTF_ANGULACAO" ? "Ir ao Simulador com este sistema" : "Selecionar e treinar com este sistema (beta)"}
           </button>
         </article>
       </div>

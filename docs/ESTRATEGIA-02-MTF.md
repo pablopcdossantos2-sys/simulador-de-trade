@@ -79,3 +79,7 @@ A leitura do M15 passou a usar um bloco de grade fixa logo abaixo do OHLCV: valo
 - Os limiares personalizados são persistidos e entram no cálculo de voto de sua respectiva MME quando a opção global **Usar angulação no fundo** está ativa. O período, as médias calculadas e os demais filtros permanecem independentes desse limite. Faixa válida: 0,1° a 89°.
 - O TPV continua acumulado, usando a média aritmética das últimas 50 barras M15 para determinar o sentido: acima (1), abaixo (-1) ou igual (0). Desvio-padrão, fator de proximidade e banda de tolerância foram removidos, alterando os sinais históricos da beta em relação à implementação anterior. A exigência de aquecimento de 50 barras, quando TPV participa, permanece.
 - Perfis antigos e snapshots sem os novos campos recebem limiares 2°/1°/1,5°/1° e todas as quatro MMEs visíveis, sem perder os votos salvos. A configuração permanece congelada durante a sessão ativa.
+
+## Localização dos editores e backup — novembro de 2026
+
+Os editores das estratégias foram reunidos em **Sistemas de trading**. Escolha e configure os indicadores e filtros nesse local, salve, então selecione o sistema para acessar o **Simulador**, que apenas consome os parâmetros salvos. O backup JSON desktop inclui as preferências de ambas as estratégias como `strategySettings`; a importação no modo `Mesclar` mantém as preferências locais, enquanto `Substituir tudo` as restaura quando presentes. Backups sem essa chave continuam compatíveis.

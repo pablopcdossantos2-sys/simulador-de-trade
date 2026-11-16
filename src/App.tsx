@@ -15,7 +15,6 @@ import { StudentProgressPanel } from "./components/StudentProgressPanel";
 import { TraderEvolutionPanel } from "./components/TraderEvolutionPanel";
 import { TradingSystemsPanel } from "./components/TradingSystemsPanel";
 import { ExecutionSettingsPanel } from "./components/ExecutionSettingsPanel";
-import { StrategyAveragesPanel } from "./components/StrategyAveragesPanel";
 import { SetupDisclosure } from "./components/SetupDisclosure";
 import { DatabaseMaintenancePanel } from "./components/DatabaseMaintenancePanel";
 import { BackupPanel } from "./components/BackupPanel";
@@ -1274,7 +1273,7 @@ export default function App() {
     }
   }
 
-  async function applyMovingAverages(next: MovingAverageSettings) {
+  async function applyMovingAverages(next: MovingAverageSettings, editedStrategyId: TradingStrategyId) {
     if (!strategySelectionAllowed(trainingActive, Boolean(position),
       startingTraining || loadingReplay || switchingStrategyRef.current)) {
       throw new Error("Finalize o treino e a posição aberta antes de alterar as médias.");
@@ -1282,13 +1281,17 @@ export default function App() {
     switchingStrategyRef.current = true;
     setSwitchingStrategy(true);
     try {
-      // Um replay carregado e o plano de aquecimento pertencem aos parâmetros antigos.
-      if (replay.session) {
+      // Alterar uma estratégia inativa não invalida o plano/replay da estratégia ativa.
+      if (editedStrategyId === selectedStrategyId && replay.session) {
         replay.setPlaying(false);
         await replay.unload();
       }
       const saved = saveMovingAverageSettings(next);
       setMovingAverages(saved);
+      if (editedStrategyId !== selectedStrategyId) {
+        setFeedback(`Configuração de ${strategyLabel(editedStrategyId)} salva. Selecione este sistema em Sistemas de trading para começar um treino.`);
+        return;
+      }
       setSimulationPlan(null);
       setCatalogMatches([]);
       setWarmupCandles([]);
@@ -1307,7 +1310,7 @@ export default function App() {
       usedSignalIdsRef.current = new Set();
       ignoredSignalIdsRef.current = new Set();
       lastSuggestedSignalIdRef.current = null;
-      setFeedback(`Médias e filtros aplicados: ${selectedMovingAveragesLabel(saved, selectedStrategyId)}. Reaplique o plano de simulação; os arquivos CSV catalogados foram preservados.`);
+      setFeedback(`Estratégia ${strategyLabel(editedStrategyId)} atualizada: ${selectedMovingAveragesLabel(saved, editedStrategyId)}. Reaplique o plano no Simulador; os arquivos CSV catalogados foram preservados.`);
     } catch (error) {
       throw new Error(readErrorMessage(error, "Não foi possível aplicar as médias."));
     } finally {
@@ -1457,35 +1460,21 @@ export default function App() {
         <TradingSystemsPanel selectedStrategyId={selectedStrategyId}
           movingAverages={movingAverages}
           disabled={!strategySelectionAllowed(trainingActive, Boolean(position), startingTraining || loadingReplay || switchingStrategy)}
+          onSaveStrategy={applyMovingAverages}
           onSelect={selectStrategy} />
       </section>
 
       <section className="app-area simulator-area" hidden={activeArea !== "SIMULADOR"}>
-      {/* As etapas concluídas se recolhem; os títulos permanecem disponíveis para edição. */}
-      <SetupDisclosure title="Estratégia de treinamento"
-        status={strategyLabel(selectedStrategyId)} complete
-        expandWhenIncomplete={false} resetKey={selectedStrategyId}>
-      <section className="strategy-selection-panel card" aria-label="Escolher estratégia de treinamento">
+      <section className="simulator-strategy-summary card" aria-label="Estratégia selecionada para treino">
         <div>
-          <h2>Estratégia de treinamento</h2>
-          <p>Escolha antes de iniciar a sessão. Cada sistema possui sua própria autorização de entradas.</p>
+          <h2>Estratégia para este treino</h2>
+          <p><strong>{strategyLabel(selectedStrategyId)}</strong> · {selectedMovingAveragesLabel(movingAverages, selectedStrategyId)}</p>
+          <small>Os parâmetros e critérios são editados exclusivamente em Sistemas de trading.</small>
         </div>
-        <label htmlFor="strategy-select">Sistema
-          <select id="strategy-select" value={selectedStrategyId}
-            disabled={!strategySelectionAllowed(trainingActive, Boolean(position), startingTraining || loadingReplay || switchingStrategy)}
-            onChange={(event) => { void selectStrategy(event.target.value as TradingStrategyId); }}>
-            <option value="MULTI_MEDIAS">01 — Multi Médias · Nuvem e Sinais</option>
-            <option value="MTF_ANGULACAO">02 — MMs MTF + Angulação (beta)</option>
-          </select>
-        </label>
+        <button type="button" className="trading-system-select" onClick={() => setActiveArea("SISTEMAS")}>
+          Configurar ou trocar estratégia
+        </button>
       </section>
-      </SetupDisclosure>
-      <StrategyAveragesPanel
-        strategyId={selectedStrategyId}
-        settings={movingAverages}
-        disabled={!strategySelectionAllowed(trainingActive, Boolean(position), startingTraining || loadingReplay || switchingStrategy)}
-        onSave={applyMovingAverages}
-      />
       <SetupDisclosure title="Planejar simulação"
         status={simulationPlan
           ? `${simulationPlan.asset} · ${simulationPlan.targetDate} · M${simulationPlan.timeframeMinutes}`
@@ -1956,7 +1945,23 @@ export default function App() {
       />
       <BackupPanel
         disabled={Boolean(position) || Boolean(trainingActive)}
-        onImported={async () => {
+        onImported={async (summary, mode) => {
+          if (mode === "replace_all" && summary.strategySettings) {
+            // Snapshot importado é validado pelo backend antes da restauração.
+            // Uma estratégia atualizada não deve reutilizar plano/replay com parâmetros antigos.
+            const restored = saveMovingAverageSettings(summary.strategySettings);
+            setMovingAverages(restored);
+            if (replay.session) {
+              replay.setPlaying(false);
+              await replay.unload();
+            }
+            setSimulationPlan(null);
+            setCatalogMatches([]);
+            setWarmupCandles([]);
+            setDataMode("demo");
+            replaceCandles(createDemoCandles(asset));
+            setCurrentReplayTrade(null);
+          }
           const [nextTrades, nextSettings] = await Promise.all([
             loadTrades(),
             loadExecutionSettings(),
@@ -1966,7 +1971,7 @@ export default function App() {
           setSessionHistoryRefreshKey((value) => value + 1);
           setCatalogRefreshKey((value) => value + 1);
           setFeedback(
-            "Backup importado. Histórico, relatórios, configurações e catálogo de replays foram atualizados.",
+            "Backup importado. Histórico e catálogo de replays atualizados; configurações das estratégias restauradas somente em Substituir tudo, quando presentes.",
           );
         }}
       />

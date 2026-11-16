@@ -94,7 +94,7 @@ export function StrategyAveragesPanel({ strategyId, settings, disabled, onSave }
       validateMovingAverageSettings(next, strategyId);
       setSaving(true);
       await onSave(next);
-      setFeedback("Configurações salvas. Reaplique o plano para preparar o aquecimento correto.");
+      setFeedback("Configurações salvas para esta estratégia. Vá ao Simulador para planejar o próximo treino.");
       setExpanded(false);
     } catch (error) {
       setFeedback(error instanceof Error ? error.message : "Não foi possível salvar as médias.");
@@ -137,8 +137,8 @@ export function StrategyAveragesPanel({ strategyId, settings, disabled, onSave }
       onToggle={(event) => setExpanded(event.currentTarget.open)}>
       <summary className="strategy-averages-toggle">
         <span className="strategy-averages-summary">
-          <strong>Configurar médias da estratégia</strong>
-          <small>{selectedMovingAveragesLabel(settings, strategyId)} · períodos em candles</small>
+          <strong>Editar parâmetros da estratégia</strong>
+          <small>{selectedMovingAveragesLabel(settings, strategyId)} · configuração salva</small>
         </span>
         <span aria-hidden="true" className="strategy-averages-chevron">⌄</span>
       </summary>
@@ -147,7 +147,7 @@ export function StrategyAveragesPanel({ strategyId, settings, disabled, onSave }
           <h3>{isMtf ? "Médias exponenciais de contexto M15" : "Médias do sistema Multi Médias"}</h3>
           <InfoTip label="Como configurar as médias">
             <p>Informe períodos inteiros entre {MIN_MOVING_AVERAGE_PERIOD} e {MAX_MOVING_AVERAGE_PERIOD}, em ordem crescente. As médias conservam seus métodos: MME exponencial, MMP ponderada. A VWAP não é uma média móvel e permanece inalterada.</p>
-            <p>Alterar períodos muda os cálculos, sinais e autorizações do sistema ativo. A configuração é salva neste computador, e novos treinos registram os períodos utilizados. Para evitar inconsistências, a mudança não é permitida durante uma sessão ou com posição aberta.</p>
+            <p>Alterar períodos muda os cálculos, sinais e autorizações do sistema correspondente. Salve aqui antes de acessar o Simulador. Novos treinos registram os períodos utilizados. Durante uma sessão ou com posição aberta, a edição fica bloqueada.</p>
           </InfoTip>
         </div>
         <p className="strategy-averages-explanation">

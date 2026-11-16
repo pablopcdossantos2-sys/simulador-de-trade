@@ -10,11 +10,11 @@ import {
 
 interface Props {
   disabled: boolean;
-  onImported: () => void | Promise<void>;
+  onImported: (summary: BackupSummary, mode: "merge" | "replace_all") => void | Promise<void>;
 }
 
 function summaryText(action: string, summary: BackupSummary): string {
-  return `${action}. Arquivo contém ${summary.trades} trades, ${summary.sessions} sessões de treino, ${summary.events} eventos, ${summary.usageSessions} sessões de uso e ${summary.replays ?? 0} replay(s) com seus metadados · schema v${summary.schemaVersion}.`;
+  return `${action}. Arquivo contém ${summary.trades} trades, ${summary.sessions} sessões de treino, ${summary.events} eventos, ${summary.usageSessions} sessões de uso e ${summary.replays ?? 0} replay(s) com seus metadados · ${summary.strategySettings ? "configurações das estratégias incluídas" : "sem configurações de estratégia (backup antigo)"} · schema v${summary.schemaVersion}.`;
 }
 
 export function BackupPanel({ disabled, onImported }: Props) {
@@ -53,12 +53,12 @@ export function BackupPanel({ disabled, onImported }: Props) {
     try {
       const result = await importBackup(importMode);
       if (result) {
-        await onImported();
+        await onImported(result, importMode);
         await refreshUsageSessions();
         setFeedback(summaryText(
           importMode === "merge"
-            ? "Backup mesclado; registros locais e configurações preservados"
-            : "Backup restaurado; dados locais substituídos",
+            ? "Backup mesclado; preferências das estratégias locais preservadas"
+            : "Backup restaurado; configurações presentes no arquivo aplicadas",
           result,
         ));
       }
@@ -83,10 +83,11 @@ export function BackupPanel({ disabled, onImported }: Props) {
       <p className="data-description">
         Exporte sessões, trades, notas, avaliações individuais, snapshots de
         entrada, eventos, configurações e todos os arquivos de replay catalogados,
-        incluindo seus metadados. Ao importar, esses replays são restaurados e
-        adicionados automaticamente ao catálogo local. Em “Mesclar”, registros locais
-        e configurações atuais são preservados. Em “Substituir tudo”, os registros
-        locais são substituídos pelos dados do backup.
+        incluindo seus metadados e as configurações das duas estratégias salvas em
+        Sistemas de trading. Ao importar, os replays são restaurados e catalogados.
+        Em “Mesclar”, as configurações atuais continuam ativas. Em “Substituir tudo”,
+        os dados e as configurações das estratégias presentes no backup são restaurados.
+        Backups antigos sem esses ajustes mantêm as preferências atuais.
       </p>
 
       <div className="backup-import-mode">
@@ -104,7 +105,7 @@ export function BackupPanel({ disabled, onImported }: Props) {
         <small id="backup-import-explanation">
           {importMode === "merge"
             ? "Preserva registros e configurações locais; acrescenta informações do backup."
-            : "Substitui registros e configurações locais. Confira o conteúdo do backup antes de continuar."}
+            : "Substitui registros e restaura as configurações de estratégia se existirem no arquivo."}
         </small>
       </div>
 

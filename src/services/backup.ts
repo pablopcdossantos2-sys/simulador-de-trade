@@ -1,5 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { open, save } from "@tauri-apps/plugin-dialog";
+import { loadMovingAverageSettings } from "./strategyMovingAverages";
+import type { MovingAverageSettings } from "../types";
 
 export interface BackupSummary {
   path: string;
@@ -9,6 +11,8 @@ export interface BackupSummary {
   events: number;
   usageSessions: number;
   replays?: number;
+  /** Configurações salvas das duas estratégias; ausente em backups antigos. */
+  strategySettings?: MovingAverageSettings | null;
 }
 
 export function backupAvailable(): boolean {
@@ -45,7 +49,10 @@ export async function exportBackup(): Promise<BackupSummary | null> {
 
   if (!destinationPath) return null;
 
-  return invoke<BackupSummary>("export_backup", { destinationPath });
+  return invoke<BackupSummary>("export_backup", {
+    destinationPath,
+    strategySettings: loadMovingAverageSettings(),
+  });
 }
 
 export async function importBackup(

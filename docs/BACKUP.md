@@ -107,3 +107,12 @@ Crie backups especialmente:
 - antes de qualquer manutenção no computador.
 
 É recomendável guardar pelo menos uma cópia em outro disco, pasta sincronizada ou mídia externa.
+
+## Preferências das estratégias no backup
+
+A seção **Sistemas de trading** concentra os editores dos Sistemas 01 e 02. As configurações são salvas localmente e são exportadas no campo opcional `strategySettings` do backup JSON v1, além dos snapshots de configuração já existentes em cada sessão.
+
+- **Exportar backup:** inclui os períodos das MMEs/MMP, votos, angulações e visibilidade da estratégia MTF.
+- **Mesclar:** importa sessões, trades e replays sem alterar as preferências locais das estratégias.
+- **Substituir tudo:** substitui os dados e restaura também `strategySettings` se a chave existir e for válida. Arquivos antigos sem a chave continuam importáveis e não sobrescrevem as preferências locais.
+- **Segurança:** o backend valida faixas, ordem dos períodos, votos, visibilidade e ângulos antes de restaurar. O frontend atualiza o estado e descarta o plano/replay anterior ao aplicar preferências restauradas.
