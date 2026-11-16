@@ -4368,3 +4368,40 @@ td {
 :root[data-theme="light"] .trading-system-card h4 { color: #29445d; }
 :root[data-theme="light"] .trading-system-footnote { border-color: #d9e3eb; }
 @media (max-width: 900px) { .trading-system-grid { grid-template-columns: 1fr; } .trading-system-summary { min-height: 0; } }
+
+/* Seletor de sistema e camadas MTF exclusivas da estratégia 02 */
+.strategy-selection-panel {
+  display: flex; justify-content: space-between; align-items: center;
+  gap: 16px; flex-wrap: wrap; padding: 16px 18px; margin-bottom: 16px;
+}
+.strategy-selection-panel h2 { margin-bottom: 5px; }
+.strategy-selection-panel p { margin: 0; font-size: .78rem; color: #a6b9cb; }
+.strategy-selection-panel label { display: grid; gap: 5px; min-width: min(100%, 320px); font-size: .78rem; color: #a4bdd1; }
+.strategy-selection-panel select { padding: 9px 12px; min-height: 40px; background: #13253b; border: 1px solid #4a6480; color: #e6f2ff; border-radius: 9px; }
+.strategy-selection-panel select:disabled { opacity: .6; }
+.trading-system-select { margin-top: 14px; padding: 11px 15px; border-radius: 9px; background: #24618b; color: white; cursor: pointer; font-weight: 750; }
+.trading-system-select:disabled { cursor: default; opacity: .65; }
+.chart-mtf-readout { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 4px 2px; font-size: .72rem; font-variant-numeric: tabular-nums; color: #d6c8f1; }
+.chart-mtf-readout span { white-space: nowrap; }
+.chart-mtf-readout strong { color: #f0d5ff; }
+.indicator-mtf-m1-line, .indicator-mtf-m2-line, .indicator-mtf-m3-line, .indicator-mtf-m4-line, .indicator-mtf-vwap-line {
+  fill: none; stroke-width: 1.6; vector-effect: non-scaling-stroke; stroke-linejoin: round; stroke-linecap: round;
+}
+.indicator-mtf-m1-line { stroke: #e49df4; }
+.indicator-mtf-m2-line { stroke: #72d4e2; }
+.indicator-mtf-m3-line { stroke: #a782e8; }
+.indicator-mtf-m4-line { stroke: #ef797f; }
+.indicator-mtf-vwap-line { stroke: #ffb454; stroke-width: 2; }
+.legend-mtf-m1 { color: #e49df4; }
+.legend-mtf-m2 { color: #72d4e2; }
+.legend-mtf-m3 { color: #a782e8; }
+.legend-mtf-m4 { color: #ef797f; }
+.legend-mtf-vwap { color: #ffb454; }
+.chart-mtf-regime-buy { fill: rgba(53, 194, 123, .12); }
+.chart-mtf-regime-sell { fill: rgba(228, 77, 103, .12); }
+.chart-mtf-regime-neutral { fill: rgba(160, 169, 185, .06); }
+:root[data-theme="light"] .strategy-selection-panel select { background: #f5f9fd; color: #264763; border-color: #b9ccdc; }
+:root[data-theme="light"] .strategy-selection-panel p, :root[data-theme="light"] .strategy-selection-panel label { color: #536f85; }
+:root[data-theme="light"] .chart-mtf-readout { color: #654f79; }
+:root[data-theme="light"] .chart-mtf-readout strong { color: #56396f; }
+@media (max-width: 700px) { .strategy-selection-panel label { flex: 1 1 100%; min-width: 0; } }

@@ -1,11 +1,15 @@
 import { useEffect, useRef, useState, type MouseEvent as ReactMouseEvent } from "react";
 import { InfoTip } from "./InfoTip";
+import type { MtfConfluencePoint } from "../services/mtfConfluence";
+import type { TradingStrategyId } from "../types";
 import type { Asset, Candle, IndicatorEvaluation, IndicatorPoint, Position, Side } from "../types";
 
 interface Props {
   candles: Candle[];
   contextCandles?: Candle[];
   evaluation: IndicatorEvaluation;
+  strategyId?: TradingStrategyId;
+  mtfPoints?: MtfConfluencePoint[];
   position: Position | null;
   asset: Asset;
   draftOrder?: { side: Side; entry: number; stopLoss: number; target: number } | null;
@@ -56,6 +60,28 @@ function formatTime(timestamp: string): string {
 }
 function formatDate(timestamp: string): string { return timestamp.slice(0, 10); }
 
+function buildMtfPath(
+  visible: ChartCandle[],
+  points: Map<string, MtfConfluencePoint>,
+  xForIndex: (index: number) => number,
+  y: (price: number) => number,
+  selector: (point: MtfConfluencePoint) => number | null,
+): string {
+  let path = "";
+  let drawing = false;
+  visible.forEach((candle, index) => {
+    const point = points.get(candle.timestamp);
+    const value = point ? selector(point) : null;
+    if (value === null || !Number.isFinite(value)) {
+      drawing = false;
+      return;
+    }
+    path += (drawing ? "L" : "M") + " " + xForIndex(index) + " " + y(value) + " ";
+    drawing = true;
+  });
+  return path.trim();
+}
+
 function buildLinePath(
   visible: ChartCandle[],
   points: Map<number, IndicatorPoint>,
@@ -82,6 +108,8 @@ export function CandleChart({
   candles,
   contextCandles = [],
   evaluation,
+  strategyId = "MULTI_MEDIAS",
+  mtfPoints = [],
   position,
   asset,
   draftOrder = null,
@@ -134,6 +162,8 @@ export function CandleChart({
   const effectiveVisibleBars = fitAllCandles ? Math.max(visible.length, 1) : visibleBars;
   if (!visible.length) return null;
 
+  const showMtf = strategyId === "MTF_ANGULACAO";
+  const mtfMap = new Map(mtfPoints.map((point) => [point.timestamp, point]));
   const visibleIndices = new Set(visible.map((candle) => candle.index));
   const pointMap = new Map(
     evaluation.series.filter((point) => visibleIndices.has(point.candleIndex))
@@ -144,12 +174,18 @@ export function CandleChart({
     : draftOrder
       ? [draftOrder.stopLoss, draftOrder.target, draftOrder.entry]
       : [];
-  const indicatorPrices = Array.from(pointMap.values()).flatMap((point) =>
-    [point.wma20, point.vwap, point.ema8, point.ema52].filter(
-      (value): value is number => value !== null && Number.isFinite(value),
-    ),
-  );
-  // As médias do futuro Sistema 02 não influenciam o desenho nem a escala.
+  const indicatorPrices = showMtf
+    ? visible.flatMap((candle) => {
+        const point = mtfMap.get(candle.timestamp);
+        return point ? [...Object.values(point.averages), point.vwap].filter(
+          (value): value is number => value !== null && Number.isFinite(value),
+        ) : [];
+      })
+    : Array.from(pointMap.values()).flatMap((point) =>
+        [point.wma20, point.vwap, point.ema8, point.ema52].filter(
+          (value): value is number => value !== null && Number.isFinite(value),
+        ),
+      );
   const rawMin = Math.min(...visible.map((candle) => candle.low), ...indicatorPrices, ...extraPrices);
   const rawMax = Math.max(...visible.map((candle) => candle.high), ...indicatorPrices, ...extraPrices);
   const padding = Math.max((rawMax - rawMin) * 0.07, asset === "WINFUT" ? 10 : 1);
@@ -169,6 +205,13 @@ export function CandleChart({
   const vwapPath = buildLinePath(visible, pointMap, xForIndex, y, (point) => point.vwap);
   const ema8Path = buildLinePath(visible, pointMap, xForIndex, y, (point) => point.ema8);
   const ema52Path = buildLinePath(visible, pointMap, xForIndex, y, (point) => point.ema52);
+  const mtfLinePaths = showMtf
+    ? (["M1", "M2", "M3", "M4"] as const).map((id) => ({
+        id,
+        path: buildMtfPath(visible, mtfMap, xForIndex, y, (point) => point.averages[id]),
+      })) : [];
+  const mtfVwapPath = showMtf
+    ? buildMtfPath(visible, mtfMap, xForIndex, y, (point) => point.vwap) : "";
   const visibleSignals = evaluation.signals.filter((signal) => visibleIndices.has(signal.candleIndex));
   const maxVolume = Math.max(...visible.map((candle) => candle.volume), 1);
   const lastCandle = visible[visible.length - 1];
@@ -176,6 +219,7 @@ export function CandleChart({
     ? visible.find((candle) => candle.index === crosshair.candleIndex) ?? null
     : null;
   const readoutCandle = hoveredCandle ?? lastCandle;
+  const readoutMtf = mtfMap.get(readoutCandle.timestamp);
   const targetStartIndex = visible.findIndex((candle) => candle.source === "target");
   const hasVisibleContext = visible.some((candle) => candle.source === "context");
   const labelCount = Math.min(6, visible.length);
@@ -341,6 +385,18 @@ export function CandleChart({
           <span>C {formatPrice(readoutCandle.close, asset)}</span>
           <span>Vol. {new Intl.NumberFormat("pt-BR", { notation: "compact", maximumFractionDigits: 1 }).format(readoutCandle.volume)}</span>
         </div>
+        {showMtf && (
+          <div className="chart-mtf-readout" aria-label="Indicadores M15 do candle selecionado">
+            <strong>M15</strong>
+            {(["M1", "M2", "M3", "M4"] as const).map((id, index) => (
+              <span key={id}>MME {[8, 20, 50, 200][index]}: {readoutMtf?.averages[id] == null
+                ? "—" : formatPrice(readoutMtf.averages[id]!, asset)}</span>
+            ))}
+            <span>VWAP: {readoutMtf?.vwap == null ? "—" : formatPrice(readoutMtf.vwap, asset)}</span>
+            <span>ATR: {readoutMtf?.atr == null ? "—" : readoutMtf.atr.toFixed(2)}</span>
+            <span>TPV: {readoutMtf?.tpvVote == null ? "Aquecendo" : readoutMtf.tpvVote > 0 ? "Alta" : readoutMtf.tpvVote < 0 ? "Baixa" : "Neutro"}</span>
+          </div>
+        )}
         <div className="chart-controls" aria-label="Controles de zoom do gráfico">
           <InfoTip label="Como interagir com o gráfico" className="chart-info-tip">
             <p>Clique em um preço do gráfico para posicionar a entrada. Arraste a área dos candles para mover o gráfico. A linha de Alvo pode ser ajustada; o Stop só pode ser movido na direção favorável à operação, reduzindo o risco, e nunca em direção contrária.</p>
@@ -377,9 +433,22 @@ export function CandleChart({
       </div>
 
       <div className="indicator-legend" aria-label="Legenda do indicador">
-        <span className="legend-wma">MMP 20</span><span className="legend-vwap">VWAP</span>
-        <span className="legend-ema8">MME 8</span><span className="legend-ema52">MME 52</span>
-        <span className="legend-volume">Volume</span>
+        {showMtf ? (
+          <>
+            <span className="legend-mtf-m1">M15 MME 8</span>
+            <span className="legend-mtf-m2">M15 MME 20</span>
+            <span className="legend-mtf-m3">M15 MME 50</span>
+            <span className="legend-mtf-m4">M15 MME 200</span>
+            <span className="legend-mtf-vwap">VWAP M15</span>
+            <span className="legend-volume">Volume</span>
+          </>
+        ) : (
+          <>
+            <span className="legend-wma">MMP 20</span><span className="legend-vwap">VWAP</span>
+            <span className="legend-ema8">MME 8</span><span className="legend-ema52">MME 52</span>
+            <span className="legend-volume">Volume</span>
+          </>
+        )}
       </div>
 
       <svg className={"chart" + (isPanning ? " chart-panning" : "")} viewBox={"0 0 " + WIDTH + " " + HEIGHT} role="img"
@@ -415,7 +484,18 @@ export function CandleChart({
         {uniqueTimeLabelIndices.map((idx) => <line key={"time-grid-" + visible[idx].index}
           x1={xForIndex(idx)} x2={xForIndex(idx)} y1={PLOT_TOP} y2={VOLUME_BOTTOM} className="time-grid" />)}
 
-        {visible.slice(1).map((candle, idx) => {
+        {showMtf && visible.map((candle, index) => {
+          const point = mtfMap.get(candle.timestamp);
+          if (!point?.showBackground) return null;
+          const shade = point.zone === "GREEN" ? "chart-mtf-regime-buy"
+            : point.zone === "RED" ? "chart-mtf-regime-sell" : "chart-mtf-regime-neutral";
+          return <rect key={"mtf-regime-" + candle.timestamp}
+            x={xForIndex(index) - xStep / 2} y={PLOT_TOP}
+            width={xStep} height={PLOT_BOTTOM - PLOT_TOP}
+            className={shade} pointerEvents="none" />;
+        })}
+
+        {!showMtf && visible.slice(1).map((candle, idx) => {
           const previous = visible[idx];
           const currentPoint = pointMap.get(candle.index);
           const previousPoint = pointMap.get(previous.index);
@@ -465,10 +545,13 @@ export function CandleChart({
           </g>;
         })}
 
-        {wmaPath && <path d={wmaPath} className="indicator-wma-line" />}
-        {vwapPath && <path d={vwapPath} className="indicator-vwap-line" />}
-        {ema8Path && <path d={ema8Path} className="indicator-ema8-line" />}
-        {ema52Path && <path d={ema52Path} className="indicator-ema52-line" />}
+        {!showMtf && wmaPath && <path d={wmaPath} className="indicator-wma-line" />}
+        {!showMtf && vwapPath && <path d={vwapPath} className="indicator-vwap-line" />}
+        {!showMtf && ema8Path && <path d={ema8Path} className="indicator-ema8-line" />}
+        {!showMtf && ema52Path && <path d={ema52Path} className="indicator-ema52-line" />}
+        {mtfLinePaths.map(({ id, path }) =>
+          path && <path key={id} d={path} className={`indicator-mtf-${id.toLowerCase()}-line`} />)}
+        {mtfVwapPath && <path d={mtfVwapPath} className="indicator-mtf-vwap-line" />}
 
         {position && <>
           <PriceLine y={y(position.entry)} label={"Entrada " + formatPrice(position.entry, asset)} className="entry-line" />
