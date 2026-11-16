@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { open } from "@tauri-apps/plugin-dialog";
 import { InfoTip } from "./InfoTip";
 import {
   prepareProfitReplayFile,
@@ -23,7 +24,8 @@ function readableError(error: unknown, fallback: string): string {
 }
 
 interface Props {
-  onPrepared?: (result: ProfitPreparationResult) => void;
+  onPrepared?: (result: ProfitPreparationResult) => void | Promise<void>;
+  disabled?: boolean;
   plannedStart?: string;
   plannedEnd?: string;
 }
@@ -32,11 +34,13 @@ export function DataPreparationPanel({
   onPrepared,
   plannedStart,
   plannedEnd,
+  disabled = false,
 }: Props) {
   const [sourcePath, setSourcePath] = useState("");
   const [sessionStart, setSessionStart] = useState("09:00");
   const [sessionEnd, setSessionEnd] = useState("12:00");
   const [sourceTimeframeMinutes, setSourceTimeframeMinutes] = useState<1 | 2>(1);
+  const [targetDate, setTargetDate] = useState("");
   const [status, setStatus] = useState("idle");
   const [message, setMessage] = useState(
     "O arquivo bruto permanece intacto. Informe o timeframe real do CSV para evitar inferências incorretas.",
@@ -49,7 +53,26 @@ export function DataPreparationPanel({
     if (plannedEnd) setSessionEnd(plannedEnd);
   }, [plannedStart, plannedEnd]);
 
+  async function selectSourceFile() {
+    if (disabled || status === "working") return;
+    try {
+      const selected = await open({
+        multiple: false, directory: false,
+        filters: [{ name: "Arquivos CSV do Profit", extensions: ["csv"] }],
+      });
+      if (typeof selected === "string") {
+        setSourcePath(selected);
+        setStatus("idle");
+        setMessage("Arquivo selecionado. Confira o período e clique em Preparar e adicionar.");
+      }
+    } catch (error) {
+      setStatus("error");
+      setMessage(readableError(error, "Não foi possível abrir o seletor de arquivos."));
+    }
+  }
+
   async function prepare() {
+    if (disabled || status === "working") return;
     const path = sourcePath.trim().replace(/^"(.*)"$/, "$1");
     if (!path) {
       setStatus("error");
@@ -78,16 +101,18 @@ export function DataPreparationPanel({
         sessionEnd,
         setProgress,
         undefined,
-        undefined,
+        targetDate.trim() || undefined,
         sourceTimeframeMinutes,
       );
       setResult(next);
-      onPrepared?.(next);
+      await onPrepared?.(next);
       setProgress((current) =>
         current ? { ...current, percent: 100 } : current,
       );
       setStatus("success");
-      setMessage("Tratamento concluído. O arquivo bruto não foi modificado.");
+      setMessage(onPrepared
+        ? "Replay preparado e adicionado ao catálogo. O CSV original não foi modificado."
+        : "Tratamento concluído. O arquivo bruto não foi modificado.");
     } catch (error) {
       setStatus("error");
       setMessage(
@@ -110,8 +135,14 @@ export function DataPreparationPanel({
 
       <div className="data-window-grid">
         <label>
+          Data específica do pregão (opcional)
+          <input type="date" value={targetDate} onChange={(event) => setTargetDate(event.target.value)}
+            disabled={disabled || status === "working"} />
+          <small>Se vazio, utiliza a primeira data do CSV. Em arquivos com vários dias, escolha a data desejada.</small>
+        </label>
+        <label>
           Timeframe do CSV de origem
-          <select value={sourceTimeframeMinutes} onChange={(event) => setSourceTimeframeMinutes(Number(event.target.value) as 1 | 2)} disabled={status === "working"}>
+          <select value={sourceTimeframeMinutes} onChange={(event) => setSourceTimeframeMinutes(Number(event.target.value) as 1 | 2)} disabled={disabled || status === "working"}>
             <option value={1}>M1 — candles de 1 minuto</option>
             <option value={2}>M2 — candles de 2 minutos</option>
           </select>
@@ -122,7 +153,7 @@ export function DataPreparationPanel({
             type="time"
             value={sessionStart}
             onChange={(event) => setSessionStart(event.target.value)}
-            disabled={status === "working"}
+            disabled={disabled || status === "working"}
           />
         </label>
         <label>
@@ -131,7 +162,7 @@ export function DataPreparationPanel({
             type="time"
             value={sessionEnd}
             onChange={(event) => setSessionEnd(event.target.value)}
-            disabled={status === "working"}
+            disabled={disabled || status === "working"}
           />
         </label>
       </div>
@@ -142,11 +173,17 @@ export function DataPreparationPanel({
           <input
             value={sourcePath}
             onChange={(event) => setSourcePath(event.target.value)}
+            disabled={disabled || status === "working"}
             placeholder={'Ex.: C:\\Dados\\WINV26_TRADES.csv'}
           />
         </label>
-        <button type="button" onClick={prepare} disabled={status === "working"}>
-          {status === "working" ? "Tratando..." : "Gerar arquivo de replay"}
+        <button type="button" className="secondary" onClick={() => void selectSourceFile()}
+          disabled={disabled || status === "working"}>
+          Selecionar CSV
+        </button>
+        <button type="button" onClick={() => void prepare()}
+          disabled={disabled || status === "working" || !sourcePath.trim()}>
+          {status === "working" ? "Tratando..." : "Preparar e adicionar"}
         </button>
       </div>
 
