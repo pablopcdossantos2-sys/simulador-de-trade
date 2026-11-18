@@ -14,6 +14,7 @@ export const DEFAULT_MOVING_AVERAGE_SETTINGS: MovingAverageSettings = {
   },
   mtf: {
     periods: [...MTF_CONFLUENCE_DEFAULTS.periods] as [number, number, number, number],
+    shadeNeutral: true,
     plotOn: [true, true, true, true],
     filters: {
       ...DEFAULT_MTF_VOTE_FILTERS,
@@ -71,6 +72,7 @@ export function defaultsForMovingAverages(): MovingAverageSettings {
     multiMedias: { ...DEFAULT_MOVING_AVERAGE_SETTINGS.multiMedias },
     mtf: {
       periods: [...DEFAULT_MOVING_AVERAGE_SETTINGS.mtf.periods] as [number, number, number, number],
+      shadeNeutral: true,
       plotOn: [true, true, true, true],
       filters: {
         ...DEFAULT_MTF_VOTE_FILTERS,
@@ -90,6 +92,7 @@ export function normalizeMovingAverageSettings(raw: unknown): MovingAverageSetti
     multiMedias: validMulti(value.multiMedias) ? { ...value.multiMedias } : defaults.multiMedias,
     mtf: validMtf(value.mtf) ? {
       periods: [...value.mtf.periods] as [number,number,number,number],
+      shadeNeutral: value.mtf.shadeNeutral !== false,
       plotOn: [...(value.mtf.plotOn ?? [true,true,true,true])] as [boolean, boolean, boolean, boolean],
       filters: value.mtf.filters ? {
         ...DEFAULT_MTF_VOTE_FILTERS,

@@ -34,7 +34,7 @@ export function ManualPanel() {
       <section className="manual-topic">
         <h3>3. Preparar o pregão e seu histórico</h3>
         <ol>
-          <li>Na seção <strong>Pregões e replays</strong>, abra <strong>Preparar um pregão e seu histórico</strong>. Escolha o ativo e a data e clique em <strong>Verificar arquivos do pregão</strong>.</li>
+          <li>Na seção <strong>Pregões e replays</strong>, abra <strong>Preparar um pregão e seu histórico</strong>. Escolha o ativo e a data. O catálogo mostra automaticamente os arquivos disponíveis e as pendências.</li>
           <li>O sistema identifica os arquivos já disponíveis e os dias anteriores necessários ao aquecimento da estratégia selecionada.</li>
           <li>Na subseção <strong>Gerar os replays necessários</strong>, confira as pendências. Para cada pregão, selecione o CSV do Profit, informe M1 ou M2 e clique em <strong>Preparar replay</strong>. É possível preparar vários arquivos com o botão <strong>Preparar todos os caminhos informados</strong>.</li>
           <li>Acompanhe a lista <strong>Pregões e replays disponíveis</strong>, que indica os arquivos catalogados e quais dias já estão prontos para a estratégia selecionada.</li>
@@ -43,12 +43,11 @@ export function ManualPanel() {
       </section>
 
       <section className="manual-topic">
-        <h3>4. Selecionar e carregar o replay no Simulador</h3>
+        <h3>4. Selecionar o replay no Simulador</h3>
         <ol>
-          <li>Abra <strong>Simulador</strong> e escolha o pregão em <strong>Selecionar e carregar replay</strong>. A lista informa os dias prontos e os que ainda exigem arquivos anteriores.</li>
-          <li>Clique apenas em <strong>Carregar replay</strong>. O sistema seleciona o pregão, verifica o contrato e o histórico de aquecimento e abre os arquivos em uma única operação. Também é possível usar <strong>Consultar outro dia</strong>.</li>
+          <li>Em <strong>Simulador → Selecionar replay disponível</strong>, escolha um pregão em <strong>Replays preparados</strong> ou use <strong>Consultar outro dia</strong>. Ao escolher um pregão pronto, o sistema verifica o contrato e o aquecimento e abre o replay automaticamente.</li>
           <li>Se o replay daquele dia não existir ou faltar histórico, o sistema exibirá as pendências e um botão para voltar a <strong>Pregões e replays</strong>, onde os CSVs serão importados e os arquivos gerados.</li>
-          <li>Quando aparecer <strong>Replay carregado</strong>, escolha <strong>Treino livre</strong> ou <strong>Modo prova</strong> e inicie a sessão. A reprodução não começa automaticamente.</li>
+          <li>Quando aparecer <strong>Replay pronto para treino</strong>, escolha <strong>Treino livre</strong> ou <strong>Modo prova</strong> e inicie a sessão com reprodução imediata ou em pausa.</li>
         </ol>
         <p>O Simulador não importa CSVs nem prepara arquivos. Os candles de aquecimento alimentam os indicadores, mas ficam ocultos; somente o pregão escolhido é reproduzido.</p>
       </section>

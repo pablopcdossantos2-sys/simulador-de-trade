@@ -27,6 +27,7 @@ export interface MovingAverageSettings {
   mtf: {
     periods: [number, number, number, number];
     /** Exibição das linhas M15, independente dos votos no fundo. Legados usam todas as linhas. */
+    shadeNeutral?: boolean;
     plotOn?: [boolean, boolean, boolean, boolean];
     /** Opcional para ler configurações e backups das versões anteriores. */
     filters?: MtfVoteFilters;

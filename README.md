@@ -1,6 +1,6 @@
 # Simulador de Trade
 
-Aplicativo desktop educacional para treinar execução disciplinada em WINFUT e WDOFUT, com replay histórico, **seleção de duas estratégias**, ordens OCO e análise dos resultados. A estratégia 01 está consolidada; a segunda está liberada como **beta para validação com o Pine original**.
+Aplicativo desktop educacional para treinar execução disciplinada em WINFUT e WDOFUT, com replay histórico, **seleção de duas estratégias**, ordens OCO e análise dos resultados. A estratégia 01 está consolidada; a segunda concluiu a validação humana com o Pine v13 e no Windows.
 
 ## Testar a versão atual no Windows
 
@@ -69,14 +69,14 @@ Exporte um CSV de candles M1 (preferencial) ou M2 do Profit, informando o timefr
 
 O simulador interpreta o timestamp como **abertura do candle**. Essa convenção ainda precisa de confirmação operacional no Profit; não desloque os horários sem evidência. Use o mesmo contrato/série contínua no aquecimento e no pregão-alvo, observando que a identificação genérica WINFUT/WDOFUT não comprova o vencimento.
 
-Os CSVs podem ser preparados antecipadamente em **Pregões e replays** ou durante o plano guiado no **Simulador**. Depois, defina ativo e data no plano de treino; o catálogo identifica os arquivos compatíveis, calcula o aquecimento oculto e seleciona o pregão-alvo. O CSV bruto do Profit não é alterado.
+Prepare os CSVs em **Pregões e replays**. Ao escolher um pregão pronto no **Simulador**, o catálogo identifica os arquivos compatíveis e carrega o histórico de aquecimento oculto e o pregão-alvo. O aplicativo preserva o CSV bruto do Profit.
 
 ## Funcionalidades
 
 - Replay M1 ou M2 com movimento sintético segundo a segundo, controles de velocidade, pausa, avanço de segundo e avanço de candle;
 - aquecimento histórico oculto do indicador antes do início do período visível;
 - **sistema 01 — Multi Médias · Nuvem e Sinais:** MME 8, MMP 20, MME 52, VWAP e sinais de entrada;
-- **sistema 02 — MMs MTF + Angulação (beta):** quatro MMEs M15 (8, 20, 50, 200), ATR 14, VWAP M15 e TPV 50 com autorização direcional verde/vermelha/cinza, sem disparar entradas automáticas;
+- **sistema 02 — MMs MTF + Angulação:** quatro MMEs M15 (8, 20, 50, 200), ATR 14, VWAP M15 e TPV 50 com autorização direcional verde/vermelha/cinza, sem disparar entradas automáticas;
 - seleção da estratégia antes do plano; o sistema 02 requer 450 candles M2 anteriores (normalmente dois pregões), e o sistema 01 mantém 260;
 - entradas direcionais condicionadas por sinal e reentrada autorizada pela MME 52;
 - ordem OCO obrigatória, risco/retorno mínimo de 1:2, custos e slippage configuráveis;
@@ -85,12 +85,12 @@ Os CSVs podem ser preparados antecipadamente em **Pregões e replays** ou durant
 
 ## Escolher com qual estratégia treinar
 
-1. No **Simulador**, escolha o sistema 01 ou 02 em **Estratégia de treinamento**, ou escolha diretamente na página **Sistemas de trading**.
-2. Selecione o ativo e a data e aplique o plano. **O sistema 02 pede mais histórico** para aquecer TPV e médias M15.
-3. Prepare os CSVs indicados e inicie o replay. **Verde** autoriza apenas compra manual, **vermelho** apenas venda manual e **cinza** bloqueia novas entradas no sistema 02. O OCO e a razão mínima 1:2 continuam obrigatórios.
-4. Não é possível trocar de sistema com treino ou posição aberta. Ao alternar, o replay carregado é descarregado e o plano precisa ser reaplicado; os CSVs catalogados são preservados.
+1. Em **Sistemas de trading**, escolha o sistema 01 ou 02.
+2. No **Simulador**, selecione um replay pronto. **O sistema 02 pede mais histórico** para aquecer o TPV e as médias M15. Se faltarem dados, prepare os CSVs indicados em **Pregões e replays**.
+3. Inicie o treino. No sistema 02, **verde** autoriza apenas compra manual, **vermelho** apenas venda manual e **cinza** bloqueia novas entradas. O OCO e a razão mínima 1:2 continuam obrigatórios.
+4. Termine o treino e feche a posição antes de trocar de sistema. Após a troca, selecione um replay para a nova estratégia.
 
-A segunda estratégia não reproduz M15 exato a partir de M2, nem reconstitui negócios intrabar; veja [especificação e limitações](docs/ESTRATEGIA-02-MTF.md). A comparação TradingView/Profit precisa de [validação humana](docs/VALIDACAO-HUMANA-PASSO-A-PASSO.md) antes de declarar sua fidelidade numérica concluída.
+A segunda estratégia não reproduz M15 exato a partir de M2, nem reconstitui negócios intrabar; veja [especificação e limitações](docs/ESTRATEGIA-02-MTF.md). O resultado da validação humana está nos [critérios de aceite](docs/CRITERIOS-DE-ACEITE-V1.md).
 
 ## Executar em desenvolvimento
 
@@ -121,4 +121,4 @@ Este software tem finalidade educacional e de treinamento. Não envia ordens rea
 
 1. Em **Pregões e replays**, importe os CSVs M1/M2 do Profit e gere replays catalogados. Use a preparação guiada para identificar e completar o histórico de aquecimento necessário aos indicadores.
 2. Em **Sistemas de trading**, configure e selecione a estratégia.
-3. No **Simulador**, escolha um replay já disponível e clique uma única vez em **Carregar replay**. A seleção do pregão e a abertura dos arquivos/histórico ocorrem juntas, sem uma segunda confirmação. Depois, escolha o modo e inicie o treino. Caso o pregão ou seu aquecimento esteja indisponível, a interface indica as pendências e oferece um atalho para **Pregões e replays**. O Simulador não prepara arquivos CSV.
+3. Em **Simulador → Selecionar replay disponível**, escolha um pregão pronto. O replay carrega automaticamente. Quando aparecer **Replay pronto para treino**, escolha o modo e inicie a sessão. Caso faltem arquivos do pregão ou do aquecimento, a interface indica as pendências e oferece um atalho para **Pregões e replays**.

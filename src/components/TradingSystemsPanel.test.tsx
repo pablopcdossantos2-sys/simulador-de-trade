@@ -15,7 +15,7 @@ describe("edição das estratégias em Sistemas de trading", () => {
     expect(markup).toContain("MME rápida");
     expect(markup).toContain("MME 4 · M15");
     expect(markup).toContain("Angulação mínima (°)");
-    expect(markup).toContain("Selecionar e treinar com este sistema (beta)");
+    expect(markup).toContain("Selecionar e treinar com este sistema");
     expect(markup).toContain("Ir ao Simulador com este sistema");
     expect(markup).not.toContain("Simulador → Configurar médias");
   });

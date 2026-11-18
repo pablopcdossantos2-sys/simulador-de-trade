@@ -57,7 +57,7 @@ export function TradingSystemsPanel({ selectedStrategyId, movingAverages = DEFAU
               <span className="trading-system-index">SISTEMA 02</span>
               <h3>MMs MTF + Angulação</h3>
             </div>
-            <span className="trading-system-status planned">Beta para testes</span>
+            <span className="trading-system-status available">Disponível</span>
           </div>
           <p className="trading-system-summary">Estratégia de confluência causal em M15: quatro MMEs configuráveis, VWAP diária, TPV e alinhamento opcionais. Cada MME pode ser exibida sem participar do cálculo do fundo verde/vermelho.</p>
           <div className="trading-system-indicators">
@@ -82,10 +82,10 @@ export function TradingSystemsPanel({ selectedStrategyId, movingAverages = DEFAU
             <li>Fundo cinza: não autoriza novas operações.</li>
             <li>A entrada será posicionada manualmente pelo usuário no gráfico. O sistema não abrirá operações nem criará gatilhos automáticos.</li>
           </ul>
-          <p className="trading-system-footnote">Beta experimental: M15 aproximado a partir de M2 completo, sem lookahead. A fronteira 2→15 minutos não pode ser repartida exatamente sem M1/ticks; VWAP e TPV também usam OHLCV agregado. A validação numérica com o Pine v13 original permanece necessária.</p>
+          <p className="trading-system-footnote">M15 aproximado a partir de M2 completo, sem lookahead. A fronteira 2→15 minutos não pode ser repartida exatamente sem M1/ticks; VWAP e TPV também usam OHLCV agregado.</p>
           <button type="button" className="trading-system-select" disabled={disabled}
             onClick={() => onSelect("MTF_ANGULACAO")}>
-            {selectedStrategyId === "MTF_ANGULACAO" ? "Ir ao Simulador com este sistema" : "Selecionar e treinar com este sistema (beta)"}
+            {selectedStrategyId === "MTF_ANGULACAO" ? "Ir ao Simulador com este sistema" : "Selecionar e treinar com este sistema"}
           </button>
         </article>
       </div>

@@ -34,6 +34,7 @@ export function StrategyAveragesPanel({ strategyId, settings, disabled, onSave }
     ...DEFAULT_MTF_VOTE_FILTERS, ...settings.mtf.filters,
     voteOn: [...(settings.mtf.filters?.voteOn ?? DEFAULT_MTF_VOTE_FILTERS.voteOn)],
   }));
+  const [shadeNeutral, setShadeNeutral] = useState(settings.mtf.shadeNeutral ?? true);
   const [plotOn, setPlotOn] = useState<boolean[]>(() => [...(settings.mtf.plotOn ?? [true, true, true, true])]);
   const [angleFields, setAngleFields] = useState<string[]>(() =>
     (settings.mtf.filters?.angleThresholds ?? MTF_CONFLUENCE_DEFAULTS.angleThresholds).map(String));
@@ -42,6 +43,7 @@ export function StrategyAveragesPanel({ strategyId, settings, disabled, onSave }
 
   useEffect(() => {
     setFields(inputsFor(settings, strategyId));
+    setShadeNeutral(settings.mtf.shadeNeutral ?? true);
     setPlotOn([...(settings.mtf.plotOn ?? [true, true, true, true])]);
     setAngleFields((settings.mtf.filters?.angleThresholds ?? MTF_CONFLUENCE_DEFAULTS.angleThresholds).map(String));
     setExpanded(false);
@@ -76,6 +78,7 @@ export function StrategyAveragesPanel({ strategyId, settings, disabled, onSave }
       multiMedias: { ...settings.multiMedias },
       mtf: {
         periods: [...settings.mtf.periods] as [number, number, number, number],
+        shadeNeutral,
         plotOn: [...plotOn] as [boolean, boolean, boolean, boolean],
         filters: {
           ...settings.mtf.filters, ...filters,
@@ -113,6 +116,7 @@ export function StrategyAveragesPanel({ strategyId, settings, disabled, onSave }
         angleThresholds: [...MTF_CONFLUENCE_DEFAULTS.angleThresholds],
       });
       setAngleFields(MTF_CONFLUENCE_DEFAULTS.angleThresholds.map(String));
+      setShadeNeutral(true);
       setPlotOn([true, true, true, true]);
     }
     setFeedback("Valores padrão preenchidos. Clique em Salvar médias para aplicá-los.");
@@ -181,6 +185,8 @@ export function StrategyAveragesPanel({ strategyId, settings, disabled, onSave }
               </InfoTip>
             </div>
             <div className="strategy-confluence-switches">
+              <label><input type="checkbox" checked={shadeNeutral} disabled={disabled || saving}
+                onChange={(event) => setShadeNeutral(event.target.checked)} /> Usar cinza nas áreas neutras</label>
               <label><input type="checkbox" checked={filters.useAngles}
                 onChange={(event) => toggleFilter("useAngles", event.target.checked)}
                 disabled={disabled || saving} /> Usar angulação no fundo (ATR 14)</label>

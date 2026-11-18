@@ -7,12 +7,11 @@ import {
 import type { Asset, MovingAverageSettings, TradingStrategyId } from "../types";
 
 interface Props {
-  onPlanChange?: (plan: SimulationPlan) => void | Promise<void>;
+  onPlanChange?: (plan: SimulationPlan | null) => void | Promise<void>;
   strategyId?: TradingStrategyId;
   movingAverages?: MovingAverageSettings;
   disabled?: boolean;
-  initialAsset?: Asset;
-  initialDate?: string;
+  request?: { asset: Asset; date: string } | null;
 }
 
 function currentLocalDate(): string {
@@ -30,14 +29,16 @@ function brDate(value: string): string {
 
 export function SimulationPlanner({
   onPlanChange, strategyId = "MULTI_MEDIAS", movingAverages, disabled = false,
-  initialAsset, initialDate,
+  request,
 }: Props) {
-  const [asset, setAsset] = useState<Asset>(initialAsset ?? "WINFUT");
-  const [date, setDate] = useState(initialDate ?? currentLocalDate);
+  const [asset, setAsset] = useState<Asset>(request?.asset ?? "WINFUT");
+  const [date, setDate] = useState(request?.date ?? currentLocalDate);
   useEffect(() => {
-    if (initialAsset) setAsset(initialAsset);
-    if (initialDate) setDate(initialDate);
-  }, [initialAsset, initialDate]);
+    if (request) {
+      setAsset(request.asset);
+      setDate(request.date);
+    }
+  }, [request]);
   const timeframeMinutes = DEFAULT_TIMEFRAME_MINUTES;
 
   const result = useMemo(() => {
@@ -54,10 +55,9 @@ export function SimulationPlanner({
     }
   }, [asset, date, strategyId, movingAverages]);
 
-  function applyPlan() {
-    if (disabled || !result.plan) return;
+  useEffect(() => {
     void onPlanChange?.(result.plan);
-  }
+  }, [onPlanChange, result.plan]);
 
   return (
     <section className="simulation-planner card">
@@ -117,14 +117,6 @@ export function SimulationPlanner({
             </p>
           )}
 
-          <button
-            type="button"
-            className="planner-apply"
-            onClick={applyPlan}
-            disabled={disabled}
-          >
-            Verificar arquivos do pregão
-          </button>
         </div>
       )}
     </section>

@@ -56,7 +56,7 @@ A partir de novembro de 2026, há seleção operacional entre duas estratégias.
 - [x] Possibilitar seleção de estratégia; impedir troca durante treino/posição, recalcular plano ao alternar, usar 450 M2 para aquecimento MTF.
 - [x] Gravar a estratégia em SQLite, restaurá-la no backup, mostrá-la no histórico/relatório/CSV; sessões antigas são atribuídas ao sistema 01.
 - [x] Testar regras de autorização manual M15 sem reaproveitar a reentrada MME 52 como se fosse um sinal do sistema 02.
-- [ ] **Aceitação humana do beta:** comparar 5 ou mais candles M15 do simulador com o Pine v13 no TradingView (mesma série, datas e histórico anterior), verificar concordâncias e documentar divergências do M2→M15.
-- [ ] **Aceitação humana do beta:** no Windows, conferir alternância das estratégias, fundos verde/vermelho/cinza, operações permitidas/bloqueadas e persistência do sistema no histórico/backup.
+- [x] **Aceitação humana do beta:** comparar 5 ou mais candles M15 do simulador com o Pine v13 no TradingView (mesma série, datas e histórico anterior), verificar concordâncias e documentar divergências do M2→M15.
+- [x] **Aceitação humana do beta:** no Windows, conferir alternância das estratégias, fundos verde/vermelho/cinza, operações permitidas/bloqueadas e persistência do sistema no histórico/backup.
 
-A estratégia 02 é disponibilizada como **beta** até as verificações acima. O uso de candles M2 não permite uma reconstrução M15 rigorosamente idêntica em fronteiras temporais ímpares. Não publicar números derivados como equivalência exata com o TradingView.
+Em 18/11/2026, o usuário confirmou o funcionamento dos dois itens de aceite. Relatou separadamente a coexistência de áreas neutras cinzas e transparentes no instalador da revisão 2268253. O uso de candles M2 não permite uma reconstrução M15 rigorosamente idêntica em fronteiras temporais ímpares. Não publicar números derivados como equivalência exata com o TradingView.

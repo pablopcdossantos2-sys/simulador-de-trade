@@ -21,7 +21,7 @@ interface Props {
   mode: TrainingMode;
   startingBalanceBRL: number | null;
   onModeChange: (mode: TrainingMode) => void;
-  onStart: () => void;
+  onStart: (playImmediately: boolean) => void;
   onEnd: () => void;
 }
 
@@ -217,14 +217,14 @@ export function TrainingSessionPanel({
 
       <div className="training-actions">
         {!active ? (
-          <button
-            type="button"
-            className="training-start"
-            onClick={onStart}
-            disabled={!canStart || !replayLoaded}
-          >
-            {mode === "EXAM" ? "Iniciar prova" : "Iniciar treino"}
-          </button>
+          <>
+            <button type="button" className="training-start" onClick={() => onStart(true)} disabled={!canStart || !replayLoaded}>
+              {mode === "EXAM" ? "Iniciar prova e reproduzir" : "Iniciar treino e reproduzir"}
+            </button>
+            <button type="button" className="secondary" onClick={() => onStart(false)} disabled={!canStart || !replayLoaded}>
+              {mode === "EXAM" ? "Iniciar prova em pausa" : "Iniciar treino em pausa"}
+            </button>
+          </>
         ) : (
           <button
             type="button"

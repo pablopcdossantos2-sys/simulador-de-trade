@@ -6,6 +6,25 @@ import { calculateMtfConfluence } from "../services/mtfConfluence";
 import { INDICATOR_V1_REGRESSION_CANDLES } from "../fixtures/indicatorV1";
 import { defaultsForMovingAverages } from "../services/strategyMovingAverages";
 
+it("aplica uma única aparência a todos os segmentos neutros do Sistema 02", () => {
+  const candles = INDICATOR_V1_REGRESSION_CANDLES.slice(-4);
+  const points = calculateMtfConfluence(candles).points.slice(0, 3);
+  points[0].zone = "GREEN";
+  points[1].zone = "RED";
+  points[2].zone = "NONE";
+  for (const shadeNeutral of [true, false]) {
+    const settings = defaultsForMovingAverages();
+    settings.mtf.shadeNeutral = shadeNeutral;
+    const html = renderToStaticMarkup(
+      <CandleChart candles={candles} evaluation={{ authorization: null, signals: [], series: [], zone: "NONE" }}
+        strategyId="MTF_ANGULACAO" mtfPoints={points} movingAverages={settings} asset="WINFUT" position={null} />,
+    );
+    expect(html.match(/class="chart-mtf-regime-neutral"/g) ?? []).toHaveLength(shadeNeutral ? 2 : 0);
+    expect(html).toContain('class="chart-mtf-regime-buy"');
+    expect(html).toContain('class="chart-mtf-regime-sell"');
+  }
+});
+
 describe("gráfico da primeira estratégia: Multi Médias", () => {
   it("mantém somente MME8, MMP20, MME52, VWAP e volume, sem médias M15", () => {
     const candles = INDICATOR_V1_REGRESSION_CANDLES;

@@ -41,12 +41,12 @@ describe("seleção de replays catalogados, sem importar CSV no Simulador", () =
   it("exibe orientação para preparar arquivos quando catálogo está vazio", () => {
     const html = renderToStaticMarkup(<ReplaySelectionPanel entries={[]} loading={false} error={null}
       strategyId="MULTI_MEDIAS" settings={settings} currentPlan={null}
-      disabled={false} busy={false} loadedReplay={false}
-      onLoad={() => undefined} onPrepare={() => undefined} onRefresh={() => undefined} />);
+      disabled={false} busy={false} session={null}
+      onLoad={async () => null} onPrepare={() => undefined} onRefresh={() => undefined} />);
     expect(html).toContain("Nenhum pregão pronto para seleção");
     expect(html).toContain("Ir para Pregões e replays");
     expect(html).not.toContain("Selecionar CSV");
-    expect(html).toContain("Selecionar e carregar replay");
+    expect(html).toContain("Selecionar replay disponível");
     expect(html).not.toContain("Replay selecionado para o treino");
   });
 });
@@ -61,16 +61,16 @@ it("exibe o status do replay aberto sem exigir outra etapa de carregamento", () 
       entries={[entry("2026-11-12", "a.csv"), entry("2026-11-13", "b.csv")]}
       strategyId="MULTI_MEDIAS" settings={defaultsForMovingAverages()}
       loading={false} error={null} currentPlan={plan}
-      disabled={false} busy={false} loadedReplay
+      disabled={false} busy={false}
       session={{
         sourcePath: "b.csv", symbol: "WINFUT", asset: "WINFUT",
         finished: false, sessionStart: "09:00", sessionEnd: "18:25",
         mode: "CANDLES_M2_SYNTHETIC", synthetic: true, sourceTimeframeMinutes: 2,
       }}
-      onLoad={() => undefined} onPrepare={() => undefined} onRefresh={() => undefined}
+      onLoad={async () => null} onPrepare={() => undefined} onRefresh={() => undefined}
     />,
   );
-  expect(html).toContain("Replay atualmente carregado");
+  expect(html).toContain("Replay pronto para treino");
   expect(html).toContain("Replay sintético M2");
-  expect(html).toContain("Os preços intrabar são simulados");
+  expect(html).not.toContain("Carregar replay");
 });

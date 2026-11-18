@@ -517,9 +517,10 @@ export function CandleChart({
         <g className="chart-price-layer" clipPath={`url(#${priceClipId})`}>
         {showMtf && visible.map((candle, index) => {
           const point = mtfMap.get(candle.timestamp);
-          if (!point?.showBackground) return null;
-          const shade = point.zone === "GREEN" ? "chart-mtf-regime-buy"
-            : point.zone === "RED" ? "chart-mtf-regime-sell" : "chart-mtf-regime-neutral";
+          const zone = point?.zone ?? "NONE";
+          if (zone === "NONE" && movingAverages.mtf.shadeNeutral === false) return null;
+          const shade = zone === "GREEN" ? "chart-mtf-regime-buy"
+            : zone === "RED" ? "chart-mtf-regime-sell" : "chart-mtf-regime-neutral";
           return <rect key={"mtf-regime-" + candle.timestamp}
             x={xForIndex(index) - xStep / 2} y={PLOT_TOP}
             width={xStep} height={PLOT_BOTTOM - PLOT_TOP}

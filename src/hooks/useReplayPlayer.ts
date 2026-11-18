@@ -29,7 +29,6 @@ export function useReplayPlayer(
   timeframeMinutes = 2,
   onBatch?: (lastTrade: ReplayTrade) => void,
 ) {
-  const [path, setPath] = useState("");
   const [session, setSession] = useState<ReplaySessionInfo | null>(null);
   const [playing, setPlayingState] = useState(false);
   const [speed, setSpeedState] = useState(1);
@@ -86,17 +85,14 @@ export function useReplayPlayer(
   }
 
   async function loadReplay(
-    expectedStart?: string,
-    expectedEnd?: string,
-    sourcePathOverride?: string,
+    sourcePath: string,
+    expectedStart: string,
+    expectedEnd: string,
   ): Promise<ReplaySessionInfo | null> {
-    const normalized = (sourcePathOverride ?? path)
+    const normalized = sourcePath
       .trim()
       .replace(/^"(.*)"$/, "$1");
-    if (!normalized) {
-      setError("Informe o caminho de um arquivo .replay.csv.");
-      return null;
-    }
+    if (!normalized) throw new Error("O caminho do arquivo de replay está vazio.");
 
     const generation = ++generationRef.current;
     clockRef.current = null;
@@ -124,12 +120,6 @@ export function useReplayPlayer(
       setCurrentTimestamp(null);
       setFinished(false);
       return info;
-    } catch (reason) {
-      if (generation === generationRef.current) {
-        setSession(null);
-        setError(readErrorMessage(reason));
-      }
-      return null;
     } finally {
       if (generation === generationRef.current) setBusy(false);
     }
@@ -492,8 +482,6 @@ export function useReplayPlayer(
   );
 
   return {
-    path,
-    setPath,
     session,
     playing,
     setPlaying,

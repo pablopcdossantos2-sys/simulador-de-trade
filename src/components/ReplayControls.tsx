@@ -74,9 +74,7 @@ export function ReplayControls({
               : "Este replay contém negócios históricos individuais do arquivo legado."} O botão +1 candle avança até a próxima fronteira de M{timeframeMinutes}, sem mostrar candles futuros.
           </InfoTip>
         </div>
-        <span className={`replay-status ${finished ? "finished" : session ? "ready" : ""}`}>
-          {finished ? "Sessão concluída" : session ? "Arquivo carregado" : "Aguardando arquivo"}
-        </span>
+        {finished && <span className="replay-status">Sessão concluída</span>}
       </div>
 
       {session && (
