@@ -1,3 +1,4 @@
+import { useState } from "react";
 import type { ReplaySessionInfo } from "../services/replayData";
 import { InfoTip } from "./InfoTip";
 
@@ -14,6 +15,10 @@ interface Props {
   onPlayPause: () => void;
   trainingActive: boolean;
   locked?: boolean;
+  ended?: boolean;
+  inspectingHistory?: boolean;
+  onSeek?: (time: string) => void;
+  onReveal?: () => void;
   onStep: () => void;
   onStepCandle: () => void;
   onReset: () => void;
@@ -56,11 +61,13 @@ export function ReplayControls({
   onPlayPause,
   trainingActive,
   locked = false,
+  ended, inspectingHistory, onSeek, onReveal,
   onStep,
   onStepCandle,
   onReset,
   onSpeedChange,
 }: Props) {
+  const [time, setTime] = useState("");
   if (!session) return null;
 
   return (
@@ -105,6 +112,17 @@ export function ReplayControls({
           </div>
 
           <div className="replay-buttons">
+            {(trainingActive || ended) && <form className="replay-time-form" onSubmit={event => {
+              event.preventDefault();
+              if (time && !busy) onSeek?.(time.slice(0, 5));
+            }}>
+              <label>Horário do pregão <input type="time" required value={time}
+                min={session.sessionStart?.slice(0, 5)} max={session.sessionEnd?.slice(0, 5)}
+                onChange={event => setTime(event.target.value)} /></label>
+              <button disabled={!time || busy}>Ir para horário</button>
+            </form>}
+            {ended && (!finished || inspectingHistory) && <button type="button" disabled={busy}
+              onClick={onReveal}>Ver pregão completo</button>}
             <button
               type="button"
               className="replay-primary"
@@ -147,7 +165,8 @@ export function ReplayControls({
             </label>
           </div>
 
-          {!trainingActive && (
+          {inspectingHistory && trainingActive && <p role="status">Consultando candles anteriores. Reproduza ou avance para voltar ao horário atual do treino.</p>}
+          {!trainingActive && !ended && (
             <p className="replay-note replay-start-guidance" role="status">
               Inicie o treino para liberar a reprodução e os avanços do replay. A sessão começará novamente do início do pregão selecionado.
             </p>

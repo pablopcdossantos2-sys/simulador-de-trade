@@ -265,6 +265,9 @@ export function SessionHistoryPanel({ refreshKey }: Props) {
                 <div className="report-title">
                   <div>
                     <span>Relatório pós-sessão</span>
+                    {events.filter(event => event.type === "SESSION_REFLECTION" && event.sessionId === selected.id).map(event =>
+                      <p className="reflection-text" key={event.id}><b>Erros relatados no treino</b><br />{event.reason}</p>
+                    )}
                     <strong>
                       {brDate(selected.tradeDate)} · {selected.asset}
                     </strong>

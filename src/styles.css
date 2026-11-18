@@ -37,7 +37,7 @@ input:focus-visible {
 }
 
 .app-shell {
-  width: min(1480px, calc(100% - 32px));
+  width: min(1720px, calc(100% - 32px));
   margin: 0 auto;
   padding: 26px 0 44px;
 }
@@ -201,9 +201,14 @@ h2 {
 }
 
 .order-panel {
-  flex: 0 0 300px;
-  padding: 20px;
+  flex: 0 0 260px;
+  padding: 16px;
 }
+
+.session-reflection { padding: 16px; display: grid; gap: 8px; }
+.session-reflection textarea { width: 100%; resize: vertical; }
+.session-reflection button { justify-self: start; }
+.reflection-text { white-space: pre-wrap; overflow-wrap: anywhere; }
 
 .signal-badge,
 .history-count {
@@ -743,7 +748,7 @@ td {
 .modal-backdrop {
   position: fixed;
   inset: 0;
-  z-index: 1000;
+  z-index: 2002;
   display: grid;
   place-items: center;
   padding: 20px;
@@ -4785,3 +4790,10 @@ td {
 .replay-best-practices table { border-collapse: collapse; margin: 1rem 0; font-size: .9rem; }
 .replay-best-practices caption { text-align: left; font-weight: 700; margin-bottom: .5rem; }
 .replay-best-practices th, .replay-best-practices td { padding: .3rem .65rem; text-align: left; border-bottom: 1px solid #77889955; }
+
+.training-alert-settings { padding: 1rem; display: grid; gap: .8rem; }
+.training-alert-settings label { display: grid; gap: .35rem; }
+.training-alert-settings fieldset { display: grid; grid-template-columns: repeat(auto-fit,minmax(min(100%,220px),1fr)); gap: .75rem; }
+.training-alert-settings button { justify-self: start; }
+.training-reminder { position: fixed; right: 1rem; bottom: 1rem; z-index: 2001; max-width: min(26rem,90vw); padding: 1rem; background: #15334b; color: white; border-radius: .6rem; display: flex; gap: .7rem; align-items: center; overflow-wrap: anywhere; }
+.replay-time-form { display: flex; align-items: center; gap: .5rem; flex-wrap: wrap; }

@@ -217,6 +217,7 @@ export type TrainingMode = "FREE" | "EXAM";
 export type TrainingEventType =
   | "SESSION_STARTED"
   | "SESSION_ENDED"
+  | "SESSION_REFLECTION"
   | "BLOCKED_ATTEMPT"
   | "SIGNAL_IGNORED"
   | "TRADE_OPENED"

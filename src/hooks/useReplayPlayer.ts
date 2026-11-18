@@ -209,7 +209,7 @@ export function useReplayPlayer(
     }
   }
 
-  async function pullOneCandle(): Promise<number> {
+  async function advance(target: "candle" | "end" | { time: string }): Promise<number> {
     if (!session || finished || steppingRef.current) return 0;
     const generation = generationRef.current;
     steppingRef.current = true;
@@ -250,12 +250,21 @@ export function useReplayPlayer(
         if (!firstQueued) break;
         targetTimestamp ??= firstQueued.timestamp;
 
-        const count = countTradesToCandleBoundary(
+        let count = target === "end" ? queueRef.current.length : countTradesToCandleBoundary(
           queueRef.current,
           currentTimestamp,
           timeframeMinutes,
           targetTimestamp,
         );
+        let reachedTime = false;
+        if (typeof target === "object") {
+          const boundary = queueRef.current.slice(0, count).findIndex(trade =>
+            trade.timestamp.slice(11, 19) >= target.time + ":00");
+          if (boundary >= 0) {
+            count = boundary + 1;
+            reachedTime = true;
+          }
+        }
         if (count === 0) break;
 
         for (let index = 0; index < count; index += 1) {
@@ -264,6 +273,12 @@ export function useReplayPlayer(
           onTradeRef.current(trade);
           consumed += 1;
           lastTrade = trade;
+        }
+        if (reachedTime) break;
+        if (target !== "candle") {
+          targetTimestamp = null;
+          publishProgress();
+          await new Promise(resolve => window.setTimeout(resolve, 0));
         }
 
         // Se o bloco terminar antes da fronteira, a próxima iteração carrega
@@ -494,7 +509,9 @@ export function useReplayPlayer(
     error,
     loadReplay,
     step: pullOne,
-    stepCandle: pullOneCandle,
+    stepCandle: () => advance("candle"),
+    seekTime: (time: string) => advance({ time }),
+    revealEnd: () => advance("end"),
     reset,
     unload,
   };

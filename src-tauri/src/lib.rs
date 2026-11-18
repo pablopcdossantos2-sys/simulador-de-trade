@@ -2009,7 +2009,7 @@ fn validate_backup_bundle(bundle: &BackupBundle) -> Result<(), String> {
     for event in &bundle.training_events {
         if !matches!(
             event.r#type.as_str(),
-            "SESSION_STARTED" | "SESSION_ENDED" | "BLOCKED_ATTEMPT"
+            "SESSION_STARTED" | "SESSION_ENDED" | "SESSION_REFLECTION" | "BLOCKED_ATTEMPT"
                 | "SIGNAL_IGNORED" | "TRADE_OPENED" | "TRADE_CLOSED" | "TECHNICAL_ISSUE"
         ) {
             return Err(format!("O backup contém um evento com tipo inválido: {}.", event.id));

@@ -49,13 +49,15 @@ export function ManualPanel() {
           <li>Se o replay daquele dia não existir ou faltar histórico, o sistema exibirá as pendências e um botão para voltar a <strong>Pregões e replays</strong>, onde os CSVs serão importados e os arquivos gerados.</li>
           <li>Quando aparecer <strong>Replay pronto para treino</strong>, escolha <strong>Treino livre</strong> ou <strong>Modo prova</strong> e inicie a sessão com reprodução imediata ou em pausa.</li>
         </ol>
-        <p>O Simulador não importa CSVs nem prepara arquivos. Os candles de aquecimento alimentam os indicadores, mas ficam ocultos; somente o pregão escolhido é reproduzido.</p>
+        <p>Antes do início do treino, o gráfico mostra todo o pregão anterior disponível. Durante a reprodução, use <strong>Ver histórico inteiro</strong> para enquadrar o pregão anterior junto com os candles já revelados do dia de treino.</p>
       </section>
 
       <section className="manual-topic">
         <h3>5. Reproduzir, pausar e navegar no gráfico</h3>
         <ul>
           <li>Use os controles para reproduzir ou pausar, alterar a velocidade, avançar um segundo, avançar um candle e reiniciar o replay quando permitido.</li>
+          <li>Em <strong>Ir para horário</strong>, um horário futuro avança o replay até o primeiro negócio disponível a partir daquele minuto e pausa a reprodução. As ordens de stop e alvo continuam valendo no percurso. Um horário passado permite consultar o gráfico preservando as operações já realizadas.</li>
+          <li>Ao terminar de operar, clique em <strong>Encerrar treino</strong> e depois em <strong>Ver pregão completo</strong> para acompanhar o restante do dia com o resultado do treino já registrado.</li>
           <li>O contador <strong>Fechamento M2</strong> fica em um painel abaixo do gráfico, ao lado da leitura de preço/horário do cursor. O tempo simulado fica parado quando o replay está pausado.</li>
           <li>Arraste a área de preços para navegar. Candles, médias, VWAP e nuvens permanecem recortados dentro da região de preços: não devem invadir a área de volume nem a escala dos horários.</li>
           <li>Os volumes ficam na faixa inferior própria. Os horários e o texto <strong>JANELA DE TREINO</strong> permanecem legíveis durante o deslocamento do gráfico.</li>
@@ -66,6 +68,8 @@ export function ManualPanel() {
       <section className="manual-topic">
         <h3>6. Operar durante o treinamento</h3>
         <ul>
+          <li>Os dois sistemas emitem sons distintos ao entrar em áreas de compra e venda. Em <strong>Configurações</strong>, você pode ajustar os sons e escrever a mensagem que será exibida e lida em voz alta ao tentar uma entrada fora da região autorizada.</li>
+          <li>Em <strong>Configurações → Lembretes</strong>, preencha até quatro textos por sistema e escolha o intervalo em minutos reais. Durante o treino, os textos da estratégia ativa aparecem em sequência, inclusive nas pausas.</li>
           <li>No <strong>Sistema 01</strong>, a zona e as regras de reentrada pela MME lenta configurada determinam a direção permitida. No <strong>Sistema 02</strong>, os filtros M15 ativados autorizam compra ou venda, sem disparar uma ordem automaticamente.</li>
           <li>Defina as distâncias de stop e alvo em pontos. A relação risco/retorno mínima exigida é de 1:2.</li>
           <li>Você pode posicionar a entrada pelo gráfico e ajustar as linhas de stop e alvo conforme as regras do simulador.</li>

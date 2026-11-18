@@ -22,6 +22,7 @@ export function classifyTrainingEvent(
       return "TECHNICAL";
     case "SESSION_STARTED":
     case "SESSION_ENDED":
+    case "SESSION_REFLECTION":
       return "SESSION";
   }
 }

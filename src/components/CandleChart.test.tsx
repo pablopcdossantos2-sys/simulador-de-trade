@@ -6,6 +6,23 @@ import { calculateMtfConfluence } from "../services/mtfConfluence";
 import { INDICATOR_V1_REGRESSION_CANDLES } from "../fixtures/indicatorV1";
 import { defaultsForMovingAverages } from "../services/strategyMovingAverages";
 
+it("enquadra todos os candles do último pregão anterior e exclui dias de aquecimento mais antigos", () => {
+  const context = Array.from({ length: 41 }, (_, index) => ({
+    index: index - 10,
+    timestamp: index === 0 ? "2026-10-01T18:00:00"
+      : new Date(Date.UTC(2026, 9, 2, 9, 2 * (index - 1))).toISOString().slice(0, 19),
+    open: 100, high: 105, low: 95, close: 100, volume: 1,
+  }));
+  const markup = renderToStaticMarkup(
+    <CandleChart candles={[]} contextCandles={context} fitAllCandles
+      evaluation={{ authorization: null, signals: [], series: [], zone: "NONE" }}
+      position={null} asset="WINFUT" />,
+  );
+  expect(markup).toContain("40 candles · visão completa");
+  expect(markup).toContain("09:00");
+  expect(markup).not.toContain("18:00");
+});
+
 it("aplica uma única aparência a todos os segmentos neutros do Sistema 02", () => {
   const candles = INDICATOR_V1_REGRESSION_CANDLES.slice(-4);
   const points = calculateMtfConfluence(candles).points.slice(0, 3);

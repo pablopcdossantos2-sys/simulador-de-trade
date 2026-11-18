@@ -35,6 +35,8 @@ function eventLabel(event: TrainingEvent): string {
       return "Sessão iniciada";
     case "SESSION_ENDED":
       return "Sessão encerrada";
+    case "SESSION_REFLECTION":
+      return "Relato de erros";
     case "BLOCKED_ATTEMPT":
       return "Tentativa bloqueada";
     case "SIGNAL_IGNORED":
@@ -55,6 +57,7 @@ function eventDetail(
   if (event.type === "BLOCKED_ATTEMPT") {
     return event.reason ?? "Entrada recusada pelas regras.";
   }
+  if (event.type === "SESSION_REFLECTION") return event.reason ?? "";
 
   if (event.type === "SIGNAL_IGNORED") {
     return `${event.side === "BUY" ? "Compra" : "Venda"} · sinal não utilizado`;

@@ -83,7 +83,9 @@ import {
   saveTrainingSession,
 } from "./services/persistence";
 import { listReplayCatalog, registerReplayFile, type ReplayCatalogEntry } from "./services/replayCatalog";
-import { playSignalAlert } from "./services/signalAlerts";
+import { TrainingAlertSettings, TrainingReminder, loadTrainingAlerts } from "./components/TrainingAlerts";
+import { SessionReflection } from "./components/SessionReflection";
+import { playSignalAlert, speakWarning } from "./services/signalAlerts";
 import {
   DEFAULT_EXECUTION_SETTINGS,
   loadExecutionSettings,
@@ -212,6 +214,11 @@ export default function App() {
     }
   });
   const [theme, setTheme] = useState<ThemeMode>(initialTheme);
+  const [trainingAlerts, setTrainingAlerts] = useState(loadTrainingAlerts);
+  const [chartFocus, setChartFocus] = useState({ revision: 0, offset: 0 });
+  useEffect(() => {
+    if (dataMode === "demo") followLatestCandle();
+  }, [dataMode]);
   const [ruleViolation, setRuleViolation] = useState<string | null>(null);
   const [feedback, setFeedback] = useState(
     "Aguarde a formação de uma zona válida do indicador para liberar uma direção.",
@@ -243,7 +250,12 @@ export default function App() {
     }).finally(() => { if (active) setCatalogLoading(false); });
     return () => { active = false; };
   }, [catalogRefreshKey]);
-  const [warmupCandles, setWarmupCandles] = useState<import("./types").Candle[]>([]);
+  const [historyCandles, setHistoryCandles] = useState<import("./types").Candle[]>([]);
+  const warmupBars = simulationPlan?.warmupBars ?? 0;
+  const warmupCandles = useMemo(
+    () => historyCandles.slice(Math.max(0, historyCandles.length - warmupBars)),
+    [historyCandles, warmupBars],
+  );
   const [trainingSession, setTrainingSession] =
     useState<TrainingSession | null>(null);
   const [trainingEvents, setTrainingEvents] = useState<TrainingEvent[]>([]);
@@ -260,8 +272,7 @@ export default function App() {
   const ignoredSignalIdsRef = useRef<Set<string>>(new Set());
   const lastSuggestedSignalIdRef = useRef<string | null>(null);
   const lastSeenReplaySignalRef = useRef<string | null>(null);
-  const lastAlertedSignalIdRef = useRef<string | null>(null);
-  const signalAlertEffectMountedRef = useRef(false);
+  const lastAlertRef = useRef({ zoneKey: "", signalId: "" });
   const startingTrainingRef = useRef(false);
   const positionRef = useRef<Position | null>(null);
   const candlesRef = useRef(candles);
@@ -314,7 +325,6 @@ export default function App() {
       ) return;
 
       const offset = warmupCandles.length;
-      const hidden = warmupCandles.map((candle, index) => ({ ...candle, index }));
       const closedVisible = nextCandles.slice(0, -1).map((candle, index) => ({
         ...candle,
         index: offset + index,
@@ -322,7 +332,7 @@ export default function App() {
       if (selectedStrategyId === "MTF_ANGULACAO") return;
       const closedEvaluation = configuredMultiMedias.calculate(
         asset,
-        [...hidden, ...closedVisible],
+        [...warmupCandles, ...closedVisible],
         trainingSession?.id ?? "preview",
       );
       const authorization = closedEvaluation.authorization;
@@ -370,14 +380,9 @@ export default function App() {
   const indicatorCandles = useMemo(() => {
     if (dataMode !== "replay") return candles;
 
-    const hidden = warmupCandles.map((candle, index) => ({
-      ...candle,
-      index,
-    }));
-
-    // O último candle do replay ainda está em formação: não deve autorizar sinal.
-    return [...hidden, ...visibleCandles.slice(0, -1)];
-  }, [candles, dataMode, visibleCandles, warmupCandles]);
+    // Só o encerramento do pregão confirma o último candle sem abrir o próximo.
+    return [...warmupCandles, ...(replay.finished ? visibleCandles : visibleCandles.slice(0, -1))];
+  }, [candles, dataMode, visibleCandles, warmupCandles, replay.finished]);
 
   const mtfEvaluation = useMemo(
     () => selectedStrategyId === "MTF_ANGULACAO"
@@ -599,22 +604,19 @@ export default function App() {
     persistClosedTradeRef.current = persistClosedTrade;
   });
 
+  const zone = indicatorEvaluation.zone;
   const alertableSignal = signal && !signalAlreadyUsed ? signal : reentryAuthorization;
-
   useEffect(() => {
-    if (!signalAlertEffectMountedRef.current) {
-      signalAlertEffectMountedRef.current = true;
-      lastAlertedSignalIdRef.current = alertableSignal?.id ?? null;
-      return;
+    const active = dataMode === "demo" || trainingActive;
+    const zoneKey = active && zone !== "NONE" ? selectedStrategyId + zone : "";
+    const signalId = active ? alertableSignal?.id ?? "" : "";
+    if (signalId && signalId !== lastAlertRef.current.signalId && alertableSignal) {
+      playSignalAlert(alertableSignal.side);
+    } else if (zoneKey && zoneKey !== lastAlertRef.current.zoneKey) {
+      playSignalAlert(zone === "GREEN" ? "BUY" : "SELL");
     }
-    if (!alertableSignal) {
-      lastAlertedSignalIdRef.current = null;
-      return;
-    }
-    if (lastAlertedSignalIdRef.current === alertableSignal.id) return;
-    lastAlertedSignalIdRef.current = alertableSignal.id;
-    playSignalAlert(alertableSignal.side);
-  }, [alertableSignal?.id]);
+    lastAlertRef.current = { zoneKey, signalId };
+  }, [zone, selectedStrategyId, dataMode, trainingActive, alertableSignal?.id, alertableSignal?.side]);
 
   useEffect(() => {
     if (dataMode !== "demo" || !position || !lastCandle) return;
@@ -758,7 +760,7 @@ export default function App() {
     if (simulationPlan && simulationPlan.asset !== next) {
       // A escolha do replay pertence ao ativo selecionado no catálogo.
       setSimulationPlan(null);
-      setWarmupCandles([]);
+      setHistoryCandles([]);
     }
     setLastClosedTradeMarker(null);
     setDraftEntryPrice(null);
@@ -802,7 +804,7 @@ export default function App() {
       const hiddenCandles = await loadWarmupCandles(
         warmupFilesFromMatches(matches),
         plan.timeframeMinutes,
-        plan.warmupBars,
+        Math.max(plan.warmupBars, Math.ceil(1440 / plan.timeframeMinutes)),
       );
 
       // Descarrega a sessão antiga antes de substituir seu plano e buffers.
@@ -811,7 +813,7 @@ export default function App() {
         await replay.unload();
       }
       setSimulationPlan(null);
-      setWarmupCandles([]);
+      setHistoryCandles([]);
       setDataMode("demo");
       setAsset(plan.asset);
       replaceCandles(createDemoCandles(plan.asset));
@@ -827,7 +829,11 @@ export default function App() {
       }
 
       setSimulationPlan(plan);
-      setWarmupCandles(hiddenCandles);
+      // Índices negativos pertencem apenas ao gráfico. O aquecimento do
+      // indicador mantém os mesmos índices e a mesma quantidade de candles.
+      const visualOnlyBars = Math.max(0, hiddenCandles.length - plan.warmupBars);
+      setHistoryCandles(hiddenCandles.map((candle, index) => ({ ...candle, index: index - visualOnlyBars })));
+      setChartFocus(current => ({ revision: current.revision + 1, offset: 0 }));
       setDataMode("replay");
       setAsset(info.asset);
       replaceCandles([]);
@@ -896,6 +902,7 @@ export default function App() {
 
     startingTrainingRef.current = true;
     setStartingTraining(true);
+    followLatestCandle();
 
     const resetOk = await replay.reset();
     if (!resetOk) {
@@ -961,7 +968,7 @@ export default function App() {
   }
 
   async function finishTraining() {
-    if (startingTrainingRef.current) return;
+    if (startingTrainingRef.current || replay.busy) return;
     if (!trainingSession || trainingSession.status !== "ACTIVE") return;
 
     if (position) {
@@ -1023,7 +1030,7 @@ export default function App() {
     }
 
     void finishTraining();
-  }, [replay.finished, trainingActive, position]);
+  }, [replay.finished, replay.busy, trainingActive, position]);
 
   function closeOpenPositionAtReplayEnd() {
     if (!replay.finished || !position || !currentReplayTrade) {
@@ -1097,7 +1104,25 @@ export default function App() {
     }
   }
 
+  function followLatestCandle() {
+    setChartFocus(current => current.offset === 0 ? current : { revision: current.revision + 1, offset: 0 });
+  }
+
+  function seekToTime(time: string) {
+    if ((!trainingActive && trainingSession?.status !== "ENDED") || startingTraining || replay.busy) return;
+    replay.setPlaying(false);
+    if (replay.currentTimestamp && (time <= replay.currentTimestamp.slice(11, 16) || replay.finished)) {
+      const nextIndex = visibleCandles.findIndex(candle => candle.timestamp.slice(11, 16) > time);
+      const index = nextIndex < 0 ? visibleCandles.length - 1 : Math.max(0, nextIndex - 1);
+      setChartFocus(current => ({ revision: current.revision + 1, offset: Math.max(0, visibleCandles.length - index - 1) }));
+      return;
+    }
+    setChartFocus(current => ({ revision: current.revision + 1, offset: 0 }));
+    void replay.seekTime(time);
+  }
+
   function submit(side: Side) {
+    if (replay.busy) return;
     try {
       if (dataMode === "replay" && !trainingActive) {
         throw new TradingRuleError("Inicie a sessão formal de treino antes de enviar uma operação.");
@@ -1112,10 +1137,9 @@ export default function App() {
       const useFreshSignal = selectedStrategyId === "MULTI_MEDIAS" && Boolean(signal && !signalAlreadyUsed);
       const useReentry = selectedStrategyId === "MULTI_MEDIAS" && !useFreshSignal &&
         Boolean(reentryAuthorization && reentryAuthorization.side === side);
-      if (!useFreshSignal && !useReentry && !useMtfPermission) {
-        throw new TradingRuleError(selectedStrategyId === "MTF_ANGULACAO"
-          ? "Entrada bloqueada: aguarde confluência M15 verde para comprar ou vermelha para vender. Em cinza, não há autorização."
-          : `Entrada fora do operacional: aguarde um sinal válido, um toque posterior na MME ${movingAverages.multiMedias.emaSlowLength} ou dez candles fechados após um stop.`);
+      if (authorizedSideForChart !== side) {
+        speakWarning(trainingAlerts.warning);
+        throw new TradingRuleError(trainingAlerts.warning);
       }
       const entrySignal = useFreshSignal ? signal : null;
       const orderEntry = draftEntryPrice !== null && draftSide === side ? draftEntryPrice : lastPrice;
@@ -1218,11 +1242,13 @@ export default function App() {
     }
   }
 
-  const tradingEnabled = dataMode === "demo" || trainingActive;
+  const tradingEnabled = !replay.busy && (dataMode === "demo" || trainingActive);
 
   function placeOrderFromChart(rawPrice: number) {
-    if (!tradingEnabled || position || !authorizedSideForChart) {
-      setFeedback("O posicionamento pelo gráfico exige uma direção atualmente autorizada pelo operacional.");
+    if (!tradingEnabled || position) return;
+    if (!authorizedSideForChart) {
+      speakWarning(trainingAlerts.warning);
+      setRuleViolation(trainingAlerts.warning);
       return;
     }
     const entry = roundPriceToTick(asset, rawPrice);
@@ -1342,7 +1368,7 @@ export default function App() {
       setSimulationPlan(null);
       setPreparationPlan(null);
       setPreparationMatches([]);
-      setWarmupCandles([]);
+      setHistoryCandles([]);
       setDataMode("demo");
       replaceCandles(createDemoCandles(asset));
       setCurrentReplayTrade(null);
@@ -1391,7 +1417,7 @@ export default function App() {
       setSimulationPlan(null);
       setPreparationPlan(null);
       setPreparationMatches([]);
-      setWarmupCandles([]);
+      setHistoryCandles([]);
       setDataMode("demo");
       replaceCandles(createDemoCandles(asset));
       setCurrentReplayTrade(null);
@@ -1577,21 +1603,32 @@ export default function App() {
         speed={replay.speed}
         processed={replay.processed}
         currentTimestamp={replay.currentTimestamp}
+        ended={trainingSession?.status === "ENDED"}
+        inspectingHistory={chartFocus.offset > 0}
+        onReveal={() => {
+          if (trainingSession?.status !== "ENDED" || replay.busy) return;
+          setChartFocus(current => ({ revision: current.revision + 1, offset: 0 }));
+          if (!replay.finished) void replay.revealEnd();
+        }}
+        onSeek={seekToTime}
         countdownSeconds={sessionCountdownSeconds}
         finished={replay.finished}
         busy={replay.busy}
         onPlayPause={() => {
           if (!trainingActive || startingTraining) return;
+          followLatestCandle();
           replay.setPlaying(!replay.playing);
         }}
         trainingActive={trainingActive}
         locked={!trainingActive || startingTraining}
         onStep={() => {
           if (!trainingActive || startingTraining) return;
+          followLatestCandle();
           void replay.step();
         }}
         onStepCandle={() => {
           if (!trainingActive || startingTraining) return;
+          followLatestCandle();
           void replay.stepCandle();
         }}
         onReset={() => {
@@ -1622,7 +1659,11 @@ export default function App() {
           {visibleCandles.length || warmupCandles.length ? (
             <CandleChart
               candles={visibleCandles}
-              contextCandles={warmupCandles}
+              key={chartFocus.revision}
+              initialPanOffset={chartFocus.offset}
+              allowOverviewToggle={dataMode === "replay"}
+              fitAllCandles={dataMode === "replay" && chartFocus.offset === 0 && (!visibleCandles.length || (replay.finished && trainingSession?.status === "ENDED"))}
+              contextCandles={historyCandles}
               evaluation={indicatorEvaluation}
               strategyId={selectedStrategyId}
               mtfPoints={mtfEvaluation?.points ?? []}
@@ -1633,7 +1674,7 @@ export default function App() {
               position={position}
               asset={asset}
               draftOrder={draftOrder}
-              entryPlacementEnabled={Boolean(tradingEnabled && !position && authorizedSideForChart)}
+              entryPlacementEnabled={Boolean(tradingEnabled && !position && chartFocus.offset === 0)}
               onEntryPlacement={placeOrderFromChart}
               onAdjustOco={adjustOcoFromChart}
               cloudOpacity={cloudOpacity}
@@ -1716,12 +1757,14 @@ export default function App() {
           <div className="order-actions">
             <button
               className="buy-button"
+              disabled={replay.busy || chartFocus.offset > 0}
               onClick={() => submit("BUY")}
             >
               Comprar
             </button>
             <button
               className="sell-button"
+              disabled={replay.busy || chartFocus.offset > 0}
               onClick={() => submit("SELL")}
             >
               Vender
@@ -1766,6 +1809,14 @@ export default function App() {
           )}
         </aside>
       </section>
+      {trainingSession?.status === "ENDED" && <SessionReflection key={trainingSession.id}
+        sessionId={trainingSession.id}
+        onSaved={event => {
+          setTrainingEvents(previous => previous.some(item => item.sessionId === event.sessionId)
+            ? [...previous.filter(item => item.id !== event.id), event] : previous);
+          setSessionHistoryRefreshKey(value => value + 1);
+        }}
+      />}
 
 
 
@@ -1931,6 +1982,7 @@ export default function App() {
 
       <section className="app-area settings-area" hidden={activeArea !== "CONFIGURACOES"}>
         <h2 className="area-title">Configurações</h2>
+        <TrainingAlertSettings settings={trainingAlerts} onSave={setTrainingAlerts} />
         <ReplayBestPractices />
       <ExecutionSettingsPanel
         settings={executionSettings}
@@ -1956,7 +2008,7 @@ export default function App() {
             setSimulationPlan(null);
             setPreparationPlan(null);
             setPreparationMatches([]);
-            setWarmupCandles([]);
+            setHistoryCandles([]);
             setDataMode("demo");
             replaceCandles(createDemoCandles(asset));
             setCurrentReplayTrade(null);
@@ -1986,7 +2038,7 @@ export default function App() {
           setCatalogEntries([]);
           setCatalogResetKey(value => value + 1);
           setCatalogRefreshKey(value => value + 1);
-          setWarmupCandles([]);
+          setHistoryCandles([]);
           setCurrentReplayTrade(null);
           setDataMode("demo");
           replaceCandles(createDemoCandles(asset));
@@ -2010,6 +2062,7 @@ export default function App() {
       />
       </section>
 
+      {trainingActive && <TrainingReminder key={trainingSession.id} strategy={selectedStrategyId} settings={trainingAlerts} />}
       <RuleViolationModal
         message={ruleViolation}
         onClose={() => setRuleViolation(null)}

@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState, type MouseEvent as ReactMouseEvent } from "react";
+import { useEffect, useId, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent } from "react";
 import type { MtfConfluencePoint } from "../services/mtfConfluence";
 import { remainingCandleSeconds, formatCandleCountdown } from "../domain/candleCountdown";
 import type { MovingAverageSettings, TradingStrategyId } from "../types";
@@ -22,6 +22,8 @@ interface Props {
   entryPlacementEnabled?: boolean;
   onEntryPlacement?: (price: number) => void;
   onAdjustOco?: (kind: "stop" | "target", price: number, mode: "position" | "draft") => void;
+  initialPanOffset?: number;
+  allowOverviewToggle?: boolean;
   fitAllCandles?: boolean;
   cloudOpacity?: number;
 }
@@ -44,7 +46,6 @@ const TIME_LABEL_Y = 484;
 const DEFAULT_VISIBLE_BARS = 48;
 const MIN_VISIBLE_BARS = 12;
 const MAX_VISIBLE_BARS = 120;
-const CONTEXT_BARS = 24;
 
 function formatPrice(value: number, asset: Asset): string {
   return new Intl.NumberFormat("pt-BR", {
@@ -126,14 +127,18 @@ export function CandleChart({
   entryPlacementEnabled = false,
   onEntryPlacement,
   onAdjustOco,
-  fitAllCandles = false,
+  initialPanOffset = 0,
+  fitAllCandles: initialOverview = false,
+  allowOverviewToggle = false,
   cloudOpacity = 0.2,
 }: Props) {
   const priceClipId = useId();
   const volumeClipId = useId();
   const [visibleBars, setVisibleBars] = useState(DEFAULT_VISIBLE_BARS);
   const [priceZoom, setPriceZoom] = useState(1);
-  const [panOffset, setPanOffset] = useState(0);
+  const [panOffset, setPanOffset] = useState(initialPanOffset);
+  const [overviewOverride, setOverviewOverride] = useState<boolean | null>(null);
+  const fitAllCandles = overviewOverride ?? initialOverview;
   const [panPriceOffset, setPanPriceOffset] = useState(0);
   const [isPanning, setIsPanning] = useState(false);
   const [crosshair, setCrosshair] = useState<Crosshair | null>(null);
@@ -161,11 +166,11 @@ export function CandleChart({
     };
   }, [maximized]);
 
-  // O aquecimento completo continua alimentando o indicador; só os candles finais
-  // do pregão anterior são exibidos como contexto visual.
-  const context: ChartCandle[] = contextCandles
-    .map((candle, index) => ({ ...candle, index, source: "context" as const }))
-    .slice(-CONTEXT_BARS);
+  const context = useMemo(() => {
+    const previousDay = contextCandles.at(-1)?.timestamp.slice(0, 10);
+    return contextCandles.filter(candle => candle.timestamp.slice(0, 10) === previousDay)
+      .map(candle => ({ ...candle, source: "context" as const }));
+  }, [contextCandles]);
   const target: ChartCandle[] = candles.map((candle) => ({ ...candle, source: "target" as const }));
   const allCandles = [...context, ...target];
   const panEnd = Math.max(0, allCandles.length - panOffset);
@@ -421,6 +426,11 @@ export function CandleChart({
         )}
         </div>
         <div className="chart-controls" aria-label="Controles de zoom do gráfico">
+          {allowOverviewToggle && <button type="button" onClick={() => {
+            setOverviewOverride(!fitAllCandles);
+            setPanOffset(0);
+            setCrosshair(null);
+          }}>{fitAllCandles ? "Ampliar trecho" : "Ver histórico inteiro"}</button>}
           {fitAllCandles ? (
             <span>{visible.length.toLocaleString("pt-BR")} candles · visão completa</span>
           ) : (
@@ -717,7 +727,7 @@ export function CandleChart({
       </p>}
       {contextCandles.length > 0 && <p className="chart-context-note">
         {candles.length === 0
-          ? "Contexto do pregão anterior: os últimos candles disponíveis e seu fechamento permanecem visíveis antes do primeiro negócio do treino."
+          ? "Contexto do pregão anterior: todos os candles disponíveis ficam visíveis antes do primeiro negócio do treino."
           : "Os candles anteriores são apenas contexto visual; o replay continua revelando somente os negócios do pregão selecionado."}
       </p>}
     </div>

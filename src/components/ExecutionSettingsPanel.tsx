@@ -178,7 +178,7 @@ export function ExecutionSettingsPanel({ settings, cloudOpacity, onCloudOpacityS
       <div className="execution-settings-capitals">
         <div className="capital-heading">
           <h3>Alertas sonoros de sinais</h3>
-          <InfoTip label="Como funcionam os alertas">O simulador pode emitir um som diferente quando um novo sinal de compra ou venda é confirmado. Os alertas são locais e podem ser ativados ou desativados separadamente.</InfoTip>
+          <InfoTip label="Como funcionam os alertas">Os dois sistemas usam um som ascendente para a área de compra e um descendente para a área de venda. No Sistema 01, os sons também indicam sinais e reentradas. Você pode ativar cada direção separadamente.</InfoTip>
         </div>
         <div className="signal-alert-options">
           <label>

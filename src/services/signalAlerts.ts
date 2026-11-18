@@ -59,3 +59,15 @@ export function playSignalAlert(side: "BUY" | "SELL"): void {
     // O replay e os sinais continuam funcionando mesmo se o áudio não estiver disponível.
   }
 }
+
+export function speakWarning(message: string): void {
+  try {
+    if (!window.speechSynthesis || typeof SpeechSynthesisUtterance === "undefined") return;
+    const speech = new SpeechSynthesisUtterance(message);
+    speech.lang = "pt-BR";
+    window.speechSynthesis.cancel();
+    window.speechSynthesis.speak(speech);
+  } catch {
+    // A mensagem textual continua disponível se o dispositivo de voz falhar.
+  }
+}
