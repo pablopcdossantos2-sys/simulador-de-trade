@@ -6,6 +6,25 @@ import { calculateMtfConfluence } from "../services/mtfConfluence";
 import { INDICATOR_V1_REGRESSION_CANDLES } from "../fixtures/indicatorV1";
 import { defaultsForMovingAverages } from "../services/strategyMovingAverages";
 
+it.each(["BUY", "SELL"] as const)("mostra os pontos por contrato da posição %s mesmo ao consultar um candle anterior", side => {
+  const direction = side === "BUY" ? 1 : -1;
+  const candles = INDICATOR_V1_REGRESSION_CANDLES.slice(-2).map((candle, index) => ({
+    ...candle, index, open: 5000, close: index ? 5000 + direction * 1.5 : 5000,
+    low: 4998, high: 5002,
+  }));
+  const markup = renderToStaticMarkup(
+    <CandleChart candles={candles} initialPanOffset={1} asset="WDOFUT"
+      evaluation={{ authorization: null, signals: [], series: [], zone: "NONE" }}
+      position={{ id: "pos", asset: "WDOFUT", side, signalId: "s", openedCandleIndex: 0,
+        requestedEntry: 5000, entry: 5000, stopLoss: 5000 - direction * 2, target: 5000 + direction * 5,
+        contracts: 3, slippageTicksPerSide: 0, costPerContractRoundTripBRL: 0,
+        intrabarPolicy: "STOP_FIRST", entryContext: null, openedAt: candles[0].timestamp, status: "OPEN" }} />,
+  );
+  expect(markup).toContain("Entrada 5.000,0 · +1,5 pts");
+  expect(markup).toMatch(/Stop [\d.,]+ · -2 pts/);
+  expect(markup).toMatch(/Alvo [\d.,]+ · \+5 pts/);
+});
+
 it("enquadra todos os candles do último pregão anterior e exclui dias de aquecimento mais antigos", () => {
   const context = Array.from({ length: 41 }, (_, index) => ({
     index: index - 10,

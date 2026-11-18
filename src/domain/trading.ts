@@ -306,7 +306,7 @@ export function openPosition(
   };
 }
 
-function pointsFor(side: Side, entry: number, exit: number): number {
+export function pointsFor(side: Side, entry: number, exit: number): number {
   return side === "BUY" ? exit - entry : entry - exit;
 }
 

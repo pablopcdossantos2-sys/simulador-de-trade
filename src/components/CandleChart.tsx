@@ -1,6 +1,8 @@
 import { useEffect, useId, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent } from "react";
 import type { MtfConfluencePoint } from "../services/mtfConfluence";
 import { remainingCandleSeconds, formatCandleCountdown } from "../domain/candleCountdown";
+import { pointsFor } from "../domain/trading";
+import { roundPriceToTick } from "../domain/marketSpecs";
 import type { MovingAverageSettings, TradingStrategyId } from "../types";
 import { DEFAULT_MOVING_AVERAGE_SETTINGS } from "../services/strategyMovingAverages";
 import type { Asset, Candle, IndicatorEvaluation, IndicatorPoint, Position, Side } from "../types";
@@ -46,6 +48,7 @@ const TIME_LABEL_Y = 484;
 const DEFAULT_VISIBLE_BARS = 48;
 const MIN_VISIBLE_BARS = 12;
 const MAX_VISIBLE_BARS = 120;
+const pointsFormat = new Intl.NumberFormat("pt-BR", { signDisplay: "exceptZero", maximumFractionDigits: 1 });
 
 function formatPrice(value: number, asset: Asset): string {
   return new Intl.NumberFormat("pt-BR", {
@@ -243,6 +246,9 @@ export function CandleChart({
   const readoutMtf = mtfMap.get(readoutCandle.timestamp);
   // O cronômetro acompanha o último candle do pregão, não o candle sob o mouse.
   const activeCandle = candles.at(-1);
+  const preview = draggingOco?.mode === "position" ? roundPriceToTick(asset, draggingOco.price) : null;
+  const stopPrice = draggingOco?.kind === "stop" && preview !== null ? preview : position?.stopLoss;
+  const targetPrice = draggingOco?.kind === "target" && preview !== null ? preview : position?.target;
   const candleRemaining = remainingCandleSeconds(
     activeCandle?.timestamp ?? null, replayTimestamp, replayTimeframeMinutes,
   );
@@ -318,7 +324,7 @@ export function CandleChart({
   }
 
   function beginOcoDrag(
-    event: ReactMouseEvent<SVGLineElement>,
+    event: ReactMouseEvent<SVGElement>,
     kind: "stop" | "target",
     mode: "position" | "draft",
     currentPrice: number,
@@ -591,17 +597,18 @@ export function CandleChart({
           path && <path key={id} d={path} className={`indicator-mtf-${id.toLowerCase()}-line`} />)}
         {mtfVwapPath && <path d={mtfVwapPath} className="indicator-mtf-vwap-line" />}
 
-        {position && <>
-          <PriceLine y={y(position.entry)} label={"Entrada " + formatPrice(position.entry, asset)} className="entry-line" />
+        {position && activeCandle && stopPrice !== undefined && targetPrice !== undefined && <>
+          <PriceLine y={y(position.entry)} label={"Entrada " + formatPrice(position.entry, asset)} className="entry-line"
+            badgeX={PLOT_LEFT + 8} points={pointsFor(position.side, position.entry, activeCandle.close)} />
           <PriceLine
-            y={y(draggingOco?.mode === "position" && draggingOco.kind === "stop" ? draggingOco.price : position.stopLoss)}
-            label={"Stop " + formatPrice(draggingOco?.mode === "position" && draggingOco.kind === "stop" ? draggingOco.price : position.stopLoss, asset)}
+            y={y(stopPrice)} label={"Stop " + formatPrice(stopPrice, asset)}
+            badgeX={PLOT_LEFT + 250} points={pointsFor(position.side, position.entry, stopPrice)}
             className="stop-line" interactive
             onMouseDown={(event) => beginOcoDrag(event, "stop", "position", position.stopLoss)}
           />
           <PriceLine
-            y={y(draggingOco?.mode === "position" && draggingOco.kind === "target" ? draggingOco.price : position.target)}
-            label={"Alvo " + formatPrice(draggingOco?.mode === "position" && draggingOco.kind === "target" ? draggingOco.price : position.target, asset)}
+            y={y(targetPrice)} label={"Alvo " + formatPrice(targetPrice, asset)}
+            badgeX={PLOT_LEFT + 490} points={pointsFor(position.side, position.entry, targetPrice)}
             className="target-line" interactive
             onMouseDown={(event) => beginOcoDrag(event, "target", "position", position.target)}
           />
@@ -738,6 +745,8 @@ function PriceLine({
   y,
   label,
   className,
+  badgeX,
+  points,
   interactive = false,
   blockDrag = false,
   onMouseDown,
@@ -745,10 +754,13 @@ function PriceLine({
   y: number;
   label: string;
   className: string;
+  badgeX?: number;
+  points?: number;
   interactive?: boolean;
   blockDrag?: boolean;
-  onMouseDown?: (event: ReactMouseEvent<SVGLineElement>) => void;
+  onMouseDown?: (event: ReactMouseEvent<SVGElement>) => void;
 }) {
+  const badge = points === undefined ? "" : label + " · " + pointsFormat.format(points) + " pts";
   return <g>
     {(interactive || blockDrag) && <line
       x1={PLOT_LEFT} x2={PLOT_RIGHT} y1={y} y2={y}
@@ -760,6 +772,14 @@ function PriceLine({
       }}
     />}
     <line x1={PLOT_LEFT} x2={PLOT_RIGHT} y1={y} y2={y} className={className} pointerEvents="none" />
-    <text x={PLOT_RIGHT - 8} y={y - 5} textAnchor="end" className="price-label" pointerEvents="none">{label}</text>
+    {badgeX !== undefined && points !== undefined ? (
+      <g transform={`translate(${badgeX} ${y})`}
+        className={`position-points ${points > 0 ? "positive" : points < 0 ? "negative" : "flat"}`}
+        pointerEvents={interactive ? "all" : "none"} onMouseDown={onMouseDown}
+        style={{ cursor: interactive ? "ns-resize" : undefined }}>
+        <rect y={-10} width={badge.length * 7.3 + 16} height={20} rx={5} />
+        <text x={8} y={4}>{badge}</text>
+      </g>
+    ) : <text x={PLOT_RIGHT - 8} y={y - 5} textAnchor="end" className="price-label" pointerEvents="none">{label}</text>}
   </g>;
 }
