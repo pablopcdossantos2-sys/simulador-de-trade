@@ -575,17 +575,15 @@ fn aggregate_m1_candles(
         buckets.push((bucket, vec![row]));
     }
 
-    let last_bucket_index = buckets.len().saturating_sub(1);
     let mut aggregated = Vec::with_capacity(buckets.len());
-    let mut incomplete_edge_candles = 0;
+    let mut unpaired_m1_candles = 0;
 
-    for (index, (bucket, mut pair)) in buckets.into_iter().enumerate() {
+    for (bucket, mut pair) in buckets {
         pair.sort_by_key(|row| row.timestamp);
 
-        if pair.len() == 1 && (index == 0 || index == last_bucket_index) {
-            // Um arquivo pode começar ou terminar no meio de um par M2.
-            // Não invente o minuto ausente: descarte somente essas bordas.
-            incomplete_edge_candles += 1;
+        if pair.len() == 1 {
+            // O replay M1 preserva este minuto. O M2 exige os dois minutos do intervalo.
+            unpaired_m1_candles += 1;
             continue;
         }
 
@@ -610,16 +608,6 @@ fn aggregate_m1_candles(
             ));
         }
 
-        if let Some(previous) = aggregated.last() {
-            let previous: &ProfitCandleRow = previous;
-            if bucket != previous.timestamp + Duration::minutes(2) {
-                return Err(format!(
-                    "Há minutos M1 ausentes entre {} e {}. O simulador não criará candles artificiais para preencher essa lacuna.",
-                    previous.timestamp.format("%H:%M"),
-                    bucket.format("%H:%M"),
-                ));
-            }
-        }
 
         let first = &pair[0];
         let second = &pair[1];
@@ -643,7 +631,7 @@ fn aggregate_m1_candles(
         return Err("Não há pares M1 completos suficientes para formar candles M2.".to_string());
     }
 
-    Ok((aggregated, incomplete_edge_candles))
+    Ok((aggregated, unpaired_m1_candles))
 }
 
 fn column_exists(
@@ -1561,7 +1549,7 @@ fn delete_all_trades(state: tauri::State<'_, DbState>) -> Result<(), String> {
 }
 
 #[tauri::command]
-fn delete_all_database_data(state: tauri::State<'_, DbState>) -> Result<(), String> {
+fn delete_all_database_data(app: tauri::AppHandle, state: tauri::State<'_, DbState>) -> Result<(), String> {
     let mut connection = state.0.lock().map_err(|error| error.to_string())?;
     let transaction = connection
         .transaction()
@@ -1592,6 +1580,7 @@ fn delete_all_database_data(state: tauri::State<'_, DbState>) -> Result<(), Stri
         [],
     ).map_err(|error| error.to_string())?;
 
+    catalog::clear_catalog(&app)?;
     transaction.commit().map_err(|error| error.to_string())?;
     Ok(())
 }
@@ -3569,7 +3558,7 @@ fn process_profit_m2_candle_file(
         "canonicalOrder": "ASCENDING",
         "aggregation": if source_is_m1 {
             format!(
-                "M2: abertura do primeiro M1, máxima/mínima do par, fechamento do segundo M1 e soma da quantidade. {} candle(s) M1 incompleto(s) nas bordas foram descartados.",
+                "M2: abertura do primeiro M1, máxima/mínima do par, fechamento do segundo M1 e soma da quantidade. {} candle(s) M1 sem par foram omitidos do M2 e preservados no replay M1.",
                 incomplete_m1_candles_dropped
             )
         } else { "Fonte M2: candles preservados sem agregação".to_string() },
@@ -4855,7 +4844,7 @@ mod tests {
     }
 
     #[test]
-    fn m1_aggregation_rejects_missing_interior_minute() {
+    fn m1_aggregation_skips_partial_and_absent_intervals() {
         let date = NaiveDate::from_ymd_opt(2026, 11, 10).unwrap();
         let candle = |minute: u32| ProfitCandleRow {
             timestamp: date.and_hms_opt(9, minute, 0).unwrap(),
@@ -4867,10 +4856,12 @@ mod tests {
             volume: 1.0,
         };
 
-        let error = aggregate_m1_candles(vec![
-            candle(0), candle(1), candle(2), candle(4), candle(5),
-        ]).unwrap_err();
-        assert!(error.contains("Par M2 incompleto"));
+        let (bars, omitted) = aggregate_m1_candles(vec![
+            candle(0), candle(1), candle(2), candle(6), candle(7),
+        ]).unwrap();
+        assert_eq!(omitted, 1);
+        assert_eq!(bars.len(), 2);
+        assert_eq!(bars[1].timestamp.minute(), 6);
     }
 
     #[test]
@@ -5023,6 +5014,7 @@ pub fn run() {
             replay::next_replay_analysis_trades,
             replay::close_replay_analysis_file,
             replay::load_warmup_candles,
+            catalog::remove_replay_entry,
             catalog::register_replay_file,
             catalog::list_replay_catalog,
             catalog::prune_missing_replay_catalog

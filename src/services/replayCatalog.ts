@@ -38,3 +38,8 @@ export async function pruneMissingReplayCatalog(): Promise<ReplayCatalogEntry[]>
   ensureDesktop();
   return invoke<ReplayCatalogEntry[]>("prune_missing_replay_catalog");
 }
+
+export async function removeReplayEntry(outputPath: string): Promise<void> {
+  ensureDesktop();
+  await invoke("remove_replay_entry", { outputPath });
+}

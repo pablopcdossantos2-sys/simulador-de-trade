@@ -4782,3 +4782,6 @@ td {
 :root[data-theme="light"] .replay-selection-requirements span { border-color: #d7bc96; }
 @media (max-width: 860px) { .replay-selection-fields { grid-template-columns: repeat(2,minmax(0,1fr)); } .replay-selection-fields label:first-child { grid-column: 1 / -1; } }
 @media (max-width: 540px) { .replay-selection-fields { grid-template-columns: minmax(0,1fr); } .replay-selection-fields label:first-child { grid-column: auto; } }
+.replay-best-practices table { border-collapse: collapse; margin: 1rem 0; font-size: .9rem; }
+.replay-best-practices caption { text-align: left; font-weight: 700; margin-bottom: .5rem; }
+.replay-best-practices th, .replay-best-practices td { padding: .3rem .65rem; text-align: left; border-bottom: 1px solid #77889955; }

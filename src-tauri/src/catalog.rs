@@ -3,6 +3,14 @@ use serde_json::Value;
 use std::fs;
 use std::path::{Path, PathBuf};
 use tauri::Manager;
+use std::sync::Mutex;
+
+static CATALOG_WRITE: Mutex<()> = Mutex::new(());
+
+pub fn clear_catalog(app: &tauri::AppHandle) -> Result<(), String> {
+    let _guard = CATALOG_WRITE.lock().map_err(|error| error.to_string())?;
+    save_catalog(app, &[])
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -201,12 +209,21 @@ fn build_entry(output_path: &Path) -> Result<ReplayCatalogEntry, String> {
 }
 
 #[tauri::command]
+pub fn remove_replay_entry(app: tauri::AppHandle, output_path: String) -> Result<(), String> {
+    let _guard = CATALOG_WRITE.lock().map_err(|error| error.to_string())?;
+    let mut entries = load_catalog(&app)?;
+    entries.retain(|entry| entry.output_path != output_path);
+    save_catalog(&app, &entries)
+}
+
+#[tauri::command]
 pub fn register_replay_file(
     app: tauri::AppHandle,
     output_path: String,
 ) -> Result<ReplayCatalogEntry, String> {
     let path = PathBuf::from(output_path.trim().trim_matches('"'));
     let entry = build_entry(&path)?;
+    let _guard = CATALOG_WRITE.lock().map_err(|error| error.to_string())?;
     let mut entries = load_catalog(&app)?;
 
     entries.retain(|existing| existing.output_path != entry.output_path);
@@ -240,6 +257,7 @@ pub fn list_replay_catalog(
 pub fn prune_missing_replay_catalog(
     app: tauri::AppHandle,
 ) -> Result<Vec<ReplayCatalogEntry>, String> {
+    let _guard = CATALOG_WRITE.lock().map_err(|error| error.to_string())?;
     let mut entries = load_catalog(&app)?;
     entries.retain(|entry| {
         Path::new(&entry.output_path).exists() && Path::new(&entry.metadata_path).exists()

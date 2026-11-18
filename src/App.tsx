@@ -8,6 +8,7 @@ import { AvailableReplaysPanel } from "./components/AvailableReplaysPanel";
 import { PlanDataPreparationPanel } from "./components/PlanDataPreparationPanel";
 import { RuleViolationModal } from "./components/RuleViolationModal";
 import { SimulationPlanner } from "./components/SimulationPlanner";
+import { ReplayBestPractices } from "./components/ReplayBestPractices";
 import { TrainingSessionPanel } from "./components/TrainingSessionPanel";
 import { SessionHistoryPanel } from "./components/SessionHistoryPanel";
 import { ProgressOverviewPanel } from "./components/ProgressOverviewPanel";
@@ -220,6 +221,7 @@ export default function App() {
   const [preparationMatches, setPreparationMatches] = useState<RequirementMatch[]>([]);
   const [preparationRequest, setPreparationRequest] = useState<{ asset: Asset; date: string } | null>(null);
   const [catalogRefreshKey, setCatalogRefreshKey] = useState(0);
+  const [catalogResetKey, setCatalogResetKey] = useState(0);
   const [catalogEntries, setCatalogEntries] = useState<ReplayCatalogEntry[]>([]);
   const [catalogLoading, setCatalogLoading] = useState(true);
   const [catalogError, setCatalogError] = useState<string | null>(null);
@@ -1521,6 +1523,7 @@ export default function App() {
         </button>
       </section>
       <ReplaySelectionPanel
+        key={catalogResetKey}
         entries={catalogEntries}
         loading={catalogLoading}
         error={catalogError}
@@ -1770,7 +1773,7 @@ export default function App() {
 
       </section>
 
-      <section className="app-area available-replays-area" hidden={activeArea !== "PREGOES"}>
+      <section key={catalogResetKey} className="app-area available-replays-area" hidden={activeArea !== "PREGOES"}>
         <h2 className="area-title">Pregões e replays</h2>
         <p className="data-description">Importe CSVs do Profit, gere arquivos de replay e complete o histórico de aquecimento. No Simulador serão selecionados somente os pregões catalogados e compatíveis.</p>
         <SetupDisclosure title="Importar e criar arquivo de replay"
@@ -1928,6 +1931,7 @@ export default function App() {
 
       <section className="app-area settings-area" hidden={activeArea !== "CONFIGURACOES"}>
         <h2 className="area-title">Configurações</h2>
+        <ReplayBestPractices />
       <ExecutionSettingsPanel
         settings={executionSettings}
         cloudOpacity={cloudOpacity}
@@ -1971,9 +1975,23 @@ export default function App() {
         }}
       />
       <DatabaseMaintenancePanel
-        disabled={Boolean(position) || Boolean(trainingActive)}
+        disabled={Boolean(position) || trainingActive || startingTraining || loadingReplay || switchingStrategy || replay.busy}
         onDeleteAll={async () => {
+          if (replay.session) await replay.unload();
           await deleteAllDatabaseData();
+          setSimulationPlan(null);
+          setPreparationPlan(null);
+          setPreparationRequest(null);
+          setPreparationMatches([]);
+          setCatalogEntries([]);
+          setCatalogResetKey(value => value + 1);
+          setCatalogRefreshKey(value => value + 1);
+          setWarmupCandles([]);
+          setCurrentReplayTrade(null);
+          setDataMode("demo");
+          replaceCandles(createDemoCandles(asset));
+          setDraftEntryPrice(null);
+          setDraftSide(null);
           setTrades([]);
           setTrainingSession(null);
           setTrainingEvents([]);

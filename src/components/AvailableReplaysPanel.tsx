@@ -6,6 +6,7 @@ import { replayChoicesFromCatalog } from "../domain/replayChoices";
 import {
   listReplayCatalog,
   registerReplayFile,
+  removeReplayEntry,
   pruneMissingReplayCatalog,
   type ReplayCatalogEntry,
 } from "../services/replayCatalog";
@@ -77,6 +78,21 @@ export function AvailableReplaysPanel({
     }
   }
 
+  async function removeEntry(entry: ReplayCatalogEntry) {
+    if (modifying || !window.confirm(`Remover do catálogo o replay de ${entry.symbol} de ${formatDate(entry.tradeDate)}? O arquivo em disco será preservado.`)) return;
+    setModifying(true);
+    try {
+      await removeReplayEntry(entry.outputPath);
+      setNotice("Replay removido do catálogo.");
+      onCatalogUpdated?.();
+      await refresh();
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : String(reason));
+    } finally {
+      setModifying(false);
+    }
+  }
+
   async function clearMissing() {
     if (modifying) return;
     setModifying(true);
@@ -128,12 +144,12 @@ export function AvailableReplaysPanel({
 
       {error && <div className="data-status error">{error}</div>}
       {notice && <div className="data-status success" role="status">{notice}</div>}
-      {!error && !loading && available.length === 0 && (
+      {!error && !loading && entries.length === 0 && (
         <p className="empty-state">Nenhum replay foi catalogado ainda. Selecione um CSV do Profit no formulário acima ou adicione um replay já preparado.</p>
       )}
 
       <div className="available-replays-list">
-        {available.map((entry) => (
+        {entries.map((entry) => (
           <article className="available-replay-item" key={entry.outputPath}>
             <div className="available-replay-main">
               <div className="available-replay-title">
@@ -141,7 +157,7 @@ export function AvailableReplaysPanel({
                 <span>{formatDate(entry.tradeDate)}</span>
                 <span className="available-replay-window">{entry.sessionStart}–{entry.sessionEnd}</span>
               </div>
-              <small>{entry.symbol} · {entry.dataMode === "CANDLES_M1_SYNTHETIC" ? "M1 sintético" : entry.dataMode === "CANDLES_M2_SYNTHETIC" ? "M2 sintético" : "Formato legado"} · {formatBytes(entry.fileBytes)}</small>
+              <small>{!entry.exists && "Arquivo ausente · "}{entry.symbol} · {entry.dataMode === "CANDLES_M1_SYNTHETIC" ? "M1 sintético" : entry.dataMode === "CANDLES_M2_SYNTHETIC" ? "M2 sintético" : "Formato legado"} · {formatBytes(entry.fileBytes)}</small>
               <small className={choiceFor(entry)?.ready ? "replay-readiness ready" : "replay-readiness"}>
                 {choiceFor(entry)?.ready
                   ? "Pronto para treino com a estratégia selecionada"
@@ -154,6 +170,9 @@ export function AvailableReplaysPanel({
               <small>Primeiro/último registro: {entry.firstTimestamp?.slice(11, 16) ?? "?"}–{entry.lastTimestamp?.slice(11, 16) ?? "?"} (janela configurada: {entry.sessionStart}–{entry.sessionEnd})</small>
               <small className="available-replay-filename">{entry.outputPath.split(/[\\/]/).pop()}</small>
             </div>
+            <button type="button" className="secondary" disabled={loading || modifying}
+              aria-label={`Remover do catálogo ${entry.outputPath.split(/[\\/]/).pop()}`}
+              onClick={() => void removeEntry(entry)}>Remover</button>
           </article>
         ))}
       </div>

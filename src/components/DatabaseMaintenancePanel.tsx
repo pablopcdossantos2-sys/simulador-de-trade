@@ -12,7 +12,7 @@ export function DatabaseMaintenancePanel({ disabled, onDeleteAll }: Props) {
 
   async function handleDelete() {
     const confirmed = window.confirm(
-      "Apagar TODOS os dados do banco de dados? Serão removidos trades, sessões de treinamento e eventos, e as configurações de execução voltarão aos valores iniciais. Esta ação é permanente e não pode ser desfeita."
+      "Apagar todos os dados do banco e limpar o catálogo de pregões e replays? Isso apaga operações, sessões e eventos e restaura as configurações de execução. Os arquivos CSV e replay nas suas pastas serão preservados."
     );
     if (!confirmed) return;
 
@@ -34,7 +34,7 @@ export function DatabaseMaintenancePanel({ disabled, onDeleteAll }: Props) {
         <h2>Banco de dados</h2>
       </div>
       <p className="data-description">
-        Apague definitivamente todas as operações, sessões de treinamento, eventos e configurações de execução armazenados pelo aplicativo. As configurações voltarão aos valores iniciais. Os arquivos CSV e replay existentes nas pastas do computador não serão removidos.
+        A exclusão limpa o catálogo de pregões e replays, apaga operações, sessões e eventos e restaura as configurações de execução. Os arquivos CSV e replay nas suas pastas são preservados.
       </p>
       <button
         type="button"
