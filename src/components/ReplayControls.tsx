@@ -111,16 +111,20 @@ export function ReplayControls({
             )}
           </div>
 
-          <div className="replay-buttons">
             {(trainingActive || ended) && <form className="replay-time-form" onSubmit={event => {
               event.preventDefault();
               if (time && !busy) onSeek?.(time.slice(0, 5));
             }}>
-              <label>Horário do pregão <input type="time" required value={time}
+              <div className="replay-time-label">
+                <label htmlFor="replay-seek-time">Horário do pregão</label>
+                {session.sessionStart && session.sessionEnd && <small>{session.sessionStart.slice(0, 5)} – {session.sessionEnd.slice(0, 5)}</small>}
+              </div>
+              <input id="replay-seek-time" type="time" required value={time}
                 min={session.sessionStart?.slice(0, 5)} max={session.sessionEnd?.slice(0, 5)}
-                onChange={event => setTime(event.target.value)} /></label>
+                onChange={event => setTime(event.target.value)} />
               <button disabled={!time || busy}>Ir para horário</button>
             </form>}
+          <div className="replay-buttons">
             {ended && (!finished || inspectingHistory) && <button type="button" disabled={busy}
               onClick={onReveal}>Ver pregão completo</button>}
             <button

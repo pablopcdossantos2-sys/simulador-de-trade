@@ -26,7 +26,6 @@ import {
   type ThemeMode,
 } from "./components/ThemeToggle";
 import {
-  isPriceOnTick,
   roundPriceToTick,
   tickSizeFor,
 } from "./domain/marketSpecs";
@@ -53,6 +52,7 @@ import {
   openPosition,
   validateOcoOrder,
   validatePositionOco,
+  validateStopAdjustment,
   resolveOco,
   resolveOcoTrade,
   sideLabel,
@@ -1270,29 +1270,21 @@ export default function App() {
           : lastPrice;
         const nextStop = kind === "stop" ? rounded : position.stopLoss;
         const nextTarget = kind === "target" ? rounded : position.target;
-        if (!isPriceOnTick(asset, nextStop) || !isPriceOnTick(asset, nextTarget)) {
-          throw new TradingRuleError(`Stop e alvo precisam respeitar o tick de ${tickSizeFor(asset)} do ativo.`);
-        }
         if (kind === "stop") {
-          const riskReduced = position.side === "BUY"
-            ? nextStop > position.stopLoss && nextStop < marketPrice
-            : nextStop < position.stopLoss && nextStop > marketPrice;
-          if (!riskReduced) {
-            throw new TradingRuleError(position.side === "BUY"
-              ? "Para reduzir o risco de uma compra, mova o Stop somente para cima, sem alcançar o preço atual."
-              : "Para reduzir o risco de uma venda, mova o Stop somente para baixo, sem alcançar o preço atual.");
+          validateStopAdjustment(position, nextStop, marketPrice);
+        } else {
+          if (position.side === "BUY") {
+            if (nextTarget <= Math.max(position.entry, marketPrice)) throw new TradingRuleError("O alvo de uma compra precisa permanecer acima da entrada e do preço atual.");
+          } else if (nextTarget >= Math.min(position.entry, marketPrice)) {
+            throw new TradingRuleError("O alvo de uma venda precisa permanecer abaixo da entrada e do preço atual.");
           }
-        } else if (position.side === "BUY") {
-          if (nextTarget <= Math.max(position.entry, marketPrice)) throw new TradingRuleError("O alvo de uma compra precisa permanecer acima da entrada e do preço atual.");
-        } else if (nextTarget >= Math.min(position.entry, marketPrice)) {
-          throw new TradingRuleError("O alvo de uma venda precisa permanecer abaixo da entrada e do preço atual.");
+          validatePositionOco(position, nextStop, nextTarget);
         }
-        validatePositionOco(position, nextStop, nextTarget);
         const updated = { ...position, stopLoss: nextStop, target: nextTarget };
         positionRef.current = updated;
         setPosition(updated);
         setFeedback(kind === "stop"
-          ? `Stop ajustado para ${money.format(rounded)}. O risco da posição foi reduzido.`
+          ? `Stop ajustado para ${money.format(rounded)}.`
           : `Alvo ajustado para ${money.format(rounded)}.`);
         return;
       }
@@ -1300,19 +1292,11 @@ export default function App() {
         const current = ocoLevelsFromDistances(asset, draftSide, draftEntryPrice, Number(stopDistance), Number(targetDistance));
         const nextStop = kind === "stop" ? rounded : current.stopLoss;
         const nextTarget = kind === "target" ? rounded : current.target;
-        if (kind === "stop") {
-          const riskReduced = draftSide === "BUY"
-            ? nextStop > current.stopLoss && nextStop < draftEntryPrice
-            : nextStop < current.stopLoss && nextStop > draftEntryPrice;
-          if (!riskReduced) {
-            throw new TradingRuleError("No rascunho, o Stop só pode ser aproximado da entrada, sem ultrapassá-la.");
-          }
-        }
         validateOcoOrder(asset, draftSide, draftEntryPrice, nextStop, nextTarget);
         setStopDistance(String(Math.abs(draftEntryPrice - nextStop)));
         setTargetDistance(String(Math.abs(nextTarget - draftEntryPrice)));
         setFeedback(kind === "stop"
-          ? "Stop do rascunho ajustado para reduzir o risco. A relação risco/retorno mínimo de 1:2 foi preservada."
+          ? "Stop do rascunho ajustado. A relação mínima de 1:2 foi preservada."
           : "Alvo do rascunho ajustado. A relação risco/retorno continua em pelo menos 1:2.");
       }
     } catch (error) {
@@ -1650,7 +1634,7 @@ export default function App() {
                 <p>{dataMode === "replay"
                   ? `O replay usa candles M${replayTimeframeMinutes} do Profit e atualiza o candle aberto com dados sintéticos revelados ao longo do tempo. Candles futuros permanecem ocultos.`
                   : "O modo demonstrativo utiliza candles sintéticos. Para reproduzir dados do Profit Ultra, use os CSVs de um pregão."}</p>
-                <p>Arraste os candles para navegar pelo gráfico. Amplie ou reduza pelas opções de zoom. Quando uma direção estiver autorizada, clique no preço para preparar uma entrada manual. O alvo pode ser ajustado; o Stop só pode avançar para reduzir o risco.</p>
+                <p>Arraste os candles para navegar pelo gráfico. Quando uma direção estiver autorizada, clique no preço para preparar uma entrada. Arraste o stop para proteger a posição ou afaste-o enquanto o alvo cobrir pelo menos duas vezes o risco.</p>
               </InfoTip>
             </div>
             <SignalBadge strategyId={selectedStrategyId} slowLength={movingAverages.multiMedias.emaSlowLength} evaluation={indicatorEvaluation} signalAlreadyUsed={signalAlreadyUsed} reentrySide={reentryAuthorization?.side ?? null} reentryMethod={reentryAuthorization?.method ?? null} />

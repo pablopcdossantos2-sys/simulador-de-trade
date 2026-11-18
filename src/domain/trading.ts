@@ -155,6 +155,15 @@ export function validatePositionOco(
   }
 }
 
+export function validateStopAdjustment(position: Position, stop: number, marketPrice: number): void {
+  if (position.side === "BUY" ? stop >= marketPrice : stop <= marketPrice) {
+    throw new TradingRuleError(position.side === "BUY"
+      ? "O stop de uma compra deve ficar abaixo do preço atual."
+      : "O stop de uma venda deve ficar acima do preço atual.");
+  }
+  validatePositionOco(position, stop, position.target);
+}
+
 export function validateTradeIntent(intent: TradeIntent): void {
   const {
     signal,

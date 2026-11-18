@@ -9,6 +9,7 @@ import {
   resolveOcoTrade,
   validateTradeIntent,
   validatePositionOco,
+  validateStopAdjustment,
 } from "./trading";
 
 const buySignal: IndicatorSignal = {
@@ -215,6 +216,18 @@ describe("ajustes OCO durante posição aberta", () => {
   it("bloqueia reduzir o alvo quando o risco ativo ainda exige retorno mínimo 1:2", () => {
     expect(() => validatePositionOco(openBuy, openBuy.stopLoss, 130150))
       .toThrow(/manter pelo menos 1:2/i);
+  });
+
+  it.each(["BUY", "SELL"] as const)("ajusta o stop da %s nos dois sentidos dentro dos limites", side => {
+    const direction = side === "BUY" ? 1 : -1;
+    const entry = 130000;
+    const position = { ...openBuy, side, entry, stopLoss: entry - direction * 50, target: entry + direction * 300 };
+    const market = entry + direction * 40;
+    for (const offset of [-100, -25, 0, 15]) {
+      expect(() => validateStopAdjustment(position, entry + direction * offset, market)).not.toThrow();
+    }
+    expect(() => validateStopAdjustment(position, market, market)).toThrow(/preço atual/);
+    expect(() => validateStopAdjustment(position, entry - direction * 155, market)).toThrow(/1:2/);
   });
 
   it("permite reduzir o alvo depois de aproximar o stop, desde que a razão efetiva continue 1:2", () => {

@@ -4796,4 +4796,31 @@ td {
 .training-alert-settings fieldset { display: grid; grid-template-columns: repeat(auto-fit,minmax(min(100%,220px),1fr)); gap: .75rem; }
 .training-alert-settings button { justify-self: start; }
 .training-reminder { position: fixed; right: 1rem; bottom: 1rem; z-index: 2001; max-width: min(26rem,90vw); padding: 1rem; background: #15334b; color: white; border-radius: .6rem; display: flex; gap: .7rem; align-items: center; overflow-wrap: anywhere; }
-.replay-time-form { display: flex; align-items: center; gap: .5rem; flex-wrap: wrap; }
+.app-area {
+  --box-padding: clamp(16px, 1.5vw, 24px);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 16px;
+}
+.app-shell .app-area > :not([hidden]) { margin-block: 0; }
+.app-area > .card, .workspace > .card { padding: var(--box-padding); }
+.replay-time-form {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 16px;
+  padding: 12px 16px;
+  border: 1px solid #334e67;
+  border-radius: 12px;
+  background: #112338;
+}
+.replay-time-label { display: grid; gap: 3px; margin-right: 8px; }
+.replay-time-label label { font-weight: 700; }
+.replay-time-label small { color: #a9bfd2; font-variant-numeric: tabular-nums; }
+.replay-time-form input { padding: 6px 10px; font: inherit; font-variant-numeric: tabular-nums; color-scheme: dark; color: #edf6ff; background: #0c1a28; border: 1px solid #506984; }
+.replay-time-form button { min-height: 42px; padding: 8px 16px; border-radius: 9px; background: #9bc9f0; color: #10283d; font-weight: 700; cursor: pointer; }
+.replay-time-form button:disabled { opacity: .55; cursor: default; }
+:root[data-theme="light"] .replay-time-form { background: #f2f7fb; border-color: #bed0df; }
+:root[data-theme="light"] .replay-time-label small { color: #48627a; }
+:root[data-theme="light"] .replay-time-form input { color-scheme: light; background: #fff; color: #173247; border-color: #9bb2c5; }
