@@ -4795,7 +4795,35 @@ td {
 .training-alert-settings label { display: grid; gap: .35rem; }
 .training-alert-settings fieldset { display: grid; grid-template-columns: repeat(auto-fit,minmax(min(100%,220px),1fr)); gap: .75rem; }
 .training-alert-settings button { justify-self: start; }
-.training-reminder { position: fixed; right: 1rem; bottom: 1rem; z-index: 2001; max-width: min(26rem,90vw); padding: 1rem; background: #15334b; color: white; border-radius: .6rem; display: flex; gap: .7rem; align-items: center; overflow-wrap: anywhere; }
+.training-reminder {
+  box-sizing: border-box;
+  width: min(640px, calc(100% - 32px));
+  min-height: min(240px, calc(100dvh - 32px));
+  max-height: calc(100dvh - 32px);
+  padding: clamp(24px, 4vw, 44px);
+  text-align: center;
+  background: #11263e;
+  color: #f0f7ff;
+  border: 1px solid #759ec6;
+}
+.training-reminder::backdrop { background: rgb(4 10 20 / 70%); }
+.training-reminder h2 { margin: 0; font-size: 1.25rem; }
+.training-reminder p {
+  margin: 20px 0 28px;
+  font-size: clamp(1.25rem, 2.4vw, 1.75rem);
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+.training-reminder button {
+  min-height: 44px;
+  padding: 10px 24px;
+  border-radius: 9px;
+  background: #a1cdf5;
+  color: #10283d;
+  font-weight: 750;
+}
+:root[data-theme="light"] .training-reminder { background: #f6faff; color: #173247; }
 .app-area {
   --box-padding: clamp(16px, 1.5vw, 24px);
   display: grid;

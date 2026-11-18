@@ -35,6 +35,15 @@ export function saveSignalAlertSettings(settings: SignalAlertSettings): void {
 export function playSignalAlert(side: "BUY" | "SELL"): void {
   const settings = loadSignalAlertSettings();
   if (side === "BUY" ? !settings.buyEnabled : !settings.sellEnabled) return;
+  if (side === "BUY") playAlertTone(880, 1174.66, 0.3);
+  else playAlertTone(440, 349.23, 0.3);
+}
+
+export function playReminderAlert(): void {
+  playAlertTone(660, 660, 0.5);
+}
+
+function playAlertTone(firstPitch: number, secondPitch: number, duration: number): void {
   const AudioContextConstructor = window.AudioContext;
   if (!AudioContextConstructor) return;
 
@@ -44,15 +53,15 @@ export function playSignalAlert(side: "BUY" | "SELL"): void {
     const gain = context.createGain();
     const now = context.currentTime;
     oscillator.type = "sine";
-    oscillator.frequency.setValueAtTime(side === "BUY" ? 880 : 440, now);
-    oscillator.frequency.setValueAtTime(side === "BUY" ? 1174.66 : 349.23, now + 0.13);
+    oscillator.frequency.setValueAtTime(firstPitch, now);
+    oscillator.frequency.setValueAtTime(secondPitch, now + 0.13);
     gain.gain.setValueAtTime(0.0001, now);
     gain.gain.exponentialRampToValueAtTime(0.16, now + 0.015);
-    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.28);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + duration - 0.02);
     oscillator.connect(gain);
     gain.connect(context.destination);
     oscillator.start(now);
-    oscillator.stop(now + 0.3);
+    oscillator.stop(now + duration);
     oscillator.onended = () => { void context.close(); };
     void context.resume().catch(() => undefined);
   } catch {

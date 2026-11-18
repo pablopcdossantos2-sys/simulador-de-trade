@@ -1,5 +1,6 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useId, useRef, useState, type FormEvent } from "react";
 import { STRATEGY_NAMES } from "../domain/tradingStrategies";
+import { playReminderAlert } from "../services/signalAlerts";
 import type { TradingStrategyId } from "../types";
 
 const storageKey = "simulador-de-trade:training-alerts-v1";
@@ -65,7 +66,7 @@ export function TrainingAlertSettings({ settings, onSave }: SettingsProps) {
     <label>Intervalo em minutos reais
       <input type="number" min="1" max="1440" required value={draft.minutes || ""} onChange={e => setDraft({ ...draft, minutes: Number(e.target.value) })} />
     </label>
-    <p>Os textos preenchidos se alternam durante a sessão, inclusive com o replay pausado.</p>
+    <p>Os lembretes aparecem no centro da tela com aviso sonoro, inclusive com o replay pausado.</p>
     {strategies.map((id, number) => (
       <fieldset key={id}>
         <legend>Sistema 0{number + 1} · {STRATEGY_NAMES[id]}</legend>
@@ -82,24 +83,39 @@ export function TrainingAlertSettings({ settings, onSave }: SettingsProps) {
 }
 
 export function TrainingReminder({ settings, strategy }: { settings: Settings; strategy: TradingStrategyId }) {
+  const dialogRef = useRef<HTMLDialogElement>(null);
+  const titleId = useId();
+  const messageId = useId();
   const [message, setMessage] = useState("");
+
   useEffect(() => {
-    setMessage("");
     const texts = settings.messages[strategy].map(text => text.trim()).filter(Boolean);
     if (!texts.length) return;
     let index = 0;
-    let hideTimer: number;
     const timer = window.setInterval(() => {
+      if (dialogRef.current?.open) return;
       setMessage(texts[index]);
       index = (index + 1) % texts.length;
-      hideTimer = window.setTimeout(() => setMessage(""), 12000);
     }, settings.minutes * 60000);
-    return () => {
-      window.clearInterval(timer);
-      window.clearTimeout(hideTimer);
-    };
+    return () => window.clearInterval(timer);
   }, [settings, strategy]);
-  return message ? <aside className="training-reminder" role="status"><strong>Lembrete</strong>
-    <span>{message}</span><button onClick={() => setMessage("")} aria-label="Fechar lembrete">×</button>
-  </aside> : null;
+
+  useEffect(() => {
+    const dialog = dialogRef.current;
+    if (message && dialog && !dialog.open) {
+      dialog.showModal();
+      playReminderAlert();
+    }
+  }, [message]);
+
+  return (
+    <dialog ref={dialogRef} className="training-reminder card"
+      aria-labelledby={titleId} aria-describedby={messageId} onClose={() => setMessage("")}>
+      <h2 id={titleId}>Lembrete de treino</h2>
+      <p id={messageId}>{message}</p>
+      <form method="dialog">
+        <button type="submit" autoFocus>Entendi</button>
+      </form>
+    </dialog>
+  );
 }
