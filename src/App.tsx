@@ -1,3 +1,5 @@
+import { beginDiscipline, touchDiscipline, trackDisciplineChange, VERDICTS } from "./domain/discipline";
+import { DisciplinePanel, DisciplineExit, DisciplineFeedback, readDisciplinePreferences, DISCIPLINE_KEY, type DisciplinePreferences } from "./components/DisciplinePanel";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { CandleChart } from "./components/CandleChart";
 import { DataPreparationPanel } from "./components/DataPreparationPanel";
@@ -190,6 +192,12 @@ export default function App() {
   const [candles, setCandles] = useState(() => createDemoCandles("WINFUT"));
   const [currentReplayTrade, setCurrentReplayTrade] =
     useState<ReplayTrade | null>(null);
+  const [disciplinePreferences, setDisciplinePreferences] = useState(readDisciplinePreferences);
+  const [disciplineLastTrade, setDisciplineLastTrade] = useState<Trade | null>(null);
+  function changeDisciplinePreferences(next: DisciplinePreferences) {
+    setDisciplinePreferences(next);
+    try { localStorage.setItem(DISCIPLINE_KEY, JSON.stringify(next)); } catch { setFeedback("Não foi possível salvar as preferências de disciplina."); }
+  }
   const [position, setPosition] = useState<Position | null>(null);
   const [trades, setTrades] = useState<Trade[]>([]);
   const [stopDistance, setStopDistance] = useState("");
@@ -296,7 +304,9 @@ export default function App() {
       );
       const candleJustClosed = nextCandles.length > previousLength;
 
-      const openPosition = positionRef.current;
+      const priorPosition = positionRef.current;
+      const openPosition = priorPosition ? touchDiscipline(priorPosition, trade.price, trade.price, trade.timestamp, { now: () => performance.now() }) : null;
+      if (openPosition && openPosition !== priorPosition) { positionRef.current = openPosition; setPosition(openPosition); }
       if (openPosition) {
         const closed = resolveOcoTrade(openPosition, trade);
         if (!closed) return;
@@ -534,6 +544,7 @@ export default function App() {
   }, [asset, dataMode]);
 
   function persistClosedTrade(closed: Trade) {
+    if (closed.discipline) setDisciplineLastTrade(closed);
     protectNextAutoFeedbackRef.current = true;
     const currentCandle = candlesRef.current[candlesRef.current.length - 1];
     setLastClosedTradeMarker({
@@ -573,6 +584,7 @@ export default function App() {
     setFeedback(
       examActive
         ? "Operação encerrada. O resultado será revelado ao final da prova."
+        : closed.discipline ? VERDICTS[closed.discipline.verdict]
         : closed.exitReason === "TARGET"
           ? "Alvo acionado. " + money.format(closed.resultPoints) + " pts · líquido R$ " + money.format(closed.netResultBRL) + "."
           : "Stop atingido. " + money.format(closed.resultPoints) + " pts · líquido R$ " + money.format(closed.netResultBRL) + ".",
@@ -618,7 +630,9 @@ export default function App() {
 
   useEffect(() => {
     if (dataMode !== "demo" || !position || !lastCandle) return;
-    const closed = resolveOco(position, lastCandle);
+    const observed = lastCandle.index > position.openedCandleIndex ? touchDiscipline(position, lastCandle.low, lastCandle.high, lastCandle.timestamp, { now: () => performance.now() }) : position;
+    if (observed !== position) { positionRef.current = observed; setPosition(observed); }
+    const closed = resolveOco(observed, lastCandle);
     if (closed) persistClosedTrade(closed);
   }, [dataMode, lastCandle, position]);
 
@@ -1063,12 +1077,12 @@ export default function App() {
     const marketPrice = dataMode === "replay" ? currentReplayTrade?.price : lastPrice;
     const timestamp = dataMode === "replay" ? currentReplayTrade?.timestamp : new Date().toISOString();
     try {
-      const closed = closePositionManually(position, marketPrice ?? 0, timestamp ?? new Date().toISOString());
+      const closed = closePositionManually(positionRef.current ?? position, marketPrice ?? 0, timestamp ?? new Date().toISOString());
       persistClosedTrade(closed);
       setFeedback(
         examActive
           ? "Stop manual acionado. O resultado será revelado ao final da prova."
-          : `Stop manual acionado a ${money.format(closed.exitPrice)}. Resultado: ${money.format(closed.resultPoints)} pontos.`,
+          : closed.discipline ? VERDICTS[closed.discipline.verdict] : `Stop manual acionado a ${money.format(closed.exitPrice)}. Resultado: ${money.format(closed.resultPoints)} pontos.`,
       );
     } catch (error) {
       const reason = readErrorMessage(error, "Não foi possível estopar manualmente a operação.");
@@ -1178,8 +1192,11 @@ export default function App() {
         openedAt,
       );
 
-      positionRef.current = nextPosition;
-      setPosition(nextPosition);
+      const trainedPosition = disciplinePreferences.enabled
+        ? beginDiscipline(nextPosition, disciplinePreferences.level, disciplinePreferences.capital) : nextPosition;
+      positionRef.current = trainedPosition;
+      setPosition(trainedPosition);
+      if (trainedPosition.discipline && dataMode === "replay") replay.setPlaying(true);
       if (entrySignal) usedSignalIdsRef.current.add(entrySignal.id);
       setDraftEntryPrice(null);
       setDraftSide(null);
@@ -1262,7 +1279,7 @@ export default function App() {
           throw new TradingRuleError("O alvo de uma venda precisa permanecer abaixo da entrada e do preço atual.");
         }
         validatePositionOco(position, nextStop, nextTarget);
-        const updated = { ...position, stopLoss: nextStop, target: nextTarget };
+        const updated = trackDisciplineChange(position, { ...position, stopLoss: nextStop, target: nextTarget }, marketPrice);
         positionRef.current = updated;
         setPosition(updated);
         setFeedback(kind === "stop"
@@ -1305,7 +1322,7 @@ export default function App() {
     setDeletingHistory(true);
     try {
       await deleteAllTrades();
-      setTrades([]);      setTrainingEvents((current) => current.filter((event) => event.type !== "TRADE_OPENED" && event.type !== "TRADE_CLOSED"));
+      setTrades([]); setDisciplineLastTrade(null);      setTrainingEvents((current) => current.filter((event) => event.type !== "TRADE_OPENED" && event.type !== "TRADE_CLOSED"));
       setSessionHistoryRefreshKey((value) => value + 1);
       setFeedback("Histórico de operações apagado. Sessões e eventos disciplinares/técnicos foram preservados.");
     } catch (error) {
@@ -1570,6 +1587,9 @@ export default function App() {
         onEnd={() => void finishTraining()}
       />
 
+      <DisciplinePanel preferences={disciplinePreferences} onChange={changeDisciplinePreferences} locked={Boolean(position) || trainingActive} trades={trades} />
+      <DisciplineFeedback trade={examActive ? null : disciplineLastTrade} />
+      {position?.discipline && <DisciplineExit position={position} price={dataMode === "replay" ? currentReplayTrade?.price ?? lastPrice : lastPrice} onExit={stopPositionManually} />}
       <ReplayControls
         timeframeMinutes={replayTimeframeMinutes}
         session={replay.session}
@@ -1581,11 +1601,11 @@ export default function App() {
         finished={replay.finished}
         busy={replay.busy}
         onPlayPause={() => {
-          if (!trainingActive || startingTraining) return;
+          if (!trainingActive || startingTraining || position?.discipline) return;
           replay.setPlaying(!replay.playing);
         }}
         trainingActive={trainingActive}
-        locked={!trainingActive || startingTraining}
+        locked={!trainingActive || startingTraining || Boolean(position?.discipline)}
         onStep={() => {
           if (!trainingActive || startingTraining) return;
           void replay.step();
@@ -1754,8 +1774,8 @@ export default function App() {
                   ? "Alvo primeiro"
                   : "Stop primeiro"}
               </small>
-              <button type="button" className="market-close-button" onClick={stopPositionManually}>
-                Estopar manualmente a mercado
+              <button type="button" className="market-close-button" hidden={Boolean(position.discipline?.stopTouchedAt && position.discipline.level > 1)} onClick={stopPositionManually}>
+                {position.discipline?.stopTouchedAt && position.discipline.level > 1 ? "SAIR AGORA" : "Estopar manualmente a mercado"}
               </button>
               {dataMode === "replay" && replay.finished && (
                 <button type="button" className="market-close-button" onClick={closeOpenPositionAtReplayEnd}>

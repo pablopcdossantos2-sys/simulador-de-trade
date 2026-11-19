@@ -4785,3 +4785,16 @@ td {
 .replay-best-practices table { border-collapse: collapse; margin: 1rem 0; font-size: .9rem; }
 .replay-best-practices caption { text-align: left; font-weight: 700; margin-bottom: .5rem; }
 .replay-best-practices th, .replay-best-practices td { padding: .3rem .65rem; text-align: left; border-bottom: 1px solid #77889955; }
+
+.discipline-panel { margin-block: 1rem; border: 2px solid var(--border, #64748b); }
+.discipline-grid { display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:1rem;margin-block:1rem; }
+.discipline-panel table { width:100%;margin-block:1rem; }
+.discipline-panel td,.discipline-panel th { padding:.5rem;text-align:left; }
+.discipline-stop-alert { position:sticky;top:0;z-index:15;background:var(--card-bg, #fff3cd);color:var(--text, #222);border:3px solid #ba7515;padding:1rem;margin:1rem 0;border-radius:10px; }
+.discipline-stop-alert .market-close-button { display:block;min-height:56px;font-size:1.2rem;margin-top:1rem;width:100%; }
+.discipline-stop-discreet { font-size:.85rem;margin:.5rem 0;display:flex;align-items:center;gap:1rem;flex-wrap:wrap; }
+.discipline-stop-discreet .market-close-button { min-height:44px; }
+.stop-touched-line line { stroke:#b64925!important;stroke-width:3px; }
+.stop-touched-line text { fill:#b64925!important; }
+.discipline-feedback { margin:1rem 0; }
+.discipline-feedback li { margin:.5rem 0; }

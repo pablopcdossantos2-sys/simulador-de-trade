@@ -1,0 +1,4 @@
+export const MAX_RISK_PER_TRADE_PCT = 1;
+export const EXIT_TIME_LIMIT_MS = 3000;
+export const LEVEL_PROMOTION_WINDOW = 20;
+export const LEVEL_PROMOTION_MIN_GOOD_RATE = 0.8;

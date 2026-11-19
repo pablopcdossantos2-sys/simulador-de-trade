@@ -58,6 +58,8 @@ struct TradeRecord {
     post_trade_note: String,
     #[serde(default)]
     review: Option<Value>,
+    #[serde(default)]
+    discipline: Option<Value>,
     entry_context: Option<Value>,
     #[serde(default = "default_intrabar_policy")]
     intrabar_policy: String,
@@ -696,11 +698,11 @@ fn migrate_legacy_trade_reviews(connection: &Connection) -> rusqlite::Result<()>
 fn initialize_database(connection: &Connection) -> rusqlite::Result<()> {
     let current_schema_version: i64 =
         connection.query_row("PRAGMA user_version", [], |row| row.get(0))?;
-    if current_schema_version > 13 {
+    if current_schema_version > 14 {
         return Err(rusqlite::Error::SqliteFailure(
             rusqlite::ffi::Error::new(rusqlite::ffi::SQLITE_SCHEMA),
             Some(format!(
-                "O banco está na versão {current_schema_version}, mais nova que esta versão do aplicativo (13). Atualize o Simulador de Trade."
+                "O banco está na versão {current_schema_version}, mais nova que esta versão do aplicativo (14). Atualize o Simulador de Trade."
             )),
         ));
     }
@@ -973,9 +975,12 @@ fn initialize_database(connection: &Connection) -> rusqlite::Result<()> {
         connection.execute("ALTER TABLE trades ADD COLUMN session_id TEXT", [])?;
     }
 
+    if !column_exists(connection, "trades", "discipline_json")? {
+        connection.execute("ALTER TABLE trades ADD COLUMN discipline_json TEXT", [])?;
+    }
     migrate_legacy_trade_reviews(connection)?;
     connection.execute_batch(
-        "CREATE INDEX IF NOT EXISTS idx_trades_session ON trades(session_id, closed_at ASC); PRAGMA user_version = 13;",
+        "CREATE INDEX IF NOT EXISTS idx_trades_session ON trades(session_id, closed_at ASC); PRAGMA user_version = 14;",
     )?;
     Ok(())
 }
@@ -991,9 +996,9 @@ fn persist_trade_record(connection: &Connection, trade: &TradeRecord) -> Result<
             contracts, slippage_ticks_per_side, cost_per_contract_round_trip_brl,
             opened_at, status, exit_price, exit_reason, closed_at, result_points,
             gross_result_brl, operational_costs_brl, net_result_brl,
-            post_trade_note, review_json, entry_context_json, intrabar_policy, initial_stop_loss, session_id
+            post_trade_note, review_json, entry_context_json, intrabar_policy, initial_stop_loss, session_id, discipline_json
         )
-        VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23, ?24, ?25, ?26)
+        VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23, ?24, ?25, ?26, ?27)
         ON CONFLICT(id) DO UPDATE SET
             asset = excluded.asset, side = excluded.side, signal_id = excluded.signal_id,
             requested_entry = excluded.requested_entry, entry = excluded.entry,
@@ -1009,7 +1014,8 @@ fn persist_trade_record(connection: &Connection, trade: &TradeRecord) -> Result<
             review_json = excluded.review_json, entry_context_json = excluded.entry_context_json,
             intrabar_policy = excluded.intrabar_policy,
             initial_stop_loss = excluded.initial_stop_loss,
-            session_id = COALESCE(excluded.session_id, trades.session_id)
+            session_id = COALESCE(excluded.session_id, trades.session_id),
+            discipline_json = excluded.discipline_json
         "#,
         params![
             trade.id, trade.asset, trade.side, trade.signal_id, trade.requested_entry,
@@ -1021,6 +1027,7 @@ fn persist_trade_record(connection: &Connection, trade: &TradeRecord) -> Result<
             review_json, entry_context_json, trade.intrabar_policy,
             if trade.initial_stop_loss > 0.0 { trade.initial_stop_loss } else { trade.stop_loss },
             trade.session_id,
+            trade.discipline.as_ref().map(serde_json::to_string).transpose().map_err(|error| error.to_string())?,
         ],
     ).map_err(|error| error.to_string())?;
     Ok(())
@@ -1355,7 +1362,6 @@ fn list_training_sessions(
                 starting_balance_brl, strategy_id, strategy_averages_json
             FROM training_sessions
             ORDER BY started_at DESC, id ASC, id ASC
-            LIMIT 500
             "#,
         )
         .map_err(|error| error.to_string())?;
@@ -1402,7 +1408,7 @@ fn list_session_trades(
                 t.exit_price, t.exit_reason, t.closed_at, t.result_points,
                 t.gross_result_brl, t.operational_costs_brl, t.net_result_brl,
                 t.post_trade_note, t.review_json, t.entry_context_json, t.intrabar_policy,
-                t.initial_stop_loss, t.session_id
+                t.initial_stop_loss, t.session_id, t.discipline_json
             FROM trades t
             WHERE t.session_id = ?1
                OR EXISTS (
@@ -1445,6 +1451,7 @@ fn list_session_trades(
                 intrabar_policy: row.get(23)?,
                 initial_stop_loss: row.get(24)?,
                 session_id: row.get(25)?,
+                discipline: row.get::<_, Option<String>>(26)?.and_then(|value| serde_json::from_str(&value).ok()),
             })
         })
         .map_err(|error| error.to_string())?;
@@ -1597,10 +1604,9 @@ fn list_trades(state: tauri::State<'_, DbState>) -> Result<Vec<TradeRecord>, Str
                 cost_per_contract_round_trip_brl, opened_at, status, exit_price,
                 exit_reason, closed_at, result_points, gross_result_brl,
                 operational_costs_brl, net_result_brl, post_trade_note,
-                review_json, entry_context_json, intrabar_policy, initial_stop_loss, session_id
+                review_json, entry_context_json, intrabar_policy, initial_stop_loss, session_id, discipline_json
             FROM trades
             ORDER BY closed_at DESC, id ASC
-            LIMIT 500
             "#,
         )
         .map_err(|error| error.to_string())?;
@@ -1636,6 +1642,7 @@ fn list_trades(state: tauri::State<'_, DbState>) -> Result<Vec<TradeRecord>, Str
                 intrabar_policy: row.get(23)?,
                 initial_stop_loss: row.get(24)?,
                 session_id: row.get(25)?,
+                discipline: row.get::<_, Option<String>>(26)?.and_then(|value| serde_json::from_str(&value).ok()),
             })
         })
         .map_err(|error| error.to_string())?;
@@ -1658,7 +1665,7 @@ fn list_all_trades(
                 cost_per_contract_round_trip_brl, opened_at, status, exit_price,
                 exit_reason, closed_at, result_points, gross_result_brl,
                 operational_costs_brl, net_result_brl, post_trade_note,
-                review_json, entry_context_json, intrabar_policy, initial_stop_loss, session_id
+                review_json, entry_context_json, intrabar_policy, initial_stop_loss, session_id, discipline_json
             FROM trades
             ORDER BY closed_at ASC, id ASC
             "#,
@@ -1696,6 +1703,7 @@ fn list_all_trades(
                 intrabar_policy: row.get(23)?,
                 initial_stop_loss: row.get(24)?,
                 session_id: row.get(25)?,
+                discipline: row.get::<_, Option<String>>(26)?.and_then(|value| serde_json::from_str(&value).ok()),
             })
         })
         .map_err(|error| error.to_string())?;
@@ -1715,7 +1723,7 @@ fn query_backup_trades(connection: &Connection) -> Result<Vec<TradeRecord>, Stri
                 cost_per_contract_round_trip_brl, opened_at, status, exit_price,
                 exit_reason, closed_at, result_points, gross_result_brl,
                 operational_costs_brl, net_result_brl, post_trade_note,
-                review_json, entry_context_json, intrabar_policy, initial_stop_loss, session_id
+                review_json, entry_context_json, intrabar_policy, initial_stop_loss, session_id, discipline_json
             FROM trades
             ORDER BY closed_at ASC, id ASC
             "#,
@@ -1753,6 +1761,7 @@ fn query_backup_trades(connection: &Connection) -> Result<Vec<TradeRecord>, Stri
                 intrabar_policy: row.get(23)?,
                 initial_stop_loss: row.get(24)?,
                 session_id: row.get(25)?,
+                discipline: row.get::<_, Option<String>>(26)?.and_then(|value| serde_json::from_str(&value).ok()),
             })
         })
         .map_err(|error| error.to_string())?;
@@ -2236,9 +2245,9 @@ fn import_backup(
                     cost_per_contract_round_trip_brl, opened_at, status, exit_price,
                     exit_reason, closed_at, result_points, gross_result_brl,
                     operational_costs_brl, net_result_brl, post_trade_note,
-                    review_json, entry_context_json, intrabar_policy, initial_stop_loss, session_id
+                    review_json, entry_context_json, intrabar_policy, initial_stop_loss, session_id, discipline_json
                 )
-                VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23, ?24, ?25, ?26)
+                VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23, ?24, ?25, ?26, ?27)
                 ON CONFLICT(id) DO NOTHING
                 "#,
                 params![
@@ -2268,6 +2277,7 @@ fn import_backup(
                     trade.intrabar_policy,
                     if trade.initial_stop_loss > 0.0 { trade.initial_stop_loss } else { trade.stop_loss },
                     trade.session_id,
+            trade.discipline.as_ref().map(serde_json::to_string).transpose().map_err(|error| error.to_string())?,
                 ],
             )
             .map_err(|error| error.to_string())?;
@@ -4011,6 +4021,7 @@ mod tests {
         let trade = TradeRecord {
             id: "backup-trade".to_string(),
             session_id: None,
+            discipline: None,
             asset: "WINFUT".to_string(),
             side: "BUY".to_string(),
             signal_id: "signal-1".to_string(),
@@ -4336,6 +4347,7 @@ mod tests {
         let record = TradeRecord {
             id: "t1".to_string(),
             session_id: None,
+            discipline: None,
             asset: "WINFUT".to_string(),
             side: "BUY".to_string(),
             signal_id: "s1".to_string(),
@@ -4394,7 +4406,7 @@ mod tests {
 
     fn sample_closed_trade_for_session() -> TradeRecord {
         TradeRecord {
-            id: "atomic-trade".to_string(), session_id: None,
+            id: "atomic-trade".to_string(), session_id: None, discipline: None,
             asset: "WINFUT".to_string(), side: "BUY".to_string(),
             signal_id: "signal-atomic".to_string(), requested_entry: 130000.0,
             entry: 130000.0, stop_loss: 129900.0, initial_stop_loss: 129900.0,
@@ -4428,6 +4440,28 @@ mod tests {
                       2, 50, 'FREE', '2026-11-14T12:00:00Z', NULL, 'ACTIVE', NULL)"#,
             [],
         ).unwrap();
+    }
+
+    #[test]
+    fn discipline_survives_database_and_backup_queries() {
+        let connection = Connection::open_in_memory().unwrap();
+        initialize_database(&connection).unwrap();
+        let mut trade = sample_closed_trade_for_session();
+        trade.discipline = Some(json!({
+            "level": 2, "verdict": "BAD_WIN", "exitDelayMs": null,
+            "stopTouchedAt": {"monotonicMs": 12.0, "simulatedMs": 1000.0},
+            "rules": [{"id": "R3", "status": "FAIL"}]
+        }));
+        persist_trade_record(&connection, &trade).unwrap();
+        let restored = query_backup_trades(&connection).unwrap();
+        assert_eq!(restored[0].discipline, trade.discipline);
+        let json = serde_json::to_string(&restored[0]).unwrap();
+        let roundtrip: TradeRecord = serde_json::from_str(&json).unwrap();
+        assert_eq!(roundtrip.discipline, trade.discipline);
+        let mut legacy = serde_json::to_value(&trade).unwrap();
+        legacy.as_object_mut().unwrap().remove("discipline");
+        let old: TradeRecord = serde_json::from_value(legacy).unwrap();
+        assert!(old.discipline.is_none());
     }
 
     #[test]

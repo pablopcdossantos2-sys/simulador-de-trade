@@ -1,3 +1,4 @@
+import type { DisciplineState, DisciplineResult } from "./domain/discipline";
 export type Asset = "WINFUT" | "WDOFUT";
 export type Side = "BUY" | "SELL";
 export type TradingStrategyId = "MULTI_MEDIAS" | "MTF_ANGULACAO";
@@ -112,6 +113,7 @@ export interface ExecutionSettings {
 }
 
 export interface Position {
+  discipline?: DisciplineState;
   id: string;
   asset: Asset;
   side: Side;
@@ -153,6 +155,7 @@ export interface TradeReview {
 }
 
 export interface Trade {
+  discipline?: DisciplineResult;
   id: string;
   /** Sessão à qual a operação fechada pertence, quando originada em um treino. */
   sessionId?: string | null;
