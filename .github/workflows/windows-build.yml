@@ -3,6 +3,11 @@ name: Windows packaging (on demand)
 on:
   workflow_dispatch:
   push:
+    branches: [main]
+    paths:
+      - 'src/components/**'
+      - 'src/styles.css'
+      - '.github/workflows/windows-build.yml'
     tags:
       - "v*"
 

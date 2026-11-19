@@ -15,18 +15,75 @@ export function readDisciplinePreferences(): DisciplinePreferences {
 }
 export function DisciplinePanel({preferences:p,onChange,locked,trades}: {preferences:DisciplinePreferences;onChange:(p:DisciplinePreferences)=>void;locked:boolean;trades:Trade[]}) {
   const stats=disciplineStats(trades), level=disciplineStats(trades,p.level);
-  return <section className="card discipline-panel"><h2>Disciplina · processo de execução</h2><p>A qualidade depende das regras cumpridas, inclusive nas operações com perda.</p>
-    <label><input type="checkbox" checked={p.enabled} disabled={locked} onChange={e=>onChange({...p,enabled:e.target.checked})}/> Treinar stop em níveis e registrar disciplina</label>
-    <div className="discipline-grid"><label>Capital para risco (R$)<input type="number" min="0.01" step="any" value={p.capital} disabled={locked} onChange={e=>onChange({...p,capital:Number(e.target.value)})}/></label><label>Nível de stop<select disabled={locked} value={p.level} onChange={e=>onChange({...p,level:Number(e.target.value) as StopLevel})}>{([1,2,3] as const).map(l=><option key={l} value={l} disabled={l>p.unlocked}>{l} · {l===1?'Automático':l===2?'Manual com alerta':'Manual discreto'}</option>)}</select></label></div>
-    {p.level===2 && <div className="discipline-grid"><label><input type="checkbox" disabled={locked} checked={p.soundEnabled===true} onChange={e=>onChange({...p,soundEnabled:e.target.checked})}/> Som no toque do stop</label><label><input type="checkbox" disabled={locked} checked={p.vibrationEnabled===true} onChange={e=>onChange({...p,vibrationEnabled:e.target.checked})}/> Vibração, se suportada</label></div>}
-    <p>{level.count}/{LEVEL_PROMOTION_WINDOW} trades no nível · {pct(level.recentRate)} bons. Avanço com {pct(LEVEL_PROMOTION_MIN_GOOD_RATE)} bons na janela completa, por confirmação.</p>
-    {level.canPromote && <button disabled={locked} onClick={()=>onChange({...p,level:(p.level+1) as StopLevel,unlocked:Math.max(p.unlocked,p.level+1) as StopLevel})}>Confirmar avanço para o nível {p.level+1}</button>}
-    {p.level>1 && <p>Mediana: {level.median===null?'—':time(level.median)} · p90: {level.p90===null?'—':time(level.p90)} · Dentro de {EXIT_TIME_LIMIT_MS/1000}s: {pct(level.withinLimit)} · Custo médio: {level.meanCost===null?'—':`${brl(level.meanCost)} / ${level.meanCostR!.toFixed(2)}R`} · Sem saída manual: {level.missing}</p>}
-    <h3>Placar de disciplina</h3><div className="discipline-grid"><strong>Bons trades: {pct(stats.goodRate)}</strong><strong>Últimos {LEVEL_PROMOTION_WINDOW}: {pct(stats.recentRate)}</strong><span>Sequência atual: {stats.streak}</span><span>Melhor sequência: {stats.best}</span></div>
-    <table><thead><tr><th>Regras</th><th>Ganho ou zero</th><th>Perda</th></tr></thead><tbody><tr><th>Cumpridas</th><td>{stats.matrix.GOOD_WIN}</td><td>{stats.matrix.GOOD_LOSS}</td></tr><tr><th>Violadas</th><td>{stats.matrix.BAD_WIN}</td><td>{stats.matrix.BAD_LOSS}</td></tr></tbody></table>
-    <ul>{stats.violations.map(r=><li key={r.id}>{r.id} · {r.label}: {r.count}</li>)}</ul><p>Custo da indisciplina: {brl(stats.indisciplineCost)} · Lucro de mau trade: {brl(stats.badWinProfit)}</p>
-    <small>Somente trades com medição registrada. Histórico anterior não é reclassificado. Métricas de tempo/custo: últimos {LEVEL_PROMOTION_WINDOW} do nível; tempos consideram cliques após toque, ausências contam fora do limite. Custo médio mantém o sinal.</small>
-  </section>;
+  const levelDescriptions: Record<StopLevel, string> = {
+    1: 'O sistema executa o stop automaticamente. Observe o cumprimento do risco planejado.',
+    2: 'Você executa a saída com alerta visível, cronômetro e custo da demora em tempo real.',
+    3: 'Você executa a saída com a linha do stop e o cronômetro discretos, sem som.',
+  };
+  return (
+    <section className="card discipline-panel" aria-labelledby="discipline-title">
+      <div className="discipline-heading">
+        <div><h2 id="discipline-title">Disciplina · processo de execução</h2>
+          <p>A qualidade depende das regras cumpridas, inclusive nas operações com perda.</p></div>
+        <span className={`discipline-status ${p.enabled ? 'is-active' : ''}`}>{p.enabled ? 'Treino ativado' : 'Treino desativado'}</span>
+      </div>
+
+      <div className="discipline-setup-layout">
+        <div className="discipline-settings">
+          <label className="discipline-toggle"><input type="checkbox" checked={p.enabled} disabled={locked} onChange={e=>onChange({...p,enabled:e.target.checked})}/>
+            <span><strong>Treinar stop em níveis e registrar disciplina</strong><small>Defina o capital e o nível antes de iniciar a sessão.</small></span>
+          </label>
+          <div className="discipline-fields">
+            <label>Capital para risco (R$)<input type="number" min="0.01" step="any" value={p.capital} disabled={locked} onChange={e=>onChange({...p,capital:Number(e.target.value)})}/></label>
+            <label>Nível de stop<select disabled={locked} value={p.level} onChange={e=>onChange({...p,level:Number(e.target.value) as StopLevel})}>
+              {([1,2,3] as const).map(l=><option key={l} value={l} disabled={l>p.unlocked}>{l} · {l===1?'Automático':l===2?'Manual com alerta':'Manual discreto'}</option>)}
+            </select></label>
+          </div>
+          <p className="discipline-level-description">{levelDescriptions[p.level]}</p>
+          {p.level===2 && <fieldset className="discipline-alert-options"><legend>Alertas opcionais</legend>
+            <label><input type="checkbox" disabled={locked} checked={p.soundEnabled===true} onChange={e=>onChange({...p,soundEnabled:e.target.checked})}/> Som no toque do stop</label>
+            <label><input type="checkbox" disabled={locked} checked={p.vibrationEnabled===true} onChange={e=>onChange({...p,vibrationEnabled:e.target.checked})}/> Vibração, se suportada</label>
+          </fieldset>}
+          {locked && <small className="discipline-locked-note">Configuração bloqueada durante o treino. Finalize a sessão para alterar.</small>}
+        </div>
+
+        <div className="discipline-progress">
+          <div className="discipline-progress-heading"><h3>Progresso no nível {p.level}</h3><span>{level.count}/{LEVEL_PROMOTION_WINDOW} trades</span></div>
+          <progress max={LEVEL_PROMOTION_WINDOW} value={level.count} aria-label="Trades na janela de progressão" />
+          <div className="discipline-progress-rate"><strong>{pct(level.recentRate)}</strong><span>bons trades nesta janela</span></div>
+          <p>Avanço com {pct(LEVEL_PROMOTION_MIN_GOOD_RATE)} bons na janela completa, por confirmação.</p>
+          {level.canPromote && <button className="planner-apply" disabled={locked} onClick={()=>onChange({...p,level:(p.level+1) as StopLevel,unlocked:Math.max(p.unlocked,p.level+1) as StopLevel})}>Confirmar avanço para o nível {p.level+1}</button>}
+          {p.level===3 && <small>Último nível disponível. Você pode continuar praticando ou retornar a um nível anterior.</small>}
+        </div>
+      </div>
+
+      {p.level>1 && <dl className="discipline-timing">
+        <div><dt>Tempo mediano</dt><dd>{level.median===null?'—':time(level.median)}</dd></div>
+        <div><dt>Percentil 90</dt><dd>{level.p90===null?'—':time(level.p90)}</dd></div>
+        <div><dt>Saídas em até {EXIT_TIME_LIMIT_MS/1000}s</dt><dd>{pct(level.withinLimit)}</dd></div>
+        <div><dt>Custo médio da demora</dt><dd>{level.meanCost===null?'—':brl(level.meanCost)}</dd><small>{level.meanCostR===null?'—':`${level.meanCostR.toFixed(2)}R`}</small></div>
+        <div><dt>Sem saída manual</dt><dd>{level.missing}</dd></div>
+      </dl>}
+
+      <div className="discipline-score-heading"><h3>Placar de disciplina</h3><span>{stats.total} trades com medição</span></div>
+      <dl className="discipline-metrics">
+        <div className="discipline-metric-main"><dt>Bons trades · total</dt><dd>{pct(stats.goodRate)}</dd></div>
+        <div><dt>Últimos {LEVEL_PROMOTION_WINDOW}</dt><dd>{pct(stats.recentRate)}</dd></div>
+        <div><dt>Sequência atual</dt><dd>{stats.streak}</dd><small>bons trades consecutivos</small></div>
+        <div><dt>Melhor sequência</dt><dd>{stats.best}</dd><small>bons trades consecutivos</small></div>
+      </dl>
+
+      <div className="discipline-breakdown">
+        <div><h4>Processo × resultado</h4><div className="discipline-table-wrap"><table>
+          <thead><tr><th scope="col">Regras</th><th scope="col">Ganho ou zero</th><th scope="col">Perda</th></tr></thead>
+          <tbody><tr><th scope="row">Cumpridas</th><td className="discipline-good-cell">{stats.matrix.GOOD_WIN}</td><td className="discipline-good-cell">{stats.matrix.GOOD_LOSS}</td></tr><tr><th scope="row">Violadas</th><td>{stats.matrix.BAD_WIN}</td><td>{stats.matrix.BAD_LOSS}</td></tr></tbody>
+        </table></div><p className="discipline-matrix-note">Uma perda com regras cumpridas conta como bom trade.</p></div>
+        <div><h4>Violações por regra</h4><ul className="discipline-ranking">{stats.violations.map(r=><li key={r.id}><span className="discipline-rule-id">{r.id}</span><span>{r.label}</span><strong>{r.count}</strong></li>)}</ul></div>
+      </div>
+      <div className="discipline-costs"><div><span>Custo da indisciplina</span><strong>{brl(stats.indisciplineCost)}</strong><small>Excesso de perda positivo nos trades com violação.</small></div><div><span>Lucro de mau trade</span><strong>{brl(stats.badWinProfit)}</strong><small>Ganhos com violação não contam para a progressão.</small></div></div>
+      <details className="discipline-method"><summary>Como as métricas são calculadas</summary><p>Somente trades com medição registrada. Histórico anterior não é reclassificado. Métricas de tempo/custo: últimos {LEVEL_PROMOTION_WINDOW} do nível; tempos consideram cliques após toque, ausências contam fora do limite. Custo médio mantém o sinal.</p></details>
+    </section>
+  );
 }
 export function DisciplineExit({position,price,onExit,soundEnabled=false,vibrationEnabled=false}: {position:Position;price:number;onExit:()=>void;soundEnabled?:boolean;vibrationEnabled?:boolean}) {
   const [now,setNow]=useState(()=>performance.now());
