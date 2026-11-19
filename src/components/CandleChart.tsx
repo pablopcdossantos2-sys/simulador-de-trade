@@ -585,8 +585,8 @@ export function CandleChart({
           <PriceLine y={y(position.entry)} label={"Entrada " + formatPrice(position.entry, asset)} className="entry-line" />
           <PriceLine
             y={y(draggingOco?.mode === "position" && draggingOco.kind === "stop" ? draggingOco.price : position.stopLoss)}
-            label={"Stop " + formatPrice(draggingOco?.mode === "position" && draggingOco.kind === "stop" ? draggingOco.price : position.stopLoss, asset)}
-            className="stop-line" interactive
+            label={(position.discipline?.stopTouchedAt ? "STOP ATINGIDO " : "Stop ") + formatPrice(draggingOco?.mode === "position" && draggingOco.kind === "stop" ? draggingOco.price : position.stopLoss, asset)}
+            className={position.discipline?.stopTouchedAt ? "stop-line stop-touched-line" : "stop-line"} interactive
             onMouseDown={(event) => beginOcoDrag(event, "stop", "position", position.stopLoss)}
           />
           <PriceLine

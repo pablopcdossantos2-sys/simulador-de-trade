@@ -1,3 +1,4 @@
+import { touchDiscipline, finishDiscipline, type DisciplineClock } from "./discipline";
 import type {
   Candle,
   IndicatorSignal,
@@ -306,8 +307,9 @@ function closePosition(
   triggerPrice: number,
   exitReason: Trade["exitReason"],
   closedAt: string,
+  clock: DisciplineClock = { now: () => performance.now() },
 ): Trade {
-  const exitPrice = exitExecutionPrice(position, triggerPrice, exitReason);
+  const exitPrice = position.discipline ? triggerPrice : exitExecutionPrice(position, triggerPrice, exitReason);
   const resultPoints = pointsFor(
     position.side,
     position.entry,
@@ -321,7 +323,7 @@ function closePosition(
   const operationalCostsBRL =
     position.costPerContractRoundTripBRL * position.contracts;
 
-  return {
+  return finishDiscipline(position, {
     id: position.id,
     asset: position.asset,
     side: position.side,
@@ -347,13 +349,14 @@ function closePosition(
     netResultBRL: gross - operationalCostsBRL,
     postTradeNote: "",
     entryContext: position.entryContext,
-  };
+  }, clock);
 }
 
 export function closePositionAtMarket(
   position: Position,
   marketPrice: number,
   closedAt: string,
+  clock: DisciplineClock = { now: () => performance.now() },
 ): Trade {
   if (!Number.isFinite(marketPrice) || marketPrice <= 0) {
     throw new TradingRuleError(
@@ -366,6 +369,7 @@ export function closePositionAtMarket(
     marketPrice,
     "SESSION_END",
     closedAt,
+    clock,
   );
 }
 
@@ -373,17 +377,19 @@ export function closePositionManually(
   position: Position,
   marketPrice: number,
   closedAt: string,
+  clock: DisciplineClock = { now: () => performance.now() },
 ): Trade {
   if (!Number.isFinite(marketPrice) || marketPrice <= 0) {
     throw new TradingRuleError("Não é possível acionar o stop manual sem um último preço válido.");
   }
-  return closePosition(position, marketPrice, "MANUAL_STOP", closedAt);
+  return closePosition(position, marketPrice, "MANUAL_STOP", closedAt, clock);
 }
 
 export function resolveOco(
   position: Position,
   candle: Candle,
   now = new Date(candle.timestamp),
+  clock: DisciplineClock = { now: () => performance.now() },
 ): Trade | null {
   // Não usamos a máxima/mínima do próprio candle de entrada para resolver a OCO,
   // pois parte desse range pode ter ocorrido antes da ordem ser aberta.
@@ -396,11 +402,14 @@ export function resolveOco(
       ? candle.low <= position.stopLoss
       : candle.high >= position.stopLoss;
 
+  const manualStop = position.discipline && position.discipline.level !== 1;
   const targetTouched =
     position.side === "BUY"
       ? candle.high >= position.target
       : candle.low <= position.target;
 
+  position = touchDiscipline(position, candle.low, candle.high, candle.timestamp, clock);
+  if (manualStop && !targetTouched) return null;
   if (!stopTouched && !targetTouched) {
     return null;
   }
@@ -409,7 +418,7 @@ export function resolveOco(
   // intrabar, a política armazenada na posição resolve a ambiguidade.
   // No replay negócio a negócio esta política não é usada.
   const bothTouched = stopTouched && targetTouched;
-  const exitReason = bothTouched
+  const exitReason = manualStop ? "TARGET" : bothTouched
     ? position.intrabarPolicy === "TARGET_FIRST"
       ? "TARGET"
       : "STOP"
@@ -418,7 +427,7 @@ export function resolveOco(
       : "TARGET";
   const triggerPrice = exitReason === "TARGET"
     ? position.target
-    : position.side === "BUY"
+    : position.discipline ? position.stopLoss : position.side === "BUY"
       ? Math.min(candle.open, position.stopLoss)
       : Math.max(candle.open, position.stopLoss);
 
@@ -427,12 +436,14 @@ export function resolveOco(
     triggerPrice,
     exitReason,
     now.toISOString(),
+    clock,
   );
 }
 
 export function resolveOcoTrade(
   position: Position,
   trade: ReplayTrade,
+  clock: DisciplineClock = { now: () => performance.now() },
 ): Trade | null {
   if (
     position.openedReplaySequence !== undefined &&
@@ -446,21 +457,24 @@ export function resolveOcoTrade(
       ? trade.price <= position.stopLoss
       : trade.price >= position.stopLoss;
 
+  const manualStop = position.discipline && position.discipline.level !== 1;
   const targetTouched =
     position.side === "BUY"
       ? trade.price >= position.target
       : trade.price <= position.target;
 
+  position = touchDiscipline(position, trade.price, trade.price, trade.timestamp, clock);
+  if (manualStop && !targetTouched) return null;
   if (!stopTouched && !targetTouched) {
     return null;
   }
 
   // Com dados negócio a negócio não precisamos supor qual nível veio primeiro:
   // cada evento chega em sequência histórica canônica.
-  const exitReason = stopTouched ? "STOP" : "TARGET";
+  const exitReason = !manualStop && stopTouched ? "STOP" : "TARGET";
   const triggerPrice = exitReason === "TARGET"
     ? position.target
-    : position.side === "BUY"
+    : position.discipline ? position.stopLoss : position.side === "BUY"
       ? Math.min(trade.price, position.stopLoss)
       : Math.max(trade.price, position.stopLoss);
 
@@ -469,6 +483,7 @@ export function resolveOcoTrade(
     triggerPrice,
     exitReason,
     trade.timestamp,
+    clock,
   );
 }
 

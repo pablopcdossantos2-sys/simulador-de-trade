@@ -122,3 +122,25 @@ Este software tem finalidade educacional e de treinamento. Não envia ordens rea
 1. Em **Pregões e replays**, importe os CSVs M1/M2 do Profit e gere replays catalogados. Use a preparação guiada para identificar e completar o histórico de aquecimento necessário aos indicadores.
 2. Em **Sistemas de trading**, configure e selecione a estratégia.
 3. Em **Simulador → Selecionar replay disponível**, escolha um pregão pronto. O replay carrega automaticamente. Quando aparecer **Replay pronto para treino**, escolha o modo e inicie a sessão. Caso faltem arquivos do pregão ou do aquecimento, a interface indica as pendências e oferece um atalho para **Pregões e replays**.
+
+### Disciplina psicológica: níveis de stop e placar
+
+No **Simulador**, ative **Disciplina · processo de execução**, informe o capital usado para medir risco e selecione um nível desbloqueado, antes de iniciar a sessão:
+
+- **1 — Automático:** fecha no preço configurado do stop, sem medir tempo de reação. Com o stop inicial e tamanho original, a perda bruta é exatamente 1R.
+- **2 — Manual com alerta:** o toque mantém a posição aberta; alerta persistente e botão **SAIR AGORA** executam a saída em um clique no preço atual do replay. O preço continua andando, com cronômetro e excesso de perda em R e BRL.
+- **3 — Manual discreto:** mesma execução, somente linha do stop alterada e tempo/custo discretos, sem modal ou som.
+
+A promoção é sugerida após 20 trades do nível com pelo menos 80% bons, e depende de confirmação. É possível retornar aos níveis já desbloqueados entre sessões. O placar usa apenas as operações com disciplina registrada; operações antigas não recebem uma classificação retroativa.
+
+**Regras independentes:** risco máximo de 1% do capital informado, stop nunca afastado, saída manual em até 3 segundos reais após toque (níveis 2/3), sem aumentar posição perdedora. O motor atual impede afastamentos e aumento de posição; essas proteções continuam ativas. A verificação independente registra violações caso uma alteração seja introduzida por outra entrada do domínio. Aproximar o stop/trailing continua permitido. Qualquer falha torna o trade mau, inclusive quando há ganho.
+
+1R mantém o risco geométrico original multiplicado pelo valor do ponto do ativo e contratos iniciais. O custo da demora usa perda **bruta** menos perda planejada; custos operacionais ficam na seção financeira separada. No modo de disciplina, a saída usa o preço simulado observado (ou stop exato no nível 1), sem acrescentar slippage de saída; a execução legada mantém as configurações anteriores. A entrada continua obedecendo aos filtros existentes e à OCO obrigatória.
+
+O primeiro toque é capturado no evento revelado pelo replay; no modo demonstrativo por candle, pela mínima da compra ou máxima da venda, sem reutilizar extremos anteriores à entrada. Tempos real e simulado ficam separados. O cronômetro usa `performance.now()` e não reinicia se o preço voltar. Alvo ou fim de sessão após toque sem clique mantêm R3 violada e atraso nulo. Durante posições com disciplina, os controles de pausa/avanço e velocidade ficam bloqueados para preservar o fluxo contínuo.
+
+O veredito de disciplina aparece antes do resultado financeiro. Placar: taxa total/últimos 20, sequências, matriz, ranking por regra, excesso positivo de perda dos trades com violação e ganhos de BAD_WIN. Mediana/p90 usam cliques após toque; saídas ausentes contam fora do limite. Custo médio mantém o sinal e usa os trades tocados dos últimos 20 do nível.
+
+Os resultados são salvos nos mesmos trades do **SQLite**, com migração aditiva para esquema 14, e acompanham os backups/relatórios JSON. As preferências de ativação/capital/nível permanecem locais neste computador. Não foram adicionados checklist, pausa após stop, limite diário, diário ou outro replay de análise; as funções anteriores permanecem disponíveis.
+
+Testes: `npm test` e `npm run build`. Novos cenários em `src/domain/discipline.test.ts`; teste de roundtrip SQLite/backup em `src-tauri/src/lib.rs`. A compilação Windows continua pelo workflow **Windows packaging (on demand)** deste repositório.
