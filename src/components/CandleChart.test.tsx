@@ -1,3 +1,4 @@
+import { prepareReplayHistory, replayHistoryCapacity } from "../domain/replayHistory";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { CandleChart } from "./CandleChart";
@@ -180,4 +181,31 @@ it("recorta preços e médias na área de preço, mantendo barras de volume fora
   expect(priceBody).not.toContain("volume-up");
   expect(markup.slice(volumeStart)).toContain("volume-up");
   expect(markup.indexOf("JANELA DE TREINO")).toBeGreaterThan(volumeStart);
+});
+
+it("enquadra os 285 candles do pregão anterior antes de revelar o primeiro negócio", () => {
+  const date = "2026-11-18";
+  const source = Array.from({ length: 285 }, (_, index) => ({
+    index, timestamp: new Date(Date.UTC(2026, 10, 18, 9, index * 2)).toISOString().slice(0, 19),
+    open: 100, high: 101, low: 99, close: 100, volume: 1,
+  }));
+  const older = { ...source[0], timestamp: "2026-11-17T18:28:00" };
+  const history = [older, ...source];
+  expect(replayHistoryCapacity(2, 260)).toBeGreaterThanOrEqual(285);
+  expect(replayHistoryCapacity(2, 1500)).toBe(1500);
+  const { previous, warmup } = prepareReplayHistory(history, 260, date);
+  expect(warmup).toEqual(source.slice(-260));
+  expect(previous[0].index).toBe(-25);
+  expect(previous.at(-1)?.index).toBe(259);
+  expect(prepareReplayHistory(history, 450, date).previous[0].index).toBe(1);
+  const draw = (candles: typeof source) => renderToStaticMarkup(<CandleChart candles={candles}
+    contextCandles={previous} evaluation={{ authorization: null, signals: [], series: [], zone: "NONE" }}
+    asset="WDOFUT" position={null} />);
+  const before = draw([]);
+  expect(before.match(/volume-context/g)).toHaveLength(285);
+  expect(before).toContain("09:00 a 18:28");
+  expect(before).not.toContain("2026-11-17");
+  const running = draw([{ ...source[0], index: 260, timestamp: "2026-11-19T09:00:00" }]);
+  expect(running).toContain("Ver pregão anterior completo");
+  expect(running).toContain("2026-11-19");
 });

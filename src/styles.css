@@ -4889,3 +4889,11 @@ td {
 .stop-touched-line text { fill:#b64925!important; }
 .discipline-feedback { margin:1rem 0; }
 .discipline-feedback li { margin:.5rem 0; }
+
+.results-heading { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px; }
+.results-heading .area-title { margin: 0; }
+.results-view-switch { display: inline-flex; gap: 4px; }
+.results-view-switch button { min-height: 40px; padding: 6px 14px; border-radius: 8px; }
+.results-view-switch button[aria-pressed="true"] { color: #102621; background: #a9decd; border-color: #a9decd; }
+:root[data-theme="light"] .results-view-switch button[aria-pressed="true"] { color: white; background: #226450; border-color: #226450; }
+.results-process-metrics { grid-template-columns: repeat(auto-fit, minmax(min(100%, 210px), 1fr)); }
