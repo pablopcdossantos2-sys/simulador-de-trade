@@ -272,6 +272,7 @@ export default function App() {
   const signalAlertEffectMountedRef = useRef(false);
   const startingTrainingRef = useRef(false);
   const positionRef = useRef<Position | null>(null);
+  const latestReplayTradeRef = useRef<ReplayTrade | null>(null);
   const candlesRef = useRef(candles);
   const replayBatchOpenRef = useRef(false);
   const replaceCandles = (next: typeof candles) => {
@@ -289,6 +290,7 @@ export default function App() {
 
   const handleReplayTrade = useCallback(
     (trade: ReplayTrade) => {
+      latestReplayTradeRef.current = trade;
       // O buffer do frame é separado do estado React. Os negócios são agregados
       // nele em sequência e a interface recebe uma única publicação por frame.
       if (!replayBatchOpenRef.current) {
@@ -1074,8 +1076,8 @@ export default function App() {
 
   function stopPositionManually() {
     if (!position) return;
-    const marketPrice = dataMode === "replay" ? currentReplayTrade?.price : lastPrice;
-    const timestamp = dataMode === "replay" ? currentReplayTrade?.timestamp : new Date().toISOString();
+    const marketPrice = dataMode === "replay" ? (latestReplayTradeRef.current ?? currentReplayTrade)?.price : lastPrice;
+    const timestamp = dataMode === "replay" ? (latestReplayTradeRef.current ?? currentReplayTrade)?.timestamp : new Date().toISOString();
     try {
       const closed = closePositionManually(positionRef.current ?? position, marketPrice ?? 0, timestamp ?? new Date().toISOString());
       persistClosedTrade(closed);
@@ -1589,7 +1591,7 @@ export default function App() {
 
       <DisciplinePanel preferences={disciplinePreferences} onChange={changeDisciplinePreferences} locked={Boolean(position) || trainingActive} trades={trades} />
       <DisciplineFeedback trade={examActive ? null : disciplineLastTrade} />
-      {position?.discipline && <DisciplineExit position={position} price={dataMode === "replay" ? currentReplayTrade?.price ?? lastPrice : lastPrice} onExit={stopPositionManually} />}
+      {position?.discipline && <DisciplineExit position={position} price={dataMode === "replay" ? currentReplayTrade?.price ?? lastPrice : lastPrice} onExit={stopPositionManually} soundEnabled={disciplinePreferences.soundEnabled} vibrationEnabled={disciplinePreferences.vibrationEnabled} />}
       <ReplayControls
         timeframeMinutes={replayTimeframeMinutes}
         session={replay.session}

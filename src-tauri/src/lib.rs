@@ -1362,6 +1362,7 @@ fn list_training_sessions(
                 starting_balance_brl, strategy_id, strategy_averages_json
             FROM training_sessions
             ORDER BY started_at DESC, id ASC, id ASC
+            LIMIT 500
             "#,
         )
         .map_err(|error| error.to_string())?;
@@ -2277,7 +2278,7 @@ fn import_backup(
                     trade.intrabar_policy,
                     if trade.initial_stop_loss > 0.0 { trade.initial_stop_loss } else { trade.stop_loss },
                     trade.session_id,
-            trade.discipline.as_ref().map(serde_json::to_string).transpose().map_err(|error| error.to_string())?,
+                    trade.discipline.as_ref().map(serde_json::to_string).transpose().map_err(|error| error.to_string())?,
                 ],
             )
             .map_err(|error| error.to_string())?;
