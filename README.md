@@ -125,7 +125,7 @@ Este software tem finalidade educacional e de treinamento. Não envia ordens rea
 
 ### Disciplina psicológica: níveis de stop e placar
 
-No **Simulador**, ative **Disciplina · processo de execução**, informe o capital usado para medir risco e selecione um nível desbloqueado, antes de iniciar a sessão:
+O treino em níveis começa ativado no nível 1. Em **Disciplina · processo de execução**, você pode desativá-lo ou ajustar o capital e o nível antes de iniciar a sessão. O simulador guarda a sua escolha.
 
 - **1 — Automático:** fecha no preço configurado do stop, sem medir tempo de reação. Com o stop inicial e tamanho original, a perda bruta é exatamente 1R.
 - **2 — Manual com alerta:** o toque mantém a posição aberta; alerta persistente e botão **SAIR AGORA** executam a saída em um clique no preço atual do replay. O preço continua andando, com cronômetro e excesso de perda em R e BRL.
@@ -138,6 +138,10 @@ A promoção é sugerida após 20 trades do nível com pelo menos 80% bons, e de
 1R mantém o risco geométrico original multiplicado pelo valor do ponto do ativo e contratos iniciais. O custo da demora usa perda **bruta** menos perda planejada; custos operacionais ficam na seção financeira separada. No modo de disciplina, a saída usa o preço simulado observado (ou stop exato no nível 1), sem acrescentar slippage de saída; a execução legada mantém as configurações anteriores. A entrada continua obedecendo aos filtros existentes e à OCO obrigatória.
 
 O primeiro toque é capturado no evento revelado pelo replay; no modo demonstrativo por candle, pela mínima da compra ou máxima da venda, sem reutilizar extremos anteriores à entrada. Tempos real e simulado ficam separados. O cronômetro usa `performance.now()` e não reinicia se o preço voltar. Alvo ou fim de sessão após toque sem clique mantêm R3 violada e atraso nulo. Durante posições com disciplina, os controles de pausa/avanço e velocidade ficam bloqueados para preservar o fluxo contínuo.
+
+Ao carregar um replay, o gráfico mostra todos os candles disponíveis do pregão anterior. Durante o treino, use **Ver pregão anterior completo** para consultá-lo e **Voltar ao replay** para acompanhar o mercado atual.
+
+A seção **Resultados** abre na visão **Simplificada**, com disciplina, execução de stops manuais e tentativas bloqueadas. Selecione **Completa** para consultar gráficos, histórico e resultados financeiros. A escolha fica salva neste computador.
 
 O veredito de disciplina aparece antes do resultado financeiro. Placar: taxa total/últimos 20, sequências, matriz, ranking por regra, excesso positivo de perda dos trades com violação e ganhos de BAD_WIN. Mediana/p90 usam cliques após toque; saídas ausentes contam fora do limite. Custo médio mantém o sinal e usa os trades tocados dos últimos 20 do nível.
 

@@ -11,7 +11,7 @@ export function readDisciplinePreferences(): DisciplinePreferences {
   try { const p = JSON.parse(localStorage.getItem(DISCIPLINE_KEY) ?? 'null');
     if(p && typeof p.enabled === 'boolean' && [1,2,3].includes(p.level) && [1,2,3].includes(p.unlocked) && p.level <= p.unlocked && p.capital > 0 && Number.isFinite(p.capital)) return p;
   } catch { /* Fall back to unconfigured mode. */ }
-  return { enabled:false,level:1,capital:10000,unlocked:1 };
+  return { enabled:true,level:1,capital:10000,unlocked:1 };
 }
 export function DisciplinePanel({preferences:p,onChange,locked,trades}: {preferences:DisciplinePreferences;onChange:(p:DisciplinePreferences)=>void;locked:boolean;trades:Trade[]}) {
   const stats=disciplineStats(trades), level=disciplineStats(trades,p.level);

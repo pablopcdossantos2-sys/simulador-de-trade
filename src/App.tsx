@@ -1,3 +1,5 @@
+import { prepareReplayHistory, replayHistoryCapacity } from "./domain/replayHistory";
+import { SimpleResultsPanel, readResultsView, RESULTS_VIEW_KEY, type ResultsView } from "./components/SimpleResultsPanel";
 import { beginDiscipline, touchDiscipline, trackDisciplineChange, VERDICTS } from "./domain/discipline";
 import { DisciplinePanel, DisciplineExit, DisciplineFeedback, readDisciplinePreferences, DISCIPLINE_KEY, type DisciplinePreferences } from "./components/DisciplinePanel";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -251,7 +253,12 @@ export default function App() {
     }).finally(() => { if (active) setCatalogLoading(false); });
     return () => { active = false; };
   }, [catalogRefreshKey]);
-  const [warmupCandles, setWarmupCandles] = useState<import("./types").Candle[]>([]);
+  const [{ warmup: warmupCandles, previous: previousSessionCandles }, setReplayHistory] = useState<ReturnType<typeof prepareReplayHistory>>({ warmup: [], previous: [] });
+  const [resultsView, setResultsView] = useState(readResultsView);
+  function changeResultsView(view: ResultsView) {
+    setResultsView(view);
+    try { localStorage.setItem(RESULTS_VIEW_KEY, view); } catch { /* Preferência visual opcional. */ }
+  }
   const [trainingSession, setTrainingSession] =
     useState<TrainingSession | null>(null);
   const [trainingEvents, setTrainingEvents] = useState<TrainingEvent[]>([]);
@@ -774,7 +781,7 @@ export default function App() {
     if (simulationPlan && simulationPlan.asset !== next) {
       // A escolha do replay pertence ao ativo selecionado no catálogo.
       setSimulationPlan(null);
-      setWarmupCandles([]);
+      setReplayHistory({ warmup: [], previous: [] });
     }
     setLastClosedTradeMarker(null);
     setDraftEntryPrice(null);
@@ -815,10 +822,10 @@ export default function App() {
     loadingReplayRef.current = true;
     setLoadingReplay(true);
     try {
-      const hiddenCandles = await loadWarmupCandles(
+      const history = await loadWarmupCandles(
         warmupFilesFromMatches(matches),
         plan.timeframeMinutes,
-        plan.warmupBars,
+        replayHistoryCapacity(plan.timeframeMinutes, plan.warmupBars),
       );
 
       // Descarrega a sessão antiga antes de substituir seu plano e buffers.
@@ -827,7 +834,7 @@ export default function App() {
         await replay.unload();
       }
       setSimulationPlan(null);
-      setWarmupCandles([]);
+      setReplayHistory({ warmup: [], previous: [] });
       setDataMode("demo");
       setAsset(plan.asset);
       replaceCandles(createDemoCandles(plan.asset));
@@ -843,7 +850,7 @@ export default function App() {
       }
 
       setSimulationPlan(plan);
-      setWarmupCandles(hiddenCandles);
+      setReplayHistory(prepareReplayHistory(history, plan.warmupBars, plan.fullSessionPreviousDates[0]));
       setDataMode("replay");
       setAsset(info.asset);
       replaceCandles([]);
@@ -1361,7 +1368,7 @@ export default function App() {
       setSimulationPlan(null);
       setPreparationPlan(null);
       setPreparationMatches([]);
-      setWarmupCandles([]);
+      setReplayHistory({ warmup: [], previous: [] });
       setDataMode("demo");
       replaceCandles(createDemoCandles(asset));
       setCurrentReplayTrade(null);
@@ -1410,7 +1417,7 @@ export default function App() {
       setSimulationPlan(null);
       setPreparationPlan(null);
       setPreparationMatches([]);
-      setWarmupCandles([]);
+      setReplayHistory({ warmup: [], previous: [] });
       setDataMode("demo");
       replaceCandles(createDemoCandles(asset));
       setCurrentReplayTrade(null);
@@ -1641,10 +1648,11 @@ export default function App() {
             <SignalBadge strategyId={selectedStrategyId} slowLength={movingAverages.multiMedias.emaSlowLength} evaluation={indicatorEvaluation} signalAlreadyUsed={signalAlreadyUsed} reentrySide={reentryAuthorization?.side ?? null} reentryMethod={reentryAuthorization?.method ?? null} />
           </div>
 
-          {visibleCandles.length || warmupCandles.length ? (
+          {visibleCandles.length || previousSessionCandles.length ? (
             <CandleChart
               candles={visibleCandles}
-              contextCandles={warmupCandles}
+              key={replay.session?.sourcePath ?? "demo"}
+              contextCandles={previousSessionCandles}
               evaluation={indicatorEvaluation}
               strategyId={selectedStrategyId}
               mtfPoints={mtfEvaluation?.points ?? []}
@@ -1839,7 +1847,19 @@ export default function App() {
       </section>
 
       <section className="app-area results-area" hidden={activeArea !== "RESULTADOS"}>
-        <h2 className="area-title">Resultados</h2>
+        <div className="results-heading">
+          <h2 className="area-title">Resultados</h2>
+          <div className="results-view-switch" role="group" aria-label="Visualização dos resultados">
+            {(["simple", "full"] as const).map(view => <button key={view} type="button"
+              aria-pressed={resultsView === view} onClick={() => changeResultsView(view)}>
+              {view === "simple" ? "Simplificada" : "Completa"}
+            </button>)}
+          </div>
+        </div>
+        {resultsView === "simple" ? (
+          examActive ? <p className="exam-lock" role="status">O resumo de execução estará disponível ao encerrar a prova.</p>
+            : <SimpleResultsPanel trades={trades} refreshKey={sessionHistoryRefreshKey} />
+        ) : <>
       <StudentProgressPanel
         refreshKey={sessionHistoryRefreshKey}
         hidden={examActive}
@@ -1935,6 +1955,7 @@ export default function App() {
           </div>
         )}
       </section>
+        </>}
       </section>
 
       <section className="app-area evolution-area" hidden={activeArea !== "EVOLUCAO"}>
@@ -1978,7 +1999,7 @@ export default function App() {
             setSimulationPlan(null);
             setPreparationPlan(null);
             setPreparationMatches([]);
-            setWarmupCandles([]);
+            setReplayHistory({ warmup: [], previous: [] });
             setDataMode("demo");
             replaceCandles(createDemoCandles(asset));
             setCurrentReplayTrade(null);
@@ -2008,7 +2029,7 @@ export default function App() {
           setCatalogEntries([]);
           setCatalogResetKey(value => value + 1);
           setCatalogRefreshKey(value => value + 1);
-          setWarmupCandles([]);
+          setReplayHistory({ warmup: [], previous: [] });
           setCurrentReplayTrade(null);
           setDataMode("demo");
           replaceCandles(createDemoCandles(asset));

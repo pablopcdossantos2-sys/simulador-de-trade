@@ -1,3 +1,6 @@
+import { vi } from "vitest";
+import { readDisciplinePreferences, DISCIPLINE_KEY } from "./DisciplinePanel";
+import { readResultsView, RESULTS_VIEW_KEY } from "./SimpleResultsPanel";
 import { describe,expect,it } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { DisciplinePanel, DisciplineFeedback, type DisciplinePreferences } from './DisciplinePanel';
@@ -23,4 +26,17 @@ describe('interface de disciplina no simulador',()=>{
   expect(html.indexOf('Bom trade: perda disciplinada')).toBeLessThan(html.indexOf('Resultado financeiro'));
   expect(html).toContain('R4');expect(html).toContain('<details>');expect(html).not.toContain('<details open');
  });
+});
+
+it('inicia com treino ativo e resumo simplificado, respeitando preferências já salvas', () => {
+  const stored = new Map<string,string>();
+  vi.stubGlobal('localStorage', { getItem: (key: string) => stored.get(key) ?? null });
+  try {
+    expect(readDisciplinePreferences().enabled).toBe(true);
+    expect(readResultsView()).toBe('simple');
+    stored.set(DISCIPLINE_KEY, JSON.stringify({ ...preferences, enabled: false }));
+    stored.set(RESULTS_VIEW_KEY, 'full');
+    expect(readDisciplinePreferences().enabled).toBe(false);
+    expect(readResultsView()).toBe('full');
+  } finally { vi.unstubAllGlobals(); }
 });

@@ -44,7 +44,6 @@ const TIME_LABEL_Y = 484;
 const DEFAULT_VISIBLE_BARS = 48;
 const MIN_VISIBLE_BARS = 12;
 const MAX_VISIBLE_BARS = 120;
-const CONTEXT_BARS = 24;
 
 function formatPrice(value: number, asset: Asset): string {
   return new Intl.NumberFormat("pt-BR", {
@@ -120,17 +119,24 @@ export function CandleChart({
   replayTimestamp = null,
   replayTimeframeMinutes = 2,
   showCountdown = false,
-  position,
+  position: livePosition,
   asset,
-  draftOrder = null,
-  entryPlacementEnabled = false,
+  draftOrder: liveDraft = null,
+  entryPlacementEnabled: canPlaceOrder = false,
   onEntryPlacement,
   onAdjustOco,
-  fitAllCandles = false,
+  fitAllCandles: fixedOverview = false,
   cloudOpacity = 0.2,
 }: Props) {
   const priceClipId = useId();
   const volumeClipId = useId();
+  const [sessionView, setSessionView] = useState<"auto" | "previous" | "live">("auto");
+  const previousView = !fixedOverview && contextCandles.length > 0 &&
+    (sessionView === "previous" || (sessionView === "auto" && candles.length === 0));
+  const fitAllCandles = fixedOverview || previousView;
+  const position = previousView ? null : livePosition;
+  const draftOrder = previousView ? null : liveDraft;
+  const entryPlacementEnabled = canPlaceOrder && !previousView;
   const [visibleBars, setVisibleBars] = useState(DEFAULT_VISIBLE_BARS);
   const [priceZoom, setPriceZoom] = useState(1);
   const [panOffset, setPanOffset] = useState(0);
@@ -161,14 +167,12 @@ export function CandleChart({
     };
   }, [maximized]);
 
-  // O aquecimento completo continua alimentando o indicador; só os candles finais
-  // do pregão anterior são exibidos como contexto visual.
-  const context: ChartCandle[] = contextCandles
-    .map((candle, index) => ({ ...candle, index, source: "context" as const }))
-    .slice(-CONTEXT_BARS);
-  const target: ChartCandle[] = candles.map((candle) => ({ ...candle, source: "target" as const }));
-  const allCandles = [...context, ...target];
-  const panEnd = Math.max(0, allCandles.length - panOffset);
+  const context: ChartCandle[] = contextCandles.map(candle => ({ ...candle, source: "context" }));
+  const target: ChartCandle[] = candles.map(candle => ({ ...candle, source: "target" }));
+  const allCandles = previousView ? context : [...context, ...target];
+  const maxVisibleBars = Math.max(MAX_VISIBLE_BARS, allCandles.length);
+  const offset = Math.min(panOffset, Math.max(0, allCandles.length - visibleBars));
+  const panEnd = allCandles.length - offset;
   const panStart = Math.max(0, panEnd - visibleBars);
   const visible = fitAllCandles ? allCandles : allCandles.slice(panStart, panEnd);
   const effectiveVisibleBars = fitAllCandles ? Math.max(visible.length, 1) : visibleBars;
@@ -287,7 +291,7 @@ export function CandleChart({
     if (axisDrag) {
       if (axisDrag.axis === "x") {
         const nextBars = Math.round(axisDrag.visibleBars * Math.exp((axisDrag.startX - x) * 0.006));
-        setVisibleBars(Math.max(MIN_VISIBLE_BARS, Math.min(MAX_VISIBLE_BARS, nextBars)));
+        setVisibleBars(Math.max(MIN_VISIBLE_BARS, Math.min(maxVisibleBars, nextBars)));
       } else {
         const nextZoom = axisDrag.priceZoom * Math.exp((axisDrag.startY - yValue) * 0.01);
         setPriceZoom(Math.max(0.5, Math.min(4, nextZoom)));
@@ -339,7 +343,7 @@ export function CandleChart({
       didDragRef.current = true;
       event.preventDefault();
     } else if (!rulerEnabled && !fitAllCandles && x >= PLOT_LEFT && x <= PLOT_RIGHT && yValue >= PLOT_TOP && yValue <= VOLUME_BOTTOM) {
-      chartPanRef.current = { startX: x, startY: yValue, startOffset: panOffset, startPriceOffset: panPriceOffset, range };
+      chartPanRef.current = { startX: x, startY: yValue, startOffset: offset, startPriceOffset: panPriceOffset, range };
       setCrosshair(null);
       event.preventDefault();
     }
@@ -421,14 +425,22 @@ export function CandleChart({
         )}
         </div>
         <div className="chart-controls" aria-label="Controles de zoom do gráfico">
+          {!fixedOverview && context.length > 0 && <button type="button" aria-pressed={previousView}
+            onClick={() => {
+              setSessionView(previousView ? "live" : "previous");
+              setCrosshair(null); setRulerStart(null); setRulerEnd(null);
+              setPriceZoom(1); setPanPriceOffset(0); setPanOffset(0);
+            }}>
+            {previousView ? (candles.length ? "Voltar ao replay" : "Explorar candles") : "Ver pregão anterior completo"}
+          </button>}
           {fitAllCandles ? (
             <span>{visible.length.toLocaleString("pt-BR")} candles · visão completa</span>
           ) : (
             <>
               <div className="chart-candle-zoom" role="group" aria-label="Quantidade de candles visíveis">
                 <button type="button" className="chart-candle-step" aria-label="Mostrar mais candles" title="Mostrar mais candles"
-                  disabled={visibleBars >= MAX_VISIBLE_BARS}
-                  onClick={() => { setVisibleBars((value) => Math.min(MAX_VISIBLE_BARS, value + 12)); setCrosshair(null); }}>−</button>
+                  disabled={visibleBars >= maxVisibleBars}
+                  onClick={() => { setVisibleBars((value) => Math.min(maxVisibleBars, value + 12)); setCrosshair(null); }}>−</button>
                 <span>{visibleBars} candles</span>
                 <button type="button" className="chart-candle-step" aria-label="Mostrar menos candles" title="Mostrar menos candles"
                   disabled={visibleBars <= MIN_VISIBLE_BARS}
@@ -649,6 +661,8 @@ export function CandleChart({
           return <line key={"session-change-" + candle.index} x1={x} x2={x} y1={PLOT_TOP} y2={VOLUME_BOTTOM} className="session-divider" />;
         })}
 
+        {hasVisibleContext && targetStartIndex < 0 &&
+          <text x={PLOT_LEFT + 6} y={PLOT_TOP - 12} className="session-label">PREGÃO ANTERIOR</text>}
         {hasVisibleContext && targetStartIndex > 0 && <>
           <line x1={xForIndex(targetStartIndex) - xStep / 2} x2={xForIndex(targetStartIndex) - xStep / 2}
             y1={PLOT_TOP} y2={VOLUME_BOTTOM} className="session-divider" />
@@ -716,9 +730,9 @@ export function CandleChart({
           : `Ponto inicial: ${formatPrice(rulerStart.price, asset)} · selecione o segundo ponto`}
       </p>}
       {contextCandles.length > 0 && <p className="chart-context-note">
-        {candles.length === 0
-          ? "Contexto do pregão anterior: os últimos candles disponíveis e seu fechamento permanecem visíveis antes do primeiro negócio do treino."
-          : "Os candles anteriores são apenas contexto visual; o replay continua revelando somente os negócios do pregão selecionado."}
+        {previousView
+          ? `Pregão anterior · ${formatDate(context[0].timestamp)} · ${formatTime(context[0].timestamp)} a ${formatTime(context[context.length - 1].timestamp)}. Todos os candles disponíveis no arquivo.`
+          : "Arraste o gráfico para consultar o pregão anterior. O replay revela o pregão do treino à medida que avança."}
       </p>}
     </div>
   );

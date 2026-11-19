@@ -1,3 +1,4 @@
+import { summarizeExecutionResults } from "./executionResults";
 import { describe, expect, it } from 'vitest';
 import type { Position, TradeIntent, ReplayTrade } from '../types';
 import { openPosition, resolveOcoTrade, resolveOco, closePositionManually, closePositionAtMarket } from './trading';
@@ -74,4 +75,14 @@ describe('disciplina integrada ao motor OCO existente',()=>{
  it('legado mantém execução, sem atribuir disciplina retroativamente',()=>{
   const p=openPosition(intent,start), t=resolveOcoTrade(p,quote(97))!;expect(t.exitPrice).toBe(97);expect(t.discipline).toBeUndefined();expect(disciplineStats([t]).total).toBe(0);
  });
+});
+
+it('resume o processo inclusive para perda disciplinada e ganho após stop ignorado', () => {
+  const automatic = resolveOcoTrade(setup(1), quote(98))!;
+  const manual = closePositionManually(touched(), 97, start, { now: () => 2200 });
+  const missed = resolveOcoTrade(touched(3), quote(110))!;
+  const untouched = closePositionManually(setup(), 102, start);
+  const legacy = resolveOcoTrade(openPosition(intent, start), quote(98))!;
+  expect(summarizeExecutionResults([automatic, manual, missed, untouched, legacy]))
+    .toEqual({ measured: 4, disciplined: 3, touched: 2, onTime: 1 });
 });
